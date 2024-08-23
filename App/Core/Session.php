@@ -10,7 +10,7 @@ use App\Helpers\Validator;
 /**
  * Class Session
  *
- * Handles session management, including security measures, session data encryption, 
+ * Handles session management, including security measures, session data encryption,
  * and validation to protect against session hijacking and fixation attacks.
  *
  * @package App\Core

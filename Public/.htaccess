@@ -1,0 +1,35 @@
+# Use PHP 7.4
+AddHandler application/x-httpd-php74 .php
+
+# Enable URL rewriting
+RewriteEngine On
+
+# Redirect all requests to the index.php file
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Frame-Options "DENY"
+</IfModule>
+
+# Deny access to .htaccess file
+<Files .htaccess>
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Deny access to .env file
+<Files .env>
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Deny access to composer files
+<FilesMatch "^composer\.(json|lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

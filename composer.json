@@ -26,5 +26,50 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true
-    }
+    },
+    "extra": {
+        "developer": {
+            "name": "Joakim Langeler",
+            "github": "https://github.com/langeler"
+        },
+        "project": {
+            "github": "https://github.com/langeler/LangelerMVC",
+            "description": "A PHP 7.4 / 8+ MVC Project. Focusing on structure, adhering to the Single Responsibility Principle, Separation of Concerns, and Object-Oriented Programming (OOP).",
+            "status": "Development ongoing",
+            "topics": [
+                "php",
+                "development",
+                "sql",
+                "mvc",
+                "pdo",
+                "php7",
+                "custom",
+                "oop",
+                "srp",
+                "soc",
+                "php8"
+            ],
+            "support": {
+                "issues": "https://github.com/langeler/LangelerMVC/issues",
+                "source": "https://github.com/langeler/LangelerMVC",
+                "docs": "https://github.com/langeler/LangelerMVC/wiki"
+            },
+            "funding": {
+                "type": "github",
+                "url": "https://github.com/sponsors/langeler"
+            },
+            "license": "MIT"
+        }
+    },
+    "support": {
+        "issues": "https://github.com/langeler/LangelerMVC/issues",
+        "source": "https://github.com/langeler/LangelerMVC",
+        "docs": "https://github.com/langeler/LangelerMVC/wiki"
+    },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/langeler"
+        }
+    ]
 }

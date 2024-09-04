@@ -1,35 +1,61 @@
-# Use PHP 7.4
+# Specify PHP Version
+# Set PHP 7.4 as the version to handle .php files
 AddHandler application/x-httpd-php74 .php
 
-# Enable URL rewriting
+# URL Rewriting and Redirection
+# Enable Apache's Rewrite Engine to support URL rewriting
 RewriteEngine On
 
-# Redirect all requests to the index.php file
+# Redirect all non-existent file and directory requests to index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L]
 
-# Security headers
+# Explanation:
+# - RewriteCond %{REQUEST_FILENAME} !-f: If the requested file does not exist.
+# - RewriteCond %{REQUEST_FILENAME} !-d: If the requested directory does not exist.
+# - RewriteRule ^ index.php: Redirect everything to index.php.
+# - [QSA]: Query string append; ensures the query string in the original request is added to the new URL.
+# - [L]: Last rule, meaning no further rewrite rules will be applied.
+
+# Security Headers
 <IfModule mod_headers.c>
+    # Prevent MIME type sniffing to mitigate certain attacks
     Header always set X-Content-Type-Options "nosniff"
+
+    # Enable XSS protection
     Header always set X-XSS-Protection "1; mode=block"
+
+    # Prevent clickjacking attacks by denying the page to be loaded in an iframe
     Header always set X-Frame-Options "DENY"
 </IfModule>
 
-# Deny access to .htaccess file
+# Security headers explained:
+# - X-Content-Type-Options: Tells browsers to follow the MIME types set by the server, avoiding content-type sniffing.
+# - X-XSS-Protection: Instructs the browser to enable built-in XSS protection.
+# - X-Frame-Options: Protects the site from being embedded in an iframe, preventing clickjacking attacks.
+
+# Deny Access to Sensitive Files
+
+# Block external access to the .htaccess file itself
 <Files .htaccess>
     Order Allow,Deny
     Deny from all
 </Files>
 
-# Deny access to .env file
+# Deny access to the .env file (commonly used for environment variables)
 <Files .env>
     Order Allow,Deny
     Deny from all
 </Files>
 
-# Deny access to composer files
+# Deny access to composer files (composer.json and composer.lock)
 <FilesMatch "^composer\.(json|lock)$">
     Order allow,deny
     Deny from all
 </FilesMatch>
+
+# File access restriction explained:
+# - <Files .htaccess>: Blocks access to the .htaccess file itself for added security.
+# - <Files .env>: Denies access to the .env file, which typically contains sensitive environment variables.
+# - <FilesMatch "^composer\.(json|lock)$">: Matches and blocks access to the composer.json and composer.lock files to prevent exposing dependency information.

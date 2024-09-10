@@ -5,98 +5,168 @@ namespace App\Helpers;
 /**
  * Class LoopHelper
  *
- * Provides utility methods for various looping structures in PHP, ensuring clarity, usability, and versatility.
+ * Provides access to common PHP loop structures using properties directly.
+ * Properties are overridden if optional values are passed to the methods.
  */
 class LoopHelper
 {
+	// Predefined values for loop variables
+	public int $start;
+	public int $end;
+	public int $step;
+	public string $result;  // The result string passed like start, end, and step
+
 	/**
-	 * Iterate over an array using a callback for each element.
+	 * LoopHelper constructor to initialize start, end, step, and result.
 	 *
-	 * @param array $array The array to iterate over.
-	 * @param callable $callback The callback function to apply on each element.
+	 * @param int $start The starting value for loops.
+	 * @param int $end The ending value for loops.
+	 * @param int $step The step value for loops.
+	 * @param string $result The initial result value.
 	 */
-	public function iterate(array $array, callable $callback): void
+	public function __construct(int $start, int $end, int $step, string $result)
+	{
+		$this->start = $start;
+		$this->end = $end;
+		$this->step = $step;
+		$this->result = $result;
+	}
+
+	/**
+	 * Iterate over an array and return each key-value pair as a string.
+	 *
+	 * @param array|null $array Optional array to iterate over, defaults to an empty array.
+	 * @return string The formatted result of the loop.
+	 */
+	public function each(?array $array = []): string
 	{
 		foreach ($array as $key => $value) {
-			$callback($value, $key);
+			$this->result .= "$key => $value\n";
 		}
+
+		return $this->result;
 	}
 
 	/**
-	 * Execute a while loop with a callable condition.
+	 * Execute a for loop, optionally overriding start and end properties.
 	 *
-	 * @param callable $condition The condition to evaluate on each iteration.
-	 * @param callable $callback The callback function to execute while the condition is true.
+	 * @param int|null $start Optional start value, defaults to the class's start property.
+	 * @param int|null $end Optional end value, defaults to the class's end property.
+	 * @return string The formatted result of the loop.
 	 */
-	public function whileLoop(callable $condition, callable $callback): void
+	public function count(?int $start = null, ?int $end = null): string
 	{
-		while ($condition()) {
-			$callback();
+		// Override class properties if values are passed
+		$this->start = $start ?? $this->start;
+		$this->end = $end ?? $this->end;
+
+		for ($i = $this->start; $i < $this->end; $i++) {
+			$this->result .= "Iteration: $i\n";
 		}
+
+		return $this->result;
 	}
 
 	/**
-	 * Execute a do-while loop with a callable condition.
+	 * Execute a while loop, optionally overriding start and end properties.
 	 *
-	 * @param callable $condition The condition to evaluate after each iteration.
-	 * @param callable $callback The callback function to execute at least once and while the condition is true.
+	 * @param int|null $start Optional start value, defaults to the class's start property.
+	 * @param int|null $end Optional end value, defaults to the class's end property.
+	 * @return string The formatted result of the loop.
 	 */
-	public function doWhileLoop(callable $condition, callable $callback): void
+	public function until(?int $start = null, ?int $end = null): string
 	{
+		// Override class properties if values are passed
+		$this->start = $start ?? $this->start;
+		$this->end = $end ?? $this->end;
+
+		$i = $this->start;
+		while ($i < $this->end) {
+			$this->result .= "Iteration: $i\n";
+			$i++;
+		}
+
+		return $this->result;
+	}
+
+	/**
+	 * Execute a do-while loop, optionally overriding start and end properties.
+	 *
+	 * @param int|null $start Optional start value, defaults to the class's start property.
+	 * @param int|null $end Optional end value, defaults to the class's end property.
+	 * @return string The formatted result of the loop.
+	 */
+	public function atLeastOnce(?int $start = null, ?int $end = null): string
+	{
+		// Override class properties if values are passed
+		$this->start = $start ?? $this->start;
+		$this->end = $end ?? $this->end;
+
+		$i = $this->start;
 		do {
-			$callback();
-		} while ($condition());
+			$this->result .= "Iteration: $i\n";
+			$i++;
+		} while ($i < $this->end);
+
+		return $this->result;
 	}
 
 	/**
-	 * Execute a for loop with a start and end condition.
+	 * Repeat a loop a specified number of times, allowing an optional override.
 	 *
-	 * @param int $start The starting index for the loop.
-	 * @param int $end The end condition for the loop.
-	 * @param callable $callback The callback function to execute for each iteration.
+	 * @param int|null $times The number of times to repeat, defaults to 10.
+	 * @return string The formatted result of the loop.
 	 */
-	public function forLoop(int $start, int $end, callable $callback): void
+	public function repeat(?int $times = null): string
 	{
-		for ($i = $start; $i < $end; $i++) {
-			$callback($i);
-		}
-	}
+		$times = $times ?? 10;
 
-	/**
-	 * Iterate over a range of numbers with a callback.
-	 *
-	 * @param int $start The starting number of the range.
-	 * @param int $end The ending number of the range.
-	 * @param callable $callback The callback function to apply on each number in the range.
-	 */
-	public function rangeLoop(int $start, int $end, callable $callback): void
-	{
-		foreach (range($start, $end) as $value) {
-			$callback($value);
-		}
-	}
-
-	/**
-	 * Repeat a loop a specified number of times.
-	 *
-	 * @param int $times The number of times to repeat the loop.
-	 * @param callable $callback The callback function to execute on each iteration.
-	 */
-	public function repeat(int $times, callable $callback): void
-	{
 		for ($i = 0; $i < $times; $i++) {
-			$callback($i);
+			$this->result .= "Iteration: $i\n";
 		}
+
+		return $this->result;
 	}
 
 	/**
-	 * Recursively iterate over an array with a callback.
+	 * Execute a range-based loop, optionally overriding start and end properties.
 	 *
-	 * @param array $array The array to recursively iterate over.
-	 * @param callable $callback The callback function to apply on each element in the array.
+	 * @param int|null $start Optional start value, defaults to the class's start property.
+	 * @param int|null $end Optional end value, defaults to the class's end property.
+	 * @return string The formatted result of the loop.
 	 */
-	public function recursiveIterate(array $array, callable $callback): void
+	public function through(?int $start = null, ?int $end = null): string
 	{
-		array_walk_recursive($array, $callback);
+		// Override class properties if values are passed
+		$this->start = $start ?? $this->start;
+		$this->end = $end ?? $this->end;
+
+		foreach (range($this->start, $this->end) as $number) {
+			$this->result .= "Iteration: $number\n";
+		}
+
+		return $this->result;
+	}
+
+	/**
+	 * Execute a range loop with a custom step, optionally overriding start, end, and step properties.
+	 *
+	 * @param int|null $start Optional start value, defaults to the class's start property.
+	 * @param int|null $end Optional end value, defaults to the class's end property.
+	 * @param int|null $step Optional step value, defaults to the class's step property.
+	 * @return string The formatted result of the loop.
+	 */
+	public function stepRange(?int $start = null, ?int $end = null, ?int $step = null): string
+	{
+		// Override class properties if values are passed
+		$this->start = $start ?? $this->start;
+		$this->end = $end ?? $this->end;
+		$this->step = $step ?? $this->step;
+
+		for ($i = $this->start; $i < $this->end; $i += $this->step) {
+			$this->result .= "Iteration: $i\n";
+		}
+
+		return $this->result;
 	}
 }

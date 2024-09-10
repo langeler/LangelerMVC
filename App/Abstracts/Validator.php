@@ -1,193 +1,120 @@
 <?php
 
-namespace App\Abstracts;
+namespace App\Utilities\Validation;
 
-use App\Contracts\ValidatorInterface;
-use App\Helpers\Traits\TypeCheckTrait;
-use App\Helpers\Traits\ExistenceCheckTrait;
-use App\Helpers\Traits\ArrayUtilsTrait;
-use App\Helpers\Traits\LoopUtilsTrait;
 use App\Exceptions\ValidationException;
+use App\Utilities\Managers\ReflectionManager;
+use App\Helpers\ArrayHelper;
+use App\Helpers\ExistenceChecker;
+use ReflectionMethod;
 
 /**
- * Abstract class Validator
+ * Class AbstractValidator
  *
- * Provides the foundation for validating data with support for applying rules.
+ * Abstract class for implementing validation logic using reflection.
  */
 abstract class Validator implements ValidatorInterface
 {
-    use TypeCheckTrait, ExistenceCheckTrait, ArrayUtilsTrait, LoopUtilsTrait;
+    protected array $data;
+    protected ReflectionManager $reflectionManager;
+    protected ArrayHelper $arrayHelper;
+    protected ExistenceChecker $existenceChecker;
 
     /**
-     * @var array $context Contextual data used during the validation process.
-     */
-    protected array $context = [
-        'methodPrefix' => 'validate',   // Prefix for validation methods
-        'rulePrefix'   => 'rule',       // Suffix for rule methods
-        'method'       => '',           // Current validation method
-        'rule'         => '',           // Current rule method
-        'data'         => [             // Data to be validated
-            'fields' => [],             // Fields of the data
-            'values' => [],             // Values associated with the fields
-            'types'  => [],             // Types of the fields
-            'rules'  => [],             // Rules applied to the fields
-        ],
-        'current'      => [             // Current field being processed
-            'field' => '',              // Field name
-            'value' => null,            // Field value
-            'type'  => '',              // Field type
-        ],
-        'result'       => [],           // Validation results
-        'errors'       => [],           // Errors encountered during validation
-    ];
-
-    /**
-     * Abstract method to be implemented by the extending class for validation.
+     * AbstractValidator constructor.
      *
-     * @param mixed $data The data to be validated.
-     * @return array The validation result.
+     * @param array $data Data to validate.
      */
-    abstract protected function validate(mixed $data): array;
-
-    /**
-     * Main processing function to execute validation.
-     *
-     * @param mixed $data The data to be validated.
-     * @return array The validation result.
-     */
-    protected function run(mixed $data): array
+    public function __construct(array $data)
     {
+        $this->data = $data;
+        $this->reflectionManager = new ReflectionManager();
+        $this->arrayHelper = new ArrayHelper();
+        $this->existenceChecker = new ExistenceChecker();
+
         try {
-            $this->prepare($data);
-            $this->validateAll();
+            $this->handle();
         } catch (ValidationException $e) {
-            $this->context['errors'][] = $e->getMessage();
-        }
-
-        return $this->context['result'];
-    }
-
-    /**
-     * Prepare and organize the data before validation.
-     *
-     * @param mixed $data The data to be prepared.
-     * @return void
-     */
-    protected function prepare(mixed $data): void
-    {
-        if ($this->isArray($data)) {
-            $this->context['data']['fields'] = $this->getKeys($data);
-            $this->context['data']['values'] = $this->extractColumn($data, 'value');
-            $this->context['data']['types']  = $this->extractColumn($data, 'type');
-            $this->context['data']['rules']  = $this->extractColumn($data, 'rules', []);
-        } elseif ($this->isString($data)) {
-            $this->context['data']['fields'] = ['default'];
-            $this->context['data']['values'] = [$data];
-            $this->context['data']['types']  = ['string'];
-            $this->context['data']['rules']  = [[]];
-        } elseif ($this->isInt($data)) {
-            $this->context['data']['fields'] = ['default'];
-            $this->context['data']['values'] = [$data];
-            $this->context['data']['types']  = ['int'];
-            $this->context['data']['rules']  = [[]];
+            // Handle validation exception (you can log, rethrow, or perform other actions)
+            throw $e;
         }
     }
 
     /**
-     * Iterate through all fields and apply validation.
+     * Handle validation by invoking methods starting with "validate" or ending with "check".
      *
-     * @return void
+     * @throws ValidationException
      */
-    protected function validateAll(): void
+    public function handle(): void
     {
-        $this->iterate($this->context['data']['fields'], function ($field) {
-            $this->context['current']['field'] = $field;
-            $this->context['current']['value'] = $this->context['data']['values'][$field];
-            $this->context['current']['type']  = $this->context['data']['types'][$field];
+        $reflectionClass = $this->reflectionManager->getClassInfo($this);
 
-            $this->validateField();
+        // Get validation methods and rule checks
+        $validationMethods = $this->getPrefixedMethods($reflectionClass, 'validate');
+        $checkMethods = $this->getSuffixedMethods($reflectionClass, 'check');
+
+        // Apply validation methods
+        foreach ($validationMethods as $method) {
+            $this->invokeMethodIfExists($method);
+        }
+
+        // Apply rule-check methods
+        foreach ($checkMethods as $method) {
+            $this->invokeMethodIfExists($method);
+        }
+    }
+
+    /**
+     * Get methods that start with a specific prefix (e.g., "validate").
+     *
+     * @param object $reflectionClass ReflectionClass instance of the current class.
+     * @param string $prefix Prefix to search for.
+     * @return array Filtered methods.
+     */
+    private function getPrefixedMethods($reflectionClass, string $prefix): array
+    {
+        $methods = $this->reflectionManager->getClassMethods($reflectionClass);
+        return $this->arrayHelper->filter($methods, function ($method) use ($prefix) {
+            return strpos($method->getName(), $prefix) === 0;
         });
     }
 
     /**
-     * Validate a single field and apply any associated rules.
+     * Get methods that end with a specific suffix (e.g., "check").
      *
-     * @return void
+     * @param object $reflectionClass ReflectionClass instance of the current class.
+     * @param string $suffix Suffix to search for.
+     * @return array Filtered methods.
      */
-    protected function validateField(): void
+    private function getSuffixedMethods($reflectionClass, string $suffix): array
     {
-        try {
-            if (!$this->callValidateMethod()) {
-                $this->context['result'][$this->context['current']['field']] = false;
-                return;
-            }
-
-            if ($this->rulesExist()) {
-                $this->applyRules();
-            }
-
-            $this->context['result'][$this->context['current']['field']] = true;
-        } catch (ValidationException $e) {
-            $this->context['errors'][] = $e->getMessage();
-            $this->context['result'][$this->context['current']['field']] = false;
-        }
-    }
-
-    /**
-     * Dynamically call the appropriate validation method based on the type.
-     *
-     * @return bool True if validation is successful, false otherwise.
-     * @throws ValidationException if the method does not exist.
-     */
-    protected function callValidateMethod(): bool
-    {
-        $this->context['method'] = $this->context['methodPrefix'] . ucfirst($this->context['current']['type']);
-
-        if ($this->methodExists($this, $this->context['method'])) {
-            return $this->{$this->context['method']}($this->context['current']['value']);
-        }
-
-        throw new ValidationException("Validation method '{$this->context['method']}' not found.");
-    }
-
-    /**
-     * Apply the relevant rules to the validated value.
-     *
-     * @return void
-     * @throws ValidationException if the rule method does not exist.
-     */
-    protected function applyRules(): void
-    {
-        $this->iterate($this->context['data']['rules'][$this->context['current']['field']], function ($rule, $ruleValue) {
-            $this->context['rule'] =  $this->context['rulePrefix'] . ucfirst($rule);
-
-            if ($this->methodExists($this, $this->context['rule'])) {
-                if (!$this->{$this->context['rule']}($this->context['current']['value'], $ruleValue)) {
-                    throw new ValidationException("Rule '{$this->context['rule']}' failed for field '{$this->context['current']['field']}'.");
-                }
-            } else {
-                throw new ValidationException("Rule method '{$this->context['rule']}' not found.");
-            }
+        $methods = $this->reflectionManager->getClassMethods($reflectionClass);
+        return $this->arrayHelper->filter($methods, function ($method) use ($suffix) {
+            return substr($method->getName(), -strlen($suffix)) === $suffix;
         });
     }
 
     /**
-     * Check if rules are defined for the current field.
+     * Invoke the method if it exists on the current class.
      *
-     * @return bool True if rules exist, false otherwise.
+     * @param ReflectionMethod $method Reflection method to invoke.
+     * @throws ValidationException If method invocation fails.
      */
-    protected function rulesExist(): bool
+    private function invokeMethodIfExists(ReflectionMethod $method): void
     {
-        return $this->isArray($this->context['data']['rules'][$this->context['current']['field']]);
+        if ($this->existenceChecker->methodExists($this, $method->getName())) {
+            try {
+                $this->reflectionManager->invokeMethod($method, $this, $this->data);
+            } catch (\Exception $e) {
+                throw new ValidationException("Validation method {$method->getName()} failed: " . $e->getMessage());
+            }
+        }
     }
 
     /**
-     * Retrieve any errors encountered during the validation process.
+     * Abstract validate method to be implemented by subclasses.
      *
-     * @return array The array of error messages.
+     * @return void
      */
-    protected function getErrors(): array
-    {
-        return $this->context['errors'];
-    }
+    abstract protected function validate(): void;
 }

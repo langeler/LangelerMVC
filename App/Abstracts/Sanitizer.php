@@ -1,188 +1,99 @@
 <?php
 
-namespace App\Abstracts;
+namespace App\Utilities\Sanitation;
 
-use App\Contracts\SanitizerInterface;
-use App\Helpers\Traits\TypeCheckTrait;
-use App\Helpers\Traits\ExistenceCheckTrait;
-use App\Helpers\Traits\ArrayUtilsTrait;
-use App\Helpers\Traits\LoopUtilsTrait;
 use App\Exceptions\SanitizationException;
+use App\Utilities\Managers\ReflectionManager;
+use App\Helpers\ArrayHelper;
+use App\Helpers\ExistenceChecker;
+use ReflectionMethod;
 
 /**
- * Abstract class Sanitizer
+ * Class AbstractSanitizer
  *
- * Provides the foundation for sanitizing data with support for applying rules.
+ * Abstract class for implementing sanitization logic using reflection.
  */
 abstract class Sanitizer implements SanitizerInterface
 {
-    use TypeCheckTrait, ExistenceCheckTrait, ArrayUtilsTrait, LoopUtilsTrait;
+    protected array $data;
+    protected ReflectionManager $reflectionManager;
+    protected ArrayHelper $arrayHelper;
+    protected ExistenceChecker $existenceChecker;
 
     /**
-     * @var array $context Contextual data used during the sanitization process.
-     */
-    protected array $context = [
-        'methodPrefix' => 'sanitize',   // Prefix for sanitization methods
-        'rulePrefix'   => 'rule',       // Suffix for rule methods
-        'method'       => '',           // Current sanitization method
-        'rule'         => '',           // Current rule method
-        'data'         => [             // Data to be sanitized
-            'fields' => [],             // Fields of the data
-            'values' => [],             // Values associated with the fields
-            'types'  => [],             // Types of the fields
-            'rules'  => [],             // Rules applied to the fields
-        ],
-        'current'      => [             // Current field being processed
-            'field' => '',              // Field name
-            'value' => null,            // Field value
-            'type'  => '',              // Field type
-        ],
-        'result'       => [],           // Sanitization results
-        'errors'       => [],           // Errors encountered during sanitization
-    ];
-
-    /**
-     * Abstract method to be implemented by the extending class for sanitization.
+     * AbstractSanitizer constructor.
      *
-     * @param mixed $data The data to be sanitized.
-     * @return array The sanitized result.
+     * @param array $data Data to sanitize.
      */
-    abstract protected function sanitize(mixed $data): array;
-
-    /**
-     * Main processing function to execute sanitization.
-     *
-     * @param mixed $data The data to be sanitized.
-     * @return array The sanitized result.
-     */
-    protected function run(mixed $data): array
+    public function __construct(array $data)
     {
+        $this->data = $data;
+        $this->reflectionManager = new ReflectionManager();
+        $this->arrayHelper = new ArrayHelper();
+        $this->existenceChecker = new ExistenceChecker();
+
         try {
-            $this->prepare($data);
-            $this->sanitizeAll();
+            $this->handle();
         } catch (SanitizationException $e) {
-            $this->context['errors'][] = $e->getMessage();
-        }
-
-        return $this->context['result'];
-    }
-
-    /**
-     * Prepare and organize the data before sanitization.
-     *
-     * @param mixed $data The data to be prepared.
-     * @return void
-     */
-    protected function prepare(mixed $data): void
-    {
-        if ($this->isArray($data)) {
-            $this->context['data']['fields'] = $this->getKeys($data);
-            $this->context['data']['values'] = $this->extractColumn($data, 'value');
-            $this->context['data']['types']  = $this->extractColumn($data, 'type');
-            $this->context['data']['rules']  = $this->extractColumn($data, 'rules', []);
-        } elseif ($this->isString($data)) {
-            $this->context['data']['fields'] = ['default'];
-            $this->context['data']['values'] = [$data];
-            $this->context['data']['types']  = ['string'];
-            $this->context['data']['rules']  = [[]];
-        } elseif ($this->isInt($data)) {
-            $this->context['data']['fields'] = ['default'];
-            $this->context['data']['values'] = [$data];
-            $this->context['data']['types']  = ['int'];
-            $this->context['data']['rules']  = [[]];
+            // Handle sanitization exception
+            throw $e;
         }
     }
 
     /**
-     * Iterate through all fields and apply sanitization.
+     * Handle sanitization by invoking methods starting with "sanitize".
      *
-     * @return void
+     * @throws SanitizationException
      */
-    protected function sanitizeAll(): void
+    public function handle(): void
     {
-        $this->iterate($this->context['data']['fields'], function ($field) {
-            $this->context['current']['field'] = $field;
-            $this->context['current']['value'] = $this->context['data']['values'][$field];
-            $this->context['current']['type']  = $this->context['data']['types'][$field];
+        $reflectionClass = $this->reflectionManager->getClassInfo($this);
 
-            $this->sanitizeField();
+        // Get sanitization methods
+        $sanitizationMethods = $this->getPrefixedMethods($reflectionClass, 'sanitize');
+
+        // Apply sanitization methods
+        foreach ($sanitizationMethods as $method) {
+            $this->invokeMethodIfExists($method);
+        }
+    }
+
+    /**
+     * Get methods that start with a specific prefix (e.g., "sanitize").
+     *
+     * @param object $reflectionClass ReflectionClass instance of the current class.
+     * @param string $prefix Prefix to search for.
+     * @return array Filtered methods.
+     */
+    private function getPrefixedMethods($reflectionClass, string $prefix): array
+    {
+        $methods = $this->reflectionManager->getClassMethods($reflectionClass);
+        return $this->arrayHelper->filter($methods, function ($method) use ($prefix) {
+            return strpos($method->getName(), $prefix) === 0;
         });
     }
 
     /**
-     * Sanitize a single field and apply any associated rules.
+     * Invoke the method if it exists on the current class.
      *
-     * @return void
+     * @param ReflectionMethod $method Reflection method to invoke.
+     * @throws SanitizationException If method invocation fails.
      */
-    protected function sanitizeField(): void
+    private function invokeMethodIfExists(ReflectionMethod $method): void
     {
-        try {
-            $this->context['current']['value'] = $this->callSanitizeMethod();
-
-            if ($this->rulesExist()) {
-                $this->applyRules();
+        if ($this->existenceChecker->methodExists($this, $method->getName())) {
+            try {
+                $this->reflectionManager->invokeMethod($method, $this, $this->data);
+            } catch (\Exception $e) {
+                throw new SanitizationException("Sanitization method {$method->getName()} failed: " . $e->getMessage());
             }
-
-            $this->context['result'][$this->context['current']['field']] = $this->context['current']['value'];
-        } catch (SanitizationException $e) {
-            $this->context['errors'][] = $e->getMessage();
-            $this->context['result'][$this->context['current']['field']] = $this->context['current']['value'];
         }
     }
 
     /**
-     * Dynamically call the appropriate sanitization method based on the type.
-     *
-     * @return mixed The sanitized value.
-     * @throws SanitizationException if the method does not exist.
-     */
-    protected function callSanitizeMethod()
-    {
-        $this->context['method'] = $this->context['methodPrefix'] . ucfirst($this->context['current']['type']);
-
-        if ($this->methodExists($this, $this->context['method'])) {
-            return $this->{$this->context['method']}($this->context['current']['value']);
-        }
-
-        throw new SanitizationException("Sanitization method '{$this->context['method']}' not found.");
-    }
-
-    /**
-     * Apply the relevant rules to the sanitized value.
+     * Abstract sanitize method to be implemented by subclasses.
      *
      * @return void
-     * @throws SanitizationException if the rule method does not exist.
      */
-    protected function applyRules(): void
-    {
-        $this->iterate($this->context['data']['rules'][$this->context['current']['field']], function ($rule, $ruleValue) {
-            $this->context['rule'] = $this->context['rulePrefix'] . ucfirst($rule);
-
-            if ($this->methodExists($this, $this->context['rule'])) {
-                $this->context['current']['value'] = $this->{$this->context['rule']}($this->context['current']['value'], $ruleValue);
-            } else {
-                throw new SanitizationException("Rule method '{$this->context['rule']}' not found.");
-            }
-        });
-    }
-
-    /**
-     * Check if rules are defined for the current field.
-     *
-     * @return bool True if rules exist, false otherwise.
-     */
-    protected function rulesExist(): bool
-    {
-        return $this->isArray($this->context['data']['rules'][$this->context['current']['field']]);
-    }
-
-    /**
-     * Retrieve any errors encountered during the sanitization process.
-     *
-     * @return array The array of error messages.
-     */
-    protected function getErrors(): array
-    {
-        return $this->context['errors'];
-    }
+    abstract protected function sanitize(): void;
 }

@@ -2,7 +2,7 @@
 
 namespace App\Utilities\Sanitation;
 
-use App\Abstracts\Sanitizer;
+use App\Abstracts\Data\Sanitizer;
 use App\Utilities\Traits\Filters\FiltrationTrait;
 use App\Utilities\Traits\Filters\FilterFlagTrait;
 use App\Utilities\Traits\Filters\SanitationFilterTrait;
@@ -22,7 +22,7 @@ class GeneralSanitizer extends Sanitizer
 	 * @param mixed $data The data to be sanitized.
 	 * @return array The sanitized data array.
 	 */
-	protected function sanitize(mixed $data): array
+	protected function clean(mixed $data): array
 	{
 		return $this->handle($data);
 	}

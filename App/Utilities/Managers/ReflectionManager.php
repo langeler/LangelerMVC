@@ -11,6 +11,8 @@ use ReflectionException;
 use ReflectionObject;
 use ReflectionFunctionAbstract;
 use ReflectionExtension;
+use ReflectionNamedType;
+use ReflectionUnionType;
 
 /**
  * Class ReflectionManager
@@ -278,11 +280,25 @@ class ReflectionManager
 	 * Get the type of a parameter.
 	 *
 	 * @param ReflectionParameter $reflectionParameter The ReflectionParameter instance.
-	 * @return \ReflectionType|null The type of the parameter.
+	 * @return ReflectionNamedType|null The type of the parameter, or null if not available.
 	 */
-	public function getParameterType(ReflectionParameter $reflectionParameter): ?\ReflectionType
+	public function getParameterType(ReflectionParameter $reflectionParameter): ?ReflectionNamedType
 	{
-		return $reflectionParameter->getType();
+		$type = $reflectionParameter->getType();
+
+		// Handle union types
+		if ($type instanceof ReflectionUnionType) {
+			// Use the first non-nullable type if available
+			foreach ($type->getTypes() as $subType) {
+				if (!$subType->allowsNull()) {
+					return $subType;
+				}
+			}
+		} elseif ($type instanceof ReflectionNamedType) {
+			return $type;
+		}
+
+		return null;
 	}
 
 	/**

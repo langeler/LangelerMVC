@@ -2,7 +2,7 @@
 
 namespace App\Utilities\Validation;
 
-use App\Abstracts\Validator;
+use App\Abstracts\Data\Validator;
 use App\Utilities\Traits\Filters\FiltrationTrait;
 use App\Utilities\Traits\Filters\FilterFlagTrait;
 use App\Utilities\Traits\Filters\ValidationFilterTrait;
@@ -22,7 +22,7 @@ class GeneralValidator extends Validator
 	 * @param mixed $data The data to be validated.
 	 * @return array The validated data array.
 	 */
-	protected function validate(mixed $data): array
+	protected function verify(mixed $data): array
 	{
 		return $this->handle($data);
 	}

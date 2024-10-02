@@ -19,12 +19,12 @@ class LoopHelper
 	/**
 	 * LoopHelper constructor to initialize start, end, step, and result.
 	 *
-	 * @param int $start The starting value for loops.
-	 * @param int $end The ending value for loops.
-	 * @param int $step The step value for loops.
-	 * @param string $result The initial result value.
+	 * @param int $start The starting value for loops. Default is 0.
+	 * @param int $end The ending value for loops. Default is 10.
+	 * @param int $step The step value for loops. Default is 1.
+	 * @param string $result The initial result value. Default is an empty string.
 	 */
-	public function __construct(int $start, int $end, int $step, string $result)
+	public function __construct(int $start = 0, int $end = 10, int $step = 1, string $result = '')
 	{
 		$this->start = $start;
 		$this->end = $end;

@@ -15,26 +15,54 @@ class CryptoHandler
 	 * Encrypt data using Sodium.
 	 *
 	 * @param string $plaintext The plaintext data.
-	 * @param string $nonce The nonce value.
 	 * @param string $key The encryption key.
-	 * @return string The encrypted data.
+	 * @return string The encrypted data, with the nonce prepended.
+	 * @throws \Exception If the key length is not valid.
 	 */
-	public function sodiumEncrypt(string $plaintext, string $nonce, string $key): string
+	public function sodiumEncrypt(string $plaintext, string $key): string
 	{
-		return sodium_crypto_secretbox($plaintext, $nonce, $key);
+		if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+			throw new \Exception("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
+		}
+
+		$nonce = $this->generateNonce();  // Generate a 24-byte nonce
+		return $nonce . sodium_crypto_secretbox($plaintext, $nonce, $key);  // Prepend nonce to the ciphertext
 	}
 
 	/**
 	 * Decrypt data using Sodium.
 	 *
-	 * @param string $ciphertext The encrypted data.
-	 * @param string $nonce The nonce value.
-	 * @param string $key The encryption key.
-	 * @return string|false The decrypted data or false on failure.
+	 * @param string $ciphertext The encrypted data (with the nonce prepended).
+	 * @param string $key The decryption key.
+	 * @return string The decrypted data.
+	 * @throws \SodiumException If the nonce or key is not valid.
 	 */
-	public function sodiumDecrypt(string $ciphertext, string $nonce, string $key)
+	public function sodiumDecrypt(string $ciphertext, string $key): string
 	{
-		return sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
+		if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+			throw new \SodiumException("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
+		}
+
+		$nonce = substr($ciphertext, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // Extract the nonce from the ciphertext
+		$ciphertext = substr($ciphertext, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // The actual ciphertext
+		$plaintext = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
+
+		if ($plaintext === false) {
+			throw new \SodiumException("Decryption failed. Invalid key or corrupted data.");
+		}
+
+		return $plaintext;
+	}
+
+	/**
+	 * Generate a nonce for Sodium encryption.
+	 *
+	 * @param int $length The length of the nonce (default is 24 bytes for sodium).
+	 * @return string The generated nonce.
+	 */
+	public function generateNonce(int $length = SODIUM_CRYPTO_SECRETBOX_NONCEBYTES): string
+	{
+		return random_bytes($length);  // Ensure the nonce is exactly 24 bytes
 	}
 
 	/**
@@ -149,7 +177,7 @@ class CryptoHandler
 	 */
 	public function sodiumRandomBytes(int $length): string
 	{
-		return sodium_randombytes_buf($length);
+		return random_bytes($length);  // Replaced with PHP's random_bytes()
 	}
 
 	/**

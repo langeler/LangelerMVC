@@ -9,6 +9,10 @@ namespace App\Helpers;
  */
 class ArrayHelper
 {
+	public function reduce(array $data, callable $callback, $initial)
+	{
+		return array_reduce($data, $callback, $initial);
+	}
 	/**
 	 * Chunk the given data into smaller arrays of a specified size.
 	 *

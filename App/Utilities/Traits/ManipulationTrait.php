@@ -9,6 +9,8 @@ namespace App\Utilities\Traits;
  */
 trait ManipulationTrait
 {
+	// String Splitting and Joining Operations
+
 	/**
 	 * Splits a string by a delimiter into an array.
 	 *
@@ -33,6 +35,8 @@ trait ManipulationTrait
 		return implode($glue, $pieces);
 	}
 
+	// Padding Operations
+
 	/**
 	 * Pads a string to a certain length with another string.
 	 *
@@ -46,6 +50,8 @@ trait ManipulationTrait
 	{
 		return str_pad($input, $length, $padStr, $padType);
 	}
+
+	// Search, Replace, and Find Operations
 
 	/**
 	 * Replaces all occurrences of the search string with the replacement string.
@@ -62,30 +68,6 @@ trait ManipulationTrait
 	}
 
 	/**
-	 * Repeats a string a specified number of times.
-	 *
-	 * @param string $input The string to repeat.
-	 * @param int $multiplier The number of times to repeat the string.
-	 * @return string The repeated string.
-	 */
-	public function repeat(string $input, int $multiplier): string
-	{
-		return str_repeat($input, $multiplier);
-	}
-
-	/**
-	 * Compares two strings case-insensitively.
-	 *
-	 * @param string $str1 The first string.
-	 * @param string $str2 The second string.
-	 * @return int Returns < 0 if str1 is less than str2, > 0 if str1 is greater than str2, and 0 if they are equal.
-	 */
-	public function compareIgnoreCase(string $str1, string $str2): int
-	{
-		return strcasecmp($str1, $str2);
-	}
-
-	/**
 	 * Finds the first occurrence of a substring in a string, case-insensitively.
 	 *
 	 * @param string $haystack The string to search in.
@@ -98,17 +80,6 @@ trait ManipulationTrait
 	}
 
 	/**
-	 * Gets the length of a string.
-	 *
-	 * @param string $string The input string.
-	 * @return int The length of the string.
-	 */
-	public function length(string $string): int
-	{
-		return strlen($string);
-	}
-
-	/**
 	 * Finds the first occurrence of a substring in a string.
 	 *
 	 * @param string $haystack The string to search in.
@@ -118,17 +89,6 @@ trait ManipulationTrait
 	public function findFirst(string $haystack, string $needle): int|false
 	{
 		return strpos($haystack, $needle);
-	}
-
-	/**
-	 * Reverses a string.
-	 *
-	 * @param string $string The string to reverse.
-	 * @return string The reversed string.
-	 */
-	public function reverse(string $string): string
-	{
-		return strrev($string);
 	}
 
 	/**
@@ -155,6 +115,60 @@ trait ManipulationTrait
 		return strstr($haystack, $needle);
 	}
 
+	// String Comparison
+
+	/**
+	 * Compares two strings case-insensitively.
+	 *
+	 * @param string $str1 The first string.
+	 * @param string $str2 The second string.
+	 * @return int Returns < 0 if str1 is less than str2, > 0 if str1 is greater than str2, and 0 if they are equal.
+	 */
+	public function compareIgnoreCase(string $str1, string $str2): int
+	{
+		return strcasecmp($str1, $str2);
+	}
+
+	// String Length, Substring, and Character Operations
+
+	/**
+	 * Gets the length of a string.
+	 *
+	 * @param string $string The input string.
+	 * @return int The length of the string.
+	 */
+	public function length(string $string): int
+	{
+		return strlen($string);
+	}
+
+	/**
+	 * Extracts a substring from a string.
+	 *
+	 * @param string $string The input string.
+	 * @param int $start The starting position.
+	 * @param int|null $length The length of the substring (optional).
+	 * @return string The extracted substring.
+	 */
+	public function substring(string $string, int $start, ?int $length = null): string
+	{
+		return substr($string, $start, $length);
+	}
+
+	/**
+	 * Splits a string into an array of characters.
+	 *
+	 * @param string $string The input string.
+	 * @param int $length The length of each segment (default is 1).
+	 * @return array The split string as an array.
+	 */
+	public function splitToArray(string $string, int $length = 1): array
+	{
+		return str_split($string, $length);
+	}
+
+	// String Case Operations
+
 	/**
 	 * Converts a string to lowercase.
 	 *
@@ -178,29 +192,17 @@ trait ManipulationTrait
 	}
 
 	/**
-	 * Splits a string into an array of characters.
+	 * Capitalizes the first letter of each word in a string.
 	 *
 	 * @param string $string The input string.
-	 * @param int $length The length of each segment (default is 1).
-	 * @return array The split string as an array.
+	 * @return string The capitalized string.
 	 */
-	public function splitToArray(string $string, int $length = 1): array
+	public function capitalizeWords(string $string): string
 	{
-		return str_split($string, $length);
+		return ucwords($string);
 	}
 
-	/**
-	 * Extracts a substring from a string.
-	 *
-	 * @param string $string The input string.
-	 * @param int $start The starting position.
-	 * @param int|null $length The length of the substring (optional).
-	 * @return string The extracted substring.
-	 */
-	public function substring(string $string, int $start, ?int $length = null): string
-	{
-		return substr($string, $start, $length);
-	}
+	// Additional String Manipulations
 
 	/**
 	 * Trims whitespace or specified characters from the beginning and end of a string.
@@ -215,13 +217,88 @@ trait ManipulationTrait
 	}
 
 	/**
-	 * Capitalizes the first letter of each word in a string.
+	 * Trims whitespace or specified characters from the beginning of a string.
 	 *
 	 * @param string $string The input string.
-	 * @return string The capitalized string.
+	 * @param string $characters The characters to trim (default is whitespace).
+	 * @return string The left-trimmed string.
 	 */
-	public function capitalizeWords(string $string): string
+	public function trimLeft(string $string, string $characters = " \t\n\r\0\x0B"): string
 	{
-		return ucwords($string);
+		return ltrim($string, $characters);
+	}
+
+	/**
+	 * Trims whitespace or specified characters from the end of a string.
+	 *
+	 * @param string $string The input string.
+	 * @param string $characters The characters to trim (default is whitespace).
+	 * @return string The right-trimmed string.
+	 */
+	public function trimRight(string $string, string $characters = " \t\n\r\0\x0B"): string
+	{
+		return rtrim($string, $characters);
+	}
+
+	// String Reversal and Repeating
+
+	/**
+	 * Reverses a string.
+	 *
+	 * @param string $string The string to reverse.
+	 * @return string The reversed string.
+	 */
+	public function reverse(string $string): string
+	{
+		return strrev($string);
+	}
+
+	/**
+	 * Repeats a string a specified number of times.
+	 *
+	 * @param string $input The string to repeat.
+	 * @param int $multiplier The number of times to repeat the string.
+	 * @return string The repeated string.
+	 */
+	public function repeat(string $input, int $multiplier): string
+	{
+		return str_repeat($input, $multiplier);
+	}
+
+	// String Shuffle
+
+	/**
+	 * Shuffles the characters in a string.
+	 *
+	 * @param string $string The string to shuffle.
+	 * @return string The shuffled string.
+	 */
+	public function shuffle(string $string): string
+	{
+		return str_shuffle($string);
+	}
+
+	// HTML Escaping
+
+	/**
+	 * Escapes HTML special characters in a string.
+	 *
+	 * @param string $string The input string.
+	 * @return string The escaped string.
+	 */
+	public function escapeHtml(string $string): string
+	{
+		return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
+	}
+
+	public function tokenizeString(string $input, string $delimiters): array
+	{
+		$tokens = [];
+		$token = strtok($input, $delimiters);
+		while ($token !== false) {
+			$tokens[] = $token;
+			$token = strtok($delimiters);
+		}
+		return $tokens;
 	}
 }

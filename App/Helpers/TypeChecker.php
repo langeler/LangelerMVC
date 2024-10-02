@@ -164,6 +164,17 @@ class TypeChecker
 	}
 
 	/**
+	 * Check if the given value is an integer or null.
+	 *
+	 * @param mixed $value The value to check.
+	 * @return bool True if the value is an integer or null, false otherwise.
+	 */
+	public function isIntegerOrNull($value): bool
+	{
+		return is_int($value) || is_null($value);
+	}
+
+	/**
 	 * Check if the given value is a string.
 	 *
 	 * @param mixed $value The value to check.
@@ -173,6 +184,7 @@ class TypeChecker
 	{
 		return is_string($value);
 	}
+
 
 	/**
 	 * Check if the given value is a symbolic link.

@@ -183,4 +183,25 @@ class DataStructureHandler
 	{
 		$storage->detach($object);
 	}
+
+	// Count Method
+
+	/**
+	 * Count the number of elements in the given data structure.
+	 *
+	 * @param \SplQueue|\SplStack|array $dataStructure The data structure to count.
+	 * @return int The number of elements.
+	 */
+	public function count($dataStructure): int
+	{
+		if (is_array($dataStructure)) {
+			return count($dataStructure);
+		}
+
+		if ($dataStructure instanceof \Countable) {
+			return $dataStructure->count();
+		}
+
+		throw new \InvalidArgumentException("Unsupported data structure for counting.");
+	}
 }

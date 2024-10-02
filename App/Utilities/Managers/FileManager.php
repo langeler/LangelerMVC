@@ -3,7 +3,6 @@
 namespace App\Utilities\Managers;
 
 use SplFileObject;
-use SplFileInfo;
 use Imagick;
 
 /**
@@ -43,22 +42,28 @@ class FileManager
 	 * Read a file into an array, where each element represents a line.
 	 *
 	 * @param string $filename The file to read.
-	 * @return array An array of file lines.
+	 * @return array|null An array of file lines or null if the path is not a file.
 	 */
-	public function readFile(string $filename): array
+	public function readFile(string $filename): ?array
 	{
-		return file($filename);
+		if (is_file($filename)) { // Ensure that the path is a file
+			return file($filename);
+		}
+		return null;
 	}
 
 	/**
 	 * Read the contents of a file into a string.
 	 *
 	 * @param string $filename The file to read.
-	 * @return string The file contents.
+	 * @return string|null The file contents or null if the file doesn't exist.
 	 */
-	public function readFileContents(string $filename): string
+	public function readFileContents(string $filename): ?string
 	{
-		return file_get_contents($filename);
+		if (is_file($filename)) { // Ensure that the path is a file
+			return file_get_contents($filename);
+		}
+		return null;
 	}
 
 	/**
@@ -83,7 +88,10 @@ class FileManager
 	 */
 	public function createDir(string $pathname, int $mode = 0777, bool $recursive = false): bool
 	{
-		return mkdir($pathname, $mode, $recursive);
+		if (!is_dir($pathname)) {  // Check if the directory already exists
+			return mkdir($pathname, $mode, $recursive);
+		}
+		return true;  // Directory already exists
 	}
 
 	/**
@@ -106,7 +114,21 @@ class FileManager
 	 */
 	public function deleteFile(string $filename): bool
 	{
+		if (!$this->fileExists($filename)) {
+			return false;
+		}
 		return unlink($filename);
+	}
+
+	/**
+	 * Check if a file exists.
+	 *
+	 * @param string $filename The file to check.
+	 * @return bool True if the file exists, false otherwise.
+	 */
+	public function fileExists(string $filename): bool
+	{
+		return file_exists($filename);
 	}
 
 	// SplFileObject Methods

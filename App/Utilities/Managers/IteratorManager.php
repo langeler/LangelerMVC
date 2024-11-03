@@ -2,431 +2,226 @@
 
 namespace App\Utilities\Managers;
 
-use ArrayIterator;
-use AppendIterator;
-use CallbackFilterIterator;
-use CachingIterator;
-use DirectoryIterator;
-use EmptyIterator;
-use FilesystemIterator;
-use FilterIterator;
-use GlobIterator;
-use InfiniteIterator;
-use IteratorIterator;
-use LimitIterator;
-use MultipleIterator;
-use NoRewindIterator;
-use ParentIterator;
-use RecursiveArrayIterator;
-use RecursiveCallbackFilterIterator;
-use RecursiveCachingIterator;
-use RecursiveDirectoryIterator;
-use RecursiveFilterIterator;
+use App\Exceptions\Iterator\IteratorException;
+use App\Exceptions\Iterator\IteratorNotFoundException;
+use Throwable;
+use SplFileInfo;
+use Iterator;
 use RecursiveIterator;
+use Traversable;
+use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use RecursiveRegexIterator;
-use RecursiveTreeIterator;
-use RegexIterator;
-use SeekableIterator;
+use App\Utilities\Traits\Iterator\IteratorTrait;
+use App\Utilities\Traits\Iterator\RecursiveIteratorTrait;
 
-/**
- * Class IteratorManager
- *
- * A utility class for creating, managing, and configuring various PHP SPL iterators.
- * Provides methods for non-recursive and recursive iterators, and advanced filtering via regex and callbacks.
- */
 class IteratorManager
 {
-	/**
-	 * Mapping of human-readable mode keys to RegexIterator constants.
-	 * This allows users to easily set RegexIterator modes with intuitive keys (e.g., 'match', 'replace').
-	 *
-	 * @var array
-	 */
-	protected $regexModes = [
-		'modes' => [
-			'match' => RegexIterator::MATCH,
-			'getMatch' => RegexIterator::GET_MATCH,
-			'allMatches' => RegexIterator::ALL_MATCHES,
-			'split' => RegexIterator::SPLIT,
-			'replace' => RegexIterator::REPLACE
-		]
-	];
+    use IteratorTrait {
+        IteratorTrait::__construct as iteratorTraitConstruct;
+    }
 
-	/**
-	 * Get the current mode of the RegexIterator as a human-readable key.
-	 *
-	 * @param RegexIterator $iterator The RegexIterator instance.
-	 * @return string|null The mode key (e.g., 'match', 'replace') or null if not found.
-	 */
-	public function getRegExMode(RegexIterator $iterator): ?string
-	{
-		$currentMode = $iterator->getMode();
-		return array_search($currentMode, $this->regexModes['modes'], true) ?: null;
-	}
+    use RecursiveIteratorTrait {
+        RecursiveIteratorTrait::__construct as recursiveIteratorTraitConstruct;
+    }
 
-	/**
-	 * Set the mode of the RegexIterator using a human-readable mode key.
-	 *
-	 * @param RegexIterator $iterator The RegexIterator instance.
-	 * @param string $modeKey The mode key ('match', 'getMatch', etc.).
-	 * @return bool Returns true if the mode was set successfully, false otherwise.
-	 */
-	public function setRegExMode(RegexIterator $iterator, string $modeKey): bool
-	{
-		if (isset($this->regexModes['modes'][$modeKey])) {
-			$iterator->setMode($this->regexModes['modes'][$modeKey]);
-			return true;
-		}
-		return false;
-	}
+    private ?Iterator $iterator = null;
 
-	// Non-Recursive Iterators
+    public function __construct()
+    {
+        $this->iteratorTraitConstruct();
+        $this->recursiveIteratorTraitConstruct();
+    }
 
-	/**
-	 * Create an ArrayIterator from an array.
-	 *
-	 * @param array $array The input array.
-	 * @return ArrayIterator The ArrayIterator instance.
-	 */
-	public function Array(array $array): ArrayIterator
-	{
-		return new ArrayIterator($array);
-	}
+    public function setIterator(?Iterator $iterator): void
+    {
+        $this->iterator = $iterator;
+    }
 
-	/**
-	 * Create an AppendIterator to append multiple iterators together.
-	 *
-	 * @param array $iterators An array of iterators to append.
-	 * @return AppendIterator The AppendIterator instance.
-	 */
-	public function Append(array $iterators): AppendIterator
-	{
-		$appendIterator = new AppendIterator();
-		foreach ($iterators as $iterator) {
-			$appendIterator->append($iterator);
-		}
-		return $appendIterator;
-	}
+    public function getIterator(): ?Iterator
+    {
+        return $this->iterator;
+    }
 
-	/**
-	 * Create a CallbackFilterIterator for filtering elements based on a callback function.
-	 *
-	 * @param \Iterator $iterator The input iterator.
-	 * @param callable $callback The filtering callback.
-	 * @return CallbackFilterIterator The CallbackFilterIterator instance.
-	 */
-	public function callbackFilter(\Iterator $iterator, callable $callback): CallbackFilterIterator
-	{
-		return new CallbackFilterIterator($iterator, $callback);
-	}
+private function fetchSettings(string $iterator, array $overrides = []): array
+    {
+        // Retrieve default settings from iterator settings or recursive iterator settings
+        $defaultSettings = $this->iteratorSettings[$iterator]
+            ?? $this->recursiveIteratorSettings[$iterator]
+            ?? throw new IteratorNotFoundException("Settings for iterator '{$iterator}' not found.");
 
-	/**
-	 * Create a CachingIterator to cache iterator values.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @return CachingIterator The CachingIterator instance.
-	 */
-	public function Caching(\Traversable $iterator): CachingIterator
-	{
-		return new CachingIterator($iterator);
-	}
+        // Define allowed setting keys
+        $allowedKeys = ['flag', 'mode', 'prefix', 'cache'];
 
-	/**
-	 * Create a DirectoryIterator to iterate over a directory's contents.
-	 *
-	 * @param string $directory The directory path.
-	 * @return DirectoryIterator The DirectoryIterator instance.
-	 */
-	public function Directory(string $directory): DirectoryIterator
-	{
-		return new DirectoryIterator($directory);
-	}
+        // Merge settings with overrides, handling bitwise combination for flag/mode values
+        return array_filter(
+            array_map(
+                fn($key) => isset($overrides[$key])
+                    ? $this->combineFlags($defaultSettings[$key] ?? [], $overrides[$key])
+                    : ($defaultSettings[$key] ?? null),
+                array_flip($allowedKeys)
+            ),
+            fn($value) => $value !== null
+        );
+    }
 
-	/**
-	 * Get the name of the current file or directory in a DirectoryIterator.
-	 *
-	 * @param DirectoryIterator $iterator The DirectoryIterator instance.
-	 * @return string The name of the current file or directory.
-	 */
-	public function dirItemName(DirectoryIterator $iterator): string
-	{
-		return $iterator->getFilename();
-	}
+    /**
+     * Combine constants using bitwise OR for flag/mode settings.
+     */
+    private function combineFlags(array $defaultFlags, array $overrideFlags): int
+    {
+        // Use bitwise OR to combine flags
+        return array_reduce(
+            [...array_values($defaultFlags), ...array_values($overrideFlags)],
+            fn($carry, $flag) => $carry | $flag,
+            0
+        );
+    }
 
-	/**
-	 * Create an EmptyIterator, which contains no elements.
-	 *
-	 * @return EmptyIterator The EmptyIterator instance.
-	 */
-	public function Empty(): EmptyIterator
-	{
-		return new EmptyIterator();
-	}
+    private function resolve(string $iterator): string
+    {
+        // Resolve the iterator class from settings (standard or recursive)
+        return $this->iteratorSettings[$iterator]['class']
+            ?? $this->recursiveIteratorSettings[$iterator]['class']
+            ?? throw new IteratorNotFoundException("Unknown iterator: $iterator");
+    }
 
-	/**
-	 * Create a FilesystemIterator to iterate over a directory's contents.
-	 *
-	 * @param string $directory The directory path.
-	 * @param int $flags Optional flags (default: KEY_AS_PATHNAME).
-	 * @return FilesystemIterator The FilesystemIterator instance.
-	 */
-	public function Filesystem(string $directory, int $flags = FilesystemIterator::KEY_AS_PATHNAME): FilesystemIterator
-	{
-		return new FilesystemIterator($directory, $flags);
-	}
+    private function createIterator(string $iteratorName, array $settings = [], ...$args): Iterator
+    {
+        try {
+            // Resolve the iterator class and fetch settings
+            $iteratorClass = $this->resolve($iteratorName);
+            $settingsValues = $this->fetchSettings($iteratorName, $settings);
 
-	/**
-	 * Create a FilterIterator to filter elements based on a callback.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @param callable $callback The callback to filter elements.
-	 * @return FilterIterator The filtered iterator.
-	 */
-	public function Filter(\Traversable $iterator, callable $callback): FilterIterator
-	{
-		return new class($iterator, $callback) extends FilterIterator {
-			private $callback;
+            // Create the iterator instance with the resolved class and settings
+            return new $iteratorClass(...$args);
+        } catch (Throwable $e) {
+            throw new IteratorException("Error creating {$iteratorName}: " . $e->getMessage(), 0, $e);
+        }
+    }
 
-			public function __construct($iterator, $callback)
-			{
-				parent::__construct($iterator);
-				$this->callback = $callback;
-			}
+    public function current(): mixed
+    {
+        // Return the current element from the iterator, if set
+        return $this->iterator?->current();
+    }
 
-			public function accept()
-			{
-				return call_user_func($this->callback, $this->current());
-			}
-		};
-	}
+    public function next(): void
+    {
+        // Move to the next element in the iterator
+        $this->iterator?->next();
+    }
 
-	/**
-	 * Create a GlobIterator for matching files using a glob pattern.
-	 *
-	 * @param string $pattern The glob pattern.
-	 * @return GlobIterator The GlobIterator instance.
-	 */
-	public function Glob(string $pattern): GlobIterator
-	{
-		return new GlobIterator($pattern);
-	}
+    public function previous(): void
+    {
+        // Check if the iterator supports 'previous' and invoke it, else throw an exception
+        if (method_exists($this->iterator, 'previous')) {
+            $this->iterator->previous();
+        } else {
+            throw new IteratorException("Previous operation not supported by this iterator.");
+        }
+    }
 
-	/**
-	 * Create an InfiniteIterator that endlessly loops over the input iterator.
-	 *
-	 * @param \Iterator $iterator The input iterator.
-	 * @return InfiniteIterator The InfiniteIterator instance.
-	 */
-	public function Infinite(\Iterator $iterator): InfiniteIterator
-	{
-		return new InfiniteIterator($iterator);
-	}
+    public function rewind(): void
+    {
+        // Rewind the iterator back to the first element
+        $this->iterator?->rewind();
+    }
 
-	/**
-	 * Create an IteratorIterator to flatten a nested iterator.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @return IteratorIterator The flattened IteratorIterator instance.
-	 */
-	public function Iterator(\Traversable $iterator): IteratorIterator
-	{
-		return new IteratorIterator($iterator);
-	}
+    public function key(): mixed
+    {
+        // Return the current key in the iterator
+        return $this->iterator?->key();
+    }
 
-	/**
-	 * Create a LimitIterator to limit the number of elements iterated.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @param int $offset The starting offset.
-	 * @param int $count The number of elements to iterate.
-	 * @return LimitIterator The LimitIterator instance.
-	 */
-	public function Limit(\Traversable $iterator, int $offset, int $count): LimitIterator
-	{
-		return new LimitIterator($iterator, $offset, $count);
-	}
+    public function valid(): bool
+    {
+        // Check if the current iterator position is valid
+        return $this->iterator?->valid() ?? false;
+    }
 
-	/**
-	 * Create a MultipleIterator for parallel iteration over multiple iterators.
-	 *
-	 * @param int $flags Optional flags (default: MIT_NEED_ALL | MIT_KEYS_NUMERIC).
-	 * @return MultipleIterator The MultipleIterator instance.
-	 */
-	public function Multiple(int $flags = MultipleIterator::MIT_NEED_ALL | MultipleIterator::MIT_KEYS_NUMERIC): MultipleIterator
-	{
-		return new MultipleIterator($flags);
-	}
+    public function getDepth(): int
+    {
+        // Return the current depth if using a RecursiveIteratorIterator, else return 0
+        return $this->iterator instanceof RecursiveIteratorIterator
+            ? $this->iterator->getDepth()
+            : 0;
+    }
 
-	/**
-	 * Attach an iterator to a MultipleIterator.
-	 *
-	 * @param MultipleIterator $multipleIterator The MultipleIterator instance.
-	 * @param \Iterator $iterator The iterator to attach.
-	 * @return void
-	 */
-	public function addIterator(MultipleIterator $multipleIterator, \Iterator $iterator): void
-	{
-		$multipleIterator->attachIterator($iterator);
-	}
+    public function hasChildren(): bool
+    {
+        // Check if the current element has children (for RecursiveIterator)
+        return $this->iterator instanceof RecursiveIterator && $this->iterator->hasChildren();
+    }
 
-	/**
-	 * Create a NoRewindIterator to prevent rewinding the input iterator.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @return NoRewindIterator The NoRewindIterator instance.
-	 */
-	public function NoRewind(\Traversable $iterator): NoRewindIterator
-	{
-		return new NoRewindIterator($iterator);
-	}
+    public function getChildren(): ?RecursiveIterator
+    {
+        // Get the children of the current element (for RecursiveIterator)
+        return $this->iterator instanceof RecursiveIterator
+            ? $this->iterator->getChildren()
+            : null;
+    }
 
-	// Recursive Iterators
+    public function getPermissions(): int
+    {
+        // Get the permissions of the current file (for RecursiveDirectoryIterator)
+        return $this->iterator instanceof RecursiveDirectoryIterator
+            ? $this->iterator->current()->getPerms()
+            : 0;
+    }
 
-	/**
-	 * Create a ParentIterator to filter only parent nodes.
-	 *
-	 * @param RecursiveIterator $iterator The recursive iterator.
-	 * @return ParentIterator The ParentIterator instance.
-	 */
-	public function Parent(RecursiveIterator $iterator): ParentIterator
-	{
-		return new ParentIterator($iterator);
-	}
+    public function getSize(): int
+    {
+        // Get the size of the current file (for RecursiveDirectoryIterator)
+        return $this->iterator instanceof RecursiveDirectoryIterator
+            ? $this->iterator->current()->getSize()
+            : 0;
+    }
 
-	/**
-	 * Create a RecursiveArrayIterator for traversing a multidimensional array.
-	 *
-	 * @param array $array The input array.
-	 * @return RecursiveArrayIterator The RecursiveArrayIterator instance.
-	 */
-	public function RecursiveArray(array $array): RecursiveArrayIterator
-	{
-		return new RecursiveArrayIterator($array);
-	}
+    public function getRealPath(): string
+    {
+        // Get the real path of the current file (for RecursiveDirectoryIterator)
+        return $this->iterator instanceof RecursiveDirectoryIterator
+            ? $this->iterator->current()->getRealPath()
+            : '';
+    }
 
-	/**
-	 * Create a RecursiveCallbackFilterIterator for filtering elements recursively with a callback.
-	 *
-	 * @param RecursiveIteratorIterator $iterator The recursive iterator.
-	 * @param callable $callback The filtering callback.
-	 * @return RecursiveCallbackFilterIterator The RecursiveCallbackFilterIterator instance.
-	 */
-	public function RecursiveCallbackFilter(RecursiveIteratorIterator $iterator, callable $callback): RecursiveCallbackFilterIterator
-	{
-		return new RecursiveCallbackFilterIterator($iterator, $callback);
-	}
+    public function isFile(): bool
+    {
+        // Check if the current element is a file (for RecursiveDirectoryIterator)
+        return $this->iterator instanceof RecursiveDirectoryIterator
+            ? $this->iterator->current()->isFile()
+            : false;
+    }
 
-	/**
-	 * Create a RecursiveCachingIterator to cache recursive elements.
-	 *
-	 * @param RecursiveIteratorIterator $iterator The recursive iterator.
-	 * @param int $flags Optional caching flags (default: CATCH_GET_CHILD).
-	 * @return RecursiveCachingIterator The RecursiveCachingIterator instance.
-	 */
-	public function RecursiveCaching(RecursiveIteratorIterator $iterator, int $flags = RecursiveCachingIterator::CATCH_GET_CHILD): RecursiveCachingIterator
-	{
-		return new RecursiveCachingIterator($iterator, $flags);
-	}
+    public function isDir(): bool
+    {
+        // Check if the current element is a directory (for RecursiveDirectoryIterator)
+        return $this->iterator instanceof RecursiveDirectoryIterator
+            ? $this->iterator->current()->isDir()
+            : false;
+    }
 
-	/**
-	 * Create a RecursiveDirectoryIterator to recursively iterate over directories.
-	 *
-	 * @param string $path The directory path.
-	 * @param int $flags Optional flags (default: KEY_AS_PATHNAME | CURRENT_AS_FILEINFO).
-	 * @return RecursiveDirectoryIterator The RecursiveDirectoryIterator instance.
-	 */
-	public function RecursiveDirectory(string $path, int $flags = FilesystemIterator::KEY_AS_PATHNAME | FilesystemIterator::CURRENT_AS_FILEINFO): RecursiveDirectoryIterator
-	{
-		return new RecursiveDirectoryIterator($path, $flags);
-	}
+    public function FileInfo(string $filePath): SplFileInfo
+    {
+        // Return a SplFileInfo object for the provided file path
+        return new SplFileInfo($filePath);
+    }
 
-	/**
-	 * Create a RecursiveIteratorIterator to traverse recursive iterators.
-	 *
-	 * @param RecursiveIterator $iterator The recursive iterator.
-	 * @return RecursiveIteratorIterator The RecursiveIteratorIterator instance.
-	 */
-	public function RecursiveIterator(RecursiveIterator $iterator): RecursiveIteratorIterator
-	{
-		return new RecursiveIteratorIterator($iterator);
-	}
+    public function applyCallback(?Iterator $iterator, callable $callback): int
+    {
+        // Apply the provided callback function to the iterator
+        return iterator_apply($iterator, $callback);
+    }
 
-	/**
-	 * Create a RecursiveRegexIterator to filter elements recursively based on a regex pattern.
-	 *
-	 * @param RecursiveIteratorIterator $iterator The recursive iterator.
-	 * @param string $pattern The regex pattern.
-	 * @return RecursiveRegexIterator The RecursiveRegexIterator instance.
-	 */
-	public function RecursiveRegEx(RecursiveIteratorIterator $iterator, string $pattern): RecursiveRegexIterator
-	{
-		return new RecursiveRegexIterator($iterator, $pattern);
-	}
+    public function toArray(?Iterator $iterator, bool $useKeys = true): array
+    {
+        // Convert the iterator to an array
+        return iterator_to_array($iterator, $useKeys);
+    }
 
-	/**
-	 * Create a RecursiveTreeIterator to traverse hierarchical structures.
-	 *
-	 * @param RecursiveIterator $iterator The recursive iterator.
-	 * @return RecursiveTreeIterator The RecursiveTreeIterator instance.
-	 */
-	public function RecursiveTree(RecursiveIterator $iterator): RecursiveTreeIterator
-	{
-		return new RecursiveTreeIterator($iterator);
-	}
-
-	// RegexIterator
-
-	/**
-	 * Create a RegexIterator to filter elements based on a regular expression.
-	 *
-	 * @param \Iterator $iterator The input iterator.
-	 * @param string $pattern The regex pattern.
-	 * @param string $modeKey The mode key for how the regex should be applied (e.g., 'match', 'replace').
-	 * @param int $flags Optional flags.
-	 * @param int $pregFlags Optional preg_match flags.
-	 * @return RegexIterator The RegexIterator instance.
-	 */
-	public function RegEx(\Iterator $iterator, string $pattern, string $modeKey = 'match', int $flags = 0, int $pregFlags = 0): RegexIterator
-	{
-		$mode = $this->regexModes['modes'][$modeKey] ?? RegexIterator::MATCH;
-		return new RegexIterator($iterator, $pattern, $mode, $flags, $pregFlags);
-	}
-
-	// Utility Methods
-
-	/**
-	 * Apply a callback function to each element of an iterator.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @param callable $callback The callback function to apply.
-	 * @return int The number of times the callback was applied.
-	 */
-	public function applyCallback(\Traversable $iterator, callable $callback): int
-	{
-		return iterator_apply($iterator, $callback);
-	}
-
-	/**
-	 * Count the number of elements in an iterator.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @return int The number of elements in the iterator.
-	 */
-	public function count(\Traversable $iterator): int
-	{
-		return iterator_count($iterator);
-	}
-
-	/**
-	 * Convert an iterator to an array.
-	 *
-	 * @param \Traversable $iterator The input iterator.
-	 * @param bool $useKeys Whether to use the iterator keys in the array.
-	 * @return array The array of elements from the iterator.
-	 */
-	public function toArray(\Traversable $iterator, bool $useKeys = true): array
-	{
-		return iterator_to_array($iterator, $useKeys);
-	}
+    public function count(?Iterator $iterator): int
+    {
+        // Count the elements in the iterator
+        return iterator_count($iterator);
+    }
 }

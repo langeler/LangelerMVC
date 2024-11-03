@@ -2,48 +2,143 @@
 
 namespace App\Core;
 
-use App\Core\Cache;
-use App\Core\Config;
+use App\Exceptions\AppException;
+use App\Services\CacheService;
 use App\Services\CoreService;
-use App\Core\Database;  // Add Database class
+use App\Core\Config;
+use App\Core\Database;
+use App\Utilities\Managers\SettingsManager;
+use Exception;
 
 /**
- * Class App
+ * Core application class for initializing and managing essential components.
  *
- * Core application class to initialize and manage routing, configuration, and caching.
+ * The `App` class acts as the backbone of the application, responsible for setting up and managing:
+ * - Configuration services
+ * - Database connection
+ * - Settings management
+ * - Caching mechanisms
+ *
+ * It ensures all the necessary components are properly initialized and provides a central point for running the application.
  */
 class App
 {
-	private Cache $cache;
-	private Config $config;
-	private CoreService $coreService;
-	private Database $database;  // Add Database instance
+	/**
+	 * @var Config $config The application's configuration service.
+	 */
+	public Config $config;
 
 	/**
-	 * Constructor to initialize the core components.
+	 * @var CacheService $cacheService Manages the caching mechanisms of the application.
+	 */
+	private CacheService $cacheService;
+
+	/**
+	 * @var CoreService $coreService Registers and manages the core services of the application.
+	 */
+	private CoreService $coreService;
+
+	/**
+	 * @var Database $database Handles database connections and queries.
+	 */
+	public Database $database;
+
+	/**
+	 * @var SettingsManager $settingsManager Provides access to application settings.
+	 */
+	public SettingsManager $settingsManager;
+
+	/**
+	 * Constructor to initialize the core components of the application.
+	 *
+	 * The constructor sets up core services such as configuration, database, and settings management.
+	 * It also initializes caching if the settings allow it. All services are loaded through `CoreService` and `CacheService`.
+	 *
+	 * @throws AppException If an error occurs during initialization.
 	 */
 	public function __construct()
 	{
-		// Initialize CoreService and register services
-		$this->coreService = new CoreService();
-		$this->coreService->registerServices();
+		try {
+			// Initialize and register core services through CoreService
+			$this->coreService = new CoreService();
+			$this->coreService->registerServices();
 
-		// Retrieve Cache from CoreService (as a singleton)
-		$this->cache = $this->coreService->getService('Cache');
+			// Initialize core components like Config, Database, and SettingsManager
+			$this->InitializeCore();
 
-		// Retrieve Config from CoreService using short names
-		$this->config = $this->coreService->getService('Config');
+			// Initialize and register cache services through CacheService
+			$this->cacheService = new CacheService();
+			$this->cacheService->registerServices();
 
-		// Retrieve Database from CoreService using the alias
-		$this->database = $this->coreService->getService('Database');  // Now using alias 'Database'
+			// Initialize Cache if enabled
+			$this->InitializeCache();
+		} catch (Exception $e) {
+			// If any error occurs during initialization, throw an AppException with a detailed message
+			throw new AppException("Error initializing application: " . $e->getMessage());
+		}
 	}
 
+	/**
+	 * Initialize the Core Services (Config, Database, SettingsManager).
+	 *
+	 * This method retrieves essential services from `CoreService` and assigns them to the corresponding properties.
+	 *
+	 * @return void
+	 * @throws AppException If an error occurs while initializing core services.
+	 */
+	protected function InitializeCore(): void
+	{
+		try {
+			// Retrieve and assign Config service
+			$this->config = $this->coreService->getService('Config');
+
+			// Retrieve and assign Database service
+			$this->database = $this->coreService->getService('Database');
+
+			// Retrieve and assign SettingsManager service
+			$this->settingsManager = $this->coreService->getService('SettingsManager');
+		} catch (Exception $e) {
+			// Handle any errors during core service initialization
+			throw new AppException("Error initializing core services: " . $e->getMessage());
+		}
+	}
+
+	/**
+	 * Initialize the Cache Services.
+	 *
+	 * This method retrieves cache settings from the `SettingsManager` and initializes the appropriate cache driver
+	 * if caching is enabled in the application configuration.
+	 *
+	 * @return void
+	 * @throws AppException If an error occurs while initializing cache services.
+	 */
+	protected function InitializeCache(): void
+	{
+		try {
+			// Retrieve cache settings from the SettingsManager
+			$cacheSettings = $this->settingsManager->getAllSettings('cache');
+
+			// Check if caching is enabled in the settings
+			if ($cacheSettings['ENABLED'] === 'true') {
+				// Get and initialize the cache driver based on the settings
+				$this->cacheService->getCacheDriver($cacheSettings);
+			}
+		} catch (Exception $e) {
+			// Handle any errors during cache initialization
+			throw new AppException("Error initializing cache services: " . $e->getMessage());
+		}
+	}
 
 	/**
 	 * Run the application.
+	 *
+	 * This method contains the logic to start and run the application.
+	 * It should be extended as the application grows to handle routing, request processing, and more.
+	 *
+	 * @return void
 	 */
 	public function run(): void
 	{
-		// Application logic can go here
+		// Application run logic should be placed here, such as routing or event dispatching.
 	}
 }

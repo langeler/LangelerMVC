@@ -1,8 +1,8 @@
 <?php
 
 return array (
-  'ENABLED' => 'false',
-  'DRIVER' => 'redis',
+  'ENABLED' => 'true',
+  'DRIVER' => 'file',
   'PREFIX' => 'langelermvc_cache',
   'TTL' => '3600',
   'COMPRESSION' => 'true',

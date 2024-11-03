@@ -2,305 +2,543 @@
 
 namespace App\Utilities\Managers;
 
+use SplFileInfo;
 use SplFileObject;
 use Imagick;
+use Throwable;
 
-/**
- * Class FileManager
- *
- * Provides utility methods for file and directory operations, file streams, and image processing using Imagick.
- */
 class FileManager
 {
+	// Method to get SplFileInfo instance
+	private function getFileInfo(string $path): ?SplFileInfo
+	{
+		try {
+			return new SplFileInfo($path);
+		} catch (Throwable) {
+			return null;
+		}
+	}
+
+	// Method to get SplFileObject instance
+	private function getFileObject(string $filename, string $mode = 'r'): ?SplFileObject
+	{
+		try {
+			return new SplFileObject($filename, $mode);
+		} catch (Throwable) {
+			return null;
+		}
+	}
+
 	// Basic File Operations
 
-	/**
-	 * Get the base name of a file (with optional suffix removal).
-	 *
-	 * @param string $path The file path.
-	 * @param string $suffix Optional. A suffix to remove from the file name.
-	 * @return string The base name of the file.
-	 */
-	public function getBaseName(string $path, string $suffix = ""): string
+	public function getBaseName(string $path, string $suffix = ""): ?string
 	{
-		return basename($path, $suffix);
+		return $this->getFileInfo($path)?->getBasename($suffix);
 	}
 
-	/**
-	 * Copy a file from source to destination.
-	 *
-	 * @param string $source The source file path.
-	 * @param string $dest The destination file path.
-	 * @return bool True on success, false on failure.
-	 */
-	public function copy(string $source, string $dest): bool
+	public function copyFile(string $source, string $dest): bool
 	{
-		return copy($source, $dest);
-	}
-
-	/**
-	 * Read a file into an array, where each element represents a line.
-	 *
-	 * @param string $filename The file to read.
-	 * @return array|null An array of file lines or null if the path is not a file.
-	 */
-	public function readFile(string $filename): ?array
-	{
-		if (is_file($filename)) { // Ensure that the path is a file
-			return file($filename);
-		}
-		return null;
-	}
-
-	/**
-	 * Read the contents of a file into a string.
-	 *
-	 * @param string $filename The file to read.
-	 * @return string|null The file contents or null if the file doesn't exist.
-	 */
-	public function readFileContents(string $filename): ?string
-	{
-		if (is_file($filename)) { // Ensure that the path is a file
-			return file_get_contents($filename);
-		}
-		return null;
-	}
-
-	/**
-	 * Write data to a file.
-	 *
-	 * @param string $filename The file to write to.
-	 * @param string $data The data to write.
-	 * @return int The number of bytes written.
-	 */
-	public function writeFileContents(string $filename, string $data): int
-	{
-		return file_put_contents($filename, $data);
-	}
-
-	/**
-	 * Create a new directory.
-	 *
-	 * @param string $pathname The directory path.
-	 * @param int $mode Optional. The mode (permissions) to apply (default: 0777).
-	 * @param bool $recursive Optional. Whether to create directories recursively (default: false).
-	 * @return bool True on success, false on failure.
-	 */
-	public function createDir(string $pathname, int $mode = 0777, bool $recursive = false): bool
-	{
-		if (!is_dir($pathname)) {  // Check if the directory already exists
-			return mkdir($pathname, $mode, $recursive);
-		}
-		return true;  // Directory already exists
-	}
-
-	/**
-	 * Move an uploaded file to a new location.
-	 *
-	 * @param string $filename The temporary file name (as stored by PHP).
-	 * @param string $destination The destination file path.
-	 * @return bool True on success, false on failure.
-	 */
-	public function moveUploadedFile(string $filename, string $destination): bool
-	{
-		return move_uploaded_file($filename, $destination);
-	}
-
-	/**
-	 * Delete a file.
-	 *
-	 * @param string $filename The file to delete.
-	 * @return bool True on success, false on failure.
-	 */
-	public function deleteFile(string $filename): bool
-	{
-		if (!$this->fileExists($filename)) {
+		try {
+			return $this->getFileInfo($source)?->isFile() && copy($source, $dest);
+		} catch (Throwable) {
 			return false;
 		}
-		return unlink($filename);
 	}
 
-	/**
-	 * Check if a file exists.
-	 *
-	 * @param string $filename The file to check.
-	 * @return bool True if the file exists, false otherwise.
-	 */
+	public function readLines(string $filename): ?array
+	{
+		try {
+			return iterator_to_array($this->getFileObject($filename, 'r')?->rewind());
+		} catch (Throwable) {
+			return null;
+		}
+	}
+
+	public function readContents(string $filename): ?string
+	{
+		try {
+			return ($file = $this->getFileObject($filename, 'r'))
+				&& ($size = $this->getFileInfo($filename)?->getSize() ?? 0) > 0
+				? $file->fread($size)
+				: '';
+		} catch (Throwable) {
+			return null;
+		}
+	}
+
+	public function writeContents(string $filename, string $data): int|false
+	{
+		try {
+			return ($file = $this->getFileObject($filename, 'w'))
+				&& $file->flock(LOCK_EX)
+				? ($bytesWritten = $file->fwrite($data)) && $file->flock(LOCK_UN)
+					? $bytesWritten
+					: false
+				: false;
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function createDirectory(string $pathname, int $mode = 0777, bool $recursive = false): bool
+	{
+		try {
+			return $this->getFileInfo($pathname)?->isDir() ?: mkdir($pathname, $mode, $recursive);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function moveFile(string $filename, string $destination): bool
+	{
+		try {
+			return $this->getFileObject($filename)?->isFile() && move_uploaded_file($filename, $destination);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function deleteFile(string $filename): bool
+	{
+		try {
+			return $this->getFileInfo($filename)?->isFile() && unlink($filename);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
 	public function fileExists(string $filename): bool
 	{
-		return file_exists($filename);
+		return $this->getFileInfo($filename)?->isFile() ?? false;
+	}
+
+	// Additional SplFileInfo Methods
+
+	public function getSize(string $filename): ?int
+	{
+		return $this->getFileInfo($filename)?->getSize();
+	}
+
+	public function getRealPath(string $filename): ?string
+	{
+		return $this->getFileInfo($filename)?->getRealPath();
+	}
+
+	public function getPath(string $filename): ?string
+	{
+		return $this->getFileInfo($filename)?->getPath();
+	}
+
+	public function getPathname(string $filename): ?string
+	{
+		return $this->getFileInfo($filename)?->getPathname();
+	}
+
+	public function getExtension(string $filename): ?string
+	{
+		return $this->getFileInfo($filename)?->getExtension();
+	}
+
+	public function getFilename(string $filename): ?string
+	{
+		return $this->getFileInfo($filename)?->getFilename();
+	}
+
+	public function isReadable(string $filename): bool
+	{
+		return $this->getFileInfo($filename)?->isReadable() ?? false;
+	}
+
+	public function isWritable(string $filename): bool
+	{
+		return $this->getFileInfo($filename)?->isWritable() ?? false;
+	}
+
+	public function isExecutable(string $filename): bool
+	{
+		return $this->getFileInfo($filename)?->isExecutable() ?? false;
+	}
+
+	public function getInode(string $filename): ?int
+	{
+		return $this->getFileInfo($filename)?->getInode();
+	}
+
+	public function getOwner(string $filename): ?int
+	{
+		return $this->getFileInfo($filename)?->getOwner();
+	}
+
+	public function getGroup(string $filename): ?int
+	{
+		return $this->getFileInfo($filename)?->getGroup();
+	}
+
+	public function getPermissions(string $filename): ?int
+	{
+		return $this->getFileInfo($filename)?->getPerms();
 	}
 
 	// SplFileObject Methods
 
-	/**
-	 * Open a file using SplFileObject.
-	 *
-	 * @param string $filename The file to open.
-	 * @param string $mode Optional. The mode to open the file in (default: 'r').
-	 * @return SplFileObject The SplFileObject instance.
-	 */
-	public function openFile(string $filename, string $mode = 'r'): SplFileObject
+	public function readLine(string $filename): string|false
 	{
-		return new SplFileObject($filename, $mode);
+		try {
+			return $this->getFileObject($filename, 'r')?->eof() ? false : $this->getFileObject($filename, 'r')?->fgets();
+		} catch (Throwable) {
+			return false;
+		}
 	}
 
-	/**
-	 * Read a line from a file.
-	 *
-	 * @param SplFileObject $file The file object to read from.
-	 * @return string The line read from the file.
-	 */
-	public function readLine(SplFileObject $file): string
+	public function writeLine(string $filename, string $content): int|false
 	{
-		return $file->fgets();
+		try {
+			return $this->getFileObject($filename, 'a')?->fwrite($content);
+		} catch (Throwable) {
+			return false;
+		}
 	}
 
-	/**
-	 * Write a line to a file.
-	 *
-	 * @param SplFileObject $file The file object to write to.
-	 * @param string $content The content to write.
-	 * @return int The number of bytes written.
-	 */
-	public function writeLine(SplFileObject $file, string $content): int
+	public function lockFile(string $filename, int $operation): bool
 	{
-		return $file->fwrite($content);
+		try {
+			return $this->getFileObject($filename)?->flock($operation);
+		} catch (Throwable) {
+			return false;
+		}
 	}
 
-	/**
-	 * Lock or unlock a file.
-	 *
-	 * @param SplFileObject $file The file object to lock.
-	 * @param int $operation The lock operation (e.g., LOCK_SH for shared lock).
-	 * @return bool True on success, false on failure.
-	 */
-	public function lock(SplFileObject $file, int $operation): bool
+	public function endOfFile(string $filename): bool
 	{
-		return $file->flock($operation);
+		try {
+			return $this->getFileObject($filename)?->eof();
+		} catch (Throwable) {
+			return false;
+		}
 	}
 
-	/**
-	 * Get the file size in bytes.
-	 *
-	 * @param SplFileObject $file The file object.
-	 * @return int The file size.
-	 */
-	public function getFileSize(SplFileObject $file): int
+	public function resetPointer(string $filename): void
 	{
-		return $file->getSize();
+		try {
+			$this->getFileObject($filename)?->rewind();
+		} catch (Throwable) {
+			// Do nothing
+		}
 	}
 
-	/**
-	 * Get the real path of a file.
-	 *
-	 * @param SplFileObject $file The file object.
-	 * @return string The real path of the file.
-	 */
-	public function getRealPath(SplFileObject $file): string
+	public function moveToLine(string $filename, int $line): void
 	{
-		return $file->getRealPath();
+		try {
+			$this->getFileObject($filename)?->seek($line);
+		} catch (Throwable) {
+			// Do nothing
+		}
 	}
 
-	/**
-	 * Rewind the file pointer to the beginning.
-	 *
-	 * @param SplFileObject $file The file object.
-	 * @return void
-	 */
-	public function rewind(SplFileObject $file): void
+	public function getLineNumber(string $filename): int
 	{
-		$file->rewind();
+		try {
+			return $this->getFileObject($filename)?->key() ?? 0;
+		} catch (Throwable) {
+			return 0;
+		}
+	}
+
+	public function getMaxLineLength(string $filename): int
+	{
+		try {
+			return $this->getFileObject($filename)?->getMaxLineLen() ?? 0;
+		} catch (Throwable) {
+			return 0;
+		}
+	}
+
+	public function setMaxLineLength(string $filename, int $length): void
+	{
+		try {
+			$this->getFileObject($filename)?->setMaxLineLen($length);
+		} catch (Throwable) {
+			// Do nothing
+		}
+	}
+
+	public function readCsv(string $filename, string $delimiter = ',', string $enclosure = '"', string $escape = '\\'): array|false
+	{
+		try {
+			return $this->getFileObject($filename)?->fgetcsv($delimiter, $enclosure, $escape) ?? false;
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function writeCsv(string $filename, array $fields, string $delimiter = ',', string $enclosure = '"', string $escape = '\\'): int|false
+	{
+		try {
+			return $this->getFileObject($filename, 'a')?->fputcsv($fields, $delimiter, $enclosure, $escape);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function readBytes(string $filename, int $length): string|false
+	{
+		try {
+			return $this->getFileObject($filename)?->fread($length);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function writeBytes(string $filename, string $content): int|false
+	{
+		try {
+			return $this->getFileObject($filename, 'a')?->fwrite($content);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function getPosition(string $filename): int|false
+	{
+		try {
+			return $this->getFileObject($filename)?->ftell();
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function setPosition(string $filename, int $offset, int $whence = SEEK_SET): int
+	{
+		try {
+			return $this->getFileObject($filename)?->fseek($offset, $whence) ?? -1;
+		} catch (Throwable) {
+			return -1;
+		}
+	}
+
+	public function getStats(string $filename): array|false
+	{
+		try {
+			return $this->getFileObject($filename)?->fstat();
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function flush(string $filename): bool
+	{
+		try {
+			return $this->getFileObject($filename)?->fflush();
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function truncate(string $filename, int $size): bool
+	{
+		try {
+			return $this->getFileObject($filename, 'r+')?->ftruncate($size);
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	public function closeAndFlush(SplFileObject &$file): bool
+	{
+		try {
+			return $file->fflush();
+		} finally {
+			$file = null; // Ensure file handle is closed
+		}
+	}
+
+	// Method to get an Imagick instance
+	private function getImagick(string $filename): ?Imagick
+	{
+		try {
+			return new Imagick($filename);
+		} catch (Throwable) {
+			return null;
+		}
 	}
 
 	// Imagick Methods
 
-	/**
-	 * Read an image file into an Imagick object.
-	 *
-	 * @param string $filename The image file path.
-	 * @return Imagick The Imagick object.
-	 */
-	public function readImage(string $filename): Imagick
+	public function writeImage(string $filename, string $outputPath): bool
 	{
-		$image = new Imagick();
-		$image->readImage($filename);
-		return $image;
+		return $this->getImagick($filename)?->writeImage($outputPath) ?? false;
 	}
 
-	/**
-	 * Write an Imagick object to a file.
-	 *
-	 * @param Imagick $image The Imagick object.
-	 * @param string $filename The destination file path.
-	 * @return bool True on success, false on failure.
-	 */
-	public function writeImage(Imagick $image, string $filename): bool
+	public function resizeImage(string $filename, int $width, int $height, int $filter = Imagick::FILTER_LANCZOS, float $blur = 1.0): bool
 	{
-		return $image->writeImage($filename);
+		return $this->getImagick($filename)?->resizeImage($width, $height, $filter, $blur) ?? false;
 	}
 
-	/**
-	 * Resize an image using Imagick.
-	 *
-	 * @param Imagick $image The Imagick object.
-	 * @param int $width The new width.
-	 * @param int $height The new height.
-	 * @param int $filter Optional. The filter to use for resizing (default: Lanczos).
-	 * @param float $blur Optional. The blur factor (default: 1).
-	 * @param bool $bestfit Optional. Whether to maintain aspect ratio (default: false).
-	 * @return bool True on success, false on failure.
-	 */
-	public function resizeImage(Imagick $image, int $width, int $height, int $filter = Imagick::FILTER_LANCZOS, float $blur = 1, bool $bestfit = false): bool
+	public function cropImage(string $filename, int $width, int $height, int $x, int $y): bool
 	{
-		return $image->resizeImage($width, $height, $filter, $blur, $bestfit);
+		return $this->getImagick($filename)?->cropImage($width, $height, $x, $y) ?? false;
 	}
 
-	/**
-	 * Crop an image using Imagick.
-	 *
-	 * @param Imagick $image The Imagick object.
-	 * @param int $width The crop width.
-	 * @param int $height The crop height.
-	 * @param int $x The x-coordinate for the crop.
-	 * @param int $y The y-coordinate for the crop.
-	 * @return bool True on success, false on failure.
-	 */
-	public function cropImage(Imagick $image, int $width, int $height, int $x, int $y): bool
+	public function rotateImage(string $filename, float $angle, string $backgroundColor = 'white'): bool
 	{
-		return $image->cropImage($width, $height, $x, $y);
+		return $this->getImagick($filename)?->rotateImage(new ImagickPixel($backgroundColor), $angle) ?? false;
 	}
 
-	/**
-	 * Strip image metadata using Imagick.
-	 *
-	 * @param Imagick $image The Imagick object.
-	 * @return bool True on success, false on failure.
-	 */
-	public function stripImage(Imagick $image): bool
+	public function flipImage(string $filename): bool
 	{
-		return $image->stripImage();
+		return $this->getImagick($filename)?->flipImage() ?? false;
 	}
 
-	/**
-	 * Clear an Imagick object from memory.
-	 *
-	 * @param Imagick $image The Imagick object to clear.
-	 * @return void
-	 */
-	public function clearImage(Imagick $image): void
+	public function flopImage(string $filename): bool
 	{
-		$image->clear();
+		return $this->getImagick($filename)?->flopImage() ?? false;
 	}
 
-	/**
-	 * Validate whether an Imagick object contains a valid image.
-	 *
-	 * @param Imagick $image The Imagick object.
-	 * @return bool True if valid, false otherwise.
-	 */
-	public function isValidImage(Imagick $image): bool
+	public function sharpenImage(string $filename, float $radius, float $sigma): bool
 	{
-		return $image->valid();
+		return $this->getImagick($filename)?->sharpenImage($radius, $sigma) ?? false;
+	}
+
+	public function blurImage(string $filename, float $radius, float $sigma): bool
+	{
+		return $this->getImagick($filename)?->blurImage($radius, $sigma) ?? false;
+	}
+
+	public function addText(string $filename, string $text, int $x = 10, int $y = 10, string $color = 'black', int $size = 12): bool
+	{
+		return $this->getImagick($filename)?->annotateImage((new ImagickDraw())->setFillColor(new ImagickPixel($color))->setFontSize($size), $x, $y, 0, $text) ?? false;
+	}
+
+	public function setCompressionQuality(string $filename, int $quality): bool
+	{
+		return $this->getImagick($filename)?->setImageCompressionQuality($quality) ?? false;
+	}
+
+	public function stripMetadata(string $filename): bool
+	{
+		return $this->getImagick($filename)?->stripImage() ?? false;
+	}
+
+	public function getFormat(string $filename): ?string
+	{
+		return $this->getImagick($filename)?->getImageFormat();
+	}
+
+	public function setFormat(string $filename, string $format): bool
+	{
+		return $this->getImagick($filename)?->setImageFormat($format) ?? false;
+	}
+
+	public function getWidth(string $filename): ?int
+	{
+		return $this->getImagick($filename)?->getImageWidth();
+	}
+
+	public function getHeight(string $filename): ?int
+	{
+		return $this->getImagick($filename)?->getImageHeight();
+	}
+
+	public function setOpacity(string $filename, float $opacity): bool
+	{
+		return $this->getImagick($filename)?->evaluateImage(Imagick::EVALUATE_MULTIPLY, $opacity, Imagick::CHANNEL_ALPHA) ?? false;
+	}
+
+	public function compositeImage(string $filename, string $overlayFile, int $x = 0, int $y = 0, int $compositeType = Imagick::COMPOSITE_DEFAULT): bool
+	{
+		return $this->getImagick($filename)?->compositeImage(
+			$this->getImagick($overlayFile),
+			$compositeType,
+			$x,
+			$y
+		) ?? false;
+	}
+
+	public function trimImage(string $filename, float $fuzz = 0.1): bool
+	{
+		return $this->getImagick($filename)?->trimImage($fuzz) ?? false;
+	}
+
+	public function addBorder(string $filename, string $color, int $width, int $height): bool
+	{
+		return $this->getImagick($filename)?->borderImage(new ImagickPixel($color), $width, $height) ?? false;
+	}
+
+	public function thumbnailImage(string $filename, int $width, int $height, bool $bestFit = false): bool
+	{
+		return $this->getImagick($filename)?->thumbnailImage($width, $height, $bestFit) ?? false;
+	}
+
+	public function getResolution(string $filename): ?array
+	{
+		return $this->getImagick($filename)?->getImageResolution();
+	}
+
+	public function setResolution(string $filename, float $xResolution, float $yResolution): bool
+	{
+		return $this->getImagick($filename)?->setImageResolution($xResolution, $yResolution) ?? false;
+	}
+
+	public function modulateImage(string $filename, float $brightness, float $saturation, float $hue): bool
+	{
+		return $this->getImagick($filename)?->modulateImage($brightness, $saturation, $hue) ?? false;
+	}
+
+	public function negateImage(string $filename, bool $grayscale = false): bool
+	{
+		return $this->getImagick($filename)?->negateImage($grayscale) ?? false;
+	}
+
+	public function setGamma(string $filename, float $gamma): bool
+	{
+		return $this->getImagick($filename)?->gammaImage($gamma) ?? false;
+	}
+
+	public function despeckleImage(string $filename): bool
+	{
+		return $this->getImagick($filename)?->despeckleImage() ?? false;
+	}
+
+	public function oilPaintImage(string $filename, float $radius): bool
+	{
+		return $this->getImagick($filename)?->oilPaintImage($radius) ?? false;
+	}
+
+	public function charcoalImage(string $filename, float $radius, float $sigma): bool
+	{
+		return $this->getImagick($filename)?->charcoalImage($radius, $sigma) ?? false;
+	}
+
+	public function embossImage(string $filename, float $radius, float $sigma): bool
+	{
+		return $this->getImagick($filename)?->embossImage($radius, $sigma) ?? false;
+	}
+
+	public function getColorspace(string $filename): ?int
+	{
+		return $this->getImagick($filename)?->getImageColorspace();
+	}
+
+	public function setColorspace(string $filename, int $colorspace): bool
+	{
+		return $this->getImagick($filename)?->setImageColorspace($colorspace) ?? false;
+	}
+
+	public function clearImage(string $filename): void
+	{
+		try {
+			$this->getImagick($filename)?->clear();
+		} catch (Throwable) {
+			// Do nothing
+		}
+	}
+
+	public function destroyImage(string $filename): void
+	{
+		try {
+			$this->getImagick($filename)?->destroy();
+		} catch (Throwable) {
+			// Do nothing
+		}
 	}
 }

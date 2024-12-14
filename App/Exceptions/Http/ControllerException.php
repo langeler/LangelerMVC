@@ -3,6 +3,7 @@
 namespace App\Exceptions\Http;
 
 use Exception;
+use Throwable;
 
 class ControllerException extends Exception
 {
@@ -11,9 +12,9 @@ class ControllerException extends Exception
 	 *
 	 * @param string $message The exception message.
 	 * @param int $code The exception code.
-	 * @param Exception|null $previous The previous exception for chaining.
+	 * @param Throwable|null $previous The previous exception for chaining.
 	 */
-	public function __construct($message = "Controller error occurred", $code = 0, Exception $previous = null)
+	public function __construct($message = "Controller error occurred", $code = 0, ?Throwable $previous = null)
 	{
 		parent::__construct($message, $code, $previous);
 	}
@@ -23,7 +24,7 @@ class ControllerException extends Exception
 	 *
 	 * @return string
 	 */
-	public function __toString()
+	public function __toString(): string
 	{
 		return __CLASS__ . ": [{$this->code}]: {$this->message}\n";
 	}

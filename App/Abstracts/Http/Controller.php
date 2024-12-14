@@ -1,195 +1,159 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Http;
 
-use App\Core\Router;
-use App\Exceptions\Http\ControllerException;
-use App\Helpers\ArrayHelper;
+use App\Contracts\Http\RequestInterface;
+use App\Contracts\Http\ResponseInterface;
+use App\Contracts\Http\ServiceInterface;
+use App\Contracts\Presentation\PresenterInterface;
+use App\Contracts\Presentation\ViewInterface;
+use RuntimeException;
+use Throwable;
 
+/**
+ * Base abstract Controller that orchestrates the request handling lifecycle.
+ *
+ * Responsibilities:
+ * - Accept the incoming Request (RequestInterface) and prepare the Response (ResponseInterface)
+ * - Delegate business logic to the injected Service (ServiceInterface)
+ * - Use a Presenter (PresenterInterface) to format data for the View (ViewInterface)
+ * - Render the final output via the View
+ * - Remain thin, delegating to other layers for complex operations
+ *
+ * Boundaries:
+ * - No direct database logic, no business logic here (delegated to Service).
+ * - No handling of presentation logic beyond calling Presenter and View.
+ * - Strict typing and interfaces ensure clarity and consistency with updated classes.
+ */
 abstract class Controller
 {
-	protected Router $router;
-	protected array $middlewares = [];
-	protected string $controllerName;
-	protected string $action;
-	protected array $params = [];
-
-	public function __construct(string $controllerName, string $action, array $params = [])
-	{
-		$this->controllerName = $controllerName;
-		$this->action = $action;
-		$this->params = $params;
+	/**
+	 * Constructor for injecting dependencies.
+	 *
+	 * @param RequestInterface   $request   A request instance providing input data.
+	 * @param ResponseInterface  $response  A response instance for sending output.
+	 * @param ServiceInterface   $service   A service class handling business logic.
+	 * @param PresenterInterface $presenter A presenter class for data formatting.
+	 * @param ViewInterface      $view      A view class for rendering the final output.
+	 */
+	public function __construct(
+		protected RequestInterface $request,
+		protected ResponseInterface $response,
+		protected ServiceInterface $service,
+		protected PresenterInterface $presenter,
+		protected ViewInterface $view
+	) {
+		$this->wrapInTry(fn() => $this->initializeController());
 	}
 
 	/**
-	 * Execute the specified action.
-	 */
-	abstract protected function executeAction(): void;
-
-	/**
-	 * Handle the request and dispatch the appropriate action method.
+	 * Initialize the controller lifecycle.
+	 * Perform setup or preparation required before processing the request.
 	 *
-	 * @param string $method The HTTP method.
-	 * @param string $action The action method to call.
-	 * @return mixed
-	 */
-	abstract protected function handleRequest(string $method, string $action): mixed;
-
-	/**
-	 * Abstract method for handling the retrieval of resources.
-	 *
-	 * @return mixed
-	 */
-	abstract protected function index(): mixed;
-
-	/**
-	 * Abstract method for handling the display of a creation form.
-	 *
-	 * @return mixed
-	 */
-	abstract protected function create(): mixed;
-
-	/**
-	 * Abstract method for handling the creation of a new resource.
-	 *
-	 * @return mixed
-	 */
-	abstract protected function store(): mixed;
-
-	/**
-	 * Abstract method for handling the updating of a resource.
-	 *
-	 * @param int $id
-	 * @return mixed
-	 */
-	abstract protected function update(int $id): mixed;
-
-	/**
-	 * Abstract method for handling the deletion of a resource.
-	 *
-	 * @param int $id
-	 * @return mixed
-	 */
-	abstract protected function delete(int $id): mixed;
-
-	/**
-	 * Adds middleware to the controller.
-	 *
-	 * @param string $middleware
 	 * @return void
 	 */
-	protected function addMiddleware(string $middleware): void
-	{
-		$this->middlewares[] = $middleware;
-	}
+	abstract protected function initialize(): void;
 
 	/**
-	 * Execute all registered middlewares.
-	 */
-	protected function executeMiddlewares(): void
-	{
-		foreach ($this->middlewares as $middleware) {
-			(new $middleware())->handle();
-		}
-	}
-
-	/**
-	 * Send a JSON response.
-	 *
-	 * @param array $data
-	 * @param int $statusCode
-	 */
-	protected function jsonResponse(array $data, int $statusCode = 200): void
-	{
-		header('Content-Type: application/json');
-		http_response_code($statusCode);
-		echo json_encode($data);
-	}
-
-	/**
-	 * Redirect to a specific URL.
-	 *
-	 * @param string $url
-	 */
-	protected function redirect(string $url): void
-	{
-		header("Location: $url");
-		exit();
-	}
-
-	/**
-	 * Get request data from superglobals.
-	 *
-	 * @return array
-	 */
-	protected function getRequestData(): array
-	{
-		return $_REQUEST ?? [];
-	}
-
-	/**
-	 * Sanitize input data.
-	 *
-	 * @param array $data
-	 * @return array
-	 */
-	protected function sanitizeInput(array $data): array
-	{
-		return ArrayHelper::sanitize($data);
-	}
-
-	/**
-	 * Get a parameter from the request, or return a default value if not set.
-	 *
-	 * @param string $key
-	 * @param mixed $default
-	 * @return mixed
-	 */
-	protected function getParam(string $key, $default = null)
-	{
-		return $this->params[$key] ?? $default;
-	}
-
-	/**
-	 * Dispatches the request to the appropriate action method.
+	 * Process the incoming request.
+	 * Handle request-specific logic, such as extracting and preparing input data.
 	 *
 	 * @return void
-	 * @throws ControllerException
 	 */
-	protected function handleRequest(): void
+	abstract protected function process(): void;
+
+	/**
+	 * Execute the main business logic of the controller.
+	 * Interact with the service to perform business operations and retrieve raw data.
+	 *
+	 * @return void
+	 */
+	abstract protected function execute(): void;
+
+	/**
+	 * Finalize the controller lifecycle by preparing the response.
+	 * Format and structure the data using the presenter, getting it ready for the view.
+	 *
+	 * @return ResponseInterface The finalized response object, ready to be rendered.
+	 */
+	abstract protected function finalize(): ResponseInterface;
+
+	/**
+	 * Render the output using the view class.
+	 * Defines how extended controllers utilize the view for rendering the final response.
+	 *
+	 * @param string $method The method to call on the view class
+	 * @param array  $data   Data to pass to the view method
+	 * @return ResponseInterface The rendered response.
+	 */
+	abstract protected function render(string $method, array $data = []): ResponseInterface;
+
+	/**
+	 * Orchestrate the complete controller lifecycle.
+	 * Combines the lifecycle methods: initialize, process, execute, finalize, and render.
+	 *
+	 * @return ResponseInterface The final response after the full lifecycle.
+	 */
+	abstract protected function run(): ResponseInterface;
+
+	/**
+	 * Perform any default initialization for the controller.
+	 * For instance, setting a default locale or loading common assets.
+	 *
+	 * @return void
+	 */
+	protected function initializeController(): void
 	{
-		if (method_exists($this, $this->action)) {
-			call_user_func_array([$this, $this->action], $this->params);
-		} else {
-			throw new ControllerException("Action $this->action not found in controller $this->controllerName.");
+		// Example: Set a default locale if needed.
+		// In a real scenario, this might be handled by middleware or configuration.
+	}
+
+	/**
+	 * Consistent error handling for callable operations.
+	 *
+	 * @param callable $callback The operation to execute.
+	 * @return mixed Result of the operation.
+	 * @throws RuntimeException On failure.
+	 */
+	protected function wrapInTry(callable $callback): mixed
+	{
+		try {
+			return $callback();
+		} catch (Throwable $e) {
+			throw new RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
 		}
 	}
 
 	/**
-	 * Sanitize input using default filter settings.
+	 * Prepare data using the presenter.
 	 *
-	 * @param array $input
-	 * @return array
+	 * If the finalize logic directly uses the presenter, this helper may not be needed.
+	 * Keeping the controller clean and delegating transformations is the goal.
+	 *
+	 * @param string $method    Presenter method to call.
+	 * @param array  $arguments Arguments to pass.
+	 * @return mixed Transformed data.
 	 */
-	protected function sanitizeInput(array $input): array
+	protected function preparePresenterData(string $method, array $arguments = []): mixed
 	{
-		return filter_var_array($input, FILTER_SANITIZE_STRING);
+		return $this->wrapInTry(fn() => $this->presenter->{$method}(...$arguments));
 	}
 
 	/**
-	 * Validate request data based on defined rules.
+	 * Prepare and render the response using the view.
 	 *
-	 * @param array $rules
-	 * @return bool
-	 * @throws ControllerException
+	 * If needed, the controller can still handle the last step of rendering.
+	 * Typically, finalize or render handles this step. The controller itself
+	 * should not transform data; it should just pass already prepared data.
+	 *
+	 * @param string $method The method to call on the view class
+	 * @param array  $data   Data to pass to the view
+	 * @return ResponseInterface The prepared view response.
 	 */
-	protected function validateRequest(array $rules): bool
+	protected function prepareViewResponse(string $method, array $data = []): ResponseInterface
 	{
-		foreach ($rules as $field => $rule) {
-			if (!isset($this->params[$field]) || !preg_match($rule, $this->params[$field])) {
-				throw new ControllerException("Validation failed for field $field.");
-			}
-		}
-		return true;
+		return $this->wrapInTry(fn() => $this->view->{$method}($data));
 	}
 }

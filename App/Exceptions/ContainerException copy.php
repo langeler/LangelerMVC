@@ -10,7 +10,7 @@ use Throwable;
  *
  * Wraps any thrown exception or error and provides additional context.
  */
-class AppException extends Exception
+class ContainerException extends Exception
 {
 	/**
 	 * AppException constructor.

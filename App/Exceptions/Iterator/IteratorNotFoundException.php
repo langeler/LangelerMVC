@@ -2,6 +2,8 @@
 
 namespace App\Exceptions\Iterator;
 
+use Throwable;
+
 /**
  * Class IteratorNotFoundException
  *

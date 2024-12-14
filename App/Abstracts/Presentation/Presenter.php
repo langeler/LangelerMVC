@@ -1,128 +1,241 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Presentation;
 
-use App\Exceptions\Presentation\PresenterException;
+use App\Utilities\Handlers\DataHandler;
+use App\Utilities\Handlers\DateTimeHandler;
+use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
+use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\MetricsTrait;
+use App\Utilities\Traits\ConversionTrait;
+use RuntimeException;
+use Throwable;
 
+/**
+ * Abstract Presenter Class
+ *
+ * Responsibilities:
+ * - Transform raw data into a presentation-ready format.
+ * - Add computed properties, append metadata, and prepare a final payload for the view layer.
+ * - Utilize DataHandler and DateTimeHandler for formatting and timestamps.
+ * - Offer optional metric computations and data normalization.
+ *
+ * Boundaries:
+ * - Does not handle HTTP requests, responses, or business logic.
+ * - Strictly focused on data transformation for presentation purposes.
+ *
+ * Aligns with Updated Classes:
+ * - Uses strict typing and typed return values for abstract methods.
+ * - Constructor property promotion and typed properties where appropriate.
+ */
 abstract class Presenter
 {
-	protected array $data = [];
+	use ArrayTrait;
+	use TypeCheckerTrait;
+	use ManipulationTrait;
+	use MetricsTrait;
+	use ConversionTrait;
 
-	public function __construct(array $data = [])
-	{
-		$this->data = $data;
+	/**
+	 * Constructor for initializing dependencies and raw data.
+	 *
+	 * @param array<string,mixed> $data          The raw data to prepare and transform.
+	 * @param DataHandler         $dataHandler   Utility for advanced data processing.
+	 * @param DateTimeHandler     $dateTimeHandler Utility for handling date/time formats.
+	 */
+	public function __construct(
+		protected array $data = [],
+		protected DataHandler $dataHandler,
+		protected DateTimeHandler $dateTimeHandler
+	) {
+		$this->initializeState();
 	}
 
 	/**
-	 * Abstract method for formatting data.
+	 * Shared state for data during the preparation lifecycle.
 	 *
-	 * @return array Formatted data
+	 * @var array<string,mixed>
 	 */
-	abstract protected function present(): array;
+	protected array $state = [];
 
 	/**
-	 * Transforms data using the provided callbacks.
+	 * Metadata appended to the prepared data.
 	 *
-	 * @param array $transformers Array of keys and transformation callbacks.
-	 * @return array Transformed data.
-	 * @throws PresenterException If an error occurs during transformation.
+	 * @var array<string,mixed>
 	 */
-	protected function transform(array $transformers): array
+	protected array $metadata = [];
+
+	/**
+	 * Abstract Protected Methods
+	 */
+
+	/**
+	 * Transform raw data into a structure suitable for presentation.
+	 *
+	 * @return array<string,mixed>
+	 */
+	abstract protected function transform(): array;
+
+	/**
+	 * Add computed or derived properties to the transformed data.
+	 *
+	 * @return array<string,mixed>
+	 */
+	abstract protected function addComputedProperties(): array;
+
+	/**
+	 * Append metadata (e.g., pagination, timestamps) to the data.
+	 *
+	 * @return array<string,mixed>
+	 */
+	abstract protected function addMetadata(): array;
+
+	/**
+	 * Finalize and prepare the data for the view.
+	 *
+	 * @return array<string,mixed>
+	 */
+	abstract protected function prepare(): array;
+
+	/**
+	 * Retrieve a specific value from the prepared data or state.
+	 *
+	 * @param string     $key
+	 * @param mixed|null $default Default value if the key is not found.
+	 * @return mixed
+	 */
+	abstract protected function get(string $key, mixed $default = null): mixed;
+
+	/**
+	 * Centralized Protected Methods
+	 */
+
+	/**
+	 * Initialize the presenter's state.
+	 * Copies the initial raw data into $this->state.
+	 *
+	 * @return void
+	 */
+	protected function initializeState(): void
+	{
+		$this->state = $this->reduce(
+			$this->data,
+			fn(array $carry, mixed $value, string $key): array => $carry + [$key => $value],
+			[]
+		);
+	}
+
+	/**
+	 * Handle consistent error handling with try-catch.
+	 *
+	 * @param callable $operation Operation to execute.
+	 * @return mixed
+	 * @throws RuntimeException On failure.
+	 */
+	protected function wrapInTry(callable $operation): mixed
 	{
 		try {
-			$transformed = [];
-			foreach ($transformers as $key => $callback) {
-				$transformed[$key] = $callback($this->data[$key] ?? null);
-			}
-			return $transformed;
-		} catch (\Exception $e) {
-			throw new PresenterException("Error transforming data: " . $e->getMessage());
+			return $operation();
+		} catch (Throwable $e) {
+			throw new RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
 		}
 	}
 
 	/**
-	 * Formats data as a JSON string.
+	 * Format and process data using the DataHandler.
 	 *
-	 * @return string JSON-formatted data.
+	 * @param array<string,mixed> $data   Data to format.
+	 * @param string              $format The desired format (e.g., 'json', 'xml').
+	 * @return mixed
 	 */
-	protected function formatJson(): string
+	protected function formatData(array $data, string $format = 'json'): mixed
 	{
-		return json_encode($this->data, JSON_PRETTY_PRINT);
+		return $this->wrapInTry(fn(): mixed =>
+			match ($format) {
+				'json' => $this->dataHandler->jsonEncode($data),
+				'xml' => $this->dataHandler->toXml($data),
+				default => $data
+			}
+		);
 	}
 
 	/**
-	 * Formats data as XML.
+	 * Add metadata to the state.
 	 *
-	 * @return string XML-formatted data.
+	 * @param array<string,mixed> $additionalMetadata Metadata to merge.
+	 * @return void
 	 */
-	protected function formatXml(): string
+	protected function appendMetadata(array $additionalMetadata): void
 	{
-		$xml = new \SimpleXMLElement('<root/>');
-		array_walk_recursive($this->data, [$xml, 'addChild']);
-		return $xml->asXML();
+		$this->metadata = $this->merge($this->metadata, $additionalMetadata);
 	}
 
 	/**
-	 * Returns data in array format.
+	 * Add timestamps to the metadata using DateTimeHandler.
 	 *
-	 * @return array Data as an array.
+	 * @return void
 	 */
-	protected function formatArray(): array
+	protected function addTimestamps(): void
 	{
-		return $this->data;
+		$this->appendMetadata([
+			'createdAt' => $this->dateTimeHandler->formatDateTime(
+				$this->dateTimeHandler->createDateTime('now'),
+				\DateTime::RFC3339
+			),
+		]);
 	}
 
 	/**
-	 * Adds additional data to the presenter.
+	 * Compute similarity or distance for data analysis.
 	 *
-	 * @param array $additionalData Data to be added.
+	 * @param string $metric The type of computation ('similarity', 'distance').
+	 * @param mixed  $value  The value to compute against.
+	 * @return mixed The computed metric result.
 	 */
-	protected function addData(array $additionalData): void
+	protected function computeMetric(string $metric, mixed $value): mixed
 	{
-		$this->data = array_merge($this->data, $additionalData);
+		return $this->wrapInTry(fn(): mixed =>
+			match ($metric) {
+				'similarity' => $this->similarityScore($this->data[$value] ?? '', $value),
+				'distance'   => $this->distance($this->data[$value] ?? '', $value),
+				default       => null
+			}
+		);
 	}
 
 	/**
-	 * Filters data by including only the specified keys.
+	 * Normalize the prepared data by removing null values and standardizing structure.
 	 *
-	 * @param array $keys Keys to retain.
-	 * @return array Filtered data.
+	 * @return array<string,mixed>
 	 */
-	protected function filterData(array $keys): array
+	protected function normalizeData(): array
 	{
-		return array_intersect_key($this->data, array_flip($keys));
+		return $this->filter($this->state, fn(mixed $value): bool => !$this->isNull($value));
 	}
 
 	/**
-	 * Filters out null values from the data.
+	 * Extract specific keys from the state.
 	 *
-	 * @param array $data The data to be filtered.
-	 * @return array Data with null values removed.
+	 * @param string[] $keys The keys to extract.
+	 * @return array<string,mixed> Filtered array containing only the requested keys.
 	 */
-	protected function filterNulls(array $data): array
+	protected function extractKeys(array $keys): array
 	{
-		return array_filter($data, fn($value) => $value !== null);
+		return $this->wrapInTry(fn(): array =>
+			$this->filter($this->state, fn(mixed $value, string $key): bool => $this->inArray($key, $keys), ARRAY_FILTER_USE_BOTH)
+		);
 	}
 
 	/**
-	 * Returns only the specified keys from the data.
+	 * Retrieve metadata appended during the preparation lifecycle.
 	 *
-	 * @param array $keys Keys to retain.
-	 * @return array Data with only the specified keys.
+	 * @return array<string,mixed>
 	 */
-	protected function only(array $keys): array
+	protected function getMetadata(): array
 	{
-		return array_intersect_key($this->data, array_flip($keys));
-	}
-
-	/**
-	 * Returns data without the specified keys.
-	 *
-	 * @param array $keys Keys to exclude.
-	 * @return array Data with excluded keys removed.
-	 */
-	protected function except(array $keys): array
-	{
-		return array_diff_key($this->data, array_flip($keys));
+		return $this->metadata;
 	}
 }

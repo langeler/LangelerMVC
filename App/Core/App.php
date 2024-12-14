@@ -3,12 +3,11 @@
 namespace App\Core;
 
 use App\Exceptions\AppException;
-use App\Services\CacheService;
-use App\Services\CoreService;
+use App\Providers\CoreProvider;
 use App\Core\Config;
 use App\Core\Database;
-use App\Utilities\Managers\SettingsManager;
-use Exception;
+use App\Core\Router;
+use Throwable;
 
 /**
  * Core application class for initializing and managing essential components.
@@ -16,129 +15,88 @@ use Exception;
  * The `App` class acts as the backbone of the application, responsible for setting up and managing:
  * - Configuration services
  * - Database connection
- * - Settings management
- * - Caching mechanisms
+ * - Routing
  *
  * It ensures all the necessary components are properly initialized and provides a central point for running the application.
  */
 class App
 {
 	/**
-	 * @var Config $config The application's configuration service.
-	 */
-	public Config $config;
-
-	/**
-	 * @var CacheService $cacheService Manages the caching mechanisms of the application.
-	 */
-	private CacheService $cacheService;
-
-	/**
-	 * @var CoreService $coreService Registers and manages the core services of the application.
-	 */
-	private CoreService $coreService;
-
-	/**
-	 * @var Database $database Handles database connections and queries.
-	 */
-	public Database $database;
-
-	/**
-	 * @var SettingsManager $settingsManager Provides access to application settings.
-	 */
-	public SettingsManager $settingsManager;
-
-	/**
 	 * Constructor to initialize the core components of the application.
 	 *
-	 * The constructor sets up core services such as configuration, database, and settings management.
-	 * It also initializes caching if the settings allow it. All services are loaded through `CoreService` and `CacheService`.
-	 *
+	 * @param CoreProvider $coreProvider The provider for core services.
 	 * @throws AppException If an error occurs during initialization.
 	 */
-	public function __construct()
-	{
-		try {
-			// Initialize and register core services through CoreService
-			$this->coreService = new CoreService();
-			$this->coreService->registerServices();
-
-			// Initialize core components like Config, Database, and SettingsManager
-			$this->InitializeCore();
-
-			// Initialize and register cache services through CacheService
-			$this->cacheService = new CacheService();
-			$this->cacheService->registerServices();
-
-			// Initialize Cache if enabled
-			$this->InitializeCache();
-		} catch (Exception $e) {
-			// If any error occurs during initialization, throw an AppException with a detailed message
-			throw new AppException("Error initializing application: " . $e->getMessage());
-		}
+	public function __construct(
+		protected CoreProvider $coreProvider,
+		public Config $config = null,
+		public Database $database = null,
+		public Router $router = null
+	) {
+		$this->wrapInTry(
+			fn() => $this->initializeCore(),
+			"Error initializing application."
+		);
 	}
 
 	/**
-	 * Initialize the Core Services (Config, Database, SettingsManager).
+	 * Initialize the core services.
 	 *
-	 * This method retrieves essential services from `CoreService` and assigns them to the corresponding properties.
+	 * Retrieves essential services from `CoreProvider` and assigns them to the corresponding properties.
 	 *
 	 * @return void
 	 * @throws AppException If an error occurs while initializing core services.
 	 */
-	protected function InitializeCore(): void
+	protected function initializeCore(): void
 	{
-		try {
-			// Retrieve and assign Config service
-			$this->config = $this->coreService->getService('Config');
+		$this->config = $this->wrapInTry(
+			fn() => $this->coreProvider->getService('Config'),
+			"Failed to initialize Config service."
+		);
 
-			// Retrieve and assign Database service
-			$this->database = $this->coreService->getService('Database');
+		$this->database = $this->wrapInTry(
+			fn() => $this->coreProvider->getService('Database'),
+			"Failed to initialize Database service."
+		);
 
-			// Retrieve and assign SettingsManager service
-			$this->settingsManager = $this->coreService->getService('SettingsManager');
-		} catch (Exception $e) {
-			// Handle any errors during core service initialization
-			throw new AppException("Error initializing core services: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Initialize the Cache Services.
-	 *
-	 * This method retrieves cache settings from the `SettingsManager` and initializes the appropriate cache driver
-	 * if caching is enabled in the application configuration.
-	 *
-	 * @return void
-	 * @throws AppException If an error occurs while initializing cache services.
-	 */
-	protected function InitializeCache(): void
-	{
-		try {
-			// Retrieve cache settings from the SettingsManager
-			$cacheSettings = $this->settingsManager->getAllSettings('cache');
-
-			// Check if caching is enabled in the settings
-			if ($cacheSettings['ENABLED'] === 'true') {
-				// Get and initialize the cache driver based on the settings
-				$this->cacheService->getCacheDriver($cacheSettings);
-			}
-		} catch (Exception $e) {
-			// Handle any errors during cache initialization
-			throw new AppException("Error initializing cache services: " . $e->getMessage());
-		}
+		$this->router = $this->wrapInTry(
+			fn() => $this->coreProvider->getService('Router'),
+			"Failed to initialize Router service."
+		);
 	}
 
 	/**
 	 * Run the application.
 	 *
-	 * This method contains the logic to start and run the application.
-	 * It should be extended as the application grows to handle routing, request processing, and more.
+	 * Contains the logic to start and run the application.
+	 * Handles routing, request processing, and other core tasks.
 	 *
 	 * @return void
 	 */
 	public function run(): void
 	{
-		// Application run logic should be placed here, such as routing or event dispatching.
+		$this->wrapInTry(
+			fn() => $this->router->dispatch(),
+			"Error running the application."
+		);
+	}
+
+	/**
+	 * Wrapper for consistent error handling.
+	 *
+	 * Executes a callback within a try/catch block and throws an `AppException` on failure.
+	 *
+	 * @param callable $callback The callback to execute.
+	 * @param string $errorMessage The error message to include in the exception.
+	 * @return mixed The result of the callback execution.
+	 * @throws AppException If an exception occurs during execution.
+	 */
+	protected function wrapInTry(callable $callback, string $errorMessage): mixed
+	{
+		try {
+			return $callback();
+		} catch (Throwable $e) {
+			throw new AppException($errorMessage, 0, $e);
+		}
 	}
 }

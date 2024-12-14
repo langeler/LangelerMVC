@@ -1,149 +1,106 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Database;
 
-use App\Core\Database;
-use App\Exceptions\Database\MigrationException;
-
+/**
+ * Abstract Migration Class
+ *
+ * Responsibilities:
+ * - Defines a contract for handling database schema changes (migrations).
+ * - Allows concrete classes to specify how tables and columns are created, altered, or dropped.
+ *
+ * Boundaries:
+ * - Does not contain business logic or handle HTTP/presentation layers.
+ * - Focused solely on defining how migrations interact with the schema builder.
+ */
 abstract class Migration
 {
-	protected Database $db;
-	protected string $table;
-
-	public function __construct(Database $db, string $table)
+	/**
+	 * The schema builder instance (e.g., a query builder or database schema manager).
+	 * Concrete migrations will rely on this instance to apply changes.
+	 */
+	public function __construct(protected object $schema)
 	{
-		$this->db = $db;
-		$this->table = $table;
 	}
 
 	/**
-	 * Abstract method to apply the migration.
+	 * Define the schema for creating or altering a table.
 	 *
-	 * @return bool
+	 * @return void
 	 */
-	abstract protected function up(): bool;
+	abstract protected function up(): void;
 
 	/**
-	 * Abstract method to rollback the migration.
+	 * Revert the schema changes defined in `up()`.
 	 *
-	 * @return bool
+	 * @return void
 	 */
-	abstract protected function down(): bool;
+	abstract protected function down(): void;
 
 	/**
-	 * Execute a query as part of the migration.
+	 * Add a column to an existing table.
 	 *
-	 * @param string $query
-	 * @return bool
-	 * @throws MigrationException
+	 * @param string $table  The name of the table.
+	 * @param string $column The name of the new column.
+	 * @param string $type   The data type of the column.
+	 * @param array<string,mixed> $options Additional options (e.g., nullable, default).
+	 * @return void
 	 */
-	protected function executeQuery(string $query): bool
-	{
-		try {
-			return $this->db->exec($query) !== false;
-		} catch (\Exception $e) {
-			throw new MigrationException("Migration query failed: " . $e->getMessage());
-		}
-	}
+	abstract protected function addColumn(string $table, string $column, string $type, array $options = []): void;
 
 	/**
-	 * Check if a table exists in the database.
+	 * Drop a column from an existing table.
 	 *
-	 * @param string $table
-	 * @return bool
+	 * @param string $table  The name of the table.
+	 * @param string $column The name of the column to drop.
+	 * @return void
 	 */
-	protected function tableExists(string $table): bool
-	{
-		$query = "SHOW TABLES LIKE '$table'";
-		$stmt = $this->db->query($query);
-		return $stmt->rowCount() > 0;
-	}
+	abstract protected function dropColumn(string $table, string $column): void;
 
 	/**
-	 * Drop a table from the database.
+	 * Add an index to a table.
 	 *
-	 * @param string $table
-	 * @return bool
-	 * @throws MigrationException
+	 * @param string $table    The name of the table.
+	 * @param string[] $columns The columns to include in the index.
+	 * @param string|null $name Optional name for the index.
+	 * @return void
 	 */
-	protected function dropTable(string $table): bool
-	{
-		if ($this->tableExists($table)) {
-			$query = "DROP TABLE $table";
-			return $this->executeQuery($query);
-		}
-		throw new MigrationException("Table $table does not exist.");
-	}
+	abstract protected function addIndex(string $table, array $columns, ?string $name = null): void;
 
 	/**
-	 * Create a table in the database with specified columns.
+	 * Drop an index from a table.
 	 *
-	 * @param array $columns
-	 * @return bool
-	 * @throws MigrationException
+	 * @param string $table The name of the table.
+	 * @param string $name  The name of the index to drop.
+	 * @return void
 	 */
-	protected function createTable(array $columns): bool
-	{
-		try {
-			$columnDefinitions = implode(', ', $columns);
-			$query = "CREATE TABLE IF NOT EXISTS $this->table ($columnDefinitions)";
-			return $this->db->exec($query) !== false;
-		} catch (\PDOException $e) {
-			throw new MigrationException("Error creating table $this->table: " . $e->getMessage());
-		}
-	}
+	abstract protected function dropIndex(string $table, string $name): void;
 
 	/**
-	 * Drop the table associated with this migration.
+	 * Rename a table.
 	 *
-	 * @return bool
-	 * @throws MigrationException
+	 * @param string $from The current table name.
+	 * @param string $to   The new table name.
+	 * @return void
 	 */
-	protected function dropTable(): bool
-	{
-		try {
-			$query = "DROP TABLE IF EXISTS $this->table";
-			return $this->db->exec($query) !== false;
-		} catch (\PDOException $e) {
-			throw new MigrationException("Error dropping table $this->table: " . $e->getMessage());
-		}
-	}
+	abstract protected function renameTable(string $from, string $to): void;
 
 	/**
-	 * Apply migration changes within a database transaction.
+	 * Drop a table.
 	 *
-	 * @return bool
-	 * @throws MigrationException
+	 * @param string $table The name of the table to drop.
+	 * @return void
 	 */
-	protected function applyMigration(): bool
-	{
-		try {
-			$this->db->beginTransaction();
-			$result = $this->up();
-			$this->db->commit();
-			return $result;
-		} catch (\Exception $e) {
-			$this->db->rollBack();
-			throw new MigrationException("Migration failed, rolled back changes: " . $e->getMessage());
-		}
-	}
+	abstract protected function dropTable(string $table): void;
 
 	/**
-	 * Rollback migration changes within a database transaction.
+	 * Create a new table.
 	 *
-	 * @return bool
-	 * @throws MigrationException
+	 * @param string $table    The name of the table.
+	 * @param callable $callback A callback defining the table schema.
+	 * @return void
 	 */
-	protected function rollbackMigration(): bool
-	{
-		try {
-			$this->db->beginTransaction();
-			$result = $this->down();
-			$this->db->commit();
-			return $result;
-		} catch (\Exception $e) {
-			$this->db->rollBack();
-			throw new MigrationException("Rollback failed, rolled back changes: " . $e->getMessage());
-		}
-	}
+	abstract protected function createTable(string $table, callable $callback): void;
 }

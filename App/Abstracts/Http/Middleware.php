@@ -1,65 +1,98 @@
 <?php
 
-namespace App\Abstracts;
+declare(strict_types=1);
 
-use App\Exceptions\MiddlewareException;
+namespace App\Abstracts\Http;
 
+use RuntimeException;
+use Throwable;
+use App\Contracts\Http\ResponseInterface;
+
+/**
+ * Abstract Middleware Class
+ *
+ * Responsibilities:
+ * - Provide a contract for handling the request/response lifecycle within the middleware layer.
+ * - Define a main `handle()` method that concrete classes must implement.
+ * - Offer optional lifecycle hooks (`before()`, `after()`, `authenticate()`, `authorize()`) that do nothing by default,
+ *   allowing subclasses to override only what they need.
+ *
+ * Alignment with Updated Classes:
+ * - Uses strict typing.
+ * - Specifies return types where known.
+ * - Remains focused on its responsibility: filtering or transforming the request/response pipeline.
+ * - Does not incorporate business logic or presentation logic, staying aligned with layered architecture principles.
+ */
 abstract class Middleware
 {
-	protected array $requestData = [];
-	protected array $responseHeaders = [];
-	protected array $middlewareStack = [];
+	/**
+	 * Abstract method that each middleware must implement.
+	 *
+	 * This is the main entry point for the middleware. It should handle the request,
+	 * optionally call `authenticate()`, `authorize()`, `before()` methods, pass the
+	 * request to the next handler (e.g., controller), and then optionally call `after()`.
+	 *
+	 * @return ResponseInterface The final response after the middleware processing.
+	 */
+	abstract protected function handle(): ResponseInterface;
 
-
-	public function __construct(array $requestData = [])
+	/**
+	 * Lifecycle hook to run before handling the request.
+	 * Default is a no-op. Subclasses can override this.
+	 *
+	 * @return void
+	 */
+	protected function before(): void
 	{
-		$this->requestData = $requestData;
+		// No-op by default.
 	}
 
-	abstract protected function handle(): void;
-
-	abstract protected function process(): bool;
-
-	protected function setHeader(string $name, string $value): void
+	/**
+	 * Lifecycle hook to run after handling the request and before sending the response.
+	 * Default is a no-op. Subclasses can override this.
+	 *
+	 * @return void
+	 */
+	protected function after(): void
 	{
-		$this->responseHeaders[$name] = $value;
+		// No-op by default.
 	}
 
-	protected function applyHeaders(): void
+	/**
+	 * Lifecycle hook for authentication checks.
+	 * Default is a no-op. Subclasses can override to handle authentication.
+	 *
+	 * @return void
+	 */
+	protected function authenticate(): void
 	{
-		foreach ($this->responseHeaders as $name => $value) {
-			header("$name: $value");
+		// No-op by default.
+	}
+
+	/**
+	 * Lifecycle hook for authorization checks.
+	 * Default is a no-op. Subclasses can override to handle authorization.
+	 *
+	 * @return void
+	 */
+	protected function authorize(): void
+	{
+		// No-op by default.
+	}
+
+	/**
+	 * Utility method to ensure consistent error handling.
+	 *
+	 * @param callable $operation The operation to execute.
+	 * @return mixed The result of the operation.
+	 * @throws RuntimeException On failure.
+	 */
+	protected function wrapInTry(callable $operation): mixed
+	{
+		try {
+			return $operation();
+		} catch (Throwable $e) {
+			throw new RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
 		}
-	}
-
-	protected function modifyRequest(array $data): void
-	{
-		$this->requestData = array_merge($this->requestData, $data);
-	}
-
-	protected function abort(int $statusCode = 403, string $message = 'Forbidden'): void
-	{
-		http_response_code($statusCode);
-		echo $message;
-		exit();
-	}
-
-	protected function next()
-	{
-		if (!empty($this->middlewareStack)) {
-			$nextMiddleware = array_shift($this->middlewareStack);
-			return $nextMiddleware->process();
-		}
-		throw new MiddlewareException("No more middleware to process.");
-	}
-
-	protected function addMiddleware(callable $middleware): void
-	{
-		$this->middlewareStack[] = $middleware;
-	}
-
-	protected function removeMiddleware(): void
-	{
-		array_shift($this->middlewareStack);
 	}
 }

@@ -1,174 +1,241 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Presentation;
 
+use App\Utilities\Finders\FileFinder;
+use App\Utilities\Finders\DirectoryFinder;
+use App\Utilities\Managers\CacheManager;
+use App\Utilities\Managers\FileManager;
+use App\Utilities\Sanitation\PatternSanitizer;
+use App\Utilities\Validation\PatternValidator;
+use App\Helpers\TypeChecker;
+use App\Exceptions\Data\FinderException;
 use App\Exceptions\Presentation\ViewException;
 
+/**
+ * Abstract View Class
+ *
+ * Responsibilities:
+ * - Locate and resolve template and resource file paths (layouts, pages, partials, components, assets).
+ * - Provide an interface for rendering templates and caching them.
+ * - Ensure all paths are sanitized, validated, and normalized.
+ *
+ * Boundaries:
+ * - Does not handle business logic or HTTP directly; it only prepares resources for the presentation layer.
+ * - Focused on filesystem interactions, template/resource location, and rendering contracts.
+ *
+ * Alignment with Updated Classes:
+ * - Uses strict typing and typed return values.
+ * - Constructor property promotion for dependencies.
+ * - Utilizes custom exceptions for finder and view errors.
+ */
 abstract class View
 {
-	protected string $viewPath;
-	protected array $data = [];
-	protected string $cacheDir = __DIR__ . '/cache';
-	protected int $cacheExpiration = 3600; // Cache expiration time in seconds
+	protected array $globals = [];
+	protected string $templateExt = 'php';
+	protected string $resourceExt = 'php';
+	protected string $theme = 'default';
 
-	public function __construct(string $viewPath)
+	private string $resourcesPath;
+	private string $templatesPath;
+
+	/**
+	 * Constructor that injects all necessary dependencies using property promotion.
+	 *
+	 * @param FileFinder       $files        Finds files in directories.
+	 * @param DirectoryFinder  $dirs         Finds directories.
+	 * @param TypeChecker      $types        Utility for type and existence checks.
+	 * @param CacheManager     $cache        Manages cached templates.
+	 * @param FileManager      $fileManager  Handles file operations.
+	 * @param PatternSanitizer $sanitizer    Sanitizes input paths or strings.
+	 * @param PatternValidator $validator    Validates input data against given rules.
+	 */
+	public function __construct(
+		private FileFinder $files,
+		private DirectoryFinder $dirs,
+		private TypeChecker $types,
+		private CacheManager $cache,
+		private FileManager $fileManager,
+		private PatternSanitizer $sanitizer,
+		private PatternValidator $validator
+	) {
+		$this->resourcesPath = $this->resolveBasePath('Resources');
+		$this->templatesPath = $this->resolveBasePath('Templates');
+	}
+
+	/**
+	 * Abstract methods for rendering various template types.
+	 */
+	abstract protected function renderLayout(string $layout, array $data = []): string;
+	abstract protected function renderPage(string $page, array $data = []): string;
+	abstract protected function renderPartial(string $partial, array $data = []): string;
+	abstract protected function renderComponent(string $component, array $data = []): string;
+	abstract protected function renderAsset(string $type, string $asset): string;
+
+	/**
+	 * Abstract methods for managing globals and cached templates.
+	 */
+	abstract protected function setGlobals(array $variables): void;
+	abstract protected function getGlobals(): array;
+	abstract protected function cacheTemplate(string $key, string $content, ?int $ttl = null): void;
+	abstract protected function fetchCachedTemplate(string $key): ?string;
+
+	/**
+	 * Resolve the base directory for resources or templates.
+	 *
+	 * @param string $dirName The directory name to resolve.
+	 * @return string The resolved and validated base path.
+	 */
+	private function resolveBasePath(string $dirName): string
 	{
-		if (!file_exists($viewPath)) {
-			throw new ViewException("View file $viewPath does not exist.");
+		return $this->wrapInTry(fn(): string =>
+			$this->getValidPath(
+				$this->dirs->find(['name' => $dirName])[0] ?? null,
+				"Base directory '{$dirName}' not found."
+			)
+		);
+	}
+
+	/**
+	 * Resolve subdirectories within base directories.
+	 *
+	 * @param string $basePath The base directory path.
+	 * @param string $subDir   The subdirectory name.
+	 * @return string The resolved subdirectory path.
+	 */
+	private function resolveSubDirPath(string $basePath, string $subDir): string
+	{
+		return $this->wrapInTry(fn(): string =>
+			$this->getValidPath(
+				$this->dirs->find(['name' => $subDir], $basePath)[0] ?? null,
+				"Subdirectory '{$subDir}' not found in '{$basePath}'."
+			)
+		);
+	}
+
+	/**
+	 * Resolve file paths within directories.
+	 *
+	 * @param string      $basePath The base path in which to find the file.
+	 * @param string      $fileName The file name.
+	 * @param string|null $ext      Optional extension to append.
+	 * @return string The resolved file path.
+	 */
+	private function resolveFilePath(string $basePath, string $fileName, ?string $ext = null): string
+	{
+		return $this->wrapInTry(fn(): string =>
+			$this->getValidPath(
+				$this->sanitizeAndValidate(
+					['path' => $basePath . DIRECTORY_SEPARATOR . $fileName . ($ext ? ".{$ext}" : '')],
+					['path' => ['notEmpty' => true]]
+				)['path'],
+				"File '{$fileName}' not found in '{$basePath}'.",
+				isFileCheck: true
+			)
+		);
+	}
+
+	/**
+	 * Validate and normalize a path.
+	 *
+	 * @param string|null $path
+	 * @param string      $errorMessage
+	 * @param bool        $isFileCheck  If true, validates that $path is a file; otherwise checks for directory.
+	 * @return string The validated and normalized path.
+	 * @throws FinderException If the path is invalid.
+	 */
+	private function getValidPath(?string $path, string $errorMessage, bool $isFileCheck = false): string
+	{
+		if (
+			!$this->types->isSet($path)
+			|| ($isFileCheck && !$this->fileManager->fileExists($path))
+			|| (!$isFileCheck && !$this->types->isDirectory($path))
+		) {
+			throw new FinderException($errorMessage);
 		}
-		$this->viewPath = $viewPath;
 
-		// Create cache directory if it doesn't exist
-		if (!is_dir($this->cacheDir)) {
-			mkdir($this->cacheDir, 0755, true);
+		return $this->normalizePath($path);
+	}
+
+	/**
+	 * Sanitize and validate input data.
+	 *
+	 * @param array<string,mixed> $data  The data to sanitize and validate.
+	 * @param array<string,array<string,mixed>> $rules Validation rules.
+	 * @return array<string,mixed> The sanitized and validated data.
+	 */
+	private function sanitizeAndValidate(array $data, array $rules): array
+	{
+		return $this->validator->verify($this->sanitizer->clean($data), $rules);
+	}
+
+	/**
+	 * Normalize file paths to a consistent format.
+	 *
+	 * @param string $path The path to normalize.
+	 * @return string The normalized path.
+	 */
+	private function normalizePath(string $path): string
+	{
+		return $this->fileManager->getRealPath($path) ?? str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+	}
+
+	/**
+	 * Wrapper for handling exceptions with a consistent exception type.
+	 *
+	 * @param callable $callback The operation to attempt.
+	 * @return mixed Result of the operation.
+	 * @throws ViewException If an error occurs during operation.
+	 */
+	private function wrapInTry(callable $callback): mixed
+	{
+		try {
+			return $callback();
+		} catch (\Throwable $e) {
+			throw new ViewException("Error occurred: {$e->getMessage()}", 0, $e);
 		}
 	}
 
 	/**
-	 * Abstract method to be implemented by subclasses for rendering logic.
-	 *
-	 * @return string Rendered content
+	 * Fetch resource paths (e.g., CSS, JS, images).
 	 */
-	abstract protected function render(): string;
-
-	/**
-	 * Set data to be passed into the view.
-	 *
-	 * @param array $data Data for the view
-	 */
-	protected function setData(array $data): void
+	protected function getCssPath(string $file): string
 	{
-		$this->data = $data;
+		return $this->resolveFilePath($this->resolveSubDirPath($this->resourcesPath, 'css'), $file);
+	}
+
+	protected function getJsPath(string $file): string
+	{
+		return $this->resolveFilePath($this->resolveSubDirPath($this->resourcesPath, 'js'), $file);
+	}
+
+	protected function getImagePath(string $file): string
+	{
+		return $this->resolveFilePath($this->resolveSubDirPath($this->resourcesPath, 'images'), $file);
 	}
 
 	/**
-	 * Render the view with the given data.
-	 *
-	 * @return string Rendered HTML content
+	 * Fetch template paths (layouts, pages, partials, components).
 	 */
-	protected function renderView(): string
+	protected function getLayoutPath(string $file): string
 	{
-		// Check if the view is cached
-		$cacheKey = $this->getCacheKey($this->viewPath, $this->data);
-		if ($this->isCached($cacheKey)) {
-			return $this->getCachedView($cacheKey);
-		}
-
-		ob_start();
-		extract($this->data);
-		include $this->viewPath;
-		$renderedView = ob_get_clean();
-
-		// Cache the rendered view
-		$this->cacheView($cacheKey, $renderedView);
-
-		return $renderedView;
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'layouts'), $file, $this->templateExt);
 	}
 
-	/**
-	 * Escape output to prevent XSS attacks.
-	 *
-	 * @param string $data The data to escape
-	 * @return string Escaped data
-	 */
-	protected function escape(string $data): string
+	protected function getPagePath(string $file): string
 	{
-		return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'pages'), $file, $this->templateExt);
 	}
 
-	/**
-	 * Load and render a partial view.
-	 *
-	 * @param string $partialPath Path to the partial view
-	 * @return string Rendered partial view
-	 */
-	protected function loadPartial(string $partialPath): string
+	protected function getPartialPath(string $file): string
 	{
-		if (!file_exists($partialPath)) {
-			throw new ViewException("Partial view $partialPath does not exist.");
-		}
-
-		ob_start();
-		include $partialPath;
-		return ob_get_clean();
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'partials'), $file, $this->templateExt);
 	}
 
-	/**
-	 * Cache the rendered view content.
-	 *
-	 * @param string $cacheKey Unique cache key for the view
-	 * @param string $content The rendered view content
-	 */
-	protected function cacheView(string $cacheKey, string $content): void
+	protected function getComponentPath(string $file): string
 	{
-		$cacheFile = $this->getCacheFilePath($cacheKey);
-		file_put_contents($cacheFile, $content);
-	}
-
-	/**
-	 * Check if the view is cached and still valid.
-	 *
-	 * @param string $cacheKey Unique cache key for the view
-	 * @return bool True if cached and valid, false otherwise
-	 */
-	protected function isCached(string $cacheKey): bool
-	{
-		$cacheFile = $this->getCacheFilePath($cacheKey);
-
-		if (!file_exists($cacheFile)) {
-			return false;
-		}
-
-		// Check if the cache has expired
-		$fileTime = filemtime($cacheFile);
-		return (time() - $fileTime) < $this->cacheExpiration;
-	}
-
-	/**
-	 * Retrieve the cached view content.
-	 *
-	 * @param string $cacheKey Unique cache key for the view
-	 * @return string Cached content
-	 */
-	protected function getCachedView(string $cacheKey): string
-	{
-		$cacheFile = $this->getCacheFilePath($cacheKey);
-		return file_get_contents($cacheFile);
-	}
-
-	/**
-	 * Generate a unique cache key based on the view path and data.
-	 *
-	 * @param string $viewPath Path to the view file
-	 * @param array $data Data passed to the view
-	 * @return string Unique cache key
-	 */
-	protected function getCacheKey(string $viewPath, array $data): string
-	{
-		return md5($viewPath . serialize($data));
-	}
-
-	/**
-	 * Get the file path for the cached view.
-	 *
-	 * @param string $cacheKey Unique cache key for the view
-	 * @return string Path to the cache file
-	 */
-	protected function getCacheFilePath(string $cacheKey): string
-	{
-		return $this->cacheDir . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
-	}
-
-	/**
-	 * Clear the cache for the view.
-	 *
-	 * @param string $cacheKey Unique cache key for the view
-	 */
-	protected function clearCache(string $cacheKey): void
-	{
-		$cacheFile = $this->getCacheFilePath($cacheKey);
-		if (file_exists($cacheFile)) {
-			unlink($cacheFile);
-		}
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'components'), $file, $this->templateExt);
 	}
 }

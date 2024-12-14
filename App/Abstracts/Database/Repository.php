@@ -1,178 +1,129 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Database;
 
 use App\Core\Database;
-use App\Exceptions\Database\RepositoryException;
 
+/**
+ * Abstract Repository Class
+ *
+ * Responsibilities:
+ * - Encapsulate CRUD operations and data retrieval logic using the provided Database instance.
+ * - Return model instances rather than raw arrays.
+ * - Provide a uniform interface for data operations, enforced by abstract methods.
+ *
+ * Boundaries:
+ * - Does NOT handle HTTP requests, responses, or presentation logic.
+ * - Does NOT contain business logic; it only interacts with the database.
+ * - Concrete repositories must implement table association and data mapping.
+ */
 abstract class Repository
 {
-	protected Database $db;
-	protected string $table;
-
-	public function __construct(Database $db, string $table)
-	{
-		$this->db = $db;
-		$this->table = $table;
+	/**
+	 * The model instance or a prototype model used for instantiation.
+	 * The Database instance for executing queries.
+	 */
+	public function __construct(
+		protected object $model,
+		protected Database $db
+	) {
+		// All necessary properties are already set via constructor property promotion.
 	}
 
 	/**
-	 * Abstract method to fetch all records.
+	 * Get the database table name associated with this repository.
+	 * Concrete implementations must specify which table they operate on.
 	 *
-	 * @return array
+	 * @return string The table name.
+	 */
+	abstract protected function getTable(): string;
+
+	/**
+	 * Map a raw database row to a model instance.
+	 * Ensures that data returned from the database is converted into a model object.
+	 *
+	 * @param array $row The raw database row.
+	 * @return object A model instance representing the row.
+	 */
+	abstract protected function mapRowToModel(array $row): object;
+
+	/**
+	 * Find a record by its primary key.
+	 *
+	 * @param mixed $id The primary key value.
+	 * @return object|null The found model instance, or null if not found.
+	 */
+	abstract protected function find(mixed $id): ?object;
+
+	/**
+	 * Retrieve all records from the associated table.
+	 *
+	 * @return object[] An array of model instances.
 	 */
 	abstract protected function all(): array;
 
 	/**
-	 * Abstract method to find a record by its ID.
+	 * Retrieve a paginated list of records.
 	 *
-	 * @param int $id
-	 * @return array|null
+	 * @param int $perPage Number of records per page.
+	 * @param int $page    The current page number.
+	 * @return array {
+	 *     'data' => object[],   // The page of model instances
+	 *     'total' => int,       // Total number of records
+	 *     'per_page' => int,    // Records per page
+	 *     'current_page' => int // Current page number
+	 * }
 	 */
-	abstract protected function findById(int $id): ?array;
-
-	/**
-	 * Find a record by a specific column value.
-	 *
-	 * @param string $column
-	 * @param mixed $value
-	 * @return array|null
-	 * @throws RepositoryException
-	 */
-	protected function findBy(string $column, $value): ?array
-	{
-		try {
-			$query = "SELECT * FROM $this->table WHERE $column = :value";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindParam(':value', $value);
-			$stmt->execute();
-
-			return $stmt->fetch() ?: null;
-		} catch (\PDOException $e) {
-			throw new RepositoryException("Error finding by $column: " . $e->getMessage());
-		}
-	}
+	abstract protected function paginate(int $perPage = 15, int $page = 1): array;
 
 	/**
 	 * Create a new record in the database.
 	 *
-	 * @param array $data
-	 * @return bool
-	 * @throws RepositoryException
+	 * @param array $data The data to create the record.
+	 * @return object The created model instance.
 	 */
-	protected function create(array $data): bool
-	{
-		try {
-			$keys = array_keys($data);
-			$fields = implode(',', $keys);
-			$placeholders = ':' . implode(',:', $keys);
-
-			$query = "INSERT INTO $this->table ($fields) VALUES ($placeholders)";
-			$stmt = $this->db->prepare($query);
-			foreach ($data as $key => $value) {
-				$stmt->bindValue(":$key", $value);
-			}
-
-			return $stmt->execute();
-		} catch (\PDOException $e) {
-			throw new RepositoryException("Error creating record: " . $e->getMessage());
-		}
-	}
+	abstract protected function create(array $data): object;
 
 	/**
-	 * Update an existing record in the database.
+	 * Update an existing record by its primary key.
 	 *
-	 * @param int $id
-	 * @param array $data
-	 * @return bool
-	 * @throws RepositoryException
+	 * @param mixed $id   The primary key value of the record.
+	 * @param array $data The data to update.
+	 * @return bool True if the update was successful, false otherwise.
 	 */
-	protected function update(int $id, array $data): bool
-	{
-		try {
-			$fields = implode(', ', array_map(fn($key) => "$key = :$key", array_keys($data)));
-			$query = "UPDATE $this->table SET $fields WHERE id = :id";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':id', $id);
-			foreach ($data as $key => $value) {
-				$stmt->bindValue(":$key", $value);
-			}
-
-			return $stmt->execute();
-		} catch (\PDOException $e) {
-			throw new RepositoryException("Error updating record: " . $e->getMessage());
-		}
-	}
+	abstract protected function update(mixed $id, array $data): bool;
 
 	/**
-	 * Delete a record from the database by its ID.
+	 * Delete a record by its primary key.
 	 *
-	 * @param int $id
-	 * @return bool
-	 * @throws RepositoryException
+	 * @param mixed $id The primary key value of the record.
+	 * @return bool True if the deletion was successful, false otherwise.
 	 */
-	protected function delete(int $id): bool
-	{
-		try {
-			$query = "DELETE FROM $this->table WHERE id = :id";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':id', $id);
-			return $stmt->execute();
-		} catch (\PDOException $e) {
-			throw new RepositoryException("Error deleting record: " . $e->getMessage());
-		}
-	}
+	abstract protected function delete(mixed $id): bool;
 
 	/**
-	 * Get a paginated set of records from the database.
+	 * Find records by specific criteria.
 	 *
-	 * @param int $limit
-	 * @param int $offset
-	 * @return array
-	 * @throws RepositoryException
+	 * @param array $criteria Key-value pairs for filtering.
+	 * @return object[] An array of model instances matching the criteria.
 	 */
-	protected function paginate(int $limit, int $offset = 0): array
-	{
-		try {
-			$query = "SELECT * FROM $this->table LIMIT :limit OFFSET :offset";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
-			$stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
-			$stmt->execute();
-
-			return $stmt->fetchAll();
-		} catch (\PDOException $e) {
-			throw new RepositoryException("Error paginating records: " . $e->getMessage());
-		}
-	}
+	abstract protected function findBy(array $criteria): array;
 
 	/**
-	 * Filter records based on specific conditions.
+	 * Find a single record by specific criteria.
 	 *
-	 * @param array $conditions
-	 * @return array
-	 * @throws RepositoryException
+	 * @param array $criteria Key-value pairs for filtering.
+	 * @return object|null The found model instance, or null if not found.
 	 */
-	protected function filter(array $conditions): array
-	{
-		try {
-			$whereClauses = [];
-			foreach ($conditions as $column => $value) {
-				$whereClauses[] = "$column = :$column";
-			}
-			$where = implode(' AND ', $whereClauses);
+	abstract protected function findOneBy(array $criteria): ?object;
 
-			$query = "SELECT * FROM $this->table WHERE $where";
-			$stmt = $this->db->prepare($query);
-
-			foreach ($conditions as $column => $value) {
-				$stmt->bindValue(":$column", $value);
-			}
-
-			$stmt->execute();
-			return $stmt->fetchAll();
-		} catch (\PDOException $e) {
-			throw new RepositoryException("Error filtering records: " . $e->getMessage());
-		}
-	}
+	/**
+	 * Count records matching specific criteria.
+	 *
+	 * @param array $criteria Key-value pairs for filtering.
+	 * @return int The number of matching records.
+	 */
+	abstract protected function count(array $criteria): int;
 }

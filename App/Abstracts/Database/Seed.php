@@ -1,84 +1,73 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Database;
 
-use App\Core\Database;
-use App\Exceptions\Database\SeedException;
-
+/**
+ * Abstract Seed Class
+ *
+ * Responsibilities:
+ * - Provides a contract for seeding database tables with initial or test data.
+ * - Relies on a repository to insert data without directly handling raw queries.
+ *
+ * Boundaries:
+ * - Does not handle HTTP, presentation, or business logic.
+ * - Focused on data insertion logic for setup or testing environments.
+ */
 abstract class Seed
 {
-	protected Database $db;
-	protected string $table;
-
-	public function __construct(Database $db, string $table)
+	/**
+	 * Constructor using property promotion for dependency injection.
+	 *
+	 * @param object $repository The repository instance used for inserting, truncating,
+	 *                           and retrieving default data. Concrete classes should
+	 *                           provide a repository that knows how to interact with the database.
+	 */
+	public function __construct(protected object $repository)
 	{
-		$this->db = $db;
-		$this->table = $table;
 	}
 
 	/**
-	 * Abstract method to define seeding logic.
+	 * Define the data and logic for running the seed.
+	 * Concrete classes implement their seeding logic here,
+	 * calling insert methods on the repository as needed.
 	 *
-	 * @return bool
+	 * @return void
 	 */
-	abstract protected function seed(): bool;
+	abstract protected function run(): void;
 
 	/**
-	 * Insert data into the table.
+	 * Insert a single record into the database.
+	 * Concrete classes must define how a single record is inserted using the repository.
 	 *
-	 * @param array $data
-	 * @return bool
-	 * @throws SeedException
+	 * @param array<string,mixed> $data The data to insert as a single record.
+	 * @return object The created record as a model instance.
 	 */
-	protected function insert(array $data): bool
-	{
-		try {
-			$columns = implode(', ', array_keys($data));
-			$placeholders = ':' . implode(', :', array_keys($data));
-			$query = "INSERT INTO $this->table ($columns) VALUES ($placeholders)";
-			$stmt = $this->db->prepare($query);
-
-			foreach ($data as $key => $value) {
-				$stmt->bindValue(":$key", $value);
-			}
-
-			return $stmt->execute();
-		} catch (\PDOException $e) {
-			throw new SeedException("Error seeding data into $this->table: " . $e->getMessage());
-		}
-	}
+	abstract protected function insert(array $data): object;
 
 	/**
-	 * Truncate the table before seeding.
+	 * Insert multiple records into the database at once.
+	 * Concrete classes must define how batch inserts are handled by the repository.
 	 *
-	 * @return bool
-	 * @throws SeedException
+	 * @param array<int,array<string,mixed>> $data An array of records to insert.
+	 * @return object[] An array of created model instances.
 	 */
-	protected function truncate(): bool
-	{
-		try {
-			return $this->db->exec("TRUNCATE TABLE $this->table") !== false;
-		} catch (\PDOException $e) {
-			throw new SeedException("Error truncating table $this->table: " . $e->getMessage());
-		}
-	}
+	abstract protected function insertMany(array $data): array;
 
 	/**
-	 * Perform seeding operations within a database transaction.
+	 * Truncate the table associated with this seed.
+	 * Concrete classes must define how the repository performs a truncate operation.
 	 *
-	 * @return bool
-	 * @throws SeedException
+	 * @return void
 	 */
-	protected function applySeed(): bool
-	{
-		try {
-			$this->db->beginTransaction();
-			$result = $this->seed();
-			$this->db->commit();
-			return $result;
-		} catch (\Exception $e) {
-			$this->db->rollBack();
-			throw new SeedException("Seeding failed, rolled back changes: " . $e->getMessage());
-		}
-	}
+	abstract protected function truncate(): void;
+
+	/**
+	 * Provide a default set of seed data.
+	 * Concrete classes can define reusable arrays of attributes for easy seeding.
+	 *
+	 * @return array<int,array<string,mixed>> A default data set for seeding.
+	 */
+	abstract protected function defaultData(): array;
 }

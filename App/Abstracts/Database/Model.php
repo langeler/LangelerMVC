@@ -1,193 +1,133 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Database;
 
-use App\Core\Database;
-use App\Exceptions\Database\ModelException;
-use \PDOException;
-
+/**
+ * Abstract Model Class
+ *
+ * Responsibilities:
+ * - Represents a single database record as an object.
+ * - Defines contracts for attribute handling, table configuration, and timestamps.
+ * - Does not directly interact with the database (that’s the repository’s responsibility).
+ *
+ * Boundaries:
+ * - No HTTP or presentation logic.
+ * - No complex business logic: that should be handled by services.
+ * - Focused on entity representation, not persistence.
+ */
 abstract class Model
 {
-	protected Database $db;
+	/**
+	 * Construct a new model instance with optional initial attributes.
+	 *
+	 * @param array<string,mixed> $attributes Key-value pairs of model properties.
+	 */
+	public function __construct(protected array $attributes = [])
+	{
+	}
+
+	/**
+	 * The table name associated with the model.
+	 * Defined by concrete classes via getTable().
+	 */
 	protected string $table;
+
+	/**
+	 * The primary key for the model.
+	 * Can be overridden by concrete models via getPrimaryKey().
+	 */
+	protected string $primaryKey = 'id';
+
+	/**
+	 * Indicates if the model uses timestamp fields (created_at, updated_at).
+	 */
+	protected bool $timestamps = true;
+
+	/**
+	 * The attributes that are mass assignable.
+	 * Concrete models can define their fillable attributes.
+	 */
 	protected array $fillable = [];
 
-	public function __construct(Database $db, string $table)
-	{
-		$this->db = $db;
-		$this->table = $table;
-	}
-
 	/**
-	 * Abstract method for saving data.
+	 * The attributes that are guarded from mass assignment.
+	 * Concrete models can define attributes that should not be mass assigned.
 	 */
-	abstract protected function save(): bool;
+	protected array $guarded = [];
 
 	/**
-	 * Abstract method for validating data.
-	 *
-	 * @param array $data
-	 * @return bool
+	 * The original attributes as retrieved from the database.
+	 * Used for change detection or reverting to original state.
 	 */
-	abstract protected function validate(array $data): bool;
+	protected array $original = [];
 
 	/**
-	 * Insert a new record into the database.
-	 *
-	 * @param array $data
-	 * @return bool
-	 * @throws ModelException
-	 */
-	protected function insert(array $data): bool
-	{
-		try {
-			$columns = implode(',', array_keys($data));
-			$placeholders = ':' . implode(', :', array_keys($data));
-
-			$query = "INSERT INTO $this->table ($columns) VALUES ($placeholders)";
-			$stmt = $this->db->prepare($query);
-
-			foreach ($data as $key => $value) {
-				$stmt->bindValue(":$key", $value);
-			}
-
-			return $stmt->execute();
-		} catch (PDOException $e) {
-			throw new ModelException("Error inserting data into $this->table: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Update a record in the database.
-	 *
-	 * @param int $id
-	 * @param array $data
-	 * @return bool
-	 * @throws ModelException
-	 */
-	protected function update(int $id, array $data): bool
-	{
-		try {
-			$fields = implode(', ', array_map(fn($key) => "$key = :$key", array_keys($data)));
-			$query = "UPDATE $this->table SET $fields WHERE id = :id";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':id', $id);
-
-			foreach ($data as $key => $value) {
-				$stmt->bindValue(":$key", $value);
-			}
-
-			return $stmt->execute();
-		} catch (PDOException $e) {
-			throw new ModelException("Error updating record in $this->table: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Delete a record from the database.
-	 *
-	 * @param int $id
-	 * @return bool
-	 * @throws ModelException
-	 */
-	protected function delete(int $id): bool
-	{
-		try {
-			$query = "DELETE FROM $this->table WHERE id = :id";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':id', $id);
-			return $stmt->execute();
-		} catch (PDOException $e) {
-			throw new ModelException("Error deleting record from $this->table: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Fill the model with data.
-	 *
-	 * @param array $data
-	 * @throws ModelException
-	 */
-	protected function fill(array $data): void
-	{
-		foreach ($data as $key => $value) {
-			if (in_array($key, $this->fillable)) {
-				$this->$key = $value;
-			} else {
-				throw new ModelException("Field $key is not fillable.");
-			}
-		}
-	}
-
-	/**
-	 * Find a record by its ID.
-	 *
-	 * @param int $id
-	 * @return array|null
-	 * @throws ModelException
-	 */
-	protected function find(int $id): ?array
-	{
-		try {
-			return $this->db->find($this->table, $id);
-		} catch (PDOException $e) {
-			throw new ModelException("Error finding record with ID $id: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Define a one-to-many relationship.
-	 *
-	 * @param string $relatedModel The related model class.
-	 * @param string $foreignKey The foreign key in the related model.
-	 * @param string $localKey The local key in the current model.
-	 * @return array The related records.
-	 * @throws ModelException
-	 */
-	protected function hasMany(string $relatedModel, string $foreignKey, string $localKey = 'id'): array
-	{
-		try {
-			$relatedTable = (new $relatedModel($this->db))->getTableName();
-			$query = "SELECT * FROM $relatedTable WHERE $foreignKey = :localKey";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':localKey', $this->$localKey);
-			$stmt->execute();
-			return $stmt->fetchAll();
-		} catch (PDOException $e) {
-			throw new ModelException("Error fetching related records: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Define an inverse one-to-many (belongsTo) relationship.
-	 *
-	 * @param string $relatedModel The related model class.
-	 * @param string $foreignKey The foreign key in the current model.
-	 * @param string $ownerKey The key in the related model.
-	 * @return array|null The related record.
-	 * @throws ModelException
-	 */
-	protected function belongsTo(string $relatedModel, string $foreignKey, string $ownerKey = 'id'): ?array
-	{
-		try {
-			$relatedTable = (new $relatedModel($this->db))->getTableName();
-			$query = "SELECT * FROM $relatedTable WHERE $ownerKey = :foreignKey";
-			$stmt = $this->db->prepare($query);
-			$stmt->bindValue(':foreignKey', $this->$foreignKey);
-			$stmt->execute();
-			return $stmt->fetch();
-		} catch (PDOException $e) {
-			throw new ModelException("Error fetching parent record: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Get the table name for the current model.
+	 * Get the table name associated with the model.
 	 *
 	 * @return string The table name.
 	 */
-	protected function getTableName(): string
-	{
-		return $this->table;
-	}
+	abstract protected function getTable(): string;
+
+	/**
+	 * Get the primary key for the model.
+	 *
+	 * @return string The primary key column name.
+	 */
+	abstract protected function getPrimaryKey(): string;
+
+	/**
+	 * Retrieve all attributes of the model.
+	 *
+	 * @return array<string,mixed> An associative array of all attributes.
+	 */
+	abstract protected function getAttributes(): array;
+
+	/**
+	 * Set a specific attribute on the model.
+	 *
+	 * @param string $key   The attribute name.
+	 * @param mixed  $value The attribute value.
+	 * @return void
+	 */
+	abstract protected function setAttribute(string $key, mixed $value): void;
+
+	/**
+	 * Get a specific attribute from the model.
+	 *
+	 * @param string $key The attribute name.
+	 * @return mixed The attribute value.
+	 */
+	abstract protected function getAttribute(string $key): mixed;
+
+	/**
+	 * Determine if a specific attribute exists on the model.
+	 *
+	 * @param string $key The attribute name.
+	 * @return bool True if the attribute exists, false otherwise.
+	 */
+	abstract protected function hasAttribute(string $key): bool;
+
+	/**
+	 * Check if timestamps are enabled for the model.
+	 *
+	 * @return bool True if timestamps are used, false otherwise.
+	 */
+	abstract protected function usesTimestamps(): bool;
+
+	/**
+	 * Fill the model with an array of attributes, respecting fillable and guarded rules.
+	 *
+	 * @param array<string,mixed> $attributes Attributes to mass assign.
+	 * @return void
+	 */
+	abstract protected function fill(array $attributes): void;
+
+	/**
+	 * Retrieve the original attributes as retrieved from the database.
+	 *
+	 * @return array<string,mixed> An associative array of the original attributes.
+	 */
+	abstract protected function getOriginal(): array;
 }

@@ -10,7 +10,7 @@ use Throwable;
  *
  * Base exception for all iterator-related errors.
  */
-class IteratorException extends Exception implements Throwable
+class IteratorException extends Exception
 {
 	/**
 	 * IteratorException constructor.

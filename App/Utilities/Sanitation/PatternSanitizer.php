@@ -4,16 +4,16 @@ namespace App\Utilities\Sanitation;
 
 use App\Abstracts\Data\Sanitizer;
 use App\Utilities\Traits\Rules\RuleTrait;
-use App\Utilities\Traits\Filters\SanitationFilterTrait;
+use App\Utilities\Traits\Patterns\SanitationPatternTrait;
 
 /**
- * Class GeneralSanitizer
+ * Class TextSanitizer
  *
- * Provides general sanitization methods using traits for filtration, sanitation, and filter flags.
+ * Provides sanitation methods for text-related fields using regex patterns.
  */
-class GeneralSanitizer extends Sanitizer
+class PatternSanitizer extends Sanitizer
 {
-	use RuleTrait, SanitationFilterTrait;
+	use RuleTrait, SanitationPatternTrait;
 
 	/**
 	 * === ENTRY POINT: sanitize method (Do not modify) ===

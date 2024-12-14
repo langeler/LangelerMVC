@@ -4,62 +4,90 @@ namespace App\Utilities\Traits\Filters;
 
 use InvalidArgumentException;
 
-/**
- * Trait SanitationFilterTrait
- *
- * Provides access to PHP's non-deprecated sanitization filters.
- *
- * This trait allows easy retrieval of all available sanitization filters (non-deprecated) using a descriptive key.
- */
-trait SanitationFilterTrait
+trait SanitationTrait
 {
-	/**
-	 * Available non-deprecated sanitization filters.
-	 *
-	 * Key: Descriptive name of the filter for easy reference.
-	 * Value: The actual PHP FILTER_SANITIZE_* constant.
-	 */
-	private array $filters = [
-		'encoded' => FILTER_SANITIZE_ENCODED,                 // URL-encodes a string
-		'string' => FILTER_SANITIZE_SPECIAL_CHARS,            // Escapes HTML special characters
-		'email' => FILTER_SANITIZE_EMAIL,                     // Removes invalid characters from an email
-		'url' => FILTER_SANITIZE_URL,                         // Removes invalid characters from a URL
-		'number_int' => FILTER_SANITIZE_NUMBER_INT,           // Removes all characters except digits, plus and minus signs
-		'number_float' => FILTER_SANITIZE_NUMBER_FLOAT,       // Removes all characters except digits, +-., and optionally eE for floats
-		'add_slashes' => FILTER_SANITIZE_ADD_SLASHES,         // Adds backslashes before characters like quotes, backslashes, and NUL
-		'full_special_chars' => FILTER_SANITIZE_FULL_SPECIAL_CHARS, // Escapes HTML special characters (alternative to htmlspecialchars)
-	];
+	use FiltrationTrait;
 
-	/**
-	 * Retrieves the corresponding sanitization filter constant for a given filter key.
-	 *
-	 * @param string $key The descriptive key name of the filter.
-	 * @return int The corresponding FILTER_SANITIZE_* constant.
-	 * @throws InvalidArgumentException If the filter key is invalid.
-	 */
-	public function getFilter(string $key): int
+	public readonly array $filters;
+	public readonly array $flags;
+
+	public function __construct()
 	{
-		return $this->filters[$key] ?? throw new InvalidArgumentException("Invalid sanitization filter key: $key");
+		$this->filters = [
+			'encoded' => FILTER_SANITIZE_ENCODED,            // URL-encodes a string
+			'string' => FILTER_SANITIZE_SPECIAL_CHARS,       // Escapes HTML special characters
+			'email' => FILTER_SANITIZE_EMAIL,                // Removes invalid characters from an email
+			'url' => FILTER_SANITIZE_URL,                    // Removes invalid characters from a URL
+			'int' => FILTER_SANITIZE_NUMBER_INT,             // Removes all characters except digits, plus and minus signs
+			'float' => FILTER_SANITIZE_NUMBER_FLOAT,         // Removes all characters except digits, +-., and optionally eE for floats
+			'addSlashes' => FILTER_SANITIZE_ADD_SLASHES,     // Adds backslashes before special characters
+			'fullSpecialChars' => FILTER_SANITIZE_FULL_SPECIAL_CHARS, // Escapes HTML special characters
+		];
+
+		$this->flags = [
+			'allowFraction' => FILTER_FLAG_ALLOW_FRACTION,      // Allows decimal fractions in numbers
+			'allowScientific' => FILTER_FLAG_ALLOW_SCIENTIFIC,  // Allows scientific notation in numbers
+			'allowThousand' => FILTER_FLAG_ALLOW_THOUSAND,      // Allows thousand separators in numbers
+			'noEncodeQuotes' => FILTER_FLAG_NO_ENCODE_QUOTES,   // Prevents encoding of quotes
+			'stripLow' => FILTER_FLAG_STRIP_LOW,                // Strips ASCII < 32 characters
+			'stripHigh' => FILTER_FLAG_STRIP_HIGH,              // Strips ASCII > 127 characters
+			'encodeAmp' => FILTER_FLAG_ENCODE_AMP,              // Encodes ampersands
+			'stripBacktick' => FILTER_FLAG_STRIP_BACKTICK       // Strips backticks
+		];
 	}
 
-	/**
-	 * Retrieves all available sanitization filters.
-	 *
-	 * @return array The list of FILTER_SANITIZE_* constants.
-	 */
-	public function getAllFilters(): array
+	public function sanitizeEncoded(string $input, array $flags = []): string
 	{
-		return $this->filters;
+		$options = $this->getFilterOptions('encoded', $flags);
+		return $this->var($input, $this->filters['encoded'], $options);
 	}
 
-	/**
-	 * Checks if a given sanitization filter key exists in the available filters.
-	 *
-	 * @param string $key The descriptive key name of the filter.
-	 * @return bool True if the filter exists, false otherwise.
-	 */
-	public function hasFilter(string $key): bool
+	public function sanitizeString(string $input, array $flags = []): string
 	{
-		return isset($this->filters[$key]);
+		$options = $this->getFilterOptions('string', $flags);
+		return $this->var($input, $this->filters['string'], $options);
+	}
+
+	public function sanitizeEmail(string $input): string
+	{
+		return $this->var($input, $this->filters['email']);
+	}
+
+	public function sanitizeUrl(string $input): string
+	{
+		return $this->var($input, $this->filters['url']);
+	}
+
+	public function sanitizeInt(string $input, array $flags = []): string
+	{
+		$options = $this->getFilterOptions('int', $flags);
+		return $this->var($input, $this->filters['int'], $options);
+	}
+
+	public function sanitizeFloat(string $input, array $flags = []): string
+	{
+		$options = $this->getFilterOptions('float', $flags);
+		return $this->var($input, $this->filters['float'], $options);
+	}
+
+	public function sanitizeAddSlashes(string $input): string
+	{
+		return $this->var($input, $this->filters['addSlashes']);
+	}
+
+	public function sanitizeFullSpecialChars(string $input, array $flags = []): string
+	{
+		$options = $this->getFilterOptions('fullSpecialChars', $flags);
+		return $this->var($input, $this->filters['fullSpecialChars'], $options);
+	}
+
+	private function getFilterOptions(string $filter, array $flagKeys): array
+	{
+		$flagValues = array_reduce($flagKeys, function ($carry, $flagKey) {
+			$carry |= $this->flags[$flagKey] ?? 0;
+			return $carry;
+		}, 0);
+
+		return ['flags' => $flagValues];
 	}
 }

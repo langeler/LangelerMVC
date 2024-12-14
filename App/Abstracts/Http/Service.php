@@ -1,242 +1,83 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Http;
 
-use App\Utilities\Managers\ReflectionManager;
-use Exception;
+use RuntimeException;
+use Throwable;
 
 /**
- * Centralized Dependency Injector for handling all logic for services and dependencies.
- * Extended classes will focus on registering services for their specific domains.
+ * Abstract Service Class
+ *
+ * Responsibilities:
+ * - Encapsulate business workflows that don't neatly fit into controllers or repositories alone.
+ * - Orchestrate calls to repositories, domain services, caching layers, and other infrastructure components.
+ * - Apply business logic and return structured data ready for presentation.
+ *
+ * Boundaries:
+ * - Does NOT handle direct HTTP input (Requests) or output (Responses).
+ * - Does NOT render views or deal with presentation logic (that’s for Presenter/View).
+ * - Does NOT concern itself with routing or middleware tasks.
+ * - Delegates low-level data access to Repositories, not executing queries directly.
+ *
+ * Usage:
+ * Concrete service classes extending this abstract class define their dependencies (via constructor injection)
+ * and implement `execute()` to perform their core operations.
+ * The controller calls `execute()` and uses the returned data for further steps.
  */
 abstract class Service
 {
 	/**
-	 * Store instantiated services.
+	 * Constructor for injecting dependencies required by the service.
+	 * Concrete services define their own dependencies (e.g., repositories, domain services).
+	 *
+	 * @param mixed ...$dependencies Optional dependencies for the concrete service.
 	 */
-	protected array $instances = [];
-
-	/**
-	 * Store services marked for singleton lifecycle.
-	 */
-	protected array $singletons = [];
-
-	/**
-	 * Map short class names to fully qualified class names.
-	 */
-	protected array $aliases = [];
-
-	/**
-	 * Track services that are being resolved to prevent circular dependencies.
-	 */
-	protected array $resolving = [];
-
-	/**
-	 * Instance of the ReflectionManager for handling reflection-related tasks.
-	 */
-	protected ReflectionManager $reflectionManager;
-
-	/**
-	 * Constructor to initialize the ReflectionManager.
-	 */
-	public function __construct()
+	public function __construct(...$dependencies)
 	{
-		$this->reflectionManager = new ReflectionManager();
+		$this->initialize(...$dependencies);
 	}
 
 	/**
-	 * Register a class or service as a singleton.
-	 * Singletons are instantiated only once and reused.
+	 * Initialization hook for extended services.
+	 * Concrete classes can override this method to handle any setup after dependencies are injected.
 	 *
-	 * @param string $className The short class name of the service.
+	 * @param mixed ...$dependencies
+	 * @return void
 	 */
-	public function registerSingleton(string $className): void
+	protected function initialize(...$dependencies): void
 	{
-		$this->singletons[$className] = true;
+		// Default no-op. Override in subclasses if needed.
 	}
 
 	/**
-	 * Register an alias (short name to fully qualified class name).
+	 * Perform the business operations this service is responsible for.
 	 *
-	 * @param string $alias The short class name.
-	 * @param string $className The fully qualified class name.
+	 * Concrete implementations may:
+	 * - Interact with repositories to retrieve or manipulate data.
+	 * - Apply domain logic and business rules.
+	 * - Return data in a form suitable for controllers, presenters, or views.
+	 *
+	 * @return mixed The structured data or result of the operation.
 	 */
-	public function registerAlias(string $alias, string $className): void
-	{
-		$this->aliases[$alias] = $className;
-	}
+	abstract public function execute(): mixed;
 
 	/**
-	 * Register a service as a lazily resolved singleton.
-	 * It is instantiated only when accessed for the first time.
+	 * Utility method to handle errors uniformly within the service’s operations.
 	 *
-	 * @param string $className The short class name or fully qualified class name.
-	 * @param callable $factory A callable that returns the instance.
-	 */
-	public function registerLazySingleton(string $className, callable $factory): void
-	{
-		$this->instances[$className] = $factory;
-		$this->registerSingleton($className);
-	}
-
-	/**
-	 * Retrieve a service by class name.
+	 * Use `wrapInTry()` to consistently catch exceptions and rethrow them as RuntimeExceptions.
 	 *
-	 * @param string $className The short or fully qualified class name of the service.
-	 * @return object The resolved service instance.
-	 * @throws Exception If the service could not be resolved.
+	 * @param callable $operation The operation to attempt.
+	 * @return mixed The result of the operation if successful.
+	 * @throws RuntimeException If the operation fails.
 	 */
-	public function getService(string $className): object
+	protected function wrapInTry(callable $operation): mixed
 	{
 		try {
-			return $this->resolve($className);
-		} catch (Exception $e) {
-			throw new Exception("Failed to get service [$className]: " . $e->getMessage());
+			return $operation();
+		} catch (Throwable $e) {
+			throw new RuntimeException("An error occurred in the service: {$e->getMessage()}", $e->getCode(), $e);
 		}
 	}
-
-	/**
-	 * Resolve and instantiate a class along with its dependencies.
-	 *
-	 * @param string $className The short class name or fully qualified class name to resolve.
-	 * @return object The instantiated class with its dependencies.
-	 * @throws Exception If the class cannot be instantiated.
-	 */
-	protected function resolve(string $className): object
-	{
-		// Check for circular dependencies
-		if (isset($this->resolving[$className])) {
-			throw new Exception("Circular dependency detected while resolving [$className].");
-		}
-
-		$this->resolving[$className] = true;
-
-		try {
-			// Resolve alias if exists
-			$className = $this->resolveAlias($className);
-
-			// Check for existing singleton instance
-			if ($this->hasSingletonInstance($className)) {
-				return $this->resolveSingletonInstance($className);
-			}
-
-			// Use ReflectionManager to resolve class dependencies
-			$instance = $this->createClassInstance($className);
-
-			// Cache the instance if it’s a singleton
-			if ($this->isSingleton($className)) {
-				$this->instances[$className] = $instance;
-			}
-
-			return $instance;
-		} catch (Exception $e) {
-			throw new Exception("Failed to resolve class [$className]: " . $e->getMessage());
-		} finally {
-			unset($this->resolving[$className]);
-		}
-	}
-
-	/**
-	 * Resolve constructor dependencies of a class using ReflectionManager.
-	 *
-	 * @param array $parameters The constructor parameters.
-	 * @return array Resolved dependencies.
-	 * @throws Exception If dependencies cannot be resolved.
-	 */
-	protected function resolveDependencies(array $parameters): array
-	{
-		$dependencies = [];
-
-		foreach ($parameters as $param) {
-			try {
-				$dependencies[] = $this->resolveParameter($param);
-			} catch (Exception $e) {
-				throw new Exception("Failed to resolve parameter [{$param->getName()}]: " . $e->getMessage());
-			}
-		}
-
-		return $dependencies;
-	}
-
-	/**
-	 * Resolve a single parameter using the ReflectionManager.
-	 */
-	protected function resolveParameter(\ReflectionParameter $param)
-	{
-		$type = $this->reflectionManager->getParameterType($param);
-
-		if ($type && !$type->isBuiltin()) {
-			return $this->resolve($type->getName());
-		}
-
-		if ($param->isOptional()) {
-			return $param->getDefaultValue();
-		}
-
-		throw new Exception("Cannot resolve primitive dependency for parameter [{$param->getName()}].");
-	}
-
-	/**
-	 * Resolve alias for class name if exists.
-	 */
-	protected function resolveAlias(string $className): string
-	{
-		return $this->aliases[$className] ?? $className;
-	}
-
-	/**
-	 * Check if class is marked as a singleton.
-	 */
-	protected function isSingleton(string $className): bool
-	{
-		return isset($this->singletons[$className]);
-	}
-
-	/**
-	 * Check if the class has an existing singleton instance.
-	 */
-	protected function hasSingletonInstance(string $className): bool
-	{
-		return isset($this->instances[$className]);
-	}
-
-	/**
-	 * Resolve an existing singleton instance.
-	 */
-	protected function resolveSingletonInstance(string $className): object
-	{
-		$instance = $this->instances[$className];
-
-		if (is_callable($instance)) {
-			$instance = $instance();
-			$this->instances[$className] = $instance;
-		}
-
-		return $instance;
-	}
-
-	/**
-	 * Create a class instance using ReflectionManager, resolving its dependencies.
-	 */
-	protected function createClassInstance(string $className): object
-	{
-		$reflectionClass = $this->reflectionManager->getClassInfo($className);
-
-		if (!$reflectionClass->isInstantiable()) {
-			throw new Exception("Class [$className] cannot be instantiated.");
-		}
-
-		$constructor = $reflectionClass->getConstructor();
-		if ($constructor) {
-			$dependencies = $this->resolveDependencies($constructor->getParameters());
-			return $this->reflectionManager->createInstanceWithArgs($reflectionClass, $dependencies);
-		}
-
-		return $this->reflectionManager->createInstanceWithoutConstructor($reflectionClass);
-	}
-
-	/**
-	 * Abstract method for extended classes to register specific services.
-	 */
-	abstract public function registerServices(): void;
 }

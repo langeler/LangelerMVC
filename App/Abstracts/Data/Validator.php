@@ -2,159 +2,112 @@
 
 namespace App\Abstracts\Data;
 
-use AppValidationExceptions\Data\ValidationException;
-use App\Contracts\Data\ValidatorInterface;
-use App\Utilities\Managers\ReflectionManager;
-use App\Helpers\ArrayHelper;
-use App\Helpers\ExistenceChecker;
+use App\Exceptions\Data\ValidationException;
+use Throwable;
 
-/**
- * Class Validator
- *
- * Abstract class for implementing validation logic using reflection.
- */
-abstract class Validator implements ValidatorInterface
+abstract class Validator
 {
-    protected array $data;
-    protected ReflectionManager $reflectionManager;
-    protected ArrayHelper $arrayHelper;
-    protected ExistenceChecker $existenceChecker;
-
     /**
-     * Validator constructor.
+     * Entry point for the validation process.
      *
-     * @param array|null $data Data to validate.
-     * @param ReflectionManager|null $reflectionManager ReflectionManager instance (optional).
-     * @param ArrayHelper|null $arrayHelper ArrayHelper instance (optional).
-     * @param ExistenceChecker|null $existenceChecker ExistenceChecker instance (optional).
+     * @param array $data Associative array where keys are data items, and values define validation methods and rules.
+     * @return array The validated data.
+     * @throws ValidationException If an error occurs during validation.
      */
-    public function __construct(
-        ?array $data = [],
-        ?ReflectionManager $reflectionManager = null,
-        ?ArrayHelper $arrayHelper = null,
-        ?ExistenceChecker $existenceChecker = null
-    ) {
-        $this->data = $data ?? [];
-        $this->reflectionManager = $reflectionManager ?? new ReflectionManager();
-        $this->arrayHelper = $arrayHelper ?? new ArrayHelper();
-        $this->existenceChecker = $existenceChecker ?? new ExistenceChecker();
-    }
-
-    /**
-     * Handle validation by invoking methods starting with "validate" or ending with "check".
-     *
-     * @throws ValidationException
-     */
-    protected function handle(mixed $data): array
+    protected function handle(array $data): array
     {
         try {
-            $methods = $this->arrayHelper->filter(
-                $this->reflectionManager->getClassMethods($this->reflectionManager->getClassInfo($this)),
-                fn($method) => strpos($method->getName(), 'validate') === 0 || substr($method->getName(), -5) === 'check'
+            return array_map(
+                fn($config, $value) => $this->processValue($value, $this->normalizeConfig($config)),
+                $data,
+                array_keys($data)
             );
-
-            return $this->invokeValidationMethods($methods);
-        } catch (\Exception $e) {
-            throw new ValidationException("Error during validation: " . $e->getMessage());
+        } catch (Throwable $e) {
+            throw new ValidationException("Validation process failed: " . $e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Invoke the validation method if it exists on the current class.
+     * Normalizes configurations with nested "=>" operators into a standard structure.
      *
-     * @param array $methods Reflection methods to invoke.
-     * @throws ValidationException If method invocation fails.
+     * @param mixed $config The raw configuration.
+     * @return array Normalized configuration with separate validation methods and rules.
      */
-    private function invokeValidationMethods(array $methods): array
+    protected function normalizeConfig(mixed $config): array
     {
-        foreach ($methods as $method) {
-            if ($this->existenceChecker->methodExists($this, $method->getName())) {
-                try {
-                    $this->reflectionManager->invokeMethod($method, $this, $this->data);
-                } catch (\Exception $e) {
-                    throw new ValidationException("Validation method {$method->getName()} failed: " . $e->getMessage());
-                }
-            }
-        }
-
-        return $this->data;
-    }
-
-    // === Basic validation methods ===
-
-    /**
-     * Validate if a string is a valid email.
-     *
-     * @param string $email
-     * @return bool
-     */
-    protected function validateEmail(string $email): bool
-    {
-        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+        return match (true) {
+            is_string($config) || is_array($config) && isset($config[0]) =>
+                [is_array($config) ? $config : [$config], []],
+            is_array($config) && count($config) === 2 && is_array($config[1]) =>
+                $config,
+            is_array($config) && count($config) > 2 =>
+                [array_keys(array_filter($config, 'is_string', ARRAY_FILTER_USE_KEY)), array_pop($config)],
+            default =>
+                throw new ValidationException("Invalid configuration format."),
+        };
     }
 
     /**
-     * Validate if a string matches a specific regular expression.
+     * Processes a single value using defined validation methods and rules.
      *
-     * @param string $value
-     * @param string $pattern
-     * @return bool
+     * @param mixed $value The value to process.
+     * @param array $config Configuration for validation.
+     * @return mixed The validated value.
+     * @throws ValidationException If a rule or validation method fails.
      */
-    protected function validateRegex(string $value, string $pattern): bool
+    protected function processValue(mixed $value, array $config): mixed
     {
-        return preg_match($pattern, $value) === 1;
+        return $this->applyValidation(
+            $this->applyRules($value, $config[1]),
+            $config[0]
+        );
     }
 
     /**
-     * Validate if a string is a valid URL.
+     * Applies rules to a value.
      *
-     * @param string $url
-     * @return bool
+     * @param mixed $value The value to validate.
+     * @param array $rules The validation rules to apply.
+     * @return mixed The validated value.
+     * @throws ValidationException If validation fails.
      */
-    protected function validateUrl(string $url): bool
+    protected function applyRules(mixed $value, array $rules): mixed
     {
-        return filter_var($url, FILTER_VALIDATE_URL) !== false;
+        return array_reduce(
+            array_keys($rules),
+            fn($carry, $rule) =>
+                method_exists($this, $method = 'rule' . ucfirst($rule)) && $this->$method($carry, $rules[$rule])
+                    ? $carry
+                    : throw new ValidationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
+            $value
+        );
     }
 
     /**
-     * Check if a value is not empty.
+     * Applies validation methods to a value.
      *
-     * @param mixed $value
-     * @return bool
+     * @param mixed $value The value to validate.
+     * @param array $methods The validation methods to apply.
+     * @return mixed The validated value.
+     * @throws ValidationException If a validation method fails.
      */
-    protected function validateRequired($value): bool
+    protected function applyValidation(mixed $value, array $methods): mixed
     {
-        return !empty($value);
+        return array_reduce(
+            $methods,
+            fn($carry, $method) =>
+                method_exists($this, $validator = 'validate' . ucfirst($method))
+                    ? $this->$validator($carry)
+                    : throw new ValidationException("Undefined validation method: '{$method}'."),
+            $value
+        );
     }
 
     /**
-     * Check if a string has a minimum length.
+     * Abstract method to define default verification logic.
      *
-     * @param string $value
-     * @param int $minLength
-     * @return bool
+     * @param mixed $data The data to verify.
+     * @return mixed The verified data.
      */
-    protected function validateMinLength(string $value, int $minLength): bool
-    {
-        return strlen($value) >= $minLength;
-    }
-
-    /**
-     * Check if a string has a maximum length.
-     *
-     * @param string $value
-     * @param int $maxLength
-     * @return bool
-     */
-    protected function validateMaxLength(string $value, int $maxLength): bool
-    {
-        return strlen($value) <= $maxLength;
-    }
-
-    /**
-     * Abstract method for custom validation logic.
-     *
-     * @return array
-     */
-    abstract protected function verify(mixed $data): array;
+    abstract protected function verify(mixed $data): mixed;
 }

@@ -4,16 +4,16 @@ namespace App\Utilities\Validation;
 
 use App\Abstracts\Data\Validator;
 use App\Utilities\Traits\Rules\RuleTrait;
-use App\Utilities\Traits\Filters\ValidationFilterTrait;
+use App\Utilities\Traits\Patterns\ValidationPatternTrait;
 
 /**
- * Class GeneralValidator
+ * Class TextValidator
  *
- * Provides general validation methods using traits for filtration, validation, and filter flags.
+ * Provides validation methods for various text formats using regex patterns.
  */
-class GeneralValidator extends Validator
+class PatternValidator extends Validator
 {
-	use RuleTrait, ValidationFilterTrait;
+	use RuleTrait, ValidationPatternTrait;
 
 	/**
 	 * === ENTRY POINT: validate method (Do not modify) ===

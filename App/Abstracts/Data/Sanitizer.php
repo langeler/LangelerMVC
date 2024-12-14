@@ -2,123 +2,112 @@
 
 namespace App\Abstracts\Data;
 
-use AppSanitationExceptions\Data\SanitizationException;
-use App\Contracts\Data\SanitizerInterface;
-use App\Utilities\Managers\ReflectionManager;
-use App\Helpers\ArrayHelper;
-use App\Helpers\ExistenceChecker;
+use App\Exceptions\Data\SanitationException;
+use Throwable;
 
-/**
- * Class Sanitizer
- *
- * Abstract class for implementing sanitization logic using reflection.
- */
-abstract class Sanitizer implements SanitizerInterface
+abstract class Sanitizer
 {
-    protected array $data;
-    protected ReflectionManager $reflectionManager;
-    protected ArrayHelper $arrayHelper;
-    protected ExistenceChecker $existenceChecker;
-
     /**
-     * Sanitizer constructor.
+     * Entry point for the sanitization process.
      *
-     * @param array|null $data Data to sanitize.
-     * @param ReflectionManager|null $reflectionManager ReflectionManager instance (optional).
-     * @param ArrayHelper|null $arrayHelper ArrayHelper instance (optional).
-     * @param ExistenceChecker|null $existenceChecker ExistenceChecker instance (optional).
+     * @param array $data Associative array where keys are data items, and values define sanitation methods and rules.
+     * @return array The sanitized and validated data.
+     * @throws SanitationException If an error occurs during sanitization.
      */
-    public function __construct(
-        ?array $data = [],
-        ?ReflectionManager $reflectionManager = null,
-        ?ArrayHelper $arrayHelper = null,
-        ?ExistenceChecker $existenceChecker = null
-    ) {
-        $this->data = $data ?? [];
-        $this->reflectionManager = $reflectionManager ?? new ReflectionManager();
-        $this->arrayHelper = $arrayHelper ?? new ArrayHelper();
-        $this->existenceChecker = $existenceChecker ?? new ExistenceChecker();
-    }
-
-    /**
-     * Handle sanitization by invoking methods starting with "sanitize".
-     *
-     * @throws SanitizationException
-     */
-    protected function handle(mixed $data): array
+    public function handle(array $data): array
     {
         try {
-            $methods = $this->arrayHelper->filter(
-                $this->reflectionManager->getClassMethods($this->reflectionManager->getClassInfo($this)),
-                fn($method) => strpos($method->getName(), 'sanitize') === 0
+            return array_map(
+                fn($config, $value) => $this->processValue($value, $this->normalizeConfig($config)),
+                $data,
+                array_keys($data)
             );
-
-            return $this->invokeSanitizationMethods($methods);
-        } catch (\Exception $e) {
-            throw new SanitizationException("Error during sanitization: " . $e->getMessage());
+        } catch (Throwable $e) {
+            throw new SanitationException("Sanitization process failed: " . $e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Invoke the sanitization methods.
+     * Normalizes configurations with nested "=>" operators into a standard structure.
      *
-     * @param array $methods List of reflection methods to invoke.
-     * @throws SanitizationException If method invocation fails.
+     * @param mixed $config The raw configuration.
+     * @return array Normalized configuration with separate sanitization methods and rules.
      */
-    private function invokeSanitizationMethods(array $methods): array
+    protected function normalizeConfig(mixed $config): array
     {
-        foreach ($methods as $method) {
-            if ($this->existenceChecker->methodExists($this, $method->getName())) {
-                try {
-                    $this->reflectionManager->invokeMethod($method, $this, $this->data);
-                } catch (\Exception $e) {
-                    throw new SanitizationException("Sanitization method {$method->getName()} failed: " . $e->getMessage());
-                }
-            }
-        }
-
-        return $this->data;
-    }
-
-    // === Basic default sanitization methods ===
-
-    /**
-     * Trim whitespace from a string.
-     *
-     * @param string $data
-     * @return string
-     */
-    protected function trim(string $data): string
-    {
-        return trim($data);
+        return match (true) {
+            is_string($config) || is_array($config) && isset($config[0]) =>
+                [is_array($config) ? $config : [$config], []],
+            is_array($config) && count($config) === 2 && is_array($config[1]) =>
+                $config,
+            is_array($config) && count($config) > 2 =>
+                [array_keys(array_filter($config, 'is_string', ARRAY_FILTER_USE_KEY)), array_pop($config)],
+            default =>
+                throw new SanitationException("Invalid configuration format."),
+        };
     }
 
     /**
-     * Escape HTML entities to prevent XSS attacks.
+     * Processes a single value using defined sanitation methods and rules.
      *
-     * @param string $data
-     * @return string
+     * @param mixed $value The value to process.
+     * @param array $config Configuration for sanitation and validation.
+     * @return mixed The sanitized and validated value.
+     * @throws SanitationException If a rule or sanitation method fails.
      */
-    protected function escapeHTML(string $data): string
+    protected function processValue(mixed $value, array $config): mixed
     {
-        return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+        return $this->applySanitation(
+            $this->applyRules($value, $config[1]),
+            $config[0]
+        );
     }
 
     /**
-     * Sanitize an entire array using basic sanitization functions.
+     * Applies validation rules to a value.
      *
-     * @param array $data
-     * @return array
+     * @param mixed $value The value to validate.
+     * @param array $rules The validation rules to apply.
+     * @return mixed The validated value.
+     * @throws SanitationException If validation fails.
      */
-    protected function sanitizeArray(array $data): array
+    protected function applyRules(mixed $value, array $rules): mixed
     {
-        return filter_var_array($data, FILTER_SANITIZE_STRING);
+        return array_reduce(
+            array_keys($rules),
+            fn($carry, $rule) =>
+                method_exists($this, $method = 'rule' . ucfirst($rule)) && $this->$method($carry, $rules[$rule])
+                    ? $carry
+                    : throw new SanitationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
+            $value
+        );
     }
 
     /**
-     * Abstract sanitize method to be implemented by subclasses.
+     * Applies sanitation methods to a value.
      *
-     * @return array
+     * @param mixed $value The value to sanitize.
+     * @param array $methods The sanitation methods to apply.
+     * @return mixed The sanitized value.
+     * @throws SanitationException If a sanitation method fails.
      */
-    abstract protected function clean(mixed $data): array;
+    protected function applySanitation(mixed $value, array $methods): mixed
+    {
+        return array_reduce(
+            $methods,
+            fn($carry, $method) =>
+                method_exists($this, $sanitizer = 'sanitize' . ucfirst($method))
+                    ? $this->$sanitizer($carry)
+                    : throw new SanitationException("Undefined sanitization method: '{$method}'."),
+            $value
+        );
+    }
+
+    /**
+     * Abstract method to define default cleaning logic.
+     *
+     * @param mixed $data The data to clean.
+     * @return mixed The cleaned data.
+     */
+    abstract protected function clean(mixed $data): mixed;
 }

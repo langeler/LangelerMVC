@@ -13,6 +13,7 @@ use App\Utilities\Managers\CompressionManager;
 use App\Utilities\Managers\FileManager;
 use App\Helpers\TypeChecker;
 use App\Utilities\Managers\SettingsManager;
+use App\Utilities\Sanitation\GeneralSanitizer;
 use SplQueue;
 use Throwable;
 
@@ -34,7 +35,8 @@ abstract class Cache
         protected DateTimeHandler $dateTimeHandler,
         protected SettingsManager $settingsManager,
         protected DirectoryFinder $directoryFinder,
-        protected FileFinder $fileFinder
+        protected FileFinder $fileFinder,
+        protected GeneralSanitizer $sanitizer
     ) {
         $this->initializeCache();
     }

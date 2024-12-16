@@ -3,14 +3,35 @@
 namespace App\Utilities\Traits\Filters;
 
 use InvalidArgumentException;
+use App\Utilities\Traits\ArrayTrait;
 
+/**
+ * Trait ValidationTrait
+ *
+ * Provides robust methods for validating various data types using PHP's filter extensions.
+ * Supports optional flags and fallback to default property values when flags are omitted.
+ */
 trait ValidationTrait
 {
-	use FiltrationTrait;
+	use FiltrationTrait, ArrayTrait;
 
+	/**
+	 * Validation filters mapped to their corresponding PHP filter constants.
+	 *
+	 * @var array
+	 */
 	public readonly array $filters;
+
+	/**
+	 * Validation flags mapped to their corresponding PHP flag constants.
+	 *
+	 * @var array
+	 */
 	public readonly array $flags;
 
+	/**
+	 * Constructor to initialize validation filters and flags.
+	 */
 	public function __construct()
 	{
 		$this->filters = [
@@ -38,62 +59,124 @@ trait ValidationTrait
 		];
 	}
 
+	/**
+	 * Validates a boolean input.
+	 *
+	 * @param mixed $input Input to validate.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateBoolean($input): bool
 	{
 		return $this->var($input, $this->filters['boolean']) !== false;
 	}
 
+	/**
+	 * Validates an email address.
+	 *
+	 * @param string $input Input to validate.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateEmail(string $input): bool
 	{
 		return $this->var($input, $this->filters['email']) !== false;
 	}
 
+	/**
+	 * Validates a floating-point number with optional flags.
+	 *
+	 * @param string $input Input to validate.
+	 * @param array $flags Optional flags to use.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateFloat(string $input, array $flags = []): bool
 	{
-		$options = $this->getFilterOptions('float', $flags);
-		return $this->var($input, $this->filters['float'], $options) !== false;
+		return $this->var($input, $this->filters['float'], $this->getFilterOptions($flags)) !== false;
 	}
 
+	/**
+	 * Validates an integer with optional flags.
+	 *
+	 * @param string $input Input to validate.
+	 * @param array $flags Optional flags to use.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateInt(string $input, array $flags = []): bool
 	{
-		$options = $this->getFilterOptions('int', $flags);
-		return $this->var($input, $this->filters['int'], $options) !== false;
+		return $this->var($input, $this->filters['int'], $this->getFilterOptions($flags)) !== false;
 	}
 
+	/**
+	 * Validates an IP address with optional flags.
+	 *
+	 * @param string $input Input to validate.
+	 * @param array $flags Optional flags to use.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateIp(string $input, array $flags = []): bool
 	{
-		$options = $this->getFilterOptions('ip', $flags);
-		return $this->var($input, $this->filters['ip'], $options) !== false;
+		return $this->var($input, $this->filters['ip'], $this->getFilterOptions($flags)) !== false;
 	}
 
+	/**
+	 * Validates a MAC address.
+	 *
+	 * @param string $input Input to validate.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateMac(string $input): bool
 	{
 		return $this->var($input, $this->filters['mac']) !== false;
 	}
 
+	/**
+	 * Validates a string against a regular expression.
+	 *
+	 * @param string $input Input to validate.
+	 * @param string $pattern Regular expression pattern.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateRegexp(string $input, string $pattern): bool
 	{
 		return $this->var($input, $this->filters['regexp'], ['options' => ['regexp' => $pattern]]) !== false;
 	}
 
+	/**
+	 * Validates a URL with optional flags.
+	 *
+	 * @param string $input Input to validate.
+	 * @param array $flags Optional flags to use.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateUrl(string $input, array $flags = []): bool
 	{
-		$options = $this->getFilterOptions('url', $flags);
-		return $this->var($input, $this->filters['url'], $options) !== false;
+		return $this->var($input, $this->filters['url'], $this->getFilterOptions($flags)) !== false;
 	}
 
+	/**
+	 * Validates a domain name.
+	 *
+	 * @param string $input Input to validate.
+	 * @return bool True if valid, false otherwise.
+	 */
 	public function validateDomain(string $input): bool
 	{
 		return $this->var($input, $this->filters['domain']) !== false;
 	}
 
-	private function getFilterOptions(string $filter, array $flagKeys): array
+	/**
+	 * Generates filter options from flags or defaults to class-level properties if no flags are provided.
+	 *
+	 * @param array $flagKeys List of flag keys to combine.
+	 * @return array Filter options with combined flags.
+	 */
+	private function getFilterOptions(array $flagKeys = []): array
 	{
-		$flagValues = array_reduce($flagKeys, function ($carry, $flagKey) {
-			$carry |= $this->flags[$flagKey] ?? 0;
-			return $carry;
-		}, 0);
-
-		return ['flags' => $flagValues];
+		return [
+			'flags' => $this->reduce(
+				$flagKeys ?: $this->getKeys($this->flags),
+				fn($carry, $key) => $carry | ($this->flags[$key] ?? 0),
+				0
+			)
+		];
 	}
 }

@@ -40,7 +40,7 @@ abstract class Sanitizer
      * @return array Normalized configuration with separate sanitization methods and rules.
      * @throws SanitationException If the configuration is invalid.
      */
-    protected function normalizeConfig(mixed $config): array
+    private function normalizeConfig(mixed $config): array
     {
         return $this->wrapInTry(
             fn() => match (true) {
@@ -65,7 +65,7 @@ abstract class Sanitizer
      * @return mixed The sanitized and validated value.
      * @throws SanitationException If a rule or sanitation method fails.
      */
-    protected function processValue(mixed $value, array $config): mixed
+    private function processValue(mixed $value, array $config): mixed
     {
         return $this->wrapInTry(
             fn() => $this->applySanitation(
@@ -84,7 +84,7 @@ abstract class Sanitizer
      * @return mixed The validated value.
      * @throws SanitationException If validation fails.
      */
-    protected function applyRules(mixed $value, array $rules): mixed
+    private function applyRules(mixed $value, array $rules): mixed
     {
         return $this->wrapInTry(
             fn() => $this->reduce(
@@ -108,7 +108,7 @@ abstract class Sanitizer
      * @return mixed The sanitized value.
      * @throws SanitationException If a sanitation method fails.
      */
-    protected function applySanitation(mixed $value, array $methods): mixed
+    private function applySanitation(mixed $value, array $methods): mixed
     {
         return $this->wrapInTry(
             fn() => $this->reduce(
@@ -146,5 +146,5 @@ abstract class Sanitizer
      * @param mixed $data The data to clean.
      * @return mixed The cleaned data.
      */
-    abstract protected function clean(mixed $data): mixed;
+    abstract public function clean(mixed $data): mixed;
 }

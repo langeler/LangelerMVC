@@ -43,7 +43,7 @@ abstract class Validator
      * @return array Normalized configuration with separate validation methods and rules.
      * @throws ValidationException If the configuration is invalid.
      */
-    protected function normalizeConfig(mixed $config): array
+    private function normalizeConfig(mixed $config): array
     {
         return $this->wrapInTry(
             fn() => match (true) {
@@ -68,7 +68,7 @@ abstract class Validator
      * @return mixed The validated value.
      * @throws ValidationException If a rule or validation method fails.
      */
-    protected function processValue(mixed $value, array $config): mixed
+    private function processValue(mixed $value, array $config): mixed
     {
         return $this->wrapInTry(
             fn() => $this->applyValidation(
@@ -87,7 +87,7 @@ abstract class Validator
      * @return mixed The validated value.
      * @throws ValidationException If validation fails.
      */
-    protected function applyRules(mixed $value, array $rules): mixed
+    private function applyRules(mixed $value, array $rules): mixed
     {
         return $this->wrapInTry(
             fn() => $this->reduce(
@@ -111,7 +111,7 @@ abstract class Validator
      * @return mixed The validated value.
      * @throws ValidationException If a validation method fails.
      */
-    protected function applyValidation(mixed $value, array $methods): mixed
+    private function applyValidation(mixed $value, array $methods): mixed
     {
         return $this->wrapInTry(
             fn() => $this->reduce(
@@ -149,5 +149,5 @@ abstract class Validator
      * @param mixed $data The data to verify.
      * @return mixed The verified data.
      */
-    abstract protected function verify(mixed $data): mixed;
+    abstract public function verify(mixed $data): mixed;
 }

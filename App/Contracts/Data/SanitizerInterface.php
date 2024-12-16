@@ -2,19 +2,18 @@
 
 namespace App\Contracts\Data;
 
-use App\Exceptions\Data\SanitationException;
-
 /**
  * Interface SanitizerInterface
  *
- * This interface outlines the methods required for sanitization logic.
+ * Defines the contract for a sanitizer class that processes data using configurable sanitization methods.
  */
 interface SanitizerInterface
 {
     /**
- * Constructor to set the data for sanitation.
- *
- * @param array|null $data Data to sanitize.
- */
-    public function __construct(?array $data = []);
+     * Cleans the provided data using pre-configured sanitization methods and rules.
+     *
+     * @param mixed $data The data to sanitize.
+     * @return mixed The sanitized data.
+     */
+    public function clean(mixed $data): mixed;
 }

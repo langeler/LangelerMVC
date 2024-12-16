@@ -2,19 +2,19 @@
 
 namespace App\Contracts\Data;
 
-use App\Exceptions\Data\ValidationException;
-
 /**
  * Interface ValidatorInterface
  *
- * Defines the contract for a validator class that handles data validation using reflection.
+ * Defines the contract for a validator class that processes data using configurable validation methods and rules.
  */
 interface ValidatorInterface
 {
     /**
-     * Constructor to set the data for validation.
+     * Verifies the provided data using pre-configured validation methods and rules.
      *
-     * @param array|null $data Data to validate.
+     * @param mixed $data The data to validate.
+     * @return mixed The validated data.
+     * @throws \App\Exceptions\Data\ValidationException If validation fails.
      */
-    public function __construct(?array $data = []);
+    public function verify(mixed $data): mixed;
 }

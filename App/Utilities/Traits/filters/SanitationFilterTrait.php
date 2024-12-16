@@ -3,14 +3,24 @@
 namespace App\Utilities\Traits\Filters;
 
 use InvalidArgumentException;
+use App\Utilities\Traits\ArrayTrait;
 
+/**
+ * Trait SanitationTrait
+ *
+ * Provides methods to sanitize various data types using PHP filters with flexible flag handling.
+ * Preserves the original filters and flags properties while leveraging ArrayTrait methods to avoid native array operations.
+ */
 trait SanitationTrait
 {
-	use FiltrationTrait;
+	use FiltrationTrait, ArrayTrait;
 
 	public readonly array $filters;
 	public readonly array $flags;
 
+	/**
+	 * Constructor to initialize filters and flags.
+	 */
 	public function __construct()
 	{
 		$this->filters = [
@@ -21,7 +31,7 @@ trait SanitationTrait
 			'int' => FILTER_SANITIZE_NUMBER_INT,             // Removes all characters except digits, plus and minus signs
 			'float' => FILTER_SANITIZE_NUMBER_FLOAT,         // Removes all characters except digits, +-., and optionally eE for floats
 			'addSlashes' => FILTER_SANITIZE_ADD_SLASHES,     // Adds backslashes before special characters
-			'fullSpecialChars' => FILTER_SANITIZE_FULL_SPECIAL_CHARS, // Escapes HTML special characters
+			'fullSpecialChars' => FILTER_SANITIZE_FULL_SPECIAL_CHARS // Escapes HTML special characters
 		];
 
 		$this->flags = [
@@ -36,58 +46,114 @@ trait SanitationTrait
 		];
 	}
 
+	/**
+	 * Sanitize input using the encoded filter.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @param array $flags Optional array of flag keys to apply.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeEncoded(string $input, array $flags = []): string
 	{
-		$options = $this->getFilterOptions('encoded', $flags);
-		return $this->var($input, $this->filters['encoded'], $options);
+		return $this->var($input, $this->filters['encoded'], $this->getFilterOptions('encoded', $flags));
 	}
 
+	/**
+	 * Sanitize input using the string filter.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @param array $flags Optional array of flag keys to apply.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeString(string $input, array $flags = []): string
 	{
-		$options = $this->getFilterOptions('string', $flags);
-		return $this->var($input, $this->filters['string'], $options);
+		return $this->var($input, $this->filters['string'], $this->getFilterOptions('string', $flags));
 	}
 
+	/**
+	 * Sanitize an email address.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeEmail(string $input): string
 	{
 		return $this->var($input, $this->filters['email']);
 	}
 
+	/**
+	 * Sanitize a URL.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeUrl(string $input): string
 	{
 		return $this->var($input, $this->filters['url']);
 	}
 
+	/**
+	 * Sanitize an integer.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @param array $flags Optional array of flag keys to apply.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeInt(string $input, array $flags = []): string
 	{
-		$options = $this->getFilterOptions('int', $flags);
-		return $this->var($input, $this->filters['int'], $options);
+		return $this->var($input, $this->filters['int'], $this->getFilterOptions('int', $flags));
 	}
 
+	/**
+	 * Sanitize a floating-point number.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @param array $flags Optional array of flag keys to apply.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeFloat(string $input, array $flags = []): string
 	{
-		$options = $this->getFilterOptions('float', $flags);
-		return $this->var($input, $this->filters['float'], $options);
+		return $this->var($input, $this->filters['float'], $this->getFilterOptions('float', $flags));
 	}
 
+	/**
+	 * Sanitize input by adding slashes before special characters.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeAddSlashes(string $input): string
 	{
 		return $this->var($input, $this->filters['addSlashes']);
 	}
 
+	/**
+	 * Sanitize input using the fullSpecialChars filter.
+	 *
+	 * @param string $input The input to sanitize.
+	 * @param array $flags Optional array of flag keys to apply.
+	 * @return string The sanitized input.
+	 */
 	public function sanitizeFullSpecialChars(string $input, array $flags = []): string
 	{
-		$options = $this->getFilterOptions('fullSpecialChars', $flags);
-		return $this->var($input, $this->filters['fullSpecialChars'], $options);
+		return $this->var($input, $this->filters['fullSpecialChars'], $this->getFilterOptions('fullSpecialChars', $flags));
 	}
 
+	/**
+	 * Get filter options for a given filter and flags.
+	 *
+	 * @param string $filter The filter key.
+	 * @param array $flagKeys Array of flag keys to apply.
+	 * @return array An array of options with the combined flags.
+	 */
 	private function getFilterOptions(string $filter, array $flagKeys): array
 	{
-		$flagValues = array_reduce($flagKeys, function ($carry, $flagKey) {
-			$carry |= $this->flags[$flagKey] ?? 0;
-			return $carry;
-		}, 0);
-
-		return ['flags' => $flagValues];
+		return [
+			'flags' => $this->reduce(
+				$flagKeys,
+				fn($carry, $key) => $carry | ($this->flags[$key] ?? 0),
+				0
+			)
+		];
 	}
 }

@@ -1,63 +1,64 @@
 <?php
 
-namespace App\Helpers;
+namespace App\Utilities\Traits;
 
 /**
- * Class TypeChecker
+ * Trait TypeCheckerTrait
  *
  * Provides utility methods to check the types and properties of various PHP entities.
+ * This trait enhances readability and simplifies type-checking operations.
  */
-class TypeChecker
+trait TypeCheckerTrait
 {
 	/**
-	 * Check if the given value is an array.
+	 * Checks if a value is an array.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is an array, false otherwise.
 	 */
-	public function isArray($value): bool
+	public function isArray(mixed $value): bool
 	{
 		return is_array($value);
 	}
 
 	/**
-	 * Check if the given value is a boolean.
+	 * Checks if a value is a boolean.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is a boolean, false otherwise.
 	 */
-	public function isBool($value): bool
+	public function isBool(mixed $value): bool
 	{
 		return is_bool($value);
 	}
 
 	/**
-	 * Check if the given value is callable.
+	 * Checks if a value is callable.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is callable, false otherwise.
 	 */
-	public function isCallable($value): bool
+	public function isCallable(mixed $value): bool
 	{
 		return is_callable($value);
 	}
 
 	/**
-	 * Check if the given value is countable.
+	 * Checks if a value is countable.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is countable, false otherwise.
 	 */
-	public function isCountable($value): bool
+	public function isCountable(mixed $value): bool
 	{
 		return is_countable($value);
 	}
 
 	/**
-	 * Check if the given value is a directory.
+	 * Checks if a value is a valid directory path.
 	 *
 	 * @param string $value The path to check.
-	 * @return bool True if the value is a directory, false otherwise.
+	 * @return bool True if the path is a directory, false otherwise.
 	 */
 	public function isDirectory(string $value): bool
 	{
@@ -65,10 +66,10 @@ class TypeChecker
 	}
 
 	/**
-	 * Check if the given value is a file.
+	 * Checks if a value is a valid file path.
 	 *
 	 * @param string $value The path to check.
-	 * @return bool True if the value is a file, false otherwise.
+	 * @return bool True if the path is a file, false otherwise.
 	 */
 	public function isFile(string $value): bool
 	{
@@ -76,121 +77,120 @@ class TypeChecker
 	}
 
 	/**
-	 * Check if the given value is a float.
+	 * Checks if a value is a float.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is a float, false otherwise.
 	 */
-	public function isFloat($value): bool
+	public function isFloat(mixed $value): bool
 	{
 		return is_float($value);
 	}
 
 	/**
-	 * Check if the given value is an integer.
+	 * Checks if a value is an integer.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is an integer, false otherwise.
 	 */
-	public function isInt($value): bool
+	public function isInt(mixed $value): bool
 	{
 		return is_int($value);
 	}
 
 	/**
-	 * Check if the given value is iterable.
+	 * Checks if a value is iterable.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is iterable, false otherwise.
 	 */
-	public function isIterable($value): bool
+	public function isIterable(mixed $value): bool
 	{
 		return is_iterable($value);
 	}
 
 	/**
-	 * Check if the given value is null.
+	 * Checks if a value is null.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is null, false otherwise.
 	 */
-	public function isNull($value): bool
+	public function isNull(mixed $value): bool
 	{
 		return is_null($value);
 	}
 
 	/**
-	 * Check if the given value is numeric.
+	 * Checks if a value is numeric.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is numeric, false otherwise.
 	 */
-	public function isNumeric($value): bool
+	public function isNumeric(mixed $value): bool
 	{
 		return is_numeric($value);
 	}
 
 	/**
-	 * Check if the given value is an object.
+	 * Checks if a value is an object.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is an object, false otherwise.
 	 */
-	public function isObject($value): bool
+	public function isObject(mixed $value): bool
 	{
 		return is_object($value);
 	}
 
 	/**
-	 * Check if the given value is a resource.
+	 * Checks if a value is a resource.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is a resource, false otherwise.
 	 */
-	public function isResource($value): bool
+	public function isResource(mixed $value): bool
 	{
 		return is_resource($value);
 	}
 
 	/**
-	 * Check if the given value is scalar (integer, float, string, or boolean).
+	 * Checks if a value is scalar.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is scalar, false otherwise.
 	 */
-	public function isScalar($value): bool
+	public function isScalar(mixed $value): bool
 	{
 		return is_scalar($value);
 	}
 
 	/**
-	 * Check if the given value is an integer or null.
+	 * Checks if a value is an integer or null.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is an integer or null, false otherwise.
 	 */
-	public function isIntegerOrNull($value): bool
+	public function isIntegerOrNull(mixed $value): bool
 	{
 		return is_int($value) || is_null($value);
 	}
 
 	/**
-	 * Check if the given value is a string.
+	 * Checks if a value is a string.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is a string, false otherwise.
 	 */
-	public function isString($value): bool
+	public function isString(mixed $value): bool
 	{
 		return is_string($value);
 	}
 
-
 	/**
-	 * Check if the given value is a symbolic link.
+	 * Checks if a path is a symbolic link.
 	 *
 	 * @param string $value The path to check.
-	 * @return bool True if the value is a symbolic link, false otherwise.
+	 * @return bool True if the path is a symbolic link, false otherwise.
 	 */
 	public function isLink(string $value): bool
 	{
@@ -198,22 +198,22 @@ class TypeChecker
 	}
 
 	/**
-	 * Check if the value is a subclass of a class.
+	 * Checks if an object or class is a subclass of another class.
 	 *
 	 * @param object|string $objectOrClass The object or class name to check.
-	 * @param string $className The class name to compare with.
-	 * @return bool True if the object or class is a subclass of the specified class, false otherwise.
+	 * @param string $className            The parent class name.
+	 * @return bool True if the object or class is a subclass, false otherwise.
 	 */
-	public function isSubclassOf($objectOrClass, string $className): bool
+	public function isSubclassOf(object|string $objectOrClass, string $className): bool
 	{
 		return is_subclass_of($objectOrClass, $className);
 	}
 
 	/**
-	 * Check if the file was uploaded via HTTP POST.
+	 * Checks if a file is an uploaded file.
 	 *
-	 * @param string $fileName The file name to check.
-	 * @return bool True if the file was uploaded via HTTP POST, false otherwise.
+	 * @param string $fileName The file path to check.
+	 * @return bool True if the file is an uploaded file, false otherwise.
 	 */
 	public function isUploadedFile(string $fileName): bool
 	{
@@ -221,9 +221,9 @@ class TypeChecker
 	}
 
 	/**
-	 * Check if the specified filename is writable.
+	 * Checks if a file is writable.
 	 *
-	 * @param string $fileName The file name to check.
+	 * @param string $fileName The file path to check.
 	 * @return bool True if the file is writable, false otherwise.
 	 */
 	public function isWritable(string $fileName): bool
@@ -232,9 +232,9 @@ class TypeChecker
 	}
 
 	/**
-	 * Check if the specified filename is readable.
+	 * Checks if a file is readable.
 	 *
-	 * @param string $fileName The file name to check.
+	 * @param string $fileName The file path to check.
 	 * @return bool True if the file is readable, false otherwise.
 	 */
 	public function isReadable(string $fileName): bool
@@ -243,23 +243,23 @@ class TypeChecker
 	}
 
 	/**
-	 * Check if the given value is empty.
+	 * Checks if a value is empty.
 	 *
 	 * @param mixed $value The value to check.
 	 * @return bool True if the value is empty, false otherwise.
 	 */
-	public function isEmpty($value): bool
+	public function isEmpty(mixed $value): bool
 	{
 		return empty($value);
 	}
 
 	/**
-	 * Check if the given value is set.
+	 * Checks if a variable is set.
 	 *
-	 * @param mixed $value The value to check.
-	 * @return bool True if the value is set, false otherwise.
+	 * @param mixed $value The variable to check.
+	 * @return bool True if the variable is set, false otherwise.
 	 */
-	public function isSet($value): bool
+	public function isSet(mixed $value): bool
 	{
 		return isset($value);
 	}

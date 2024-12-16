@@ -139,17 +139,4 @@ trait CheckerTrait
 	{
 		return ctype_xdigit($input);
 	}
-
-	// General String Validity
-
-	/**
-	 * Checks if a string is empty.
-	 *
-	 * @param string $input The input string to check.
-	 * @return bool True if the string is empty, false otherwise.
-	 */
-	public function isEmpty(string $input): bool
-	{
-		return empty($input);
-	}
 }

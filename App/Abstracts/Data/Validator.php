@@ -3,10 +3,21 @@
 namespace App\Abstracts\Data;
 
 use App\Exceptions\Data\ValidationException;
+use App\Utilities\Traits\TypeCheckerTrait;
+use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\ExistenceCheckerTrait;
 use Throwable;
 
+/**
+ * Abstract Class Validator
+ *
+ * Provides a base implementation for data validation processes.
+ * Designed to handle configurable validation methods and rules.
+ */
 abstract class Validator
 {
+    use TypeCheckerTrait, ArrayTrait, ExistenceCheckerTrait;
+
     /**
      * Entry point for the validation process.
      *
@@ -16,15 +27,13 @@ abstract class Validator
      */
     protected function handle(array $data): array
     {
-        try {
-            return array_map(
-                fn($config, $value) => $this->processValue($value, $this->normalizeConfig($config)),
+        return $this->wrapInTry(
+            fn() => $this->map(
                 $data,
-                array_keys($data)
-            );
-        } catch (Throwable $e) {
-            throw new ValidationException("Validation process failed: " . $e->getMessage(), 0, $e);
-        }
+                fn($config, $key) => $this->processValue($data[$key], $this->normalizeConfig($config))
+            ),
+            "Validation process failed."
+        );
     }
 
     /**
@@ -32,19 +41,23 @@ abstract class Validator
      *
      * @param mixed $config The raw configuration.
      * @return array Normalized configuration with separate validation methods and rules.
+     * @throws ValidationException If the configuration is invalid.
      */
     protected function normalizeConfig(mixed $config): array
     {
-        return match (true) {
-            is_string($config) || is_array($config) && isset($config[0]) =>
-                [is_array($config) ? $config : [$config], []],
-            is_array($config) && count($config) === 2 && is_array($config[1]) =>
-                $config,
-            is_array($config) && count($config) > 2 =>
-                [array_keys(array_filter($config, 'is_string', ARRAY_FILTER_USE_KEY)), array_pop($config)],
-            default =>
-                throw new ValidationException("Invalid configuration format."),
-        };
+        return $this->wrapInTry(
+            fn() => match (true) {
+                $this->isString($config) || ($this->isArray($config) && $this->arrayKeyExists(0, $config)) =>
+                    [$this->isArray($config) ? $config : [$config], []],
+                $this->isArray($config) && $this->count($config) === 2 && $this->isArray($config[1]) =>
+                    $config,
+                $this->isArray($config) && $this->count($config) > 2 =>
+                    [$this->filterKeys($config, fn($key) => $this->isString($key)), $this->pop($config)],
+                default =>
+                    throw new ValidationException("Invalid configuration format.")
+            },
+            "Failed to normalize configuration."
+        );
     }
 
     /**
@@ -57,9 +70,12 @@ abstract class Validator
      */
     protected function processValue(mixed $value, array $config): mixed
     {
-        return $this->applyValidation(
-            $this->applyRules($value, $config[1]),
-            $config[0]
+        return $this->wrapInTry(
+            fn() => $this->applyValidation(
+                $this->applyRules($value, $config[1]),
+                $config[0]
+            ),
+            "Failed to process value."
         );
     }
 
@@ -73,13 +89,17 @@ abstract class Validator
      */
     protected function applyRules(mixed $value, array $rules): mixed
     {
-        return array_reduce(
-            array_keys($rules),
-            fn($carry, $rule) =>
-                method_exists($this, $method = 'rule' . ucfirst($rule)) && $this->$method($carry, $rules[$rule])
-                    ? $carry
-                    : throw new ValidationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
-            $value
+        return $this->wrapInTry(
+            fn() => $this->reduce(
+                $rules,
+                fn($carry, $rule, $params) =>
+                    $this->methodExists($this, $method = 'rule' . ucfirst($rule)) &&
+                    $this->$method($carry, $params)
+                        ? $carry
+                        : throw new ValidationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
+                $value
+            ),
+            "Failed to apply validation rules."
         );
     }
 
@@ -93,14 +113,34 @@ abstract class Validator
      */
     protected function applyValidation(mixed $value, array $methods): mixed
     {
-        return array_reduce(
-            $methods,
-            fn($carry, $method) =>
-                method_exists($this, $validator = 'validate' . ucfirst($method))
-                    ? $this->$validator($carry)
-                    : throw new ValidationException("Undefined validation method: '{$method}'."),
-            $value
+        return $this->wrapInTry(
+            fn() => $this->reduce(
+                $methods,
+                fn($carry, $method) =>
+                    $this->methodExists($this, $validator = 'validate' . ucfirst($method))
+                        ? $this->$validator($carry)
+                        : throw new ValidationException("Undefined validation method: '{$method}'."),
+                $value
+            ),
+            "Failed to apply validation methods."
         );
+    }
+
+    /**
+     * Wraps a callback in a try/catch block and handles exceptions consistently.
+     *
+     * @param callable $callback The callback to execute.
+     * @param string $errorMessage Custom error message for exceptions.
+     * @return mixed The result of the callback execution.
+     * @throws ValidationException If an exception occurs.
+     */
+    protected function wrapInTry(callable $callback, string $errorMessage): mixed
+    {
+        try {
+            return $callback();
+        } catch (Throwable $e) {
+            throw new ValidationException("{$errorMessage}: {$e->getMessage()}", 0, $e);
+        }
     }
 
     /**

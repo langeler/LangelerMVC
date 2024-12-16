@@ -16,180 +16,227 @@ use RecursiveTreeIterator;
  */
 trait RecursiveIteratorTrait
 {
+	/**
+	 * Settings for various Recursive Iterators.
+	 *
+	 * This property provides a centralized configuration for different recursive iterator classes,
+	 * including their class references, flags, modes, and other custom options.
+	 */
 	private readonly array $recursiveIteratorSettings;
 
 	public function __construct()
 	{
 		$this->recursiveIteratorSettings = [
+			// Configuration for RecursiveArrayIterator
 			'RecursiveArrayIterator' => [
-				'class' => RecursiveArrayIterator::class,
+				'class' => RecursiveArrayIterator::class, // Reference to the RecursiveArrayIterator class
 				'flag' => [
-					'asPropy' => RecursiveArrayIterator::ARRAY_AS_PROPS,
-					'stdProps' => RecursiveArrayIterator::STD_PROP_LIST,
+					'asPropy' => RecursiveArrayIterator::ARRAY_AS_PROPS, // Treats array elements as object properties
+					'stdProps' => RecursiveArrayIterator::STD_PROP_LIST, // Standard property list for array access
 				],
 			],
+
+			// Configuration for RecursiveCachingIterator
 			'RecursiveCachingIterator' => [
-				'class' => RecursiveCachingIterator::class,
+				'class' => RecursiveCachingIterator::class, // Reference to the RecursiveCachingIterator class
 				'flag' => [
-					'fullCache' => RecursiveCachingIterator::FULL_CACHE,
-					'callToString' => RecursiveCachingIterator::CALL_TOSTRING,
-					'catchGetChildren' => RecursiveCachingIterator::CATCH_GET_CHILD,
+					'fullCache' => RecursiveCachingIterator::FULL_CACHE, // Enables full caching of iterator results
+					'callToString' => RecursiveCachingIterator::CALL_TOSTRING, // Calls toString() for elements during iteration
+					'catchGetChildren' => RecursiveCachingIterator::CATCH_GET_CHILD, // Catches exceptions from getChildren()
 				],
 			],
+
+			// Configuration for RecursiveCallbackFilterIterator
 			'RecursiveCallbackFilterIterator' => [
-				'class' => RecursiveCallbackFilterIterator::class,
+				'class' => RecursiveCallbackFilterIterator::class, // Reference to the RecursiveCallbackFilterIterator class
 			],
+
+			// Configuration for RecursiveDirectoryIterator
 			'RecursiveDirectoryIterator' => [
-				'class' => RecursiveDirectoryIterator::class,
+				'class' => RecursiveDirectoryIterator::class, // Reference to the RecursiveDirectoryIterator class
 				'flag' => [
-					'skipDots' => RecursiveDirectoryIterator::SKIP_DOTS,
-					'unixPaths' => RecursiveDirectoryIterator::UNIX_PATHS,
+					'skipDots' => RecursiveDirectoryIterator::SKIP_DOTS, // Skips '.' and '..' entries
+					'unixPaths' => RecursiveDirectoryIterator::UNIX_PATHS, // Uses UNIX-style path separators
 				],
 				'mode' => [
-					'asFileInfo' => RecursiveDirectoryIterator::CURRENT_AS_FILEINFO,
-					'asPathname' => RecursiveDirectoryIterator::CURRENT_AS_PATHNAME,
-					'asSelf' => RecursiveDirectoryIterator::CURRENT_AS_SELF,
+					'asFileInfo' => RecursiveDirectoryIterator::CURRENT_AS_FILEINFO, // Returns SplFileInfo objects
+					'asPathname' => RecursiveDirectoryIterator::CURRENT_AS_PATHNAME, // Returns pathname strings
+					'asSelf' => RecursiveDirectoryIterator::CURRENT_AS_SELF, // Returns the current object instance
 				],
 			],
+
+			// Configuration for RecursiveFilterIterator
 			'RecursiveFilterIterator' => [
-				'class' => RecursiveFilterIterator::class,
+				'class' => RecursiveFilterIterator::class, // Reference to the RecursiveFilterIterator class
 			],
+
+			// Configuration for RecursiveIteratorIterator
 			'RecursiveIteratorIterator' => [
-				'class' => RecursiveIteratorIterator::class,
+				'class' => RecursiveIteratorIterator::class, // Reference to the RecursiveIteratorIterator class
 				'mode' => [
-					'leavesOnly' => RecursiveIteratorIterator::LEAVES_ONLY,
-					'selfFirst' => RecursiveIteratorIterator::SELF_FIRST,
-					'childFirst' => RecursiveIteratorIterator::CHILD_FIRST,
+					'leavesOnly' => RecursiveIteratorIterator::LEAVES_ONLY, // Visits only the leaf nodes
+					'selfFirst' => RecursiveIteratorIterator::SELF_FIRST, // Visits the current node before its children
+					'childFirst' => RecursiveIteratorIterator::CHILD_FIRST, // Visits the children before the current node
 				],
 			],
+
+			// Configuration for RecursiveRegexIterator
 			'RecursiveRegexIterator' => [
-				'class' => RecursiveRegexIterator::class,
+				'class' => RecursiveRegexIterator::class, // Reference to the RecursiveRegexIterator class
 				'mode' => [
-					'match' => RecursiveRegexIterator::MATCH,
-					'replace' => RecursiveRegexIterator::REPLACE,
-					'split' => RecursiveRegexIterator::SPLIT,
-					'invertMatch' => RecursiveRegexIterator::INVERT_MATCH,
+					'match' => RecursiveRegexIterator::MATCH, // Filters items that match the regex
+					'replace' => RecursiveRegexIterator::REPLACE, // Replaces items based on the regex
+					'split' => RecursiveRegexIterator::SPLIT, // Splits items based on the regex
+					'invertMatch' => RecursiveRegexIterator::INVERT_MATCH, // Inverts the regex match condition
 				],
 			],
+
+			// Configuration for RecursiveTreeIterator
 			'RecursiveTreeIterator' => [
-				'class' => RecursiveTreeIterator::class,
+				'class' => RecursiveTreeIterator::class, // Reference to the RecursiveTreeIterator class
 				'flag' => [
-					'bypassCurrent' => RecursiveTreeIterator::BYPASS_CURRENT,   // Bypass current element
-					'bypassKey' => RecursiveTreeIterator::BYPASS_KEY,           // Bypass current element's key
+					'bypassCurrent' => RecursiveTreeIterator::BYPASS_CURRENT, // Skips the current element
+					'bypassKey' => RecursiveTreeIterator::BYPASS_KEY, // Skips the current element's key
 				],
 				'prefix' => [
-					'left' => RecursiveTreeIterator::PREFIX_LEFT,               // Prefix for left child
+					'left' => RecursiveTreeIterator::PREFIX_LEFT, // Prefix for left child
 					'midHasNext' => RecursiveTreeIterator::PREFIX_MID_HAS_NEXT, // Prefix for middle element with next sibling
-					'midLast' => RecursiveTreeIterator::PREFIX_MID_LAST,        // Prefix for middle element with no more siblings
+					'midLast' => RecursiveTreeIterator::PREFIX_MID_LAST, // Prefix for middle element with no siblings
 					'endHasNext' => RecursiveTreeIterator::PREFIX_END_HAS_NEXT, // Prefix for end element with more siblings
-					'endLast' => RecursiveTreeIterator::PREFIX_END_LAST,        // Prefix for end element with no more siblings
-					'right' => RecursiveTreeIterator::PREFIX_RIGHT,             // Prefix for right child
+					'endLast' => RecursiveTreeIterator::PREFIX_END_LAST, // Prefix for end element with no siblings
+					'right' => RecursiveTreeIterator::PREFIX_RIGHT, // Prefix for right child
 				],
 				'mode' => [
-					'leavesOnly' => RecursiveTreeIterator::LEAVES_ONLY,         // Only iterate over leaves
-					'selfFirst' => RecursiveTreeIterator::SELF_FIRST,           // Visit current node before children
-					'childFirst' => RecursiveTreeIterator::CHILD_FIRST,         // Visit children before current node
+					'leavesOnly' => RecursiveTreeIterator::LEAVES_ONLY, // Visits only the leaves
+					'selfFirst' => RecursiveTreeIterator::SELF_FIRST, // Visits the current node before its children
+					'childFirst' => RecursiveTreeIterator::CHILD_FIRST, // Visits the children before the current node
 				],
 				'cache' => [
-					'catchGetChild' => RecursiveTreeIterator::CATCH_GET_CHILD,  // Catch exceptions from getChildren() method
-				]
+					'catchGetChild' => RecursiveTreeIterator::CATCH_GET_CHILD, // Catches exceptions from getChildren()
+				],
 			],
 		];
 	}
 
-public function RecursiveArrayIterator(array $data, array $settings = []): RecursiveArrayIterator
+	/**
+	 * Create a RecursiveArrayIterator instance.
+	 *
+	 * @param array $data The array data to iterate over.
+	 * @param array $settings Custom settings for RecursiveArrayIterator.
+	 * @return RecursiveArrayIterator
+	 */
+	public function RecursiveArrayIterator(array $data, array $settings = []): RecursiveArrayIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveArrayIterator');
-			$settings = $this->fetchSettings('RecursiveArrayIterator', $settings);
-			$flags = $settings['flag'] ?? 0;
-			return new $iteratorClass($data, $flags);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveArrayIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveArrayIterator'))(
+			$data,
+			$this->fetchSettings('RecursiveArrayIterator', $settings)['flag'] ?? $this->recursiveIteratorSettings['RecursiveArrayIterator']['flag']['asProps']
+		);
 	}
 
+	/**
+	 * Create a RecursiveCachingIterator instance.
+	 *
+	 * @param \Iterator $iterator The inner iterator.
+	 * @param array $settings Custom settings for RecursiveCachingIterator.
+	 * @return RecursiveCachingIterator
+	 */
 	public function RecursiveCachingIterator($iterator, array $settings = []): RecursiveCachingIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveCachingIterator');
-			$settings = $this->fetchSettings('RecursiveCachingIterator', $settings);
-			$flags = $settings['flag'] ?? RecursiveCachingIterator::FULL_CACHE;
-			return new $iteratorClass($iterator, $flags);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveCachingIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveCachingIterator'))(
+			$iterator,
+			$this->fetchSettings('RecursiveCachingIterator', $settings)['flag'] ?? $this->recursiveIteratorSettings['RecursiveCachingIterator']['flag']['fullCache']
+		);
 	}
 
+	/**
+	 * Create a RecursiveCallbackFilterIterator instance.
+	 *
+	 * @param \Iterator $iterator The inner iterator.
+	 * @param callable $callback The callback function for filtering.
+	 * @return RecursiveCallbackFilterIterator
+	 */
 	public function RecursiveCallbackFilterIterator($iterator, callable $callback): RecursiveCallbackFilterIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveCallbackFilterIterator');
-			return new $iteratorClass($iterator, $callback);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveCallbackFilterIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveCallbackFilterIterator'))(
+			$iterator,
+			$callback
+		);
 	}
 
+	/**
+	 * Create a RecursiveDirectoryIterator instance.
+	 *
+	 * @param string $path The directory path.
+	 * @param array $settings Custom settings for RecursiveDirectoryIterator.
+	 * @return RecursiveDirectoryIterator
+	 */
 	public function RecursiveDirectoryIterator(string $path, array $settings = []): RecursiveDirectoryIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveDirectoryIterator');
-			$settings = $this->fetchSettings('RecursiveDirectoryIterator', $settings);
-			$flags = $settings['flag'] ?? RecursiveDirectoryIterator::SKIP_DOTS;
-			$mode = $settings['mode'] ?? RecursiveDirectoryIterator::CURRENT_AS_FILEINFO;
-			return new $iteratorClass($path, $flags | $mode);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveDirectoryIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveDirectoryIterator'))(
+			$path,
+			($this->fetchSettings('RecursiveDirectoryIterator', $settings)['flag'] ?? $this->recursiveIteratorSettings['RecursiveDirectoryIterator']['flag']['skipDots'])
+			| ($this->fetchSettings('RecursiveDirectoryIterator', $settings)['mode'] ?? $this->recursiveIteratorSettings['RecursiveDirectoryIterator']['mode']['asFileInfo'])
+		);
 	}
 
-	public function RecursiveFilterIterator($iterator, callable $callback): RecursiveFilterIterator
+	/**
+	 * Create a RecursiveFilterIterator instance.
+	 *
+	 * @param \Iterator $iterator The inner iterator.
+	 * @return RecursiveFilterIterator
+	 */
+	public function RecursiveFilterIterator($iterator): RecursiveFilterIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveFilterIterator');
-			return new $iteratorClass($iterator, $callback);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveFilterIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveFilterIterator'))($iterator);
 	}
 
+	/**
+	 * Create a RecursiveIteratorIterator instance.
+	 *
+	 * @param \Iterator $iterator The inner iterator.
+	 * @param array $settings Custom settings for RecursiveIteratorIterator.
+	 * @return RecursiveIteratorIterator
+	 */
 	public function RecursiveIteratorIterator($iterator, array $settings = []): RecursiveIteratorIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveIteratorIterator');
-			$settings = $this->fetchSettings('RecursiveIteratorIterator', $settings);
-			$mode = $settings['mode'] ?? RecursiveIteratorIterator::SELF_FIRST;
-			return new $iteratorClass($iterator, $mode);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveIteratorIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveIteratorIterator'))(
+			$iterator,
+			$this->fetchSettings('RecursiveIteratorIterator', $settings)['mode'] ?? $this->recursiveIteratorSettings['RecursiveIteratorIterator']['mode']['selfFirst']
+		);
 	}
 
+	/**
+	 * Create a RecursiveRegexIterator instance.
+	 *
+	 * @param \Iterator $iterator The inner iterator.
+	 * @param string $regex The regular expression to match.
+	 * @param array $settings Custom settings for RecursiveRegexIterator.
+	 * @return RecursiveRegexIterator
+	 */
 	public function RecursiveRegexIterator($iterator, string $regex, array $settings = []): RecursiveRegexIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveRegexIterator');
-			$settings = $this->fetchSettings('RecursiveRegexIterator', $settings);
-			$mode = $settings['mode'] ?? RecursiveRegexIterator::MATCH;
-			return new $iteratorClass($iterator, $regex, $mode);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveRegexIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveRegexIterator'))(
+			$iterator,
+			$regex,
+			$this->fetchSettings('RecursiveRegexIterator', $settings)['mode'] ?? $this->recursiveIteratorSettings['RecursiveRegexIterator']['mode']['match']
+		);
 	}
 
+	/**
+	 * Create a RecursiveTreeIterator instance.
+	 *
+	 * @param \Iterator $iterator The inner iterator.
+	 * @param array $settings Custom settings for RecursiveTreeIterator.
+	 * @return RecursiveTreeIterator
+	 */
 	public function RecursiveTreeIterator($iterator, array $settings = []): RecursiveTreeIterator
 	{
-		try {
-			$iteratorClass = $this->resolve('RecursiveTreeIterator');
-			$settings = $this->fetchSettings('RecursiveTreeIterator', $settings);
-			$flags = $settings['flag'] ?? RecursiveTreeIterator::BYPASS_CURRENT;
-			$prefix = $settings['prefix'] ?? RecursiveTreeIterator::PREFIX_LEFT;
-			$mode = $settings['mode'] ?? RecursiveTreeIterator::SELF_FIRST;
-			$cache = $settings['cache'] ?? RecursiveTreeIterator::CATCH_GET_CHILD;
-			return new $iteratorClass($iterator, $flags | $prefix | $mode | $cache);
-		} catch (Throwable $e) {
-			throw new IteratorException("Error creating RecursiveTreeIterator: " . $e->getMessage(), 0, $e);
-		}
+		return new ($this->resolve('RecursiveTreeIterator'))(
+			$iterator,
+			($this->fetchSettings('RecursiveTreeIterator', $settings)['flag'] ?? $this->recursiveIteratorSettings['RecursiveTreeIterator']['flag']['bypassCurrent'])
+			| ($this->fetchSettings('RecursiveTreeIterator', $settings)['prefix'] ?? $this->recursiveIteratorSettings['RecursiveTreeIterator']['prefix']['left'])
+			| ($this->fetchSettings('RecursiveTreeIterator', $settings)['mode'] ?? $this->recursiveIteratorSettings['RecursiveTreeIterator']['mode']['selfFirst'])
+			| ($this->fetchSettings('RecursiveTreeIterator', $settings)['cache'] ?? $this->recursiveIteratorSettings['RecursiveTreeIterator']['cache']['catchGetChild'])
+		);
 	}
 }

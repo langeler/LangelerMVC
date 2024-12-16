@@ -3,10 +3,21 @@
 namespace App\Abstracts\Data;
 
 use App\Exceptions\Data\SanitationException;
+use App\Utilities\Traits\TypeCheckerTrait;
+use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\ExistenceCheckerTrait;
 use Throwable;
 
+/**
+ * Abstract Class Sanitizer
+ *
+ * Provides a base implementation for data sanitization and validation processes.
+ * Designed to handle configurable sanitization methods and validation rules.
+ */
 abstract class Sanitizer
 {
+    use TypeCheckerTrait, ArrayTrait, ExistenceCheckerTrait;
+
     /**
      * Entry point for the sanitization process.
      *
@@ -14,17 +25,12 @@ abstract class Sanitizer
      * @return array The sanitized and validated data.
      * @throws SanitationException If an error occurs during sanitization.
      */
-    public function handle(array $data): array
+    protected function handle(array $data): array
     {
-        try {
-            return array_map(
-                fn($config, $value) => $this->processValue($value, $this->normalizeConfig($config)),
-                $data,
-                array_keys($data)
-            );
-        } catch (Throwable $e) {
-            throw new SanitationException("Sanitization process failed: " . $e->getMessage(), 0, $e);
-        }
+        return $this->wrapInTry(
+            fn() => $this->map($data, fn($config, $key) => $this->processValue($data[$key], $this->normalizeConfig($config))),
+            "Sanitization process failed."
+        );
     }
 
     /**
@@ -32,19 +38,23 @@ abstract class Sanitizer
      *
      * @param mixed $config The raw configuration.
      * @return array Normalized configuration with separate sanitization methods and rules.
+     * @throws SanitationException If the configuration is invalid.
      */
     protected function normalizeConfig(mixed $config): array
     {
-        return match (true) {
-            is_string($config) || is_array($config) && isset($config[0]) =>
-                [is_array($config) ? $config : [$config], []],
-            is_array($config) && count($config) === 2 && is_array($config[1]) =>
-                $config,
-            is_array($config) && count($config) > 2 =>
-                [array_keys(array_filter($config, 'is_string', ARRAY_FILTER_USE_KEY)), array_pop($config)],
-            default =>
-                throw new SanitationException("Invalid configuration format."),
-        };
+        return $this->wrapInTry(
+            fn() => match (true) {
+                $this->isString($config) || ($this->isArray($config) && $this->arrayKeyExists(0, $config)) =>
+                    [$this->isArray($config) ? $config : [$config], []],
+                $this->isArray($config) && $this->count($config) === 2 && $this->isArray($config[1]) =>
+                    $config,
+                $this->isArray($config) && $this->count($config) > 2 =>
+                    [$this->filterKeys($config, fn($key) => $this->isString($key)), $this->pop($config)],
+                default =>
+                    throw new SanitationException("Invalid configuration format.")
+            },
+            "Failed to normalize configuration."
+        );
     }
 
     /**
@@ -57,9 +67,12 @@ abstract class Sanitizer
      */
     protected function processValue(mixed $value, array $config): mixed
     {
-        return $this->applySanitation(
-            $this->applyRules($value, $config[1]),
-            $config[0]
+        return $this->wrapInTry(
+            fn() => $this->applySanitation(
+                $this->applyRules($value, $config[1]),
+                $config[0]
+            ),
+            "Failed to process value."
         );
     }
 
@@ -73,13 +86,17 @@ abstract class Sanitizer
      */
     protected function applyRules(mixed $value, array $rules): mixed
     {
-        return array_reduce(
-            array_keys($rules),
-            fn($carry, $rule) =>
-                method_exists($this, $method = 'rule' . ucfirst($rule)) && $this->$method($carry, $rules[$rule])
-                    ? $carry
-                    : throw new SanitationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
-            $value
+        return $this->wrapInTry(
+            fn() => $this->reduce(
+                $rules,
+                fn($carry, $rule, $params) =>
+                    $this->methodExists($this, $method = 'rule' . ucfirst($rule)) &&
+                    $this->$method($carry, $params)
+                        ? $carry
+                        : throw new SanitationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
+                $value
+            ),
+            "Failed to apply validation rules."
         );
     }
 
@@ -93,14 +110,34 @@ abstract class Sanitizer
      */
     protected function applySanitation(mixed $value, array $methods): mixed
     {
-        return array_reduce(
-            $methods,
-            fn($carry, $method) =>
-                method_exists($this, $sanitizer = 'sanitize' . ucfirst($method))
-                    ? $this->$sanitizer($carry)
-                    : throw new SanitationException("Undefined sanitization method: '{$method}'."),
-            $value
+        return $this->wrapInTry(
+            fn() => $this->reduce(
+                $methods,
+                fn($carry, $method) =>
+                    $this->methodExists($this, $sanitizer = 'sanitize' . ucfirst($method))
+                        ? $this->$sanitizer($carry)
+                        : throw new SanitationException("Undefined sanitization method: '{$method}'."),
+                $value
+            ),
+            "Failed to apply sanitation methods."
         );
+    }
+
+    /**
+     * Wraps a callback in a try/catch block and handles exceptions consistently.
+     *
+     * @param callable $callback The callback to execute.
+     * @param string $errorMessage Custom error message for exceptions.
+     * @return mixed The result of the callback execution.
+     * @throws SanitationException If an exception occurs.
+     */
+    protected function wrapInTry(callable $callback, string $errorMessage): mixed
+    {
+        try {
+            return $callback();
+        } catch (Throwable $e) {
+            throw new SanitationException("{$errorMessage}: {$e->getMessage()}", 0, $e);
+        }
     }
 
     /**

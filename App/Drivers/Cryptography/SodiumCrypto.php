@@ -4,7 +4,7 @@ namespace App\Drivers\Crypto;
 
 use App\Abstracts\Data\Crypto;
 
-class SodiumCrypto extends Crypto
+class SodiumCrypto extends Crypto implements CryptoInterface
 {
 	protected readonly array $config;
 
@@ -160,7 +160,7 @@ class SodiumCrypto extends Crypto
 		];
 	}
 
-	protected function DataConverter(string $type): callable
+	public function DataConverter(string $type): callable
 	{
 		return match ($type) {
 			'bin2base64' => fn(string $data, string $variant = 'urlsafe') =>
@@ -187,7 +187,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function ScalarHandler(string $operation): callable
+	public function ScalarHandler(string $operation): callable
 	{
 		return match ($operation) {
 			// Add two scalars
@@ -262,7 +262,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function Hasher(string $type): callable
+	public function Hasher(string $type): callable
 	{
 		return match ($type) {
 			'generic' => fn(
@@ -307,7 +307,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function PasswordHasher(string $type): callable
+	public function PasswordHasher(string $type): callable
 	{
 		return match ($type) {
 			'argon2i' => fn(
@@ -344,7 +344,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function PasswordVerifier(string $action): callable
+	public function PasswordVerifier(string $action): callable
 	{
 		return match ($action) {
 			'verify' => fn(string $hash, string $password) =>
@@ -371,7 +371,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function RandomGenerator(string $type, ?int $length = null): callable
+	public function RandomGenerator(string $type, ?int $length = null): callable
 	{
 		return match ($type) {
 			'default' => fn() =>
@@ -418,7 +418,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function RistrettoHandler(string $operation): callable
+	public function RistrettoHandler(string $operation): callable
 	{
 		return match ($operation) {
 			'add' => fn(string $pointA, string $pointB) =>
@@ -444,7 +444,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function KeyExchanger(string $type): callable
+	public function KeyExchanger(string $type): callable
 	{
 		return match ($type) {
 			'client' => fn(string $clientPk, string $clientSk, string $serverPk) =>
@@ -459,7 +459,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function KeyExtractor(string $type): callable
+	public function KeyExtractor(string $type): callable
 	{
 		return match ($type) {
 			'publicKey' => fn(string $keyPair) =>
@@ -486,7 +486,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function KeyGenerator(string $type): callable
+	public function KeyGenerator(string $type): callable
 	{
 		return match ($type) {
 			'secretBox' => fn() =>
@@ -541,7 +541,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function Hasher(string $type): callable
+	public function Hasher(string $type): callable
 	{
 		return match ($type) {
 			'generic' => fn(
@@ -582,7 +582,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function ScalarHandler(string $operation): callable
+	public function ScalarHandler(string $operation): callable
 	{
 		return match ($operation) {
 			'add' => fn(string $scalarA, string $scalarB) =>
@@ -621,7 +621,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function MemoryHandler(string $action): callable
+	public function MemoryHandler(string $action): callable
 	{
 		return match ($action) {
 			'clear' => fn(string &$data) =>
@@ -647,7 +647,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function RistrettoHandler(string $operation): callable
+	public function RistrettoHandler(string $operation): callable
 	{
 		return match ($operation) {
 			'add' => fn(string $pointA, string $pointB) =>
@@ -673,7 +673,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function PasswordHasher(string $type): callable
+	public function PasswordHasher(string $type): callable
 	{
 		return match ($type) {
 			'argon2i' => fn(
@@ -700,7 +700,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function PasswordVerifier(string $action): callable
+	public function PasswordVerifier(string $action): callable
 	{
 		return match ($action) {
 			'verify' => fn(string $hash, string $password) =>
@@ -723,7 +723,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function RandomGenerator(string $type, ?int $length = null): callable
+	public function RandomGenerator(string $type, ?int $length = null): callable
 	{
 		return match ($type) {
 			'default' => fn() =>
@@ -770,7 +770,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function Decryptor(string $type): callable
+	public function Decryptor(string $type): callable
 	{
 		return match ($type) {
 			// Secret Key Decryption
@@ -846,7 +846,7 @@ class SodiumCrypto extends Crypto
 		};
 	}
 
-	protected function Encryptor(string $type): callable
+	public function Encryptor(string $type): callable
 	{
 		return match ($type) {
 			// Secret Key Encryption
@@ -920,7 +920,7 @@ class SodiumCrypto extends Crypto
 	}
 
 	// ---- Key Derivation ----
-	protected function KeyDerivation(): callable
+	public function KeyDerivation(): callable
 	{
 		return fn(string $key, int $subKeyId, string $context) =>
 			sodium_crypto_kdf_derive_from_key($subKeyId, $context, $key);

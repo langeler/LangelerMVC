@@ -3,8 +3,9 @@
 namespace App\Drivers\Crypto;
 
 use App\Abstracts\Data\Crypto;
+use App\Contracts\Data\CryptoInterface;
 
-class OpenSSLCrypto extends Crypto
+class OpenSSLCrypto extends Crypto implements CryptoInterface
 {
 	protected readonly array $config;
 
@@ -143,7 +144,7 @@ class OpenSSLCrypto extends Crypto
 		];
 	}
 
-	protected function Encryptor(string $type): callable
+	public function Encryptor(string $type): callable
 	{
 		return match ($type) {
 			'symmetric' => fn(
@@ -189,7 +190,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function Decryptor(string $type): callable
+	public function Decryptor(string $type): callable
 	{
 		return match ($type) {
 			'symmetric' => fn(
@@ -235,7 +236,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function RandomGenerator(string $type): callable
+	public function RandomGenerator(string $type): callable
 	{
 		return match ($type) {
 			'default' => fn(?int $length = null) =>
@@ -266,7 +267,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function Hasher(string $type): callable
+	public function Hasher(string $type): callable
 	{
 		return match ($type) {
 			'pbkdf2' => fn(
@@ -300,7 +301,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function KeyHandler(string $action): callable
+	public function KeyHandler(string $action): callable
 	{
 		return match ($action) {
 			'import' => fn(string $type, string $key, ?string $passphrase = null) => match ($type) {
@@ -348,7 +349,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function CertificateHandler(string $action): callable
+	public function CertificateHandler(string $action): callable
 	{
 		return match ($action) {
 			'parse' => fn($certificate) =>
@@ -408,7 +409,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function Signer(string $type): callable
+	public function Signer(string $type): callable
 	{
 		return match ($type) {
 			'signData' => fn(
@@ -456,7 +457,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function Verifier(string $type): callable
+	public function Verifier(string $type): callable
 	{
 		return match ($type) {
 			'verifySignature' => fn(
@@ -505,7 +506,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function KeyExchangeHandler(string $action): callable
+	public function KeyExchangeHandler(string $action): callable
 	{
 		return match ($action) {
 			'deriveSharedKey' => fn($peerPublicKey, $privateKey) =>
@@ -524,7 +525,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function CipherHandler(string $action): callable
+	public function CipherHandler(string $action): callable
 	{
 		return match ($action) {
 			'getIvLength' => fn(string $cipher) =>
@@ -561,7 +562,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function MemoryHandler(string $action): callable
+	public function MemoryHandler(string $action): callable
 	{
 		return match ($action) {
 			'clearSensitiveData' => fn(string &$data) =>
@@ -574,7 +575,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function DataConverter(string $type): callable
+	public function DataConverter(string $type): callable
 	{
 		return match ($type) {
 			'bin2base64' => fn(string $data) =>
@@ -595,7 +596,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function PKIHandler(string $type): callable
+	public function PKIHandler(string $type): callable
 	{
 		return match ($type) {
 			'pkcs7Read' => fn(string $pkcs7File, &$certificates) =>
@@ -657,7 +658,7 @@ class OpenSSLCrypto extends Crypto
 		};
 	}
 
-	protected function SystemHandler(string $action): callable
+	public function SystemHandler(string $action): callable
 	{
 		return match ($action) {
 			'getCertLocations' => fn() =>

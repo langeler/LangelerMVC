@@ -2,101 +2,107 @@
 
 namespace App\Core;
 
-use App\Exceptions\AppException;
 use App\Providers\CoreProvider;
-use App\Core\Config;
-use App\Core\Database;
-use App\Core\Router;
-use Throwable;
+use App\Utilities\Traits\ErrorTrait;
 
 /**
- * Core application class for initializing and managing essential components.
+ * Core application class for managing essential components.
  *
- * The `App` class acts as the backbone of the application, responsible for setting up and managing:
- * - Configuration services
- * - Database connection
- * - Routing
+ * This class initializes the application, ensuring that required core services
+ * are resolved and validated. It leverages the CoreProvider to manage services and
+ * uses ErrorManager for centralized error handling and logging.
  *
- * It ensures all the necessary components are properly initialized and provides a central point for running the application.
+ * @package App\Core
  */
 class App
 {
-	/**
-	 * Constructor to initialize the core components of the application.
-	 *
-	 * @param CoreProvider $coreProvider The provider for core services.
-	 * @throws AppException If an error occurs during initialization.
-	 */
-	public function __construct(
-		protected CoreProvider $coreProvider,
-		public Config $config = null,
-		public Database $database = null,
-		public Router $router = null
-	) {
-		$this->wrapInTry(
-			fn() => $this->initializeCore(),
-			"Error initializing application."
-		);
-	}
+    use ErrorTrait; // Provides wrapInTry for consistent error handling.
 
-	/**
-	 * Initialize the core services.
-	 *
-	 * Retrieves essential services from `CoreProvider` and assigns them to the corresponding properties.
-	 *
-	 * @return void
-	 * @throws AppException If an error occurs while initializing core services.
-	 */
-	protected function initializeCore(): void
-	{
-		$this->config = $this->wrapInTry(
-			fn() => $this->coreProvider->getService('Config'),
-			"Failed to initialize Config service."
-		);
+    /**
+     * Constructor for the App class.
+     *
+     * Resolves and validates essential core services: Config, Database, and Router.
+     * Any failure during resolution is handled and transformed into appropriate exceptions.
+     *
+     * @param CoreProvider $coreProvider Handles registration and resolution of core services.
+     * @param ErrorManager $errorManager Manages error logs and exception transformations.
+     */
+    public function __construct(
+        protected CoreProvider $coreProvider,
+        protected ErrorManager $errorManager
+    ) {
+        // Log successful initialization of the application.
+        $this->errorManager->logError("App successfully initialized.", 'userNotice');
+    }
 
-		$this->database = $this->wrapInTry(
-			fn() => $this->coreProvider->getService('Database'),
-			"Failed to initialize Database service."
-		);
+    /**
+     * Resolves and validates required core services: Config, Database, and Router.
+     *
+     * Each service is resolved individually using the CoreProvider. Any failure during
+     * resolution is transformed into an appropriate exception using ErrorManager.
+     *
+     * @return void
+     * @throws \Exception If any required service cannot be resolved.
+     */
+    protected function resolveRequiredServices(): void
+    {
+        $this->wrapInTry(
+            fn() => $this->coreProvider->getCoreService('config'),
+            fn($caught) => $this->errorManager->resolveException(
+                'app',
+                "Failed to resolve Config service: " . $caught->getMessage(),
+                $caught->getCode(),
+                $caught
+            )
+        );
 
-		$this->router = $this->wrapInTry(
-			fn() => $this->coreProvider->getService('Router'),
-			"Failed to initialize Router service."
-		);
-	}
+        $this->wrapInTry(
+            fn() => $this->coreProvider->getCoreService('database'),
+            fn($caught) => $this->errorManager->resolveException(
+                'app',
+                "Failed to resolve Database service: " . $caught->getMessage(),
+                $caught->getCode(),
+                $caught
+            )
+        );
 
-	/**
-	 * Run the application.
-	 *
-	 * Contains the logic to start and run the application.
-	 * Handles routing, request processing, and other core tasks.
-	 *
-	 * @return void
-	 */
-	public function run(): void
-	{
-		$this->wrapInTry(
-			fn() => $this->router->dispatch(),
-			"Error running the application."
-		);
-	}
+        $this->wrapInTry(
+            fn() => $this->coreProvider->getCoreService('router'),
+            fn($caught) => $this->errorManager->resolveException(
+                'app',
+                "Failed to resolve Router service: " . $caught->getMessage(),
+                $caught->getCode(),
+                $caught
+            )
+        );
+    }
 
-	/**
-	 * Wrapper for consistent error handling.
-	 *
-	 * Executes a callback within a try/catch block and throws an `AppException` on failure.
-	 *
-	 * @param callable $callback The callback to execute.
-	 * @param string $errorMessage The error message to include in the exception.
-	 * @return mixed The result of the callback execution.
-	 * @throws AppException If an exception occurs during execution.
-	 */
-	protected function wrapInTry(callable $callback, string $errorMessage): mixed
-	{
-		try {
-			return $callback();
-		} catch (Throwable $e) {
-			throw new AppException($errorMessage, 0, $e);
-		}
-	}
+    /**
+     * Runs the application by dispatching a request via the Router.
+     *
+     * Transforms any errors during dispatch into "app" exceptions and logs them.
+     *
+     * @return void
+     */
+    public function run(): void
+    {
+        // Log the start of the application run.
+        $this->errorManager->logError("App run invoked.", 'userNotice');
+
+        $this->wrapInTry(
+            fn() => $this->coreProvider->getCoreService('router')->dispatch(
+                $_SERVER['REQUEST_URI']   ?? '/',
+                $_SERVER['REQUEST_METHOD'] ?? 'GET'
+            ),
+            fn($caught) => $this->errorManager->resolveException(
+                'app',
+                "Application run failed: " . $caught->getMessage(),
+                $caught->getCode(),
+                $caught
+            )
+        );
+
+        // Log successful application dispatch.
+        $this->errorManager->logError("App run completed successfully.", 'userNotice');
+    }
 }

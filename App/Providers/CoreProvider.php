@@ -2,69 +2,93 @@
 
 namespace App\Services;
 
-use App\Core\Container;
-use App\Core\Config;
-use App\Core\Database;
-use App\Core\Router;
-use App\Exceptions\ContainerException;
+use App\Core\{¨
+    Config,
+    Container,
+    Database,
+    Router
+};
+use App\Utilities\Managers\System\ErrorManager;
 
 /**
- * Core services injector for registering essential application services.
+ * CoreProvider Class
  *
- * This class registers core services like `Config`, `Database`, and `Router` into the service container,
- * making these services available throughout the application. It supports lazy loading to optimize performance.
+ * Manages the registration and resolution of essential core application services such as `Config`, `Database`, and `Router`.
+ * It supports lazy loading and ensures singleton instances for efficient service usage throughout the application.
+ *
+ * Features:
+ * - Dynamic mapping of core service aliases to their fully qualified class names.
+ * - Lazy loading of core services to optimize application performance.
+ * - Centralized service management for seamless dependency injection.
+ *
+ * @package App\Services
  */
-class CoreContainer extends Container
+class CoreProvider extends Container
 {
-	/**
-	 * Registers the core services and their aliases in the application's service container.
-	 * It also ensures these services are loaded lazily as singletons.
-	 *
-	 * @return void
-	 * @throws ContainerException If an error occurs during service registration.
-	 */
-	public function registerServices(): void
-	{
-		$this->wrapInTry(
-			fn() => $this->registerCoreComponents(),
-			"Error registering core services."
-		);
-	}
+    /**
+     * A mapping of core service aliases to their fully qualified class names.
+     *
+     * @var array<string, string>
+     */
+    protected readonly array $coreServiceMap;
 
-	/**
-	 * Registers core service aliases and lazy singletons.
-	 *
-	 * @return void
-	 */
-	protected function registerCoreComponents(): void
-	{
-		$this->registerCoreAliases();
-		$this->registerCoreSingletons();
-	}
+    /**
+     * Constructor for CoreProvider.
+     *
+     * Initializes the core service map to manage core services and their aliases.
+     */
+    public function __construct()
+    {
+        $this->coreServiceMap = [
+            'config'   => Config::class,
+            'database' => Database::class,
+            'router'   => Router::class,
 
-	/**
-	 * Registers service aliases in the service container for core application components.
-	 * These aliases provide shorthand access to the services (e.g., 'Config' for the Config class).
-	 *
-	 * @return void
-	 */
-	protected function registerCoreAliases(): void
-	{
-		$this->registerAlias('Config', Config::class);
-		$this->registerAlias('Database', Database::class);
-		$this->registerAlias('Router', Router::class);
-	}
+            // System
+            'errorManager' => ErrorManager::class,
+        ];
+    }
 
-	/**
-	 * Registers the core services lazily as singletons in the service container.
-	 * Lazy loading ensures that these services are only instantiated when they are needed, improving performance.
-	 *
-	 * @return void
-	 */
-	protected function registerCoreSingletons(): void
-	{
-		$this->registerLazySingleton(Config::class, fn() => $this->resolve(Config::class));
-		$this->registerLazySingleton(Database::class, fn() => $this->resolve(Database::class));
-		$this->registerLazySingleton(Router::class, fn() => $this->resolve(Router::class));
-	}
+    /**
+     * Registers the core services in the service container.
+     *
+     * Maps core service aliases to their respective fully qualified class names and registers them
+     * as lazy singletons for efficient usage.
+     *
+     * @return void
+     * @throws ContainerException If an error occurs during service registration.
+     */
+    public function registerServices(): void
+    {
+        $this->wrapInTry(
+            fn() => (!$this->isArray($this->coreServiceMap) || $this->isEmpty($this->coreServiceMap))
+                ? throw new ContainerException("The core service map must be a non-empty array.")
+                : $this->walk(
+                    $this->coreServiceMap,
+                    fn($class, $alias) => [
+                        $this->registerAlias($alias, $class),
+                        $this->registerLazy($class, fn() => $this->resolveInstance($class))
+                    ]
+                ),
+            new ContainerException("Error registering core services.")
+        );
+    }
+
+    /**
+     * Resolves a core service instance based on its alias or class name.
+     *
+     * @param string $serviceAlias The service alias or class name.
+     * @return object The resolved core service instance.
+     * @throws ContainerException If the specified service is not supported or another error occurs.
+     */
+    public function getCoreService(string $serviceAlias): object
+    {
+        return $this->wrapInTry(
+            fn() => $this->getInstance(
+                $this->coreServiceMap[$serviceAlias]
+                    ?? throw new ContainerException("Unsupported core service alias: $serviceAlias")
+            ),
+            new ContainerException("Error retrieving core service [$serviceAlias].")
+        );
+    }
 }

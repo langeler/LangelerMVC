@@ -43,56 +43,61 @@ abstract class Container
         TypeCheckerTrait;         // Offers utility methods for type validation and checking.
 
     /**
-     * Constructor for the Container class.
-     *
-     * Initializes core dependencies, instances, and configuration for the container.
-     * Sets up attributes for lifecycle management, dependency injection, and behavior customization.
-     *
-     * @param ReflectionManager $reflectionManager Reflection utility to manage class, method, property, and attribute operations.
-     * @param array $instances Cached instances of resolved services or classes (singleton or lazy instances).
-     * @param array $singletons List of classes designated as singletons.
-     * @param array $aliases Mapping of short aliases to fully qualified class names.
-     * @param array $resolving Tracks classes currently being resolved to detect circular dependencies.
-     * @param array $cache Cached ReflectionClass instances for performance optimization.
-     * @param array $attributes Categorized attributes for injection, lifecycle management, and other behaviors.
-     */
-    public function __construct(
-        protected ReflectionManager $reflectionManager,
-        protected array $instances = [],
-        protected array $singletons = [],
-        protected array $aliases = [],
-        protected array $resolving = [],
-        protected array $cache = [],
-        protected array $attributes = []
-    ) {
-        $this->attributes = [
-            'property' => [
-                'inject' => 'App\Attributes\Inject',         // Marks a property for dependency injection.
-                'optional' => 'App\Attributes\Optional',     // Indicates an optional property.
-                'lazy' => 'App\Attributes\Lazy',             // Lazily loads a property when accessed.
-                'required' => 'App\Attributes\Required',     // Marks a property as required for instantiation.
-                'notNull' => 'App\Attributes\NotNull',       // Ensures the property value is not null.
-                'defaultValue' => 'App\Attributes\DefaultValue', // Specifies a default value for the property.
-            ],
-            'method' => [
-                'postConstruct' => 'App\Attributes\PostConstruct', // Method invoked after construction.
-                'preDestroy' => 'App\Attributes\PreDestroy',       // Method invoked before destruction.
-                'eventHandler' => 'App\Attributes\EventHandler',   // Marks a method as an event handler.
-            ],
-            'class' => [
-                'singleton' => 'App\Attributes\Singleton',   // Marks the class as a singleton.
-                'prototype' => 'App\Attributes\Prototype',   // Marks the class as a prototype (new instance per request).
-                'named' => 'App\Attributes\Named',           // Associates a name with the class for specific resolution.
-                'primary' => 'App\Attributes\Primary',       // Marks the class as the primary implementation of a contract.
-                'scope' => 'App\Attributes\Scope',           // Defines a specific lifecycle scope for the class.
-            ],
-            'parameter' => [
-                'lazy' => 'App\Attributes\Lazy',             // Lazily resolves a parameter's dependency.
-                'required' => 'App\Attributes\Required',     // Marks a parameter as required.
-                'defaultValue' => 'App\Attributes\DefaultValue', // Provides a default value for the parameter.
-            ],
-        ];
-    }
+ * Constructor for the Container class.
+ *
+ * Initializes core dependencies, instances, and configuration for the container.
+ * Sets up attributes for lifecycle management, dependency injection, and behavior customization.
+ *
+ * @param ReflectionManager|null $reflectionManager Reflection utility to manage class, method, property, and attribute operations.
+ * If not provided, a default instance of ReflectionManager will be created.
+ * @param array $instances Cached instances of resolved services or classes (singleton or lazy instances).
+ * @param array $singletons List of classes designated as singletons.
+ * @param array $aliases Mapping of short aliases to fully qualified class names.
+ * @param array $resolving Tracks classes currently being resolved to detect circular dependencies.
+ * @param array $cache Cached ReflectionClass instances for performance optimization.
+ * @param array $attributes Categorized attributes for injection, lifecycle management, and other behaviors.
+ */
+public function __construct(
+    protected ?ReflectionManager $reflectionManager = null,
+    protected array $instances = [],
+    protected array $singletons = [],
+    protected array $aliases = [],
+    protected array $resolving = [],
+    protected array $cache = [],
+    protected array $attributes = []
+) {
+    // Default initialization of ReflectionManager if not provided
+    $this->reflectionManager ??= new ReflectionManager();
+
+    // Initialize attributes for lifecycle management, dependency injection, and other behaviors
+    $this->attributes = [
+        'property' => [
+            'inject' => 'App\Attributes\Inject',         // Marks a property for dependency injection.
+            'optional' => 'App\Attributes\Optional',     // Indicates an optional property.
+            'lazy' => 'App\Attributes\Lazy',             // Lazily loads a property when accessed.
+            'required' => 'App\Attributes\Required',     // Marks a property as required for instantiation.
+            'notNull' => 'App\Attributes\NotNull',       // Ensures the property value is not null.
+            'defaultValue' => 'App\Attributes\DefaultValue', // Specifies a default value for the property.
+        ],
+        'method' => [
+            'postConstruct' => 'App\Attributes\PostConstruct', // Method invoked after construction.
+            'preDestroy' => 'App\Attributes\PreDestroy',       // Method invoked before destruction.
+            'eventHandler' => 'App\Attributes\EventHandler',   // Marks a method as an event handler.
+        ],
+        'class' => [
+            'singleton' => 'App\Attributes\Singleton',   // Marks the class as a singleton.
+            'prototype' => 'App\Attributes\Prototype',   // Marks the class as a prototype (new instance per request).
+            'named' => 'App\Attributes\Named',           // Associates a name with the class for specific resolution.
+            'primary' => 'App\Attributes\Primary',       // Marks the class as the primary implementation of a contract.
+            'scope' => 'App\Attributes\Scope',           // Defines a specific lifecycle scope for the class.
+        ],
+        'parameter' => [
+            'lazy' => 'App\Attributes\Lazy',             // Lazily resolves a parameter's dependency.
+            'required' => 'App\Attributes\Required',     // Marks a parameter as required.
+            'defaultValue' => 'App\Attributes\DefaultValue', // Provides a default value for the parameter.
+        ],
+    ];
+}
 
      /**
       * Registers a class as a singleton, ensuring only one instance exists.

@@ -2,243 +2,300 @@
 
 namespace App\Core;
 
-use App\Utilities\Finders\FileFinder;
-use App\Utilities\Finders\DirectoryFinder;
-use App\Utilities\Managers\FileManager;
-use App\Helpers\ExistenceChecker;
-use App\Utilities\Sanitation\GeneralSanitizer;
-use App\Utilities\Validation\GeneralValidator;
-use App\Utilities\Validation\MediaValidator;
-use App\Utilities\Sanitation\MediaSanitizer;
-use App\Exceptions\ConfigException;
-use App\Utilities\Traits\ManipulationTrait;
-use App\Utilities\Traits\EncodingTrait;
-use App\Utilities\Traits\CheckerTrait;
-use App\Utilities\Traits\ConversionTrait;
-use App\Utilities\Traits\TypeCheckerTrait;
-use App\Utilities\Traits\ArrayTrait;
-use Throwable;
+use App\Utilities\Finders\{
+    FileFinder,
+    DirectoryFinder
+};
+use App\Utilities\Managers\{
+    FileManager,
+    System\ErrorManager
+};
+use App\Utilities\Sanitation\{
+    GeneralSanitizer,
+    PatternSanitizer
+};
+use App\Utilities\Validation\{
+    GeneralValidator,
+    PatternValidator
+};
+use App\Utilities\Traits\{
+    ManipulationTrait,    // for split(), trim(), length(), etc.
+    CheckerTrait,         // for contains(), etc.
+    TypeCheckerTrait,     // isString(), isEmpty()...
+    ArrayTrait,           // reduce(), map(), walk(), merge() etc.
+    ErrorTrait,           // wrapInTry(..., alias), no local try-catch
+    ExistenceCheckerTrait // if needed for classExists, interfaceExists...
+};
 
 /**
  * Class Config
  *
- * Handles the configuration loading, parsing, and file management for the application.
+ *  - Loads/merges .env environment variables and config files from a "Config" directory.
+ *  - Sanitizes & optionally validates paths/lines with General/Pattern Sanitizers & (optionally) PatternValidator.
+ *  - Logs + resolves exceptions via ErrorManager + ErrorTrait (alias 'config').
+ *  - No loops or temp vars, using trait-based methods for iteration (reduce, map, walk).
  */
 class Config
 {
-    use ManipulationTrait, EncodingTrait, CheckerTrait, ConversionTrait, TypeCheckerTrait, ArrayTrait;
+    use ManipulationTrait,
+        CheckerTrait,
+        TypeCheckerTrait,
+        ArrayTrait,
+        ErrorTrait,
+        ExistenceCheckerTrait;
 
+    /**
+     * Cache key, environment variables, etc.
+     */
     private string $cacheKey = 'config_data';
-    private bool $cacheEnabled;
+    private bool $cacheEnabled = false;
     private array $envVariables = [];
 
     public function __construct(
         private FileFinder $files,
         private DirectoryFinder $dirs,
         private FileManager $fileManager,
-        private ExistenceChecker $exists,
-        private GeneralSanitizer $sanitize,
-        private MediaSanitizer $mediaSanitize,
-        private GeneralValidator $validator,
-        private MediaValidator $mediaValidator
+        private GeneralSanitizer $generalSanitizer,
+        private PatternSanitizer $patternSanitizer,
+        private GeneralValidator $generalValidator,
+        private PatternValidator $patternValidator,
+        private ErrorManager $errorManager
     ) {
-        $this->load();
+        // On construct, we try to load config, alias 'config' for any errors.
+        $this->wrapInTry(
+            fn() => $this->load(),
+            'config'
+        );
     }
 
     /**
-     * Loads all configuration files and returns the configuration data.
-     *
-     * @return array The configuration data.
-     * @throws ConfigException If an error occurs during loading.
+     * Public method to load the config & .env, returning merged data.
      */
     public function load(): array
     {
-        return $this->wrapInTry(fn() => $this->loadConfigFiles());
+        return $this->wrapInTry(
+            fn() => $this->loadConfigFiles(),
+            'config'
+        );
     }
 
     /**
-     * Loads configuration files and processes environment variables.
-     *
-     * @return array The processed configuration data.
-     * @throws ConfigException If any file or directory is invalid.
+     * Loads .env => merges with config files => final array.
      */
     private function loadConfigFiles(): array
     {
-        return $this->wrapInTry(fn() => [
-            $this->loadEnvFile($this->findEnvFilePath()),
-            $this->createOrUpdateConfigFiles($this->findConfigDir()),
-        ][1]);
+        return $this->wrapInTry(
+            fn() => [
+                $this->loadEnvFile($this->findEnvFilePath()),
+                // Final array from createOrUpdateConfigFiles
+                $this->createOrUpdateConfigFiles($this->findConfigDir())
+            ][1],
+            'config'
+        );
     }
 
     /**
-     * Finds the .env file path.
-     *
-     * @return string The .env file path.
-     * @throws ConfigException If the .env file is not found.
+     * Finds a .env file or logs + throws 'config' alias if not found.
      */
     private function findEnvFilePath(): string
     {
-        $envFiles = $this->files->find(['extension' => 'env']);
-        return $this->isArray($envFiles) && !$this->isEmpty($envFiles) && $this->fileManager->fileExists($envFiles[0])
-            ? $envFiles[0]
-            : throw new ConfigException(".env file not found.");
+        return $this->wrapInTry(
+            fn() => $this->files->find(['extension' => 'env']) |> (
+                $this->isArray($_) && !$this->isEmpty($_) && $this->fileManager->fileExists($_[0])
+                    ? $_[0]
+                    : (
+                        $this->errorManager->logErrorMessage(
+                            ".env file not found.",
+                            __FILE__,
+                            __LINE__,
+                            'userError',
+                            'config'
+                        ),
+                        throw $this->errorManager->resolveException(
+                            'config',
+                            ".env file not found."
+                        )
+                    )
+            ),
+            'config'
+        );
     }
 
     /**
-     * Creates or updates configuration files from environment variables.
-     *
-     * @param string $configDir The configuration directory.
-     * @return array The updated configuration data.
-     * @throws ConfigException If an error occurs during file operations.
+     * Creates or updates config files from env variables in the "Config" directory => final array.
      */
     private function createOrUpdateConfigFiles(string $configDir): array
     {
-        return $this->map(
-            $this->groupEnvByPrefix(),
-            fn($data, $file) => $this->createOrUpdateConfigFile($configDir, $file, $data)
+        return $this->wrapInTry(
+            fn() => $this->map(
+                $this->groupEnvByPrefix(),
+                fn($data, $file) => $this->createOrUpdateConfigFile($configDir, $file, $data)
+            ),
+            'config'
         );
     }
 
     /**
-     * Creates or updates a single configuration file.
-     *
-     * @param string $configDir The configuration directory.
-     * @param string $file The configuration file name.
-     * @param array $data The data to write to the file.
-     * @return array The merged configuration data.
-     * @throws ConfigException If the file cannot be created or updated.
+     * Creates or updates one config file => merges existing data w/ new env data => writes to disk.
      */
     private function createOrUpdateConfigFile(string $configDir, string $file, array $data): array
     {
-        $filePath = $this->validateFilePath($configDir, $file);
-
-        !$this->fileManager->fileExists($filePath) &&
-        $this->fileManager->writeContents($filePath, "<?php\n\nreturn [];\n");
-
-        $existingData = $this->fileManager->readContents($filePath) ? include $filePath : [];
-        return $this->fileManager->writeContents(
-            $filePath,
-            "<?php\n\nreturn " . var_export(
-                $this->merge($this->isArray($existingData) ? $existingData : [], $data),
-                true
-            ) . ";\n"
+        return $this->wrapInTry(
+            fn() => $this->validateFilePath($configDir, $file) |> (
+                !$this->fileManager->fileExists($_)
+                    && $this->fileManager->writeContents($_, "<?php\n\nreturn [];\n"),
+                $existingData = $this->fileManager->readContents($_) ? include $_ : [],
+                $this->fileManager->writeContents(
+                    $_,
+                    "<?php\n\nreturn " . var_export(
+                        $this->merge($this->isArray($existingData) ? $existingData : [], $data),
+                        true
+                    ) . ";\n"
+                )
+            ),
+            'config'
         );
     }
 
     /**
-     * Validates a file path.
-     *
-     * @param string $dir The directory path.
-     * @param string $file The file name.
-     * @return string The sanitized and validated file path.
-     * @throws ConfigException If the file path is invalid.
+     * Validates a file path using PatternSanitizer => pathUnix, then optionally PatternValidator => pathUnix.
      */
     private function validateFilePath(string $dir, string $file): string
     {
-        $filePath = $this->mediaSanitize->sanitizeFilePathUnix("$dir/$file.php");
-
-        return $this->mediaValidator->validateFilePathUnix($filePath)
-            ? $filePath
-            : throw new ConfigException("Invalid file path: $filePath");
+        return $this->wrapInTry(
+            fn() => $this->patternSanitizer->clean(
+                // Remove invalid chars from a Unix path
+                ['p' => ['pathUnix']],
+                ['p' => "{$dir}/{$file}.php"]
+            )['p'] |> (
+                // Optionally validate the path
+                $this->patternValidator->verify(
+                    ['path' => ['pathUnix']],
+                    ['path' => $_]
+                )['path'] |> (
+                    $this->fileManager->fileExists($_) || $this->fileManager->isWritable($_)
+                        ? $_
+                        : (
+                            $this->errorManager->logErrorMessage(
+                                "File path not writable or not found: $_",
+                                __FILE__,
+                                __LINE__,
+                                'userError',
+                                'config'
+                            ),
+                            throw $this->errorManager->resolveException(
+                                'config',
+                                "File path not writable or not found: $_"
+                            )
+                        )
+                )
+            ),
+            'config'
+        );
     }
 
     /**
-     * Groups environment variables by their prefix.
-     *
-     * @return array An associative array grouped by prefixes.
+     * Groups environment variables by prefix. e.g. "APP_DEBUG" => group 'app'=>['debug'=>value].
      */
     private function groupEnvByPrefix(): array
     {
         return $this->reduce(
-            array_keys($this->envVariables),
-            fn($carry, $key) => $carry[$this->toLower($this->split('_', $key)[0])][$this->split('_', $key)[1]] = $this->envVariables[$key] ?: $carry,
+            $this->getKeys($this->envVariables),
+            fn($carry, $key) => (
+                $prefix = $this->toLower($this->split('_', $key)[0] ?? ''),
+                $suffix = $this->split('_', $key)[1] ?? '',
+                $carry[$prefix][$suffix] = $this->envVariables[$key],
+                $carry
+            ),
             []
         );
     }
 
     /**
-     * Finds the configuration directory.
-     *
-     * @return string The configuration directory path.
-     * @throws ConfigException If the directory is not found.
+     * Finds 'Config' directory or logs + throws if not found.
      */
     private function findConfigDir(): string
     {
-        $dirs = $this->dirs->find(['name' => 'Config']);
-        return $this->isArray($dirs) && !$this->isEmpty($dirs) && $this->fileManager->fileExists($dirs[0])
-            ? $dirs[0]
-            : throw new ConfigException("Config directory not found.");
+        return $this->wrapInTry(
+            fn() => $this->dirs->find(['name' => 'Config']) |> (
+                $this->isArray($_) && !$this->isEmpty($_) && $this->fileManager->fileExists($_[0])
+                    ? $_[0]
+                    : (
+                        $this->errorManager->logErrorMessage(
+                            "Config directory not found.",
+                            __FILE__,
+                            __LINE__,
+                            'userError',
+                            'config'
+                        ),
+                        throw $this->errorManager->resolveException(
+                            'config',
+                            "Config directory not found."
+                        )
+                    )
+            ),
+            'config'
+        );
     }
 
     /**
-     * Loads environment variables from a .env file.
-     *
-     * @param string $envFilePath The path to the .env file.
+     * Loads environment variables from the .env file.
      */
     private function loadEnvFile(string $envFilePath): void
     {
-        $this->parseEnvFile($this->fileManager->readContents($envFilePath) ? explode("\n", $this->fileManager->readContents($envFilePath)) : []);
+        $this->wrapInTry(
+            fn() => $this->fileManager->readContents($envFilePath)
+                ? $this->parseEnvFile($this->split("\n", $this->fileManager->readContents($envFilePath)))
+                : null,
+            'config'
+        );
     }
 
     /**
-     * Parses and processes each line of the .env file.
-     *
-     * @param array $envContent The .env file content as an array of lines.
+     * Splits .env content => processes each line => stored in $this->envVariables.
      */
     private function parseEnvFile(array $envContent): void
     {
-        $this->walk($envContent, fn($line) => $this->processEnvLine($line));
+        $this->walk(
+            $envContent,
+            fn($line) => $this->processEnvLine($line)
+        );
     }
 
     /**
-     * Processes a single line from the .env file.
-     *
-     * @param string $line The line to process.
+     * If line is valid => sanitize as string => remove inline comments => store in $this->envVariables.
      */
     private function processEnvLine(string $line): void
     {
-        $this->isValidEnvLine($line) &&
-        $this->envVariables[$this->sanitize->sanitizeString($this->trim($this->split('=', $line, 2)[0]))] =
-            $this->removeInlineComments(
-                $this->sanitize->sanitizeString($this->trim($this->split('=', $line, 2)[1] ?? ''))
-            );
+        $this->isValidEnvLine($line) && (
+            $pair = $this->split('=', $line, 2),
+            $key = $this->generalSanitizer->clean(
+                ['envKey' => ['string', ['stripLow','stripHigh']]],
+                ['envKey' => $this->trim($pair[0] ?? '')]
+            )['envKey'],
+            $val = $this->removeInlineComments(
+                $this->generalSanitizer->clean(
+                    ['envVal' => ['string', ['stripLow','stripHigh']]],
+                    ['envVal' => $this->trim($pair[1] ?? '')]
+                )['envVal']
+            ),
+            $this->envVariables[$key] = $val
+        );
     }
 
     /**
-     * Removes inline comments from a .env value.
-     *
-     * @param string $value The value to process.
-     * @return string The value without comments.
+     * Removes inline comments (# ...).
      */
     private function removeInlineComments(string $value): string
     {
-        return preg_replace('/\s+#.*$/', '', $value);
+        return $this->replace('/\s+#.*$/', '', $value);
     }
 
     /**
-     * Checks if a .env line is valid.
-     *
-     * @param string $line The line to validate.
-     * @return bool True if valid, false otherwise.
+     * Checks if a .env line is valid => not empty, not starting with '#'.
      */
     private function isValidEnvLine(string $line): bool
     {
         return $this->length($this->trim($line)) > 0 && $line[0] !== '#';
-    }
-
-    /**
-     * Wraps a callback in a try-catch block for consistent error handling.
-     *
-     * @param callable $callback The callback to execute.
-     * @return mixed The result of the callback.
-     * @throws ConfigException If an error occurs.
-     */
-    private function wrapInTry(callable $callback)
-    {
-        try {
-            return $callback();
-        } catch (Throwable $e) {
-            throw new ConfigException($e->getMessage(), 0, $e);
-        }
     }
 }

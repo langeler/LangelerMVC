@@ -2,150 +2,322 @@
 
 namespace App\Abstracts\Data;
 
-use App\Exceptions\Data\CacheException;
+use App\Managers\CryptoManager;
+use App\Helpers\TypeChecker;
 use App\Utilities\Finders\DirectoryFinder;
 use App\Utilities\Finders\FileFinder;
-use App\Utilities\Handlers\CryptoHandler;
 use App\Utilities\Handlers\DataHandler;
 use App\Utilities\Handlers\DataStructureHandler;
-use App\Utilities\Handlers\DateTimeHandler;
-use App\Utilities\Managers\CompressionManager;
-use App\Utilities\Managers\FileManager;
-use App\Helpers\TypeChecker;
-use App\Utilities\Managers\SettingsManager;
-use App\Utilities\Sanitation\GeneralSanitizer;
-use SplQueue;
-use Throwable;
+use App\Utilities\Managers\{
+    CompressionManager,
+    FileManager,
+    SettingsManager,
+    System\ErrorManager,
+    DateTimeManager
+};
+use App\Utilities\Sanitation\{
+    GeneralSanitizer,
+    PatternSanitizer
+};
+use App\Utilities\Traits\{
+    ArrayTrait,
+    CheckerTrait,
+    ConversionTrait,
+    ErrorTrait,
+    ExistenceCheckerTrait,
+    LoopTrait,
+    ManipulationTrait,
+    MetricsTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Validation\PatternValidator;
 
+/**
+ * Abstract Cache Class
+ *
+ * Provides a base caching system that can optionally encrypt/decrypt data using CryptoManager
+ * (which unifies both SodiumCrypto and OpenSSLCrypto drivers). Configuration is loaded from
+ * SettingsManager under:
+ *   'CACHE' => [ 'FILE' => '/path/to/cacheDir', 'MEMCACHED' => 100, ... ]
+ *   'ENCRYPTION' => [ 'TYPE' => 'openssl'|'sodium', 'CIPHER' => 'aes256gcm', 'KEY' => <base64>, 'SODIUM' => <base64>, ... ]
+ */
 abstract class Cache
 {
+    use ErrorTrait,
+        CheckerTrait,
+        TypeCheckerTrait,
+        ConversionTrait,
+        ExistenceCheckerTrait,
+        ManipulationTrait,
+        MetricsTrait,
+        ArrayTrait,
+        LoopTrait;
+
     protected string $encryptionKey = '';
-    protected array $settings;
+    protected array $settings = [];
     protected array $cacheData = ['timestamp' => null, 'ttl' => null, 'data' => null];
     protected string $cacheDir;
-    protected SplQueue $cacheQueue;
+    protected mixed $cacheQueue;
 
     public function __construct(
         protected TypeChecker $typeChecker,
         protected FileManager $fileManager,
         protected CompressionManager $compressionManager,
         protected DataHandler $dataHandler,
-        protected CryptoHandler $cryptoHandler,
+        protected CryptoManager $cryptoManager, // Use CryptoManager instead of old CryptoHandler
         protected DataStructureHandler $dataStructureHandler,
-        protected DateTimeHandler $dateTimeHandler,
+        protected DateTimeManager $dateTimeManager,
         protected SettingsManager $settingsManager,
         protected DirectoryFinder $directoryFinder,
         protected FileFinder $fileFinder,
-        protected GeneralSanitizer $sanitizer
+        protected GeneralSanitizer $sanitizer,
+        protected ?PatternSanitizer $patternSanitizer = null,
+        protected ?PatternValidator $patternValidator = null,
+        protected ErrorManager $errorManager
     ) {
-        $this->initializeCache();
+        $this->wrapInTry(
+            fn() => (
+                $this->settings = [
+                    'cache'      => $this->settingsManager->getAllSettings('CACHE'),
+                    'encryption' => $this->settingsManager->getAllSettings('ENCRYPTION')
+                ],
+                $this->encryptionKey = $this->initEncryptionKey(),
+                $this->cacheQueue = $this->dataStructureHandler->createQueue(),
+                $this->cacheDir = $this->locateCacheDirectory()
+            ),
+            'cache'
+        );
     }
 
-    protected function initializeCache(): void
-    {
-        try {
-            $this->settings = [
-                'cache' => $this->settingsManager->getAllSettings('CACHE'),
-                'encryption' => $this->settingsManager->getAllSettings('ENCRYPTION'),
-            ];
-            $this->encryptionKey = $this->getOrGenerateEncryptionKey();
-            $this->cacheQueue = $this->dataStructureHandler->createQueue();
-            $this->cacheDir = $this->findCacheDirectory();
-        } catch (Throwable $e) {
-            throw new CacheException("Error initializing cache: " . $e->getMessage(), 0, $e);
-        }
-    }
+    /**
+     * Store an item in the cache.
+     */
+    abstract public function set(string $key, mixed $data, ?int $ttl = null): bool;
 
-    abstract public function set(string $key, $data, ?int $ttl = null): bool;
-    abstract public function get(string $key);
+    /**
+     * Retrieve an item from the cache.
+     */
+    abstract public function get(string $key): mixed;
+
+    /**
+     * Delete an item from the cache.
+     */
     abstract public function delete(string $key): bool;
+
+    /**
+     * Clear the entire cache.
+     */
     abstract public function clear(): bool;
 
-    protected function encryptData(string $data): string
+    /**
+     * Encrypt data depending on 'TYPE' => 'openssl' or 'sodium'.
+     * For OpenSSL, a random IV is prepended to the final ciphertext.
+     * For Sodium, a random nonce is prepended to the final ciphertext.
+     */
+    protected function encryptData(string $raw): string
     {
-        return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
-            'openssl' => $this->opensslEncrypt($data),
-            'sodium' => $this->sodiumEncrypt($data),
-            default => throw new CacheException("Unsupported encryption type."),
-        };
+        return $this->wrapInTry(
+            fn() => match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
+                'openssl' => (
+                    $iv = $this->cryptoManager->generateRandom(
+                        'generateRandomIv',
+                        $this->settings['encryption']['CIPHER'] ?? 'aes256gcm'
+                    ),
+                    $cipher = $this->cryptoManager->encrypt(
+                        'symmetric',
+                        $raw,
+                        $this->settings['encryption']['CIPHER'] ?? 'aes256gcm',
+                        $this->encryptionKey,
+                        $iv
+                    ),
+                    $iv . $cipher // Prepend IV
+                ),
+                'sodium' => (
+                    $nonceSize = $this->nonceLenSodium(),
+                    $nonce = $this->cryptoManager->generateRandom('custom', $nonceSize),
+                    $cipher = $this->cryptoManager->encrypt('secretBox', $raw, $nonce, $this->encryptionKey),
+                    $nonce . $cipher // Prepend nonce
+                ),
+                default => (
+                    $this->errorManager->logErrorMessage("Unsupported encryption type.", __FILE__, __LINE__, 'userError', 'cache'),
+                    throw $this->errorManager->resolveException('cache', "Unsupported encryption type.")
+                )
+            },
+            'cache'
+        );
     }
 
-    protected function opensslEncrypt(string $data): string
+    /**
+     * Decrypt data depending on 'TYPE' => 'openssl' or 'sodium'.
+     * For OpenSSL, parse out the IV from the front of the cipher.
+     * For Sodium, parse out the nonce from the front of the cipher.
+     */
+    protected function decryptData(string $cipher): string
     {
-        $iv = $this->cryptoHandler->generateNonce($this->cryptoHandler->getIvLength($this->settings['encryption']['CIPHER']));
-        return $iv . $this->cryptoHandler->encryptData($data, $this->settings['encryption']['CIPHER'], $this->encryptionKey, 0, $iv);
+        return $this->wrapInTry(
+            fn() => match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
+                'openssl' => (
+                    $ivLen = $this->ivLenOpenssl(),
+                    $iv = $this->substring($cipher, 0, $ivLen),
+                    $encPart = $this->substring($cipher, $ivLen),
+                    $this->cryptoManager->decrypt(
+                        'symmetric',
+                        $encPart,
+                        $this->settings['encryption']['CIPHER'] ?? 'aes256gcm',
+                        $this->encryptionKey,
+                        $iv
+                    )
+                ),
+                'sodium' => (
+                    $nonceSize = $this->nonceLenSodium(),
+                    $nonce = $this->substring($cipher, 0, $nonceSize),
+                    $encPart = $this->substring($cipher, $nonceSize),
+                    $this->cryptoManager->decrypt('secretBox', $encPart, $nonce, $this->encryptionKey)
+                ),
+                default => (
+                    $this->errorManager->logErrorMessage("Unsupported decryption type.", __FILE__, __LINE__, 'userError', 'cache'),
+                    throw $this->errorManager->resolveException('cache', "Unsupported decryption type.")
+                )
+            },
+            'cache'
+        );
     }
 
-    protected function sodiumEncrypt(string $data): string
+    /**
+     * Initialize the encryption key from SettingsManager config.
+     */
+    protected function initEncryptionKey(): string
     {
-        return $this->cryptoHandler->sodiumEncrypt($data, $this->encryptionKey);
+        return $this->wrapInTry(
+            fn() => match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
+                'openssl' => base64_decode($this->settings['encryption']['KEY'] ?? ''),
+                'sodium'  => base64_decode($this->settings['encryption']['SODIUM'] ?? ''),
+                default   => (
+                    $this->errorManager->logErrorMessage("Invalid encryption key type.", __FILE__, __LINE__, 'userError', 'cache'),
+                    throw $this->errorManager->resolveException('cache', "Invalid encryption key type.")
+                )
+            },
+            'cache'
+        );
     }
 
-    protected function decryptData(string $data): string
+    /**
+     * Check if a cache entry is expired given a timestamp + TTL.
+     */
+    protected function isExpired(int $ts, int $ttl): bool
     {
-        return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
-            'openssl' => $this->opensslDecrypt($data),
-            'sodium' => $this->sodiumDecrypt($data),
-            default => throw new CacheException("Unsupported decryption type."),
-        };
+        return $this->wrapInTry(
+            fn() => $this->dateTimeManager->getCurrentTimestamp() > ($ts + $ttl),
+            'cache'
+        );
     }
 
-    protected function opensslDecrypt(string $data): string
+    /**
+     * Locate or create the cache directory, optionally validating via PatternSanitizer + PatternValidator.
+     */
+    protected function locateCacheDirectory(): string
     {
-        $ivLength = $this->cryptoHandler->getIvLength($this->settings['encryption']['CIPHER']);
-        $iv = substr($data, 0, $ivLength);
-        return $this->cryptoHandler->decryptData(substr($data, $ivLength), $this->settings['encryption']['CIPHER'], $this->encryptionKey, 0, $iv);
+        return $this->wrapInTry(
+            fn() => (
+                $dirs = $this->directoryFinder->find(['name' => 'Cache']),
+                !$this->isEmpty($dirs) && $this->typeChecker->isDirectory($dirs[0])
+                    ? $dirs[0]
+                    : (
+                        $fallback = $this->settings['cache']['FILE'] ?? 'cache',
+                        $this->patternSanitizer && $this->patternValidator
+                            ? (
+                                $cleaned = $this->patternSanitizer->clean(['p' => ['pathUnix']], ['p' => $fallback])['p'],
+                                $valid = $this->patternValidator->verify(['pp' => ['pathUnix']], ['pp' => $cleaned])['pp'],
+                                $this->fileManager->createDirectory($valid, 0777, true),
+                                $valid
+                            )
+                            : (
+                                $this->fileManager->createDirectory($fallback, 0777, true),
+                                $fallback
+                            )
+                    )
+            ),
+            'cache'
+        );
     }
 
-    protected function sodiumDecrypt(string $data): string
-    {
-        return $this->cryptoHandler->sodiumDecrypt($data, $this->encryptionKey);
-    }
-
-    protected function getOrGenerateEncryptionKey(): string
-    {
-        return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
-            'openssl' => base64_decode($this->settings['encryption']['KEY']),
-            'sodium' => base64_decode($this->settings['encryption']['SODIUM']),
-            default => throw new CacheException("Unsupported encryption key type."),
-        };
-    }
-
-    protected function isExpired(int $timestamp, int $ttl): bool
-    {
-        return $this->dateTimeHandler->getCurrentTimestamp() > ($timestamp + $ttl);
-    }
-
-    protected function findCacheDirectory(): string
-    {
-        $dirs = $this->directoryFinder->find(['name' => 'Cache']);
-        if (!empty($dirs) && $this->typeChecker->isDirectory($dirs[0])) {
-            return $dirs[0];
-        }
-        $cacheDir = $this->settings['cache']['FILE'];
-        $this->fileManager->createDirectory($cacheDir, 0777, true);
-        return $cacheDir;
-    }
-
+    /**
+     * Evict items from the queue if over the limit specified in 'MEMCACHED' => 100, etc.
+     */
     protected function evictIfNeeded(): void
     {
-        while ($this->dataStructureHandler->count($this->cacheQueue) > $this->settings['cache']['MEMCACHED']) {
-            $this->delete($this->dataStructureHandler->dequeue($this->cacheQueue));
-        }
+        $this->wrapInTry(
+            fn() => (
+                $limit = $this->settings['cache']['MEMCACHED'] ?? 100,
+                while ($this->dataStructureHandler->count($this->cacheQueue) > $limit) {
+                    $this->delete($this->dataStructureHandler->dequeue($this->cacheQueue));
+                }
+            ),
+            'cache'
+        );
     }
 
-    protected function saveCacheData(string $key, string $data): bool
+    /**
+     * Write encrypted payload to disk in $this->cacheDir/$key.cache.
+     */
+    protected function saveCacheData(string $key, string $payload): bool
     {
-        return $this->fileManager->writeContents("{$this->cacheDir}/$key.cache", $data) !== false;
+        return $this->wrapInTry(
+            fn() => $this->fileManager->writeContents(
+                $this->join('/', [$this->cacheDir, "$key.cache"]),
+                $payload
+            ) !== false,
+            'cache'
+        );
     }
 
+    /**
+     * Read encrypted payload from disk if exists.
+     */
     protected function loadCacheData(string $key): ?string
     {
-        return $this->fileManager->readContents("{$this->cacheDir}/$key.cache");
+        return $this->wrapInTry(
+            fn() => $this->fileManager->readContents(
+                $this->join('/', [$this->cacheDir, "$key.cache"])
+            ),
+            'cache'
+        );
     }
 
+    /**
+     * Delete file from disk for a given key.
+     */
     protected function deleteCacheData(string $key): bool
     {
-        return $this->fileManager->deleteFile("{$this->cacheDir}/$key.cache");
+        return $this->wrapInTry(
+            fn() => $this->fileManager->deleteFile(
+                $this->join('/', [$this->cacheDir, "$key.cache"])
+            ),
+            'cache'
+        );
+    }
+
+    /**
+     * Helper to get IV length for configured OpenSSL cipher.
+     */
+    private function ivLenOpenssl(): int
+    {
+        return $this->wrapInTry(
+            fn() => $this->cryptoManager->cryptoDriver->CipherHandler('getIvLength')(
+                $this->settings['encryption']['CIPHER'] ?? 'aes256gcm'
+            ),
+            'cache'
+        );
+    }
+
+    /**
+     * Helper to get nonce length for typical Sodium secretBox usage.
+     */
+    private function nonceLenSodium(): int
+    {
+        return $this->wrapInTry(
+            fn() => $this->cryptoManager->cryptoDriver->config['secretBox']['nonceBytes'] ?? 24,
+            'cache'
+        );
     }
 }

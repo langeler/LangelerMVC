@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Core\{¨
+use App\Core\{
     Config,
     Container,
     Database,

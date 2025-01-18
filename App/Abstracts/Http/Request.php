@@ -4,16 +4,26 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use App\Utilities\Sanitation\GeneralSanitizer;
-use App\Utilities\Sanitation\PatternSanitizer;
-use App\Utilities\Validation\GeneralValidator;
-use App\Utilities\Validation\PatternValidator;
-use App\Utilities\Managers\FileManager;
-use App\Utilities\Finders\DirectoryFinder;
-use App\Utilities\Traits\ArrayTrait;
-use App\Utilities\Traits\TypeCheckerTrait;
-use RuntimeException;
-use Throwable;
+use RuntimeException; // Exception thrown if an error occurs at runtime.
+use Throwable;        // Base interface for all errors and exceptions in PHP.
+
+use App\Utilities\Sanitation\{
+	GeneralSanitizer,  // Provides general data sanitation utilities.
+	PatternSanitizer   // Facilitates pattern-based data sanitation.
+};
+
+use App\Utilities\Validation\{
+	GeneralValidator,  // Provides general data validation utilities.
+	PatternValidator   // Facilitates pattern-based data validation.
+};
+
+use App\Utilities\Managers\FileManager;         // Manages file operations and configurations.
+use App\Utilities\Finders\DirectoryFinder;      // Handles searching and managing directories.
+
+use App\Utilities\Traits\{
+	ArrayTrait,        // Provides utility methods for array operations.
+	TypeCheckerTrait   // Offers utilities for validating and checking data types.
+};
 
 /**
  * Abstract Request Class

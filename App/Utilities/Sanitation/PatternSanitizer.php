@@ -2,10 +2,13 @@
 
 namespace App\Utilities\Sanitation;
 
-use App\Abstracts\Data\Sanitizer;
-use App\Contracts\Data\SanitizerInterface;
-use App\Utilities\Traits\Rules\RuleTrait;
-use App\Utilities\Traits\Patterns\SanitationPatternTrait;
+use App\Abstracts\Data\Sanitizer;                // Abstract base class for data sanitization processes.
+use App\Contracts\Data\SanitizerInterface;       // Interface defining the contract for sanitizer implementations.
+
+use App\Utilities\Traits\{
+    Rules\RuleTrait,               // Provides methods for defining and applying validation rules.
+    Patterns\SanitationPatternTrait // Adds support for sanitation patterns and their application.
+};
 
 /**
  * Class PatternSanitizer

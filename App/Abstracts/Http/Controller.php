@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use App\Contracts\Http\RequestInterface;
-use App\Contracts\Http\ResponseInterface;
-use App\Contracts\Http\ServiceInterface;
-use App\Contracts\Presentation\PresenterInterface;
-use App\Contracts\Presentation\ViewInterface;
-use RuntimeException;
-use Throwable;
+use RuntimeException; // Exception thrown if an error occurs at runtime.
+use Throwable;        // Base interface for all errors and exceptions in PHP.
+
+use App\Contracts\Http\{
+	RequestInterface,  // Contract for handling HTTP requests.
+	ResponseInterface, // Contract for handling HTTP responses.
+	ServiceInterface   // Contract for defining HTTP services.
+};
+
+use App\Contracts\Presentation\{
+	PresenterInterface, // Contract for defining presentation logic in a presenter.
+	ViewInterface       // Contract for handling the rendering of views.
+};
 
 /**
  * Base abstract Controller that orchestrates the request handling lifecycle.

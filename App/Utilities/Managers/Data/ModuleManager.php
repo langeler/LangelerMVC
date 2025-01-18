@@ -2,13 +2,19 @@
 
 namespace App\Core;
 
-use App\Exceptions\Http\MiddlewareException;
-use App\Providers\ModuleProvider;
-use App\Utilities\Finders\DirectoryFinder;
-use App\Utilities\Finders\FileFinder;
-use App\Utilities\Traits\ArrayTrait;
-use App\Utilities\Traits\TypeCheckerTrait;
-use App\Utilities\Traits\ErrorTrait;
+use App\Exceptions\Http\MiddlewareException;       // Exception for errors occurring in middleware operations.
+use App\Providers\ModuleProvider;                  // Provides modules and their dependencies to the application.
+
+use App\Utilities\Finders\{
+	DirectoryFinder, // Finder for searching and managing directories.
+	FileFinder       // Finder for searching and managing files.
+};
+
+use App\Utilities\Traits\{
+	ArrayTrait,       // Provides utility methods for array operations.
+	TypeCheckerTrait, // Offers utilities for validating and checking data types.
+	ErrorTrait        // Encapsulates error handling with `wrapInTry` for exception transformation.
+};
 
 /**
  * Class ModuleManager

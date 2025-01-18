@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use RuntimeException;
-use Throwable;
-use App\Contracts\Http\ResponseInterface;
+use RuntimeException;            // Exception thrown if an error occurs at runtime.
+use Throwable;                   // Base interface for all errors and exceptions in PHP.
+
+use App\Contracts\Http\ResponseInterface; // Contract for handling HTTP responses.
 
 /**
  * Abstract Middleware Class

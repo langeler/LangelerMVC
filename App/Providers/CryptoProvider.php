@@ -7,7 +7,6 @@ use App\Drivers\Crypto\{
     SodiumCrypto,
     OpenSSLCrypto
 };
-use App\Exceptions\ContainerException;
 
 /**
  * CryptoProvider Class

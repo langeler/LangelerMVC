@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Core\Container;
-use App\Exceptions\ContainerException;
 
 /**
  * ModuleProvider Class

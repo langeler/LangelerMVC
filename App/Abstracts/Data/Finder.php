@@ -2,14 +2,18 @@
 
 namespace App\Abstracts\Data;
 
-use App\Exceptions\Data\FinderException;
-use App\Utilities\Managers\IteratorManager;
-use Throwable;
+use Throwable;                                   // Base interface for all errors and exceptions in PHP.
 
-use App\Utilities\Traits\ArrayTrait;
-use App\Utilities\Traits\ExistenceCheckerTrait;
-use App\Utilities\Traits\LoopTrait;
-use App\Utilities\Traits\TypeCheckerTrait;
+use App\Exceptions\Data\FinderException;        // Exception for errors occurring during finder operations.
+
+use App\Utilities\Managers\IteratorManager;     // Manages and facilitates operations involving iterators.
+
+use App\Utilities\Traits\{
+    ArrayTrait,              // Provides utility methods for array operations and transformations.
+    ExistenceCheckerTrait,   // Verifies the existence of classes, methods, properties, etc.
+    LoopTrait,               // Adds support for iterating over data structures.
+    TypeCheckerTrait         // Offers utilities for validating and checking data types.
+};
 
 /**
  * Abstract class Finder

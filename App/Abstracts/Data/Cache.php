@@ -2,35 +2,45 @@
 
 namespace App\Abstracts\Data;
 
-use App\Managers\CryptoManager;
-use App\Helpers\TypeChecker;
-use App\Utilities\Finders\DirectoryFinder;
-use App\Utilities\Finders\FileFinder;
-use App\Utilities\Handlers\DataHandler;
-use App\Utilities\Handlers\DataStructureHandler;
+use App\Managers\CryptoManager;                        // Manages cryptographic operations.
+use App\Helpers\TypeChecker;                           // Provides utility methods for type validation.
+
+use App\Utilities\Finders\{
+    DirectoryFinder, // Handles searching and managing directories.
+    FileFinder       // Handles searching and managing files.
+};
+
+use App\Utilities\Handlers\{
+    DataHandler,             // Processes and manipulates data structures.
+    DataStructureHandler     // Manages complex data structures and transformations.
+};
+
 use App\Utilities\Managers\{
-    CompressionManager,
-    FileManager,
-    SettingsManager,
-    System\ErrorManager,
-    DateTimeManager
+    CompressionManager,      // Handles data compression tasks.
+    FileManager,             // Manages file operations and configurations.
+    SettingsManager,         // Handles configuration and application settings.
+    System\ErrorManager,     // Manages errors and exceptions system-wide.
+    DateTimeManager          // Provides utilities for handling and manipulating date and time.
 };
+
 use App\Utilities\Sanitation\{
-    GeneralSanitizer,
-    PatternSanitizer
+    GeneralSanitizer,        // Provides general data sanitation utilities.
+    PatternSanitizer         // Facilitates pattern-based data sanitation.
 };
+
 use App\Utilities\Traits\{
-    ArrayTrait,
-    CheckerTrait,
-    ConversionTrait,
-    ErrorTrait,
-    ExistenceCheckerTrait,
-    LoopTrait,
-    ManipulationTrait,
-    MetricsTrait,
-    TypeCheckerTrait
+    ArrayTrait,              // Provides utility methods for array operations.
+    CheckerTrait,            // Offers validation methods for data integrity.
+    ConversionTrait,         // Facilitates data type and format conversions.
+    ErrorTrait,              // Handles exception wrapping and error transformations.
+    ExistenceCheckerTrait,   // Verifies existence of classes, methods, and properties.
+    LoopTrait,               // Provides utilities for iterating over data structures.
+    ManipulationTrait,       // Adds support for data manipulation tasks.
+    MetricsTrait,            // Provides methods for calculating and analyzing data metrics.
+    TypeCheckerTrait         // Validates and ensures correct data types.
 };
-use App\Utilities\Validation\PatternValidator;
+
+use App\Utilities\Validation\PatternValidator;         // Facilitates pattern-based data validation.
 
 /**
  * Abstract Cache Class

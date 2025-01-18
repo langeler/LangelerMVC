@@ -2,11 +2,15 @@
 
 namespace App\Utilities\Managers\System;
 
-use App\Providers\ExceptionProvider;
-use App\Utilities\Traits\ArrayTrait;
-use App\Utilities\Traits\ExistenceCheckerTrait;
-use App\Utilities\Traits\TypeCheckerTrait;
-use Throwable;
+use Throwable; // Base interface for all errors and exceptions in PHP.
+
+use App\Providers\ExceptionProvider;             // Manages and resolves exception aliases dynamically.
+
+use App\Utilities\Traits\{
+    ArrayTrait,             // Provides utility methods for array operations and validations.
+    ExistenceCheckerTrait,  // Adds methods for verifying the existence of classes, methods, properties, etc.
+    TypeCheckerTrait        // Offers utilities for validating and checking data types.
+};
 
 /**
  * Class ErrorManager

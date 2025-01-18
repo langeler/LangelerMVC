@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Presentation;
 
-use App\Utilities\Finders\FileFinder;
-use App\Utilities\Finders\DirectoryFinder;
-use App\Utilities\Managers\CacheManager;
-use App\Utilities\Managers\FileManager;
-use App\Utilities\Sanitation\PatternSanitizer;
-use App\Utilities\Validation\PatternValidator;
-use App\Helpers\TypeChecker;
-use App\Exceptions\Data\FinderException;
-use App\Exceptions\Presentation\ViewException;
+use App\Exceptions\Data\FinderException;          // Exception for errors occurring during finder operations.
+use App\Exceptions\Presentation\ViewException;    // Exception for errors in presentation layer views.
+
+use App\Helpers\TypeChecker;                      // Provides utility methods for type validation.
+
+use App\Utilities\Finders\{
+	FileFinder,      // Handles searching and managing files.
+	DirectoryFinder  // Handles searching and managing directories.
+};
+
+use App\Utilities\Managers\{
+	CacheManager,    // Manages caching operations and configurations.
+	FileManager      // Manages file operations and configurations.
+};
+
+use App\Utilities\Sanitation\PatternSanitizer;    // Provides utilities for sanitizing data using patterns.
+use App\Utilities\Validation\PatternValidator;    // Provides utilities for validating data using patterns.
 
 /**
  * Abstract View Class

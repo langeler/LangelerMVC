@@ -2,17 +2,23 @@
 
 namespace App\Utilities\Managers;
 
-use App\Exceptions\Iterator\IteratorException;
-use App\Exceptions\Iterator\IteratorNotFoundException;
-use Throwable;
-use SplFileInfo;
-use Iterator;
-use RecursiveIterator;
-use Traversable;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use App\Utilities\Traits\Iterator\IteratorTrait;
-use App\Utilities\Traits\Iterator\RecursiveIteratorTrait;
+use Throwable;                      // Base interface for all errors and exceptions in PHP.
+use SplFileInfo;                    // Provides information about files.
+use Iterator;                       // Interface for creating custom iterators.
+use RecursiveIterator;              // Interface for recursive iteration.
+use Traversable;                    // Base interface for objects used in iteration.
+use RecursiveDirectoryIterator;     // Iterator for directories, allowing recursive traversal.
+use RecursiveIteratorIterator;      // Iterator for flattening recursive iterators.
+
+use App\Exceptions\Iterator\{
+    IteratorException,              // Exception for general iterator-related errors.
+    IteratorNotFoundException       // Exception for cases where an iterator is not found.
+};
+
+use App\Utilities\Traits\Iterator\{
+    IteratorTrait,                  // Provides utility methods for working with iterators.
+    RecursiveIteratorTrait          // Adds functionality for recursive iteration handling.
+};
 
 /**
  * Class IteratorManager

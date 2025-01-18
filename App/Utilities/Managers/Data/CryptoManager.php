@@ -2,11 +2,15 @@
 
 namespace App\Utilities\Managers\Data;
 
-use App\Providers\CacheProvider;
-use App\Utilities\Managers\SettingsManager;
-use App\Exceptions\Data\CacheException;
-use App\Utilities\Traits\TypeCheckerTrait;
-use App\Utilities\Traits\ArrayTrait;
+use App\Providers\CacheProvider;                  // Provides caching services and manages cache storage.
+use App\Utilities\Managers\SettingsManager;       // Handles configuration and application settings.
+
+use App\Exceptions\Data\CacheException;           // Exception class for handling cache-related errors.
+
+use App\Utilities\Traits\{
+	TypeCheckerTrait, // Offers utilities for validating and checking data types.
+	ArrayTrait        // Provides utility methods for array operations and transformations.
+};
 
 /**
  * Class CacheManager

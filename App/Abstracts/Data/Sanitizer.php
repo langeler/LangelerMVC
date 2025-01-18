@@ -1,22 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Data;
 
-use App\Exceptions\Data\SanitationException;
-use App\Utilities\Traits\TypeCheckerTrait;
-use App\Utilities\Traits\ArrayTrait;
-use App\Utilities\Traits\ExistenceCheckerTrait;
-use Throwable;
+use Throwable; // Base interface for exceptions and errors in PHP.
+use App\Exceptions\Data\SanitationException; // Custom exception for data sanitization errors.
+use App\Utilities\Traits\{
+    TypeCheckerTrait,       // Offers utilities for validating and checking data types.
+    ArrayTrait,             // Provides utility methods for array operations.
+    ExistenceCheckerTrait   // Adds methods to verify the existence of classes, methods, properties, etc.
+};
 
 /**
  * Abstract Class Sanitizer
  *
  * Provides a base implementation for data sanitization and validation processes.
  * Designed to handle configurable sanitization methods and validation rules.
+ *
+ * Key Features:
+ * - Configurable sanitization and validation methods.
+ * - Dynamic resolution of validation rules.
+ * - Error handling with exception throwing for invalid data.
+ *
+ * Traits Used:
+ * - **TypeCheckerTrait**: Validates and ensures correct data types.
+ * - **ArrayTrait**: Utility methods for handling array operations.
+ * - **ExistenceCheckerTrait**: Provides methods to verify existence of various elements in PHP.
+ *
+ * @package App\Abstracts\Data
+ * @abstract
  */
 abstract class Sanitizer
 {
-    use TypeCheckerTrait, ArrayTrait, ExistenceCheckerTrait;
+    use TypeCheckerTrait,       // Ensures and validates data types.
+        ArrayTrait,             // Handles array operations and transformations.
+        ExistenceCheckerTrait;  // Verifies existence of classes, methods, and other PHP elements.
 
     /**
      * Entry point for the sanitization process.

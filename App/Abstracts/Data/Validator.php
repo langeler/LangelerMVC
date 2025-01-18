@@ -1,22 +1,41 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Data;
 
-use App\Exceptions\Data\ValidationException;
-use App\Utilities\Traits\TypeCheckerTrait;
-use App\Utilities\Traits\ArrayTrait;
-use App\Utilities\Traits\ExistenceCheckerTrait;
-use Throwable;
+use Throwable; // Base interface for all errors and exceptions in PHP.
+use App\Exceptions\Data\ValidationException; // Custom exception for data validation errors.
+use App\Utilities\Traits\{
+    TypeCheckerTrait,       // Provides utilities for validating and ensuring correct data types.
+    ArrayTrait,             // Offers utility methods for handling arrays.
+    ExistenceCheckerTrait   // Adds methods for verifying the existence of classes, methods, properties, etc.
+};
 
 /**
  * Abstract Class Validator
  *
  * Provides a base implementation for data validation processes.
  * Designed to handle configurable validation methods and rules.
+ *
+ * Key Features:
+ * - Configurable validation methods and dynamic rule resolution.
+ * - Comprehensive error handling for invalid data via exceptions.
+ * - Integration of utility traits for type checking, array handling, and existence verification.
+ *
+ * Traits Used:
+ * - **TypeCheckerTrait**: Validates and ensures correct data types.
+ * - **ArrayTrait**: Utility methods for array manipulation and operations.
+ * - **ExistenceCheckerTrait**: Provides methods for verifying the existence of various PHP elements.
+ *
+ * @package App\Abstracts\Data
+ * @abstract
  */
 abstract class Validator
 {
-    use TypeCheckerTrait, ArrayTrait, ExistenceCheckerTrait;
+    use TypeCheckerTrait,       // Ensures correct data types.
+        ArrayTrait,             // Handles array manipulations and transformations.
+        ExistenceCheckerTrait;  // Verifies existence of classes, methods, and other PHP elements.
 
     /**
      * Entry point for the validation process.

@@ -263,4 +263,21 @@ trait TypeCheckerTrait
 	{
 		return isset($value);
 	}
+	
+	    /**
+     * Checks if a value exists within an array.
+     *
+     * Performs functionality similar to PHP's `in_array()` function,
+     * determining whether a specific value is present in a given array.
+     *
+     * @param mixed $needle The value to search for in the array.
+     * @param array $haystack The array to search within.
+     * @param bool $strict Optional. Whether to use strict comparison (type and value).
+     *                     Defaults to false.
+     * @return bool True if the value exists in the array, false otherwise.
+     */
+    public function isInArray(mixed $needle, array $haystack, bool $strict = false): bool
+    {
+        return in_array($needle, $haystack, $strict);
+    }
 }

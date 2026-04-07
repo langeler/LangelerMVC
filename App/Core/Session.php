@@ -10,6 +10,7 @@ use SessionHandler;
 use App\Utilities\Managers\FileManager;
 use App\Utilities\Managers\SessionManager;
 use App\Utilities\Managers\System\ErrorManager;
+use App\Utilities\Traits\ApplicationPathTrait;
 use App\Utilities\Traits\ErrorTrait;
 
 /**
@@ -21,6 +22,7 @@ use App\Utilities\Traits\ErrorTrait;
  */
 class Session
 {
+    use ApplicationPathTrait;
     use ErrorTrait;
 
     private SessionHandler $handler;
@@ -324,7 +326,7 @@ class Session
 
         $path = $this->isAbsolutePath($configuredPath)
             ? $configuredPath
-            : dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . $configuredPath;
+            : $this->frameworkBasePath() . DIRECTORY_SEPARATOR . $configuredPath;
 
         $normalizedPath = $this->fileManager->normalizePath($path);
 

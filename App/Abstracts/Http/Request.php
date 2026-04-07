@@ -22,6 +22,7 @@ use App\Utilities\Finders\DirectoryFinder;      // Handles searching and managin
 
 use App\Utilities\Traits\{
 	ArrayTrait,        // Provides utility methods for array operations.
+	ApplicationPathTrait,
 	ErrorTrait         // Offers framework-aligned exception wrapping.
 };
 
@@ -42,6 +43,7 @@ use App\Utilities\Traits\{
 abstract class Request implements RequestInterface
 {
 	use ArrayTrait, ErrorTrait;
+	use ApplicationPathTrait;
 
 	/**
 	 * The storage directory path for uploaded files.
@@ -100,7 +102,7 @@ abstract class Request implements RequestInterface
 			}
 
 			$fallback = $this->fileManager->normalizePath(
-				(realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)) . '/Storage/Uploads'
+				$this->frameworkStoragePath('Uploads')
 			);
 
 			if (

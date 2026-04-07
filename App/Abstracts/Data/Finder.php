@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Data;
 
 use App\Exceptions\Data\FinderException;        // Exception for errors occurring during finder operations.
@@ -7,6 +9,7 @@ use App\Exceptions\Data\FinderException;        // Exception for errors occurrin
 use App\Utilities\Managers\IteratorManager;     // Manages and facilitates operations involving iterators.
 
 use App\Utilities\Traits\{
+    ApplicationPathTrait,
     ArrayTrait,              // Provides utility methods for array operations and transformations.
     ErrorTrait,              // Provides framework-aligned exception wrapping.
     LoopTrait,               // Adds support for iterating over data structures.
@@ -20,6 +23,7 @@ use App\Utilities\Traits\{
  */
 abstract class Finder
 {
+    use ApplicationPathTrait;
     use ErrorTrait;
     use ArrayTrait {
         search as private;
@@ -110,7 +114,14 @@ abstract class Finder
     protected function setRoot(): void
     {
         $this->wrapFinder(function () {
-            $fallbackRoot = realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3);
+            $fallbackRoot = $this->frameworkBasePath();
+
+            if ($this->isDirectory($fallbackRoot) && $this->isValidRootDirectory($fallbackRoot)) {
+                $this->root = $fallbackRoot;
+
+                return;
+            }
+
             $path = $this->isEmpty(getcwd()) ? $fallbackRoot : getcwd();
 
             while (true) {
@@ -127,12 +138,6 @@ abstract class Finder
                 }
 
                 $path = $parent;
-            }
-
-            if ($this->isDirectory($fallbackRoot) && $this->isValidRootDirectory($fallbackRoot)) {
-                $this->root = $fallbackRoot;
-
-                return;
             }
 
             throw new FinderException("Unable to determine the project root directory.");

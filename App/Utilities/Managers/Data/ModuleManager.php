@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Managers\Data;
 
-use App\Exceptions\Http\MiddlewareException;
+use App\Exceptions\AppException;
 use App\Providers\ModuleProvider;
 use App\Utilities\Finders\{
 	DirectoryFinder,
@@ -40,7 +42,7 @@ class ModuleManager
 		private NamespaceResolveHandler $resolver,
 		private ModuleProvider $provider
 	) {
-		$this->wrapInTry(fn() => $this->initializeModules(), MiddlewareException::class);
+		$this->wrapInTry(fn() => $this->initializeModules(), AppException::class);
 	}
 
 	/**
@@ -62,7 +64,7 @@ class ModuleManager
 	public function getModule(string $name): string
 	{
 		return $this->modules[$name]
-			?? throw new MiddlewareException("Module '{$name}' not found or not readable.");
+			?? throw new AppException("Module '{$name}' not found or not readable.");
 	}
 
 	/**
@@ -80,7 +82,7 @@ class ModuleManager
 		$targetPath = $this->resolveSubdirectoryPath($modulePath, $subDir);
 
 		if (!is_string($targetPath)) {
-			throw new MiddlewareException("Subdirectory '{$subDir}' not found in module '{$module}'.");
+			throw new AppException("Subdirectory '{$subDir}' not found in module '{$module}'.");
 		}
 
 		return array_keys(
@@ -163,7 +165,7 @@ class ModuleManager
 	{
 		return $this->wrapInTry(
 			fn() => $this->provider->getModule($alias),
-			MiddlewareException::class
+			AppException::class
 		);
 	}
 
@@ -176,7 +178,7 @@ class ModuleManager
 	{
 		$baseDirectories = $this->dirs->find(['name' => 'Modules', 'readable' => true]);
 		$this->base = array_key_first($baseDirectories)
-			?? throw new MiddlewareException('Modules directory not found or not readable.');
+			?? throw new AppException('Modules directory not found or not readable.');
 
 		$moduleDirectories = glob($this->base . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR) ?: [];
 
@@ -189,7 +191,7 @@ class ModuleManager
 		}
 
 		if ($this->modules === []) {
-			throw new MiddlewareException('No readable modules found in the Modules directory.');
+			throw new AppException('No readable modules found in the Modules directory.');
 		}
 
 		$this->populateProvider();
@@ -205,7 +207,7 @@ class ModuleManager
 		$this->wrapInTry(function (): void {
 			$this->provider->populate($this->collectClasses(''));
 			$this->provider->registerServices();
-		}, MiddlewareException::class);
+		}, AppException::class);
 	}
 
 	/**
@@ -224,7 +226,7 @@ class ModuleManager
 			return $module;
 		}
 
-		throw new MiddlewareException("Module '{$module}' not found or not readable.");
+		throw new AppException("Module '{$module}' not found or not readable.");
 	}
 
 	/**

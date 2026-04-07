@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Core;
 
 use Throwable;
@@ -631,23 +633,13 @@ class Router
     }
 
     /**
-     * Allows _method override for limited clients.
+     * Normalize the already-resolved HTTP method for routing.
      *
-     * @param string $original
-     * @return string
+     * The application runtime owns method-override handling so the router can
+     * focus purely on dispatch semantics.
      */
     private function getHttpMethod(string $original): string
     {
-        $override = $_POST['_method'] ?? $_GET['_method'] ?? null;
-
-        if (is_string($override)) {
-            $override = strtoupper($override);
-
-            if (in_array($override, ['PUT', 'PATCH', 'DELETE'], true)) {
-                return $override;
-            }
-        }
-
         return strtoupper($original);
     }
 

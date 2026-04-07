@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Data;
 
 use App\Utilities\Finders\DirectoryFinder;
@@ -15,6 +17,7 @@ use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Sanitation\GeneralSanitizer;
 use App\Utilities\Sanitation\PatternSanitizer;
 use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\ApplicationPathTrait;
 use App\Utilities\Traits\CheckerTrait;
 use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ErrorTrait;
@@ -26,6 +29,7 @@ use App\Utilities\Validation\PatternValidator;
 abstract class Cache
 {
     use ErrorTrait,
+        ApplicationPathTrait,
         ConversionTrait,
         MetricsTrait,
         LoopTrait,
@@ -155,7 +159,7 @@ abstract class Cache
                 }
             }
 
-            $localFallback = (realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)) . '/Storage/Cache';
+            $localFallback = $this->frameworkStoragePath('Cache');
 
             if (
                 $this->fileManager->isDirectory($localFallback)

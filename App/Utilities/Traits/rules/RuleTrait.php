@@ -9,7 +9,7 @@ namespace App\Utilities\Traits\Rules;
  * These rules can be used to validate strings, numbers, and arrays, ensuring
  * that the input meets specified criteria.
  */
-trait RulesTrait
+trait RuleTrait
 {
 	/**
 	 * Ensure a value is not null.

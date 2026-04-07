@@ -7,7 +7,7 @@ namespace App\Utilities\Traits;
  *
  * Provides utility functions for handling locale-based string operations.
  */
-trait LocaleTrait
+trait LocaleUtilityTrait
 {
 	/**
 	 * Sets the locale for string and number formatting.

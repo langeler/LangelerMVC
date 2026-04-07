@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Utilities\Managers;
+namespace App\Utilities\Managers\System;
 
 use Throwable;                      // Base interface for all errors and exceptions in PHP.
 use SplFileInfo;                    // Provides information about files.
@@ -93,17 +93,48 @@ class IteratorManager
             ?? $this->recursiveIteratorSettings[$iterator]
             ?? throw new IteratorNotFoundException("Settings for iterator '{$iterator}' not found.");
 
-        $allowedKeys = ['flag', 'mode', 'prefix', 'cache'];
+        $resolved = [];
 
-        return array_filter(
-            array_map(
-                fn($key) => isset($overrides[$key])
-                    ? $this->combineFlags($defaultSettings[$key] ?? [], $overrides[$key])
-                    : ($defaultSettings[$key] ?? null),
-                array_flip($allowedKeys)
-            ),
-            fn($value) => $value !== null
-        );
+        foreach (['flag', 'mode', 'prefix', 'cache'] as $group) {
+            if (!isset($overrides[$group])) {
+                continue;
+            }
+
+            $overrideGroup = $overrides[$group];
+
+            if (is_int($overrideGroup)) {
+                $resolved[$group] = $overrideGroup;
+                continue;
+            }
+
+            if (!is_array($overrideGroup)) {
+                continue;
+            }
+
+            $defaultGroup = $defaultSettings[$group] ?? [];
+            $selectedFlags = [];
+
+            foreach ($overrideGroup as $key => $value) {
+                if (is_int($key) && is_int($value)) {
+                    $selectedFlags[] = $value;
+                    continue;
+                }
+
+                if ($value && isset($defaultGroup[$key])) {
+                    $selectedFlags[] = $defaultGroup[$key];
+                }
+            }
+
+            if ($selectedFlags !== []) {
+                $resolved[$group] = $this->combineFlags([], $selectedFlags);
+            }
+        }
+
+        if (isset($overrides['maxDepth']) && is_int($overrides['maxDepth'])) {
+            $resolved['maxDepth'] = $overrides['maxDepth'];
+        }
+
+        return $resolved;
     }
 
     /**
@@ -145,11 +176,17 @@ class IteratorManager
      * @return Iterator The created iterator instance.
      * @throws IteratorException If the iterator cannot be created.
      */
-    private function createIterator(string $iteratorName, array $settings = [], ...$args): Iterator
+    public function createIterator(string $iteratorName, array $settings = [], ...$args): Iterator
     {
         try {
+            if (method_exists($this, $iteratorName)) {
+                return $settings === []
+                    ? $this->{$iteratorName}(...$args)
+                    : $this->{$iteratorName}(...array_merge($args, [$settings]));
+            }
+
             $iteratorClass = $this->resolve($iteratorName);
-            $settingsValues = $this->fetchSettings($iteratorName, $settings);
+
             return new $iteratorClass(...$args);
         } catch (Throwable $e) {
             throw new IteratorException("Error creating {$iteratorName}: " . $e->getMessage(), 0, $e);

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Utilities\Traits\Patterns\Sanitation;
+namespace App\Utilities\Traits\Patterns;
 
 use App\Utilities\Traits\Patterns\PatternTrait;
 

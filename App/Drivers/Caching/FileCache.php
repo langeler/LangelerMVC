@@ -8,14 +8,16 @@ use Throwable;
 
 class FileCache extends Cache
 {
-	public function set(string $key, $data, ?int $ttl = null): bool
+	public function set(string $key, mixed $data, ?int $ttl = null): bool
 	{
-		return $this->wrapInTry(function () use ($key, $data, $ttl) {
+		return $this->runCacheOperation(function () use ($key, $data, $ttl) {
 			$cachePath = $this->getCacheFilePath($key);
 			$cacheData = json_encode([
-				'timestamp' => $this->dateTimeHandler->getCurrentTimestamp(),
+				'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
 				'ttl' => $ttl ?? (int)$this->settings['cache']['TTL'],
-				'data' => $this->compressData($this->encryptData($this->serializeData($data))),
+				'data' => base64_encode(
+					$this->compressData($this->encryptData($this->serializeData($data)))
+				),
 			]);
 
 			if ($this->fileManager->writeContents($cachePath, $cacheData) === false) {
@@ -33,9 +35,9 @@ class FileCache extends Cache
 		$this->evictIfNeeded();
 	}
 
-	public function get(string $key)
+	public function get(string $key): mixed
 	{
-		return $this->wrapInTry(function () use ($key) {
+		return $this->runCacheOperation(function () use ($key) {
 			$cachePath = $this->getCacheFilePath($key);
 
 			if (!$this->fileManager->fileExists($cachePath)) {
@@ -47,15 +49,21 @@ class FileCache extends Cache
 		});
 	}
 
-	private function validateAndReturnData(array $cacheData, string $key)
+	private function validateAndReturnData(array $cacheData, string $key): mixed
 	{
 		if ($this->isExpired($cacheData['timestamp'], $cacheData['ttl'])) {
 			$this->delete($key);
 			return null;
 		}
 
-		return $this->unserializeData($this->decryptData($this->decompressData($cacheData['data'])));
-	}
+			return $this->unserializeData(
+				$this->decryptData(
+					$this->decompressData(
+						base64_decode((string) ($cacheData['data'] ?? ''), true) ?: ''
+					)
+				)
+			);
+		}
 
 	public function delete(string $key): bool
 	{
@@ -64,7 +72,7 @@ class FileCache extends Cache
 
 	public function clear(): bool
 	{
-		return $this->wrapInTry(function () {
+		return $this->runCacheOperation(function () {
 			foreach ($this->fileFinder->find(['extension' => 'cache'], $this->cacheDir) as $file) {
 				$this->fileManager->deleteFile($file->getPathname());
 			}
@@ -78,7 +86,7 @@ class FileCache extends Cache
 		return $this->cacheDir . DIRECTORY_SEPARATOR . $this->sanitizer->sanitizeString($key) . '.cache';
 	}
 
-	private function wrapInTry(callable $callback)
+	private function runCacheOperation(callable $callback): mixed
 	{
 		try {
 			return $callback();

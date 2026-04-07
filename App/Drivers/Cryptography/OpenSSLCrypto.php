@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Drivers\Crypto;
+namespace App\Drivers\Cryptography;
 
 use App\Abstracts\Data\Crypto;
 use App\Contracts\Data\CryptoInterface;
+use RuntimeException as CryptoException;
 
 class OpenSSLCrypto extends Crypto implements CryptoInterface
 {
@@ -11,135 +12,138 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 
 	public function __construct()
 	{
+		$const = static fn(string $name, mixed $fallback = null): mixed =>
+			defined($name) ? constant($name) : $fallback;
+
 		$this->config = [
 			'ciphers' => [
-				'aes128cbc' => OPENSSL_CIPHER_AES_128_CBC,
-				'aes192cbc' => OPENSSL_CIPHER_AES_192_CBC,
-				'aes256cbc' => OPENSSL_CIPHER_AES_256_CBC,
-				'aes128gcm' => OPENSSL_CIPHER_AES_128_GCM,
-				'aes256gcm' => OPENSSL_CIPHER_AES_256_GCM,
-				'rc2_40' => OPENSSL_CIPHER_RC2_40,
-				'rc2_128' => OPENSSL_CIPHER_RC2_128,
-				'rc2_64' => OPENSSL_CIPHER_RC2_64,
-				'des' => OPENSSL_CIPHER_DES,
-				'3des' => OPENSSL_CIPHER_3DES,
+				'aes128cbc' => 'aes-128-cbc',
+				'aes192cbc' => 'aes-192-cbc',
+				'aes256cbc' => 'aes-256-cbc',
+				'aes128gcm' => 'aes-128-gcm',
+				'aes256gcm' => 'aes-256-gcm',
+				'rc2_40' => 'rc2-40-cbc',
+				'rc2_128' => 'rc2-cbc',
+				'rc2_64' => 'rc2-64-cbc',
+				'des' => 'des-cbc',
+				'3des' => 'des-ede3-cbc',
 			],
 			'algorithms' => [
-				'sha1' => OPENSSL_ALGO_SHA1,
-				'md5' => OPENSSL_ALGO_MD5,
-				'sha256' => OPENSSL_ALGO_SHA256,
-				'sha512' => OPENSSL_ALGO_SHA512,
-				'sha224' => OPENSSL_ALGO_SHA224,
-				'sha384' => OPENSSL_ALGO_SHA384,
-				'sha3_256' => OPENSSL_ALGO_SHA3_256,
-				'sha3_512' => OPENSSL_ALGO_SHA3_512,
-				'sha3_224' => OPENSSL_ALGO_SHA3_224,
-				'sha3_384' => OPENSSL_ALGO_SHA3_384,
-				'sm3' => OPENSSL_ALGO_SM3,
-				'rmd160' => OPENSSL_ALGO_RMD160,
-				'md4' => OPENSSL_ALGO_MD4,
-				'dss1' => OPENSSL_ALGO_DSS1,
-				'md2' => OPENSSL_ALGO_MD2,
-				'blake2b512' => OPENSSL_ALGO_BLAKE2B512,
-				'blake2s256' => OPENSSL_ALGO_BLAKE2S256,
+				'sha1' => 'sha1',
+				'md5' => 'md5',
+				'sha256' => 'sha256',
+				'sha512' => 'sha512',
+				'sha224' => 'sha224',
+				'sha384' => 'sha384',
+				'sha3_256' => 'sha3-256',
+				'sha3_512' => 'sha3-512',
+				'sha3_224' => 'sha3-224',
+				'sha3_384' => 'sha3-384',
+				'sm3' => 'sm3',
+				'rmd160' => 'ripemd160',
+				'md4' => 'md4',
+				'dss1' => 'dss1',
+				'md2' => 'md2',
+				'blake2b512' => 'blake2b512',
+				'blake2s256' => 'blake2s256',
 			],
 			'keyTypes' => [
-				'rsa' => OPENSSL_KEYTYPE_RSA,
-				'dsa' => OPENSSL_KEYTYPE_DSA,
-				'dh' => OPENSSL_KEYTYPE_DH,
-				'ec' => OPENSSL_KEYTYPE_EC,
+				'rsa' => $const('OPENSSL_KEYTYPE_RSA'),
+				'dsa' => $const('OPENSSL_KEYTYPE_DSA'),
+				'dh' => $const('OPENSSL_KEYTYPE_DH'),
+				'ec' => $const('OPENSSL_KEYTYPE_EC'),
 			],
 			'padding' => [
-				'noPadding' => OPENSSL_NO_PADDING,
-				'pkcs1' => OPENSSL_PKCS1_PADDING,
-				'sslv23' => OPENSSL_SSLV23_PADDING,
-				'pkcs1Oaep' => OPENSSL_PKCS1_OAEP_PADDING,
+				'noPadding' => $const('OPENSSL_NO_PADDING', 0),
+				'pkcs1' => $const('OPENSSL_PKCS1_PADDING', 1),
+				'sslv23' => $const('OPENSSL_SSLV23_PADDING', 2),
+				'pkcs1Oaep' => $const('OPENSSL_PKCS1_OAEP_PADDING', 4),
 			],
 			'pkcs7' => [
-				'detached' => PKCS7_DETACHED,
-				'text' => PKCS7_TEXT,
-				'noIntern' => PKCS7_NOINTERN,
-				'noVerify' => PKCS7_NOVERIFY,
-				'noChain' => PKCS7_NOCHAIN,
-				'noSigs' => PKCS7_NOSIGS,
-				'noAttr' => PKCS7_NOATTR,
-				'binary' => PKCS7_BINARY,
-				'noCerts' => PKCS7_NOCERTS,
-				'noCrl' => PKCS7_NOCRL,
-				'encrypt' => PKCS7_ENCRYPT,
-				'signed' => PKCS7_SIGNED,
-				'envelope' => PKCS7_ENVELOPE,
-				'signedEnvelope' => PKCS7_SIGNED_ENVELOPE,
-				'noOldMimeType' => PKCS7_NOOLDMIMETYPE,  // PHP 8.3+ only
+				'detached' => $const('PKCS7_DETACHED', 0),
+				'text' => $const('PKCS7_TEXT', 0),
+				'noIntern' => $const('PKCS7_NOINTERN', 0),
+				'noVerify' => $const('PKCS7_NOVERIFY', 0),
+				'noChain' => $const('PKCS7_NOCHAIN', 0),
+				'noSigs' => $const('PKCS7_NOSIGS', 0),
+				'noAttr' => $const('PKCS7_NOATTR', 0),
+				'binary' => $const('PKCS7_BINARY', 0),
+				'noCerts' => $const('PKCS7_NOCERTS', 0),
+				'noCrl' => $const('PKCS7_NOCRL', 0),
+				'encrypt' => $const('PKCS7_ENCRYPT', 0),
+				'signed' => $const('PKCS7_SIGNED', 0),
+				'envelope' => $const('PKCS7_ENVELOPE', 0),
+				'signedEnvelope' => $const('PKCS7_SIGNED_ENVELOPE', 0),
+				'noOldMimeType' => $const('PKCS7_NOOLDMIMETYPE', 0),
 			],
 			'cms' => [
-				'text' => OPENSSL_CMS_TEXT,
-				'binary' => OPENSSL_CMS_BINARY,
-				'noIntern' => OPENSSL_CMS_NOINTERN,
-				'noVerify' => OPENSSL_CMS_NOVERIFY,
-				'noCerts' => OPENSSL_CMS_NOCERTS,
-				'noAttr' => OPENSSL_CMS_NOATTR,
-				'detached' => OPENSSL_CMS_DETACHED,
-				'noSigs' => OPENSSL_CMS_NOSIGS,
-				'oldMimeType' => OPENSSL_CMS_OLDMIMETYPE,  // PHP 8.3+ only
+				'text' => $const('OPENSSL_CMS_TEXT', 0),
+				'binary' => $const('OPENSSL_CMS_BINARY', 0),
+				'noIntern' => $const('OPENSSL_CMS_NOINTERN', 0),
+				'noVerify' => $const('OPENSSL_CMS_NOVERIFY', 0),
+				'noCerts' => $const('OPENSSL_CMS_NOCERTS', 0),
+				'noAttr' => $const('OPENSSL_CMS_NOATTR', 0),
+				'detached' => $const('OPENSSL_CMS_DETACHED', 0),
+				'noSigs' => $const('OPENSSL_CMS_NOSIGS', 0),
+				'oldMimeType' => $const('OPENSSL_CMS_OLDMIMETYPE', 0),
 			],
 			'ssl' => [
-				'tlsv1' => OPENSSL_TLSV1,
-				'tlsv1_1' => OPENSSL_TLSV1_1,
-				'tlsv1_2' => OPENSSL_TLSV1_2,
-				'tlsv1_3' => OPENSSL_TLSV1_3,
-				'sslv2Server' => OPENSSL_SSLV2_SERVER_METHOD,
-				'sslv3Server' => OPENSSL_SSLV3_SERVER_METHOD,
-				'tlsv1Server' => OPENSSL_TLSV1_SERVER_METHOD,
-				'tlsv1_1Server' => OPENSSL_TLSV1_1_SERVER_METHOD,
-				'tlsv1_2Server' => OPENSSL_TLSV1_2_SERVER_METHOD,
-				'tlsv1_3Server' => OPENSSL_TLSV1_3_SERVER_METHOD,
+				'tlsv1' => $const('OPENSSL_TLSV1', 0),
+				'tlsv1_1' => $const('OPENSSL_TLSV1_1', 0),
+				'tlsv1_2' => $const('OPENSSL_TLSV1_2', 0),
+				'tlsv1_3' => $const('OPENSSL_TLSV1_3', 0),
+				'sslv2Server' => $const('OPENSSL_SSLV2_SERVER_METHOD', 0),
+				'sslv3Server' => $const('OPENSSL_SSLV3_SERVER_METHOD', 0),
+				'tlsv1Server' => $const('OPENSSL_TLSV1_SERVER_METHOD', 0),
+				'tlsv1_1Server' => $const('OPENSSL_TLSV1_1_SERVER_METHOD', 0),
+				'tlsv1_2Server' => $const('OPENSSL_TLSV1_2_SERVER_METHOD', 0),
+				'tlsv1_3Server' => $const('OPENSSL_TLSV1_3_SERVER_METHOD', 0),
 			],
 			'options' => [
-				'rawData' => OPENSSL_RAW_DATA,
-				'zeroPadding' => OPENSSL_ZERO_PADDING,
-				'pkcs1Padding' => OPENSSL_PKCS1_PADDING,
-				'dontZeroPadKey' => OPENSSL_DONT_ZERO_PAD_KEY,
-				'dontVerifyPeer' => OPENSSL_DONT_VERIFY_PEER,
-				'sslCompression' => OPENSSL_SSL_COMPRESSION,
-				'encodingSmime' => OPENSSL_ENCODING_SMIME,
-				'encodingDer' => OPENSSL_ENCODING_DER,
-				'encodingPem' => OPENSSL_ENCODING_PEM,
-				'defaultStreamCryptoMethod' => STREAM_CRYPTO_METHOD_SSLv23_CLIENT,
+				'rawData' => $const('OPENSSL_RAW_DATA', 1),
+				'zeroPadding' => $const('OPENSSL_ZERO_PADDING', 2),
+				'pkcs1Padding' => $const('OPENSSL_PKCS1_PADDING', 1),
+				'dontZeroPadKey' => $const('OPENSSL_DONT_ZERO_PAD_KEY', 0),
+				'dontVerifyPeer' => $const('OPENSSL_DONT_VERIFY_PEER', 0),
+				'sslCompression' => $const('OPENSSL_SSL_COMPRESSION', 0),
+				'encodingSmime' => $const('OPENSSL_ENCODING_SMIME', 0),
+				'encodingDer' => $const('OPENSSL_ENCODING_DER', 0),
+				'encodingPem' => $const('OPENSSL_ENCODING_PEM', 0),
+				'defaultStreamCryptoMethod' => $const('STREAM_CRYPTO_METHOD_SSLv23_CLIENT', 0),
 			],
 			'x509' => [
-				'purposeSSLClient' => X509_PURPOSE_SSL_CLIENT,
-				'purposeSSLServer' => X509_PURPOSE_SSL_SERVER,
-				'purposeNSClient' => X509_PURPOSE_NS_SSL_CLIENT,
-				'purposeNSServer' => X509_PURPOSE_NS_SSL_SERVER,
-				'purposeSMIMESign' => X509_PURPOSE_SMIME_SIGN,
-				'purposeSMIMEEncrypt' => X509_PURPOSE_SMIME_ENCRYPT,
-				'purposeCRLSign' => X509_PURPOSE_CRL_SIGN,
-				'purposeAny' => X509_PURPOSE_ANY,
+				'purposeSSLClient' => $const('X509_PURPOSE_SSL_CLIENT', 0),
+				'purposeSSLServer' => $const('X509_PURPOSE_SSL_SERVER', 0),
+				'purposeNSClient' => $const('X509_PURPOSE_NS_SSL_CLIENT', 0),
+				'purposeNSServer' => $const('X509_PURPOSE_NS_SSL_SERVER', 0),
+				'purposeSMIMESign' => $const('X509_PURPOSE_SMIME_SIGN', 0),
+				'purposeSMIMEEncrypt' => $const('X509_PURPOSE_SMIME_ENCRYPT', 0),
+				'purposeCRLSign' => $const('X509_PURPOSE_CRL_SIGN', 0),
+				'purposeAny' => $const('X509_PURPOSE_ANY', 0),
 			],
 			'streamCryptoMethods' => [
-				'sslv3Client' => STREAM_CRYPTO_METHOD_SSLv3_CLIENT,
-				'sslv3Server' => STREAM_CRYPTO_METHOD_SSLv3_SERVER,
-				'tlsv1Client' => STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT,
-				'tlsv1Server' => STREAM_CRYPTO_METHOD_TLSv1_0_SERVER,
-				'tlsv1_1Client' => STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT,
-				'tlsv1_1Server' => STREAM_CRYPTO_METHOD_TLSv1_1_SERVER,
-				'tlsv1_2Client' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
-				'tlsv1_2Server' => STREAM_CRYPTO_METHOD_TLSv1_2_SERVER,
-				'tlsv1_3Client' => STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,
-				'tlsv1_3Server' => STREAM_CRYPTO_METHOD_TLSv1_3_SERVER,
+				'sslv3Client' => $const('STREAM_CRYPTO_METHOD_SSLv3_CLIENT', 0),
+				'sslv3Server' => $const('STREAM_CRYPTO_METHOD_SSLv3_SERVER', 0),
+				'tlsv1Client' => $const('STREAM_CRYPTO_METHOD_TLSv1_0_CLIENT', 0),
+				'tlsv1Server' => $const('STREAM_CRYPTO_METHOD_TLSv1_0_SERVER', 0),
+				'tlsv1_1Client' => $const('STREAM_CRYPTO_METHOD_TLSv1_1_CLIENT', 0),
+				'tlsv1_1Server' => $const('STREAM_CRYPTO_METHOD_TLSv1_1_SERVER', 0),
+				'tlsv1_2Client' => $const('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT', 0),
+				'tlsv1_2Server' => $const('STREAM_CRYPTO_METHOD_TLSv1_2_SERVER', 0),
+				'tlsv1_3Client' => $const('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT', 0),
+				'tlsv1_3Server' => $const('STREAM_CRYPTO_METHOD_TLSv1_3_SERVER', 0),
 			],
 			'pkcs12' => [
-				'default' => PKCS12_DEFAULT,
-				'noCerts' => PKCS12_NO_CERTS,
-				'includeCertChain' => PKCS12_INCLUDE_CERT_CHAIN,
+				'default' => $const('PKCS12_DEFAULT', 0),
+				'noCerts' => $const('PKCS12_NO_CERTS', 0),
+				'includeCertChain' => $const('PKCS12_INCLUDE_CERT_CHAIN', 0),
 			],
 			'version' => [
-				'text' => OPENSSL_VERSION_TEXT,
-				'number' => OPENSSL_VERSION_NUMBER,
+				'text' => $const('OPENSSL_VERSION_TEXT', ''),
+				'number' => $const('OPENSSL_VERSION_NUMBER', 0),
 			],
 			'sni' => [
-				'tlsextServerName' => OPENSSL_TLSEXT_SERVER_NAME,
+				'tlsextServerName' => $const('OPENSSL_TLSEXT_SERVER_NAME', ''),
 			]
 		];
 	}
@@ -153,12 +157,12 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				?string $key = null,
 				?string $iv = null,
 				?int $options = null
-			) => openssl_encrypt(
-				$data,
-				$this->config['ciphers'][$cipher] ?? throw new CryptoException("Invalid cipher type: {$cipher}"),
-				$key ?? $this->config['keys']['defaultKey']
-					?? throw new CryptoException("Encryption key is required."),
-				$options ?? $this->config['options']['rawData'],
+				) => openssl_encrypt(
+					$data,
+					$this->resolveCipherMethod($cipher),
+					$key ?? $this->config['keys']['defaultKey']
+						?? throw new CryptoException("Encryption key is required."),
+					$options ?? $this->config['options']['rawData'],
 				$iv ?? $this->RandomGenerator('generateRandomIv')($cipher)
 			) ?: throw new CryptoException("Symmetric encryption failed."),
 
@@ -199,12 +203,12 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				?string $key = null,
 				?string $iv = null,
 				?int $options = null
-			) => openssl_decrypt(
-				$data,
-				$this->config['ciphers'][$cipher] ?? throw new CryptoException("Invalid cipher type: {$cipher}"),
-				$key ?? $this->config['keys']['defaultKey']
-					?? throw new CryptoException("Decryption key is required."),
-				$options ?? $this->config['options']['rawData'],
+				) => openssl_decrypt(
+					$data,
+					$this->resolveCipherMethod($cipher),
+					$key ?? $this->config['keys']['defaultKey']
+						?? throw new CryptoException("Decryption key is required."),
+					$options ?? $this->config['options']['rawData'],
 				$iv ?? throw new CryptoException("IV is required for symmetric decryption.")
 			) ?: throw new CryptoException("Symmetric decryption failed."),
 
@@ -236,28 +240,28 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 		};
 	}
 
-	public function RandomGenerator(string $type): callable
+	public function RandomGenerator(string $type, ?int $length = null): callable
 	{
 		return match ($type) {
-			'default' => fn(?int $length = null) =>
-				random_bytes($length ?? $this->config['random']['defaultLength'] ?? 32),
+			'default' => fn(?int $overrideLength = null) =>
+				random_bytes($overrideLength ?? $length ?? $this->config['random']['defaultLength'] ?? 32),
 
-			'passwordSalt' => fn(?int $length = null) =>
-				random_bytes($length ?? $this->config['pwHash']['saltBytes'] ?? 16),
+			'passwordSalt' => fn(?int $overrideLength = null) =>
+				random_bytes($overrideLength ?? $length ?? $this->config['pwHash']['saltBytes'] ?? 16),
 
-			'key' => fn(?int $length = null) =>
-				random_bytes($length ?? $this->config['keys']['defaultLength'] ?? 32),
+			'key' => fn(?int $overrideLength = null) =>
+				random_bytes($overrideLength ?? $length ?? $this->config['keys']['defaultLength'] ?? 32),
 
-			'generateRandomIv' => fn(string $cipher) =>
-				random_bytes(
-					openssl_cipher_iv_length(
-						$this->config['ciphers'][$cipher] ?? throw new CryptoException("Invalid cipher type: {$cipher}.")
-					)
-				),
+				'generateRandomIv' => fn(string $cipher) =>
+					random_bytes(
+						openssl_cipher_iv_length(
+							$this->resolveCipherMethod($cipher)
+						)
+					),
 
-			'secureRandomBytes' => fn(?int $length = null) => [
+			'secureRandomBytes' => fn(?int $overrideLength = null) => [
 				'bytes' => openssl_random_pseudo_bytes(
-					$length ?? $this->config['random']['defaultPseudoRandomLength'] ?? 32,
+					$overrideLength ?? $length ?? $this->config['random']['defaultPseudoRandomLength'] ?? 32,
 					$isStrong
 				),
 				'isStrong' => $isStrong,
@@ -347,6 +351,11 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 
 			default => throw new CryptoException("Unsupported key handler action: {$action}."),
 		};
+	}
+
+	public function KeyExchanger(string $type): callable
+	{
+		return $this->KeyHandler($type);
 	}
 
 	public function CertificateHandler(string $action): callable
@@ -528,15 +537,15 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 	public function CipherHandler(string $action): callable
 	{
 		return match ($action) {
-			'getIvLength' => fn(string $cipher) =>
-				openssl_cipher_iv_length(
-					$this->config['ciphers'][$cipher] ?? throw new CryptoException("Invalid cipher type: {$cipher}")
-				),
+				'getIvLength' => fn(string $cipher) =>
+					openssl_cipher_iv_length(
+						$this->resolveCipherMethod($cipher)
+					),
 
-			'getKeyLength' => fn(string $cipher) =>
-				openssl_cipher_key_length(
-					$this->config['ciphers'][$cipher] ?? throw new CryptoException("Invalid cipher type: {$cipher}")
-				),
+				'getKeyLength' => fn(string $cipher) =>
+					openssl_cipher_key_length(
+						$this->resolveCipherMethod($cipher)
+					),
 
 			'listCiphers' => fn() =>
 				openssl_get_cipher_methods(),
@@ -634,13 +643,13 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				openssl_pkcs7_decrypt($data, $privateKey, $cert)
 					?: throw new CryptoException("PKCS7 decryption failed."),
 
-			'cmsEncrypt' => fn($data, $certs, string $cipher, ?int $flags = null) =>
-				openssl_cms_encrypt(
-					$data,
-					$certs,
-					$this->config['ciphers'][$cipher] ?? throw new CryptoException("Invalid cipher: {$cipher}."),
-					$flags ?? 0
-				) ?: throw new CryptoException("CMS encryption failed."),
+				'cmsEncrypt' => fn($data, $certs, string $cipher, ?int $flags = null) =>
+					openssl_cms_encrypt(
+						$data,
+						$certs,
+						$this->resolveCipherMethod($cipher),
+						$flags ?? 0
+					) ?: throw new CryptoException("CMS encryption failed."),
 
 			'cmsDecrypt' => fn($data, $privateKey, $certificate, ?int $flags = null) =>
 				openssl_cms_decrypt($data, $privateKey, $certificate, $flags ?? 0)
@@ -669,8 +678,15 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				openssl_error_string()
 					?: throw new CryptoException("No OpenSSL error string available."),
 
-			default => throw new CryptoException("Unsupported system action: {$action}."),
-		};
+				default => throw new CryptoException("Unsupported system action: {$action}."),
+			};
+	}
+
+	private function resolveCipherMethod(string $cipher): string
+	{
+		$normalized = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $cipher));
+
+		return $this->config['ciphers'][$normalized]
+			?? throw new CryptoException("Invalid cipher type: {$cipher}.");
 	}
 }
-

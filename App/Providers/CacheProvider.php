@@ -33,6 +33,8 @@ class CacheProvider extends Container
      */
     public function __construct()
     {
+        parent::__construct();
+
         $this->cacheMap = [
             'database' => DatabaseCache::class,
             'file'     => FileCache::class,
@@ -52,15 +54,16 @@ class CacheProvider extends Container
     public function registerServices(): void
     {
         $this->wrapInTry(
-            fn() => (!$this->isArray($this->cacheMap) || $this->isEmpty($this->cacheMap))
-                ? throw new ContainerException("The cache map must be a non-empty array of aliases.")
-                : $this->walk(
-                    $this->cacheMap,
-                    fn($class, $alias) => [
-                        $this->registerAlias($alias, $class),
-                        $this->registerLazy($class, fn() => $this->resolveInstance($class))
-                    ]
-                ),
+            function (): void {
+                if (!$this->isArray($this->cacheMap) || $this->isEmpty($this->cacheMap)) {
+                    throw new ContainerException("The cache map must be a non-empty array of aliases.");
+                }
+
+                foreach ($this->cacheMap as $alias => $class) {
+                    $this->registerAlias($alias, $class);
+                    $this->registerLazy($class, fn() => $this->registerInstance($class));
+                }
+            },
             new ContainerException("Error registering cache services.")
         );
     }
@@ -75,10 +78,16 @@ class CacheProvider extends Container
     public function getCacheDriver(array $cacheSettings): object
     {
         return $this->wrapInTry(
-            fn() => $this->getInstance(
-                $this->cacheMap[$cacheSettings['DRIVER']
-                    ?? throw new ContainerException("Cache driver alias is missing or invalid.")]
-            ),
+            function () use ($cacheSettings): object {
+                $driver = strtolower(trim((string) preg_replace('/\s+#.*$/', '', (string) ($cacheSettings['DRIVER'] ?? ''))));
+                $driver = $driver === 'memcached' ? 'memcache' : $driver;
+
+                return $this->getInstance(
+                    $this->cacheMap[$driver
+                        ?: throw new ContainerException("Cache driver alias is missing or invalid.")]
+                    ?? throw new ContainerException("Unsupported cache driver alias: {$driver}")
+                );
+            },
             new ContainerException("Error retrieving cache driver.")
         );
     }

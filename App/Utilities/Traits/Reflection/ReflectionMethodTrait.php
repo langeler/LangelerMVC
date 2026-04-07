@@ -92,7 +92,7 @@ trait ReflectionMethodTrait
 	 * @param array $args The arguments to pass to the method.
 	 * @return mixed The result of the method invocation.
 	 */
-	public function invokeMethodArgs(ReflectionMethod $reflectionMethod, ?object $object = null, array $args): mixed
+	public function invokeMethodArgs(ReflectionMethod $reflectionMethod, array $args, ?object $object = null): mixed
 	{
 		return $reflectionMethod->invokeArgs($object, $args);
 	}

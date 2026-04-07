@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use RuntimeException; // Exception thrown if an error occurs at runtime.
-use Throwable;        // Base interface for all errors and exceptions in PHP.
-
+use App\Contracts\Http\RequestInterface;
 use App\Utilities\Sanitation\{
 	GeneralSanitizer,  // Provides general data sanitation utilities.
 	PatternSanitizer   // Facilitates pattern-based data sanitation.
@@ -17,12 +15,14 @@ use App\Utilities\Validation\{
 	PatternValidator   // Facilitates pattern-based data validation.
 };
 
+use App\Exceptions\Http\RequestException;
+
 use App\Utilities\Managers\FileManager;         // Manages file operations and configurations.
 use App\Utilities\Finders\DirectoryFinder;      // Handles searching and managing directories.
 
 use App\Utilities\Traits\{
 	ArrayTrait,        // Provides utility methods for array operations.
-	TypeCheckerTrait   // Offers utilities for validating and checking data types.
+	ErrorTrait         // Offers framework-aligned exception wrapping.
 };
 
 /**
@@ -39,10 +39,9 @@ use App\Utilities\Traits\{
  * - Property promotion and typed return values.
  * - Abstract methods now include explicit return types to match modern best practices.
  */
-abstract class Request
+abstract class Request implements RequestInterface
 {
-	use ArrayTrait;
-	use TypeCheckerTrait;
+	use ArrayTrait, ErrorTrait;
 
 	/**
 	 * The storage directory path for uploaded files.
@@ -92,26 +91,150 @@ abstract class Request
 	{
 		$this->storage = $this->wrapInTry(function (): string {
 			$uploads = $this->directoryFinder->find(['name' => 'Uploads']);
-			return $this->isSet($uploads[0] ?? null)
-				? $uploads[0]
-				: throw new RuntimeException("Uploads directory not found.");
-		});
+			$path = is_array($uploads) && $uploads !== []
+				? array_key_first($uploads)
+				: null;
+
+			if ($this->isString($path) && $this->fileManager->isDirectory($path)) {
+				return $path;
+			}
+
+			$fallback = $this->fileManager->normalizePath(
+				(realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3)) . '/Storage/Uploads'
+			);
+
+			if (
+				$this->fileManager->isDirectory($fallback)
+				|| $this->fileManager->createDirectory($fallback, 0777, true)
+			) {
+				return $fallback;
+			}
+
+			throw new RequestException('Uploads directory not found.');
+		}, RequestException::class);
 	}
 
 	/**
-	 * Utility method for consistent error handling.
+	 * Sanitize request data using framework-defined rules.
 	 *
-	 * @param callable $callback The operation to attempt.
-	 * @return mixed The result of the operation.
-	 * @throws RuntimeException On failure.
+	 * @return void
 	 */
-	protected function wrapInTry(callable $callback): mixed
+	public function sanitize(): void
 	{
-		try {
-			return $callback();
-		} catch (Throwable $e) {
-			throw new RuntimeException("An error occurred: {$e->getMessage()}", 0, $e);
+		$this->wrapInTry(function (): void {
+			$rules = $this->sanitizationRules();
+
+			if ($rules !== []) {
+				$this->data = $this->sanitizeData($this->data, $rules);
+			}
+		}, RequestException::class);
+	}
+
+	/**
+	 * Validate request data using framework-defined rules.
+	 *
+	 * @return void
+	 */
+	public function validate(): void
+	{
+		$this->wrapInTry(function (): void {
+			$rules = $this->validationRules();
+
+			if ($rules !== []) {
+				$this->validateData($this->data, $rules);
+			}
+		}, RequestException::class);
+	}
+
+	/**
+	 * Transform request data after sanitation and validation.
+	 *
+	 * @return void
+	 */
+	public function transform(): void
+	{
+		$this->wrapInTry(function (): void {
+			$transformed = $this->transformInput($this->data);
+
+			if (!$this->isArray($transformed)) {
+				throw new RequestException('Request transformation must return an array.');
+			}
+
+			$this->data = $transformed;
+		}, RequestException::class);
+	}
+
+	/**
+	 * Execute the full request lifecycle.
+	 *
+	 * @return void
+	 */
+	public function handle(): void
+	{
+		$this->wrapInTry(function (): void {
+			$this->sanitize();
+			$this->validate();
+			$this->transform();
+		}, RequestException::class);
+	}
+
+	/**
+	 * Retrieve a request input value using dot notation.
+	 */
+	public function input(string $key, mixed $default = null): mixed
+	{
+		return $this->getNestedValue($this->data, $key, $default);
+	}
+
+	/**
+	 * Retrieve the full request input payload.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function all(): array
+	{
+		return $this->data;
+	}
+
+	/**
+	 * Retrieve a file entry or all uploaded files.
+	 */
+	public function file(?string $key = null): mixed
+	{
+		if ($key === null || $key === '') {
+			return $this->files;
 		}
+
+		return $this->getNestedValue($this->files, $key);
+	}
+
+	/**
+	 * Retrieve a normalized request header.
+	 */
+	public function header(string $key, mixed $default = null): mixed
+	{
+		$headers = $this->headers();
+		$normalizedKey = strtolower(trim($key));
+
+		return array_key_exists($normalizedKey, $headers) ? $headers[$normalizedKey] : $default;
+	}
+
+	/**
+	 * Retrieve all normalized request headers.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function headers(): array
+	{
+		return $this->wrapInTry(function (): array {
+			$normalized = [];
+
+			foreach ($this->headers as $key => $value) {
+				$normalized[strtolower(trim((string) $key))] = $value;
+			}
+
+			return $normalized;
+		}, RequestException::class);
 	}
 
 	/**
@@ -121,13 +244,13 @@ abstract class Request
 	 * @param string $sanitizerType The type of sanitizer ('general' or 'pattern').
 	 * @return array Sanitized data.
 	 */
-	protected function applySanitation(array $data, string $sanitizerType = 'general'): array
+	protected function applySanitation(array $schema, ?array $values = null, string $sanitizerType = 'general'): array
 	{
 		return $this->wrapInTry(fn(): array => match ($sanitizerType) {
-			'general' => $this->generalSanitizer->clean($data),
-			'pattern' => $this->patternSanitizer->clean($data),
+			'general' => $this->generalSanitizer->clean($schema, $values),
+			'pattern' => $this->patternSanitizer->clean($schema, $values),
 			default => throw new \InvalidArgumentException("Invalid sanitizer type: {$sanitizerType}")
-		});
+		}, RequestException::class);
 	}
 
 	/**
@@ -137,13 +260,13 @@ abstract class Request
 	 * @param string $validatorType The type of validator ('general' or 'pattern').
 	 * @return array Validated data.
 	 */
-	protected function applyValidation(array $data, string $validatorType = 'general'): array
+	protected function applyValidation(array $schema, ?array $values = null, string $validatorType = 'general'): array
 	{
 		return $this->wrapInTry(fn(): array => match ($validatorType) {
-			'general' => $this->generalValidator->verify($data),
-			'pattern' => $this->patternValidator->verify($data),
+			'general' => $this->generalValidator->verify($schema, $values),
+			'pattern' => $this->patternValidator->verify($schema, $values),
 			default => throw new \InvalidArgumentException("Invalid validator type: {$validatorType}")
-		});
+		}, RequestException::class);
 	}
 
 	/**
@@ -152,14 +275,15 @@ abstract class Request
 	 * @param array $data Input data to sanitize.
 	 * @return array Sanitized data.
 	 */
-	protected function sanitizeData(array $data): array
+	protected function sanitizeData(array $data, ?array $schema = null): array
 	{
-		return $this->reduce(
-			$data,
-			fn(array $carry, mixed $value, string $key): array =>
-				$carry + [$key => $this->applySanitation([$key => $value], 'general')],
+		$schema ??= array_reduce(
+			array_keys($data),
+			fn(array $carry, string $key): array => $carry + [$key => ['string']],
 			[]
 		);
+
+		return $this->applySanitation($schema, $data, 'general');
 	}
 
 	/**
@@ -168,14 +292,9 @@ abstract class Request
 	 * @param array $data Input data to validate.
 	 * @return array Validated data.
 	 */
-	protected function validateData(array $data): array
+	protected function validateData(array $data, array $schema): array
 	{
-		return $this->reduce(
-			$data,
-			fn(array $carry, mixed $value, string $key): array =>
-				$carry + [$key => $this->applyValidation([$key => $value], 'general')],
-			[]
-		);
+		return $this->applyValidation($schema, $data, 'general');
 	}
 
 	/**
@@ -186,15 +305,29 @@ abstract class Request
 	 */
 	protected function validateFile(string $key): bool
 	{
-		return $this->wrapInTry(fn(): bool =>
-			$this->isSet($this->files[$key] ?? null)
-			&& $this->fileManager->fileExists($this->files[$key]['tmp_name'])
-			&& $this->inArray(
-				$this->fileManager->getExtension($this->files[$key]['tmp_name']),
-				$this->getUnique($this->settings['ext'])
-			)
-			&& $this->fileManager->getSize($this->files[$key]['tmp_name']) <= ($this->settings['max'] * 1024)
-		);
+		return $this->wrapInTry(function () use ($key): bool {
+			$file = $this->files[$key] ?? null;
+
+			if (
+				!$this->isArray($file)
+				|| !$this->isString($file['tmp_name'] ?? null)
+				|| !$this->fileManager->fileExists($file['tmp_name'])
+			) {
+				return false;
+			}
+
+			$extensionSource = $this->isString($file['name'] ?? null)
+				? $file['name']
+				: $file['tmp_name'];
+			$extension = strtolower((string) $this->fileManager->getExtension($extensionSource));
+			$allowedExtensions = $this->map(
+				fn(mixed $value): string => strtolower((string) $value),
+				$this->unique($this->settings['ext'] ?? [])
+			);
+
+			return $this->isInArray($extension, $allowedExtensions, true)
+				&& ($this->fileManager->getSize($file['tmp_name']) ?? 0) <= (($this->settings['max'] ?? 0) * 1024);
+		}, RequestException::class);
 	}
 
 	/**
@@ -205,16 +338,22 @@ abstract class Request
 	 */
 	protected function processFile(string $key): string
 	{
-		return $this->wrapInTry(fn(): string =>
-			$this->validateFile($key)
-				? ($this->fileManager->moveFile(
-					$this->files[$key]['tmp_name'],
-					$this->fileManager->normalizePath("{$this->storage}/{$this->sanitizeFileName($this->files[$key]['name'])}")
-				  )
-					? $this->fileManager->normalizePath("{$this->storage}/{$this->sanitizeFileName($this->files[$key]['name'])}")
-					: throw new RuntimeException("Failed to save file '{$key}'."))
-				: throw new RuntimeException("File '{$key}' did not pass validation.")
-		);
+		return $this->wrapInTry(function () use ($key): string {
+			if (!$this->validateFile($key)) {
+				throw new RequestException("File '{$key}' did not pass validation.");
+			}
+
+			$file = $this->files[$key];
+			$targetPath = $this->fileManager->normalizePath(
+				$this->storage . DIRECTORY_SEPARATOR . $this->sanitizeFileName((string) ($file['name'] ?? $key))
+			);
+
+			if (!$this->fileManager->moveFile((string) $file['tmp_name'], $targetPath)) {
+				throw new RequestException("Failed to save file '{$key}'.");
+			}
+
+			return $targetPath;
+		}, RequestException::class);
 	}
 
 	/**
@@ -225,7 +364,16 @@ abstract class Request
 	 */
 	protected function sanitizeFileName(string $fileName): string
 	{
-		return $this->applySanitation(['fileName' => $fileName], 'general')['fileName'];
+		return $this->wrapInTry(function () use ($fileName): string {
+			$sanitized = $this->patternSanitizer->sanitizeFileName(basename($fileName)) ?? '';
+			$sanitized = trim($sanitized, '.');
+
+			if ($sanitized === '' || !$this->patternValidator->validateFileName($sanitized)) {
+				throw new RequestException("Invalid file name '{$fileName}'.");
+			}
+
+			return $sanitized;
+		}, RequestException::class);
 	}
 
 	/**
@@ -236,21 +384,22 @@ abstract class Request
 	 */
 	protected function processImage(string $key): string
 	{
-		return $this->wrapInTry(fn(): string =>
-			$this->settings['strip']
-				? $this->fileManager->stripMetadata(
-					$this->fileManager->resizeImage(
-						$this->processFile($key),
-						$this->settings['resize']['w'],
-						$this->settings['resize']['h']
-					)
-				)
-				: $this->fileManager->resizeImage(
-					$this->processFile($key),
-					$this->settings['resize']['w'],
-					$this->settings['resize']['h']
-				)
-		);
+		return $this->wrapInTry(function () use ($key): string {
+			$path = $this->processFile($key);
+
+			$path = $this->fileManager->resizeImage(
+				$path,
+				(int) ($this->settings['resize']['w'] ?? 0),
+				(int) ($this->settings['resize']['h'] ?? 0)
+			) ?: throw new RequestException("Failed to resize image '{$key}'.");
+
+			if ($this->settings['strip'] ?? false) {
+				$path = $this->fileManager->stripMetadata($path)
+					?: throw new RequestException("Failed to strip metadata for image '{$key}'.");
+			}
+
+			return $path;
+		}, RequestException::class);
 	}
 
 	/**
@@ -270,5 +419,60 @@ abstract class Request
 			],
 			fn(mixed $value): bool => $this->isSet($value)
 		);
+	}
+
+	/**
+	 * Override to define request sanitation rules.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function sanitizationRules(): array
+	{
+		return [];
+	}
+
+	/**
+	 * Override to define request validation rules.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function validationRules(): array
+	{
+		return [];
+	}
+
+	/**
+	 * Override to transform request data after sanitation/validation.
+	 *
+	 * @param array<string, mixed> $data
+	 * @return array<string, mixed>
+	 */
+	protected function transformInput(array $data): array
+	{
+		return $data;
+	}
+
+	/**
+	 * Resolve a nested value from an array using dot notation.
+	 *
+	 * @param array<string|int, mixed> $source
+	 */
+	protected function getNestedValue(array $source, string $key, mixed $default = null): mixed
+	{
+		if ($key === '') {
+			return $source;
+		}
+
+		$value = $source;
+
+		foreach (explode('.', $key) as $segment) {
+			if (!is_array($value) || !array_key_exists($segment, $value)) {
+				return $default;
+			}
+
+			$value = $value[$segment];
+		}
+
+		return $value;
 	}
 }

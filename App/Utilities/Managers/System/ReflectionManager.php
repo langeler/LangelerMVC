@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Utilities\Managers;
+namespace App\Utilities\Managers\System;
 
 use App\Utilities\Traits\Reflection\{
 	ReflectionAttributeTrait,
@@ -16,6 +16,12 @@ use App\Utilities\Traits\Reflection\{
 	ReflectionTrait,
 	ReflectionTypeTrait
 };
+use ReflectionAttribute;
+use ReflectionClass;
+use ReflectionClassConstant;
+use ReflectionFunction;
+use ReflectionMethod;
+use ReflectionProperty;
 
 /**
  * Class ReflectionManager

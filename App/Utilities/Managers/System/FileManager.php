@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Utilities\Managers;
+namespace App\Utilities\Managers\System;
 
 use SplFileInfo;
 use SplFileObject;
 use Imagick;
+use ImagickDraw;
+use ImagickPixel;
 use Throwable;
 
 class FileManager
@@ -48,7 +50,26 @@ class FileManager
 	public function readLines(string $filename): ?array
 	{
 		try {
-			return iterator_to_array($this->getFileObject($filename, 'r')?->rewind());
+			$file = $this->getFileObject($filename, 'r');
+
+			if (!$file) {
+				return null;
+			}
+
+			$file->rewind();
+			$lines = [];
+
+			while (!$file->eof()) {
+				$line = $file->fgets();
+
+				if ($line === '' && $file->eof()) {
+					break;
+				}
+
+				$lines[] = $line;
+			}
+
+			return $lines;
 		} catch (Throwable) {
 			return null;
 		}
@@ -57,10 +78,16 @@ class FileManager
 	public function readContents(string $filename): ?string
 	{
 		try {
-			return ($file = $this->getFileObject($filename, 'r'))
-				&& ($size = $this->getFileInfo($filename)?->getSize() ?? 0) > 0
-				? $file->fread($size)
-				: '';
+			$file = $this->getFileObject($filename, 'r');
+			$size = $this->getFileInfo($filename)?->getSize() ?? 0;
+
+			if (!$file) {
+				return null;
+			}
+
+			$file->rewind();
+
+			return $size > 0 ? $file->fread($size) : '';
 		} catch (Throwable) {
 			return null;
 		}
@@ -69,12 +96,23 @@ class FileManager
 	public function writeContents(string $filename, string $data): int|false
 	{
 		try {
-			return ($file = $this->getFileObject($filename, 'w'))
-				&& $file->flock(LOCK_EX)
-				? ($bytesWritten = $file->fwrite($data)) && $file->flock(LOCK_UN)
-					? $bytesWritten
-					: false
-				: false;
+			$directory = dirname($filename);
+
+			if (!$this->isDirectory($directory) && !$this->createDirectory($directory, 0777, true)) {
+				return false;
+			}
+
+			$file = $this->getFileObject($filename, 'w');
+
+			if (!$file || !$file->flock(LOCK_EX)) {
+				return false;
+			}
+
+			try {
+				return $file->fwrite($data);
+			} finally {
+				$file->flock(LOCK_UN);
+			}
 		} catch (Throwable) {
 			return false;
 		}
@@ -92,7 +130,30 @@ class FileManager
 	public function moveFile(string $filename, string $destination): bool
 	{
 		try {
-			return $this->getFileObject($filename)?->isFile() && move_uploaded_file($filename, $destination);
+			$source = $this->normalizePath($filename);
+			$target = $this->normalizePath($destination);
+			$targetDirectory = dirname($target);
+
+			if (!$this->fileExists($source)) {
+				return false;
+			}
+
+			if (
+				!$this->isDirectory($targetDirectory)
+				&& !$this->createDirectory($targetDirectory, 0777, true)
+			) {
+				return false;
+			}
+
+			if (is_uploaded_file($source)) {
+				return move_uploaded_file($source, $target);
+			}
+
+			if (@rename($source, $target)) {
+				return true;
+			}
+
+			return @copy($source, $target) && @unlink($source);
 		} catch (Throwable) {
 			return false;
 		}
@@ -110,6 +171,65 @@ class FileManager
 	public function fileExists(string $filename): bool
 	{
 		return $this->getFileInfo($filename)?->isFile() ?? false;
+	}
+
+	public function isDirectory(string $path): bool
+	{
+		return $this->getFileInfo($path)?->isDir() ?? false;
+	}
+
+	/**
+	 * Normalize a filesystem path using the current platform separator.
+	 *
+	 * @param string $path
+	 * @return string
+	 */
+	public function normalizePath(string $path): string
+	{
+		$path = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, trim($path));
+
+		if ($path === '') {
+			return '';
+		}
+
+		$prefix = '';
+
+		if (preg_match('/^[A-Za-z]:' . preg_quote(DIRECTORY_SEPARATOR, '/') . '/', $path) === 1) {
+			$prefix = substr($path, 0, 2);
+			$path = substr($path, 2);
+		} elseif (str_starts_with($path, DIRECTORY_SEPARATOR)) {
+			$prefix = DIRECTORY_SEPARATOR;
+			$path = ltrim($path, DIRECTORY_SEPARATOR);
+		}
+
+		$segments = [];
+
+		foreach (preg_split('#[\\\\/]#', $path) ?: [] as $segment) {
+			if ($segment === '' || $segment === '.') {
+				continue;
+			}
+
+			if ($segment === '..') {
+				array_pop($segments);
+				continue;
+			}
+
+			$segments[] = $segment;
+		}
+
+		$normalized = implode(DIRECTORY_SEPARATOR, $segments);
+
+		if ($prefix === DIRECTORY_SEPARATOR) {
+			return $prefix . $normalized;
+		}
+
+		if ($prefix !== '') {
+			return $normalized === ''
+				? $prefix . DIRECTORY_SEPARATOR
+				: $prefix . DIRECTORY_SEPARATOR . $normalized;
+		}
+
+		return $normalized;
 	}
 
 	// Additional SplFileInfo Methods
@@ -369,9 +489,18 @@ class FileManager
 		return $this->getImagick($filename)?->writeImage($outputPath) ?? false;
 	}
 
-	public function resizeImage(string $filename, int $width, int $height, int $filter = Imagick::FILTER_LANCZOS, float $blur = 1.0): bool
+	public function resizeImage(
+		string $filename,
+		int $width,
+		int $height,
+		int $filter = Imagick::FILTER_LANCZOS,
+		float $blur = 1.0
+	): string|false
 	{
-		return $this->getImagick($filename)?->resizeImage($width, $height, $filter, $blur) ?? false;
+		return $this->mutateImage(
+			$filename,
+			fn(Imagick $image): bool => $image->resizeImage($width, $height, $filter, $blur)
+		);
 	}
 
 	public function cropImage(string $filename, int $width, int $height, int $x, int $y): bool
@@ -414,9 +543,12 @@ class FileManager
 		return $this->getImagick($filename)?->setImageCompressionQuality($quality) ?? false;
 	}
 
-	public function stripMetadata(string $filename): bool
+	public function stripMetadata(string $filename): string|false
 	{
-		return $this->getImagick($filename)?->stripImage() ?? false;
+		return $this->mutateImage(
+			$filename,
+			fn(Imagick $image): bool => $image->stripImage()
+		);
 	}
 
 	public function getFormat(string $filename): ?string
@@ -539,6 +671,35 @@ class FileManager
 			$this->getImagick($filename)?->destroy();
 		} catch (Throwable) {
 			// Do nothing
+		}
+	}
+
+	/**
+	 * Apply an in-place image mutation and persist the result.
+	 *
+	 * @param string $filename
+	 * @param callable $operation
+	 * @return string|false
+	 */
+	private function mutateImage(string $filename, callable $operation): string|false
+	{
+		$image = $this->getImagick($filename);
+
+		if (!$image) {
+			return false;
+		}
+
+		try {
+			if ($operation($image) === false) {
+				return false;
+			}
+
+			return $image->writeImage($filename) ? $filename : false;
+		} catch (Throwable) {
+			return false;
+		} finally {
+			$image->clear();
+			$image->destroy();
 		}
 	}
 }

@@ -126,8 +126,8 @@ class PatternSanitizer extends Sanitizer implements SanitizerInterface
 	 * @param mixed $data The input data to clean.
 	 * @return array The sanitized data array.
 	 */
-	public function clean(mixed $data): array
+	public function clean(array $schema, ?array $values = null): array
 	{
-		return $this->handle($data);
+		return $this->handle($schema, $values);
 	}
 }

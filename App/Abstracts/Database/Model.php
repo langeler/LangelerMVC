@@ -4,130 +4,243 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Database;
 
+use App\Contracts\Database\ModelInterface;
+use App\Exceptions\Database\ModelException;
+
 /**
- * Abstract Model Class
- *
- * Responsibilities:
- * - Represents a single database record as an object.
- * - Defines contracts for attribute handling, table configuration, and timestamps.
- * - Does not directly interact with the database (that’s the repository’s responsibility).
- *
- * Boundaries:
- * - No HTTP or presentation logic.
- * - No complex business logic: that should be handled by services.
- * - Focused on entity representation, not persistence.
+ * Base database entity with mass-assignment protection and dirty tracking.
  */
-abstract class Model
+abstract class Model implements ModelInterface
 {
-	/**
-	 * Construct a new model instance with optional initial attributes.
-	 *
-	 * @param array<string,mixed> $attributes Key-value pairs of model properties.
-	 */
-	public function __construct(protected array $attributes = [])
-	{
-	}
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $attributes = [];
 
-	/**
-	 * The table name associated with the model.
-	 * Defined by concrete classes via getTable().
-	 */
-	protected string $table;
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $original = [];
 
-	/**
-	 * The primary key for the model.
-	 * Can be overridden by concrete models via getPrimaryKey().
-	 */
-	protected string $primaryKey = 'id';
+    protected string $table = '';
 
-	/**
-	 * Indicates if the model uses timestamp fields (created_at, updated_at).
-	 */
-	protected bool $timestamps = true;
+    protected string $primaryKey = 'id';
 
-	/**
-	 * The attributes that are mass assignable.
-	 * Concrete models can define their fillable attributes.
-	 */
-	protected array $fillable = [];
+    protected bool $timestamps = true;
 
-	/**
-	 * The attributes that are guarded from mass assignment.
-	 * Concrete models can define attributes that should not be mass assigned.
-	 */
-	protected array $guarded = [];
+    /**
+     * @var string[]
+     */
+    protected array $fillable = [];
 
-	/**
-	 * The original attributes as retrieved from the database.
-	 * Used for change detection or reverting to original state.
-	 */
-	protected array $original = [];
+    /**
+     * @var string[]
+     */
+    protected array $guarded = [];
 
-	/**
-	 * Get the table name associated with the model.
-	 *
-	 * @return string The table name.
-	 */
-	abstract protected function getTable(): string;
+    protected string $createdAtColumn = 'created_at';
 
-	/**
-	 * Get the primary key for the model.
-	 *
-	 * @return string The primary key column name.
-	 */
-	abstract protected function getPrimaryKey(): string;
+    protected string $updatedAtColumn = 'updated_at';
 
-	/**
-	 * Retrieve all attributes of the model.
-	 *
-	 * @return array<string,mixed> An associative array of all attributes.
-	 */
-	abstract protected function getAttributes(): array;
+    protected bool $exists = false;
 
-	/**
-	 * Set a specific attribute on the model.
-	 *
-	 * @param string $key   The attribute name.
-	 * @param mixed  $value The attribute value.
-	 * @return void
-	 */
-	abstract protected function setAttribute(string $key, mixed $value): void;
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    public function __construct(array $attributes = [])
+    {
+        if ($attributes !== []) {
+            $this->fill($attributes);
+        }
+    }
 
-	/**
-	 * Get a specific attribute from the model.
-	 *
-	 * @param string $key The attribute name.
-	 * @return mixed The attribute value.
-	 */
-	abstract protected function getAttribute(string $key): mixed;
+    public function getTable(): string
+    {
+        return $this->table !== '' ? $this->table : $this->resolveDefaultTableName();
+    }
 
-	/**
-	 * Determine if a specific attribute exists on the model.
-	 *
-	 * @param string $key The attribute name.
-	 * @return bool True if the attribute exists, false otherwise.
-	 */
-	abstract protected function hasAttribute(string $key): bool;
+    public function getPrimaryKey(): string
+    {
+        return $this->primaryKey;
+    }
 
-	/**
-	 * Check if timestamps are enabled for the model.
-	 *
-	 * @return bool True if timestamps are used, false otherwise.
-	 */
-	abstract protected function usesTimestamps(): bool;
+    public function getKey(): mixed
+    {
+        return $this->getAttribute($this->getPrimaryKey());
+    }
 
-	/**
-	 * Fill the model with an array of attributes, respecting fillable and guarded rules.
-	 *
-	 * @param array<string,mixed> $attributes Attributes to mass assign.
-	 * @return void
-	 */
-	abstract protected function fill(array $attributes): void;
+    public function getAttributes(): array
+    {
+        return $this->attributes;
+    }
 
-	/**
-	 * Retrieve the original attributes as retrieved from the database.
-	 *
-	 * @return array<string,mixed> An associative array of the original attributes.
-	 */
-	abstract protected function getOriginal(): array;
+    public function setAttribute(string $key, mixed $value): void
+    {
+        $key = trim($key);
+
+        if ($key === '') {
+            throw new ModelException('Attribute names must be non-empty strings.');
+        }
+
+        $this->attributes[$key] = $value;
+    }
+
+    public function getAttribute(string $key): mixed
+    {
+        return $this->attributes[$key] ?? null;
+    }
+
+    public function hasAttribute(string $key): bool
+    {
+        return array_key_exists($key, $this->attributes);
+    }
+
+    public function usesTimestamps(): bool
+    {
+        return $this->timestamps;
+    }
+
+    public function fill(array $attributes): void
+    {
+        foreach ($attributes as $key => $value) {
+            $attribute = (string) $key;
+
+            if (!$this->isFillable($attribute)) {
+                throw new ModelException(
+                    sprintf(
+                        'Attribute [%s] is not mass assignable on model [%s].',
+                        $attribute,
+                        static::class
+                    )
+                );
+            }
+
+            $this->setAttribute($attribute, $value);
+        }
+    }
+
+    public function forceFill(array $attributes): void
+    {
+        foreach ($attributes as $key => $value) {
+            $this->setAttribute((string) $key, $value);
+        }
+    }
+
+    public function getOriginal(): array
+    {
+        return $this->original;
+    }
+
+    public function syncOriginal(): void
+    {
+        $this->original = $this->attributes;
+    }
+
+    public function getDirty(): array
+    {
+        $dirty = [];
+
+        foreach ($this->attributes as $key => $value) {
+            if (!array_key_exists($key, $this->original) || $this->original[$key] !== $value) {
+                $dirty[$key] = $value;
+            }
+        }
+
+        return $dirty;
+    }
+
+    public function isDirty(?string $attribute = null): bool
+    {
+        if ($attribute === null) {
+            return $this->getDirty() !== [];
+        }
+
+        return array_key_exists($attribute, $this->getDirty());
+    }
+
+    public function exists(): bool
+    {
+        return $this->exists;
+    }
+
+    public function markAsExisting(bool $exists = true): void
+    {
+        $this->exists = $exists;
+    }
+
+    public function getFillable(): array
+    {
+        return $this->fillable;
+    }
+
+    public function getGuarded(): array
+    {
+        return $this->guarded;
+    }
+
+    public function getCreatedAtColumn(): string
+    {
+        return $this->createdAtColumn;
+    }
+
+    public function getUpdatedAtColumn(): string
+    {
+        return $this->updatedAtColumn;
+    }
+
+    public function toArray(): array
+    {
+        return $this->getAttributes();
+    }
+
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    public function __get(string $key): mixed
+    {
+        return $this->getAttribute($key);
+    }
+
+    public function __set(string $key, mixed $value): void
+    {
+        $this->setAttribute($key, $value);
+    }
+
+    public function __isset(string $key): bool
+    {
+        return $this->hasAttribute($key);
+    }
+
+    public function __unset(string $key): void
+    {
+        unset($this->attributes[$key]);
+    }
+
+    protected function isFillable(string $attribute): bool
+    {
+        if ($attribute === '') {
+            return false;
+        }
+
+        if ($this->fillable !== []) {
+            return in_array($attribute, $this->fillable, true);
+        }
+
+        if ($this->guarded === ['*']) {
+            return false;
+        }
+
+        return !in_array($attribute, $this->guarded, true);
+    }
+
+    protected function resolveDefaultTableName(): string
+    {
+        $segments = explode('\\', static::class);
+        $baseName = end($segments) ?: 'model';
+        $snakeCase = strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', $baseName));
+
+        return $snakeCase . 's';
+    }
 }

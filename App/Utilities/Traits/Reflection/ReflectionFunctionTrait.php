@@ -81,7 +81,7 @@ trait ReflectionFunctionTrait
 	 * @param ReflectionFunction $reflectionFunction The ReflectionFunction instance.
 	 * @return string The string representation of the function.
 	 */
-	public function functionToString(ReflectionFunction $reflectionFunction): string
+	public function reflectionFunctionToString(ReflectionFunction $reflectionFunction): string
 	{
 		return $reflectionFunction->__toString();
 	}

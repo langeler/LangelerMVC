@@ -53,7 +53,7 @@ class ErrorManager
             'notice'           => E_NOTICE,
             'parseError'       => E_PARSE,
             'recoverableError' => E_RECOVERABLE_ERROR,
-            'strict'           => E_STRICT,  // Deprecated in newer PHP
+            'strict'           => PHP_VERSION_ID < 80000 && defined('E_STRICT') ? E_STRICT : E_ALL,
             'userDeprecated'   => E_USER_DEPRECATED,
             'userError'        => E_USER_ERROR,
             'userNotice'       => E_USER_NOTICE,
@@ -81,10 +81,19 @@ class ErrorManager
         return $this->isObject($type) && $this->isSubclassOf($type, Throwable::class)
             ? $type
             : ($this->isString($type)
-                // Attempt to getException($type) from the ExceptionProvider
-                ? $this->exceptionProvider->getException($type)
+                ? $this->exceptionProvider->getException(
+                    $type,
+                    $message,
+                    $code,
+                    $previous instanceof Throwable ? $previous : null
+                )
                 // If not a valid string or object, fallback to "invalidArgument" alias
-                : $this->exceptionProvider->getException('invalidArgument')
+                : $this->exceptionProvider->getException(
+                    'invalidArgument',
+                    $message,
+                    $code,
+                    $previous instanceof Throwable ? $previous : null
+                )
             );
     }
 
@@ -102,7 +111,7 @@ class ErrorManager
                 $exception->getMessage(),
                 $exception->getFile(),
                 $exception->getLine(),
-                strtoupper($levelKey),
+                $levelKey,
                 $context
             )
             : throw $this->resolveException('invalidArgument', "Invalid exception provided for logging.");
@@ -141,14 +150,18 @@ class ErrorManager
      */
     public function suppressErrors(callable $callback, string $levelKey = 'allErrors'): mixed
     {
-        return $this->keyExists($this->errorLevels, $levelKey) && $this->isCallable($callback)
-            ? (try {
-                error_reporting($this->errorLevels[$levelKey]);
-                return $callback();
-            } finally {
-                error_reporting($this->errorLevels['allErrors']);
-            })
-            : throw $this->resolveException('invalidArgument', "Invalid error level key or callback.");
+        if (!$this->keyExists($this->errorLevels, $levelKey) || !$this->isCallable($callback)) {
+            throw $this->resolveException('invalidArgument', "Invalid error level key or callback.");
+        }
+
+        $previousLevel = error_reporting();
+
+        try {
+            error_reporting($this->errorLevels[$levelKey]);
+            return $callback();
+        } finally {
+            error_reporting($previousLevel === false ? $this->errorLevels['allErrors'] : $previousLevel);
+        }
     }
 
     /**

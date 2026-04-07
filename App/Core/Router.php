@@ -2,84 +2,55 @@
 
 namespace App\Core;
 
-use App\Utilities\Handlers\{
-    DataHandler,
-    DataStructureHandler
-};
+use Throwable;
+use App\Exceptions\RouteNotFoundException;
 use App\Utilities\Managers\{
     CacheManager,
     System\ErrorManager
 };
-use App\Utilities\Sanitation\{
-    GeneralSanitizer,
-    PatternSanitizer
-};
-use App\Utilities\Traits\{
-    ArrayTrait,
-    CheckerTrait,
-    ErrorTrait,
-    ExistenceCheckerTrait,
-    ManipulationTrait,
-    TypeCheckerTrait
-};
-use App\Utilities\Validation\{
-    GeneralValidator,
-    PatternValidator
-};
+use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Validation\PatternValidator;
 
 /**
  * Router Class
  *
- * Key Features:
- *  - Group prefix + group-level middleware.
- *  - Param-based rules: e.g. 'params' => [ 'id' => ['intPos',['between'=>[1,9999]]] ].
- *  - Named routes (route('someAlias', [...])) and fallback route.
- *  - Cache-based route definitions.
- *  - Full usage of ErrorManager + ExceptionProvider aliases (no direct exception usage).
- *  - Logging via logErrorMessage(...) + wrapInTry(..., $alias).
- *  - Only the traits that are actually used: no LoopTrait or ConversionTrait.
- *  - "No temp variables" style, leveraging trait-based inlined array/string manipulations.
+ * Loads module route files, caches the full route state, resolves middleware,
+ * and dispatches controller actions.
  */
 class Router
 {
-    // We only use these traits, as the rest are unneeded in final usage.
-    use ManipulationTrait,       // toUpper(), replace(), etc.
-        ExistenceCheckerTrait,   // methodExists(), etc.
-        ArrayTrait,              // reduce(), map(), filter(), walk(), mergeUnique(), etc.
-        TypeCheckerTrait,        // isString(), isEmpty(), etc.
-        CheckerTrait,            // contains(), etc.
-        ErrorTrait;              // wrapInTry(), etc.
+    use ErrorTrait;
 
     /**
      * @var array<string, array<string, array>>
-     * Example structure:
-     * $routes['GET']['/users/{id}'] = [
-     *   'callback' => ['UserController','show'],
-     *   'middleware' => [...],
-     *   'paramRules' => [ 'id' => ['intPos',['between'=>[1,9999]]] ]
-     * ];
      */
     private array $routes = [];
 
     /**
      * Captured URI parameters after pattern matching.
+     *
+     * @var array<string, mixed>
      */
     private array $routeParams = [];
 
     /**
-     * Named routes => path, for route(...) lookups.
+     * Named routes => normalized path.
+     *
+     * @var array<string, string>
      */
     private array $namedRoutes = [];
 
     /**
-     * Fallback route if none matched, e.g. [ 'SomeControllerAlias', 'fallbackMethod' ].
+     * Fallback route callback definition.
+     *
+     * @var array{0: string, 1: string}|null
      */
     private ?array $fallbackRoute = null;
 
     /**
-     * Group-level prefix + middleware array.
+     * Group-level prefix + middleware.
      */
-    private ?string $groupPrefix = null;
+    private string $groupPrefix = '';
     private array $groupMiddleware = [];
 
     /**
@@ -88,52 +59,47 @@ class Router
     private int $cacheDuration = 600;
 
     public function __construct(
-        private DataHandler $dataHandler,
-        private DataStructureHandler $dataStructureHandler,
         private CacheManager $cacheManager,
-        private PatternSanitizer $patternSanitizer,
-        private GeneralSanitizer $generalSanitizer,
         private PatternValidator $patternValidator,
-        private GeneralValidator $generalValidator,
         private ModuleManager $moduleManager,
         private ErrorManager $errorManager
     ) {
-        // Load or build routes. If any error => alias 'router'
-        $this->routes = $this->wrapInTry(
-            fn() => $this->cacheManager->get('routes') |> (
-                $this->isString($_) && $this->isRouteCacheValid($_)
-                    ? $this->dataHandler->jsonDecode($this->dataHandler->urlDecode($_))
-                    : $this->cacheRoutes()
-            ),
-            'router'
-        );
+        $this->initializeRoutes();
     }
 
     /**
-     * Begins a group with prefix + optional group-level middleware.
+     * Begins a route group with prefix and middleware.
+     *
+     * @param string $prefix
+     * @param array $middleware
+     * @return void
      */
     public function group(string $prefix, array $middleware = []): void
     {
-        $this->groupPrefix = $this->wrapInTry(
-            fn() => $this->sanitizePath($prefix),
-            'sanitization'
-        );
+        $this->groupPrefix = $this->normalizeRoutePath($prefix);
         $this->groupMiddleware = $middleware;
     }
 
     /**
-     * Ends the group prefix + group-level middleware context.
+     * Ends the current route group.
+     *
+     * @return void
      */
     public function endGroup(): void
     {
-        $this->groupPrefix = null;
+        $this->groupPrefix = '';
         $this->groupMiddleware = [];
     }
 
     /**
-     * Registers a route. $options may contain:
-     *   'middleware' => [...],
-     *   'params' => [ 'id'=>['intPos',['between'=>[1,999]]] ]
+     * Registers a route.
+     *
+     * @param string $method
+     * @param string $path
+     * @param string $controllerAlias
+     * @param string $action
+     * @param array $options
+     * @return void
      */
     public function addRoute(
         string $method,
@@ -142,22 +108,26 @@ class Router
         string $action,
         array $options = []
     ): void {
-        $this->routes[$method][
-            $this->wrapInTry(
-                fn() => $this->sanitizePath(
-                    $this->validateUri(($this->groupPrefix ?? '') . $path)
-                ),
-                'sanitization'
-            )
-        ] = [
-            'callback'   => [$controllerAlias, $action],
-            'middleware' => $this->merge($this->groupMiddleware, $options['middleware'] ?? []),
-            'paramRules' => $options['params'] ?? []
+        $normalizedMethod = strtoupper($method);
+        $normalizedPath = $this->normalizeRoutePath($this->groupPrefix . $path);
+
+        $this->routes[$normalizedMethod][$normalizedPath] = [
+            'callback' => [$controllerAlias, $action],
+            'middleware' => array_values(array_merge($this->groupMiddleware, $options['middleware'] ?? [])),
+            'paramRules' => $options['params'] ?? [],
         ];
     }
 
     /**
-     * Registers a route plus a named alias for route(...).
+     * Registers a named route.
+     *
+     * @param string $method
+     * @param string $path
+     * @param string $controllerAlias
+     * @param string $action
+     * @param string $alias
+     * @param array $options
+     * @return void
      */
     public function addRouteWithAlias(
         string $method,
@@ -168,11 +138,30 @@ class Router
         array $options = []
     ): void {
         $this->addRoute($method, $path, $controllerAlias, $action, $options);
-        $this->namedRoutes[$alias] = ($this->groupPrefix ?? '') . $path;
+        $this->namedRoutes[$alias] = $this->normalizeRoutePath($this->groupPrefix . $path);
     }
 
     /**
-     * Shorthand to define a route by HTTP method: GET, POST, PUT, etc.
+     * Registers a fallback route.
+     *
+     * @param string $controllerAlias
+     * @param string $action
+     * @return void
+     */
+    public function fallback(string $controllerAlias, string $action = 'index'): void
+    {
+        $this->fallbackRoute = [$controllerAlias, $action];
+    }
+
+    /**
+     * Shorthand route registration.
+     *
+     * @param string $method
+     * @param string $path
+     * @param string $controllerAlias
+     * @param string $action
+     * @param array $options
+     * @return void
      */
     public function execute(
         string $method,
@@ -181,332 +170,575 @@ class Router
         string $action,
         array $options = []
     ): void {
-        match ($this->toUpper($method)) {
-            'GET'     => $this->addRoute('GET', $path, $controllerAlias, $action, $options),
-            'POST'    => $this->addRoute('POST', $path, $controllerAlias, $action, $options),
-            'PUT'     => $this->addRoute('PUT', $path, $controllerAlias, $action, $options),
-            'DELETE'  => $this->addRoute('DELETE', $path, $controllerAlias, $action, $options),
-            'PATCH'   => $this->addRoute('PATCH', $path, $controllerAlias, $action, $options),
-            'OPTIONS' => $this->addRoute('OPTIONS', $path, $controllerAlias, $action, $options),
-            default   => (
-                $this->errorManager->logErrorMessage(
-                    "Unsupported HTTP method: {$method}",
-                    __FILE__,
-                    __LINE__,
-                    'userError',
-                    'router'
-                ),
-                throw $this->errorManager->resolveException(
-                    'invalidArgument',
-                    "Unsupported HTTP method: {$method}"
-                )
-            )
-        };
+        $normalizedMethod = strtoupper($method);
+
+        if (!in_array($normalizedMethod, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], true)) {
+            throw $this->errorManager->resolveException(
+                'invalidArgument',
+                "Unsupported HTTP method: {$method}"
+            );
+        }
+
+        if (isset($options['as'])) {
+            $this->addRouteWithAlias(
+                $normalizedMethod,
+                $path,
+                $controllerAlias,
+                $action,
+                $options['as'],
+                $options
+            );
+            return;
+        }
+
+        $this->addRoute($normalizedMethod, $path, $controllerAlias, $action, $options);
     }
 
-    // Shorthand route definitions:
-
     public function get(string $path, string $controller, string $action, array $options = []): void
-    { $this->execute('GET', $path, $controller, $action, $options); }
+    {
+        $this->execute('GET', $path, $controller, $action, $options);
+    }
 
     public function post(string $path, string $controller, string $action, array $options = []): void
-    { $this->execute('POST', $path, $controller, $action, $options); }
+    {
+        $this->execute('POST', $path, $controller, $action, $options);
+    }
 
     public function put(string $path, string $controller, string $action, array $options = []): void
-    { $this->execute('PUT', $path, $controller, $action, $options); }
+    {
+        $this->execute('PUT', $path, $controller, $action, $options);
+    }
 
     public function delete(string $path, string $controller, string $action, array $options = []): void
-    { $this->execute('DELETE', $path, $controller, $action, $options); }
+    {
+        $this->execute('DELETE', $path, $controller, $action, $options);
+    }
 
     public function patch(string $path, string $controller, string $action, array $options = []): void
-    { $this->execute('PATCH', $path, $controller, $action, $options); }
+    {
+        $this->execute('PATCH', $path, $controller, $action, $options);
+    }
 
     public function options(string $path, string $controller, string $action, array $options = []): void
-    { $this->execute('OPTIONS', $path, $controller, $action, $options); }
+    {
+        $this->execute('OPTIONS', $path, $controller, $action, $options);
+    }
 
     /**
-     * Creates a URL for a named route, substituting placeholders (like {id}) with $params.
+     * Resolves a named route into a URL.
+     *
+     * @param string $name
+     * @param array $params
+     * @return string
      */
     public function route(string $name, array $params = []): string
     {
-        return $this->namedRoutes[$name]
-            ?? (
-                $this->errorManager->logErrorMessage(
-                    "Route name '{$name}' not found.",
-                    __FILE__,
-                    __LINE__,
-                    'userError',
-                    'router'
-                ),
-                throw $this->errorManager->resolveException(
-                    'routeNotFound',
-                    "Route name '{$name}' not found."
-                )
-            )
-            |> $this->reduce(
-                $params,
-                fn($carry, $val, $key) => $this->replace("{{$key}}", $val, $carry),
-                $_
-            )
-            |> $this->replace('/\{(\w+)\?\}/', '', $_);
+        if (!isset($this->namedRoutes[$name])) {
+            throw $this->errorManager->resolveException(
+                'routeNotFound',
+                "Route name '{$name}' not found."
+            );
+        }
+
+        $route = $this->namedRoutes[$name];
+
+        foreach ($params as $key => $value) {
+            $route = str_replace('{' . $key . '}', (string) $value, $route);
+            $route = str_replace('{' . $key . '?}', (string) $value, $route);
+        }
+
+        return (string) preg_replace('/\/?\{(\w+)\?\}/', '', $route);
     }
 
     /**
-     * Dispatch => match route => apply middleware => call controller->action(...).
+     * Dispatches a request URI and method.
+     *
+     * @param string $uri
+     * @param string $method
+     * @return mixed
      */
     public function dispatch(string $uri, string $method): mixed
     {
-        return $this->wrapInTry(
-            fn() => $this->matchUriToRoute(
-                $this->sanitizePath($this->validateUri($uri)),
+        try {
+            $route = $this->matchUriToRoute(
+                $this->normalizeRequestPath($uri),
                 $this->getHttpMethod($method)
-            ) |> (
-                $this->applyMiddleware($_['middleware']),
-                $this->moduleManager->resolveModule($_['callback'][0])
-                    ->{$_['callback'][1]}(...$this->routeParams)
-            ),
-            'router'
-        ) ?? $this->executeFallback();
+            );
+
+            $this->applyMiddleware($route['middleware'] ?? []);
+
+            return $this->moduleManager->resolveModule($route['callback'][0])
+                ->{$route['callback'][1]}(...array_values($this->routeParams));
+        } catch (RouteNotFoundException) {
+            return $this->executeFallback();
+        } catch (Throwable $exception) {
+            throw $this->errorManager->resolveException(
+                'router',
+                $exception->getMessage(),
+                $exception->getCode(),
+                $exception
+            );
+        }
     }
 
     /**
-     * Applies route-level + group-level middleware by alias, typically ->handle().
+     * Initializes routes from cache or route files.
+     *
+     * @return void
      */
-    private function applyMiddleware(array $mwConfigs): void
+    private function initializeRoutes(): void
     {
-        $this->walk(
-            $mwConfigs,
-            fn($mw) => $this->methodExists(
-                $this->moduleManager->resolveModule($mw[0] ?? ''),
-                $mw[1] ?? 'handle'
-            )
-                ? $this->moduleManager->resolveModule($mw[0] ?? '')
-                    ->{ $mw[1] ?? 'handle' }()
-                : (
-                    $this->errorManager->logErrorMessage(
-                        "Middleware method [" . ($mw[1] ?? 'handle') . "] not found in [" . ($mw[0] ?? '') . "].",
-                        __FILE__,
-                        __LINE__,
-                        'userError',
-                        'router'
-                    ),
-                    throw $this->errorManager->resolveException(
-                        'middleware',
-                        "Method [" . ($mw[1] ?? 'handle') . "] not found in middleware [" . ($mw[0] ?? '') . "]."
-                    )
-                )
+        $routeFiles = $this->moduleManager->collectFiles('Routes');
+        $signature = $this->buildRouteSignature($routeFiles);
+        $cachedState = $this->loadCachedRouteState();
+
+        if ($this->isRouteCacheValid($cachedState, $signature)) {
+            $this->hydrateRouteState($cachedState);
+            return;
+        }
+
+        $this->rebuildRoutes($routeFiles, $signature);
+    }
+
+    /**
+     * Applies middleware callbacks by alias.
+     *
+     * @param array $middlewares
+     * @return void
+     */
+    private function applyMiddleware(array $middlewares): void
+    {
+        foreach ($middlewares as $middleware) {
+            $module = $this->moduleManager->resolveModule($middleware[0] ?? '');
+            $method = $middleware[1] ?? 'handle';
+
+            if (!method_exists($module, $method)) {
+                throw $this->errorManager->resolveException(
+                    'middleware',
+                    "Method [{$method}] not found in middleware [" . ($middleware[0] ?? '') . '].'
+                );
+            }
+
+            $module->{$method}();
+        }
+    }
+
+    /**
+     * Rebuilds routes from route files and refreshes cache.
+     *
+     * @param array $routeFiles
+     * @param string $signature
+     * @return void
+     */
+    private function rebuildRoutes(array $routeFiles, string $signature): void
+    {
+        $this->resetRouteState();
+
+        foreach ($routeFiles as $file) {
+            $this->loadRouteFile($file);
+        }
+
+        $this->persistRouteState($this->exportRouteState($signature));
+    }
+
+    /**
+     * Loads an individual route file.
+     *
+     * @param string $file
+     * @return void
+     */
+    private function loadRouteFile(string $file): void
+    {
+        $definition = require $file;
+
+        if (is_callable($definition)) {
+            $definition($this);
+            return;
+        }
+
+        if (is_array($definition)) {
+            $this->importRouteArray($definition);
+            return;
+        }
+
+        throw $this->errorManager->resolveException(
+            'router',
+            "Route file '{$file}' must return an array or callable."
         );
     }
 
     /**
-     * Builds or loads route definitions, caches them, all under alias 'router'.
+     * Imports route definitions from an array.
+     *
+     * @param array $definition
+     * @return void
      */
-    private function cacheRoutes(): array
+    private function importRouteArray(array $definition): void
     {
-        return $this->wrapInTry(
-            fn() => $this->buildRoutes() |> (
-                $this->cacheManager->set(
-                    'routes',
-                    $this->dataHandler->urlEncode($this->dataHandler->jsonEncode($_)),
-                    $this->cacheDuration
-                ),
-                $_
-            ),
-            'router'
-        );
+        if (isset($definition['routes']) || isset($definition['namedRoutes']) || array_key_exists('fallbackRoute', $definition)) {
+            $this->routes = array_replace_recursive($this->routes, $definition['routes'] ?? []);
+            $this->namedRoutes = array_replace($this->namedRoutes, $definition['namedRoutes'] ?? []);
+            $this->fallbackRoute = $definition['fallbackRoute'] ?? $this->fallbackRoute;
+            return;
+        }
+
+        if ($this->isMethodMap($definition)) {
+            $this->routes = array_replace_recursive($this->routes, $definition);
+            return;
+        }
+
+        foreach ($definition as $route) {
+            if (is_array($route)) {
+                $this->registerDeclarativeRoute($route);
+            }
+        }
     }
 
     /**
-     * Collects route files from all modules' 'routes' subdir, merges them into a single array.
+     * Registers a declarative route array.
+     *
+     * @param array $route
+     * @return void
      */
-    private function buildRoutes(): array
+    private function registerDeclarativeRoute(array $route): void
     {
-        return $this->wrapInTry(
-            fn() => $this->reduce(
-                $this->moduleManager->collectFiles('routes'),
-                fn($acc, $file) => $this->mergeUnique($acc, require $file),
-                []
-            ),
-            'router'
-        );
+        if (isset($route['fallback']) && $route['fallback'] === true) {
+            $this->fallback($route['controller'], $route['action'] ?? 'index');
+            return;
+        }
+
+        $method = $route['method'] ?? 'GET';
+        $path = $route['path'] ?? '/';
+        $controller = $route['controller'] ?? null;
+        $action = $route['action'] ?? 'index';
+        $options = $route['options'] ?? [];
+
+        if (!is_string($controller)) {
+            throw $this->errorManager->resolveException('router', 'Declarative routes require a controller.');
+        }
+
+        if (isset($route['alias']) && is_string($route['alias'])) {
+            $this->addRouteWithAlias($method, $path, $controller, $action, $route['alias'], $options);
+            return;
+        }
+
+        $this->addRoute($method, $path, $controller, $action, $options);
     }
 
     /**
-     * Verifies the cached routes data is valid (non-empty JSON).
-     * We do not use an array validator method here, just a simple isEmpty check.
+     * Determines whether an array matches the compiled route map structure.
+     *
+     * @param array $definition
+     * @return bool
      */
-    private function isRouteCacheValid(string $cached): bool
+    private function isMethodMap(array $definition): bool
     {
-        return (bool) $this->wrapInTry(
-            fn() => !$this->isEmpty(
-                $this->dataHandler->jsonDecode($this->dataHandler->urlDecode($cached))
-            ),
-            'router'
-        );
+        if ($definition === []) {
+            return false;
+        }
+
+        foreach (array_keys($definition) as $key) {
+            if (!in_array((string) $key, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
-     * Matches a URI+method => merges placeholders => param-based rules if any.
+     * Loads cached route state.
+     *
+     * @return array|null
+     */
+    private function loadCachedRouteState(): ?array
+    {
+        try {
+            $payload = $this->cacheManager->get('routes');
+
+            if (!is_string($payload) || $payload === '') {
+                return null;
+            }
+
+            $decoded = base64_decode($payload, true);
+
+            if ($decoded === false) {
+                return null;
+            }
+
+            $state = json_decode($decoded, true);
+
+            return is_array($state) ? $state : null;
+        } catch (Throwable $exception) {
+            $this->errorManager->logThrowable($exception, 'router', 'userWarning');
+            return null;
+        }
+    }
+
+    /**
+     * Persists route state to cache.
+     *
+     * @param array $state
+     * @return void
+     */
+    private function persistRouteState(array $state): void
+    {
+        try {
+            $payload = base64_encode((string) json_encode($state, JSON_THROW_ON_ERROR));
+            $this->cacheManager->set('routes', $payload, $this->cacheDuration);
+        } catch (Throwable $exception) {
+            $this->errorManager->logThrowable($exception, 'router', 'userWarning');
+        }
+    }
+
+    /**
+     * Exports the full route state for caching.
+     *
+     * @param string $signature
+     * @return array
+     */
+    private function exportRouteState(string $signature): array
+    {
+        return [
+            'signature' => $signature,
+            'routes' => $this->routes,
+            'namedRoutes' => $this->namedRoutes,
+            'fallbackRoute' => $this->fallbackRoute,
+        ];
+    }
+
+    /**
+     * Restores route state from a cached payload.
+     *
+     * @param array $state
+     * @return void
+     */
+    private function hydrateRouteState(array $state): void
+    {
+        $this->routes = is_array($state['routes'] ?? null) ? $state['routes'] : [];
+        $this->namedRoutes = is_array($state['namedRoutes'] ?? null) ? $state['namedRoutes'] : [];
+        $this->fallbackRoute = is_array($state['fallbackRoute'] ?? null) ? $state['fallbackRoute'] : null;
+    }
+
+    /**
+     * Clears in-memory route state before a rebuild.
+     *
+     * @return void
+     */
+    private function resetRouteState(): void
+    {
+        $this->routes = [];
+        $this->routeParams = [];
+        $this->namedRoutes = [];
+        $this->fallbackRoute = null;
+        $this->groupPrefix = '';
+        $this->groupMiddleware = [];
+    }
+
+    /**
+     * Validates cached route state against the current route signature.
+     *
+     * @param array|null $state
+     * @param string $signature
+     * @return bool
+     */
+    private function isRouteCacheValid(?array $state, string $signature): bool
+    {
+        return is_array($state)
+            && ($state['signature'] ?? null) === $signature
+            && is_array($state['routes'] ?? null);
+    }
+
+    /**
+     * Builds a stable signature for route file contents.
+     *
+     * @param array $routeFiles
+     * @return string
+     */
+    private function buildRouteSignature(array $routeFiles): string
+    {
+        $fingerprints = [];
+
+        foreach ($routeFiles as $file) {
+            $fingerprints[] = [
+                'file' => $file,
+                'mtime' => @filemtime($file) ?: 0,
+                'size' => @filesize($file) ?: 0,
+            ];
+        }
+
+        usort($fingerprints, fn($left, $right) => strcmp($left['file'], $right['file']));
+
+        return sha1((string) json_encode($fingerprints));
+    }
+
+    /**
+     * Matches a normalized URI and method to a route definition.
+     *
+     * @param string $uri
+     * @param string $method
+     * @return array
      */
     private function matchUriToRoute(string $uri, string $method): array
     {
-        return $this->keyExists($this->routes, $method)
-            ? $this->reduce(
-                $this->routes[$method],
-                fn($found, $route, $pattern) => $found ?: (
-                    preg_match($this->convertPatternToRegex($pattern), $uri, $matches)
-                        ? $this->merge($route, [
-                            'params' => $this->routeParams = $this->validateParams(
-                                $this->filter($matches, fn($k) => $this->isString($k), ARRAY_FILTER_USE_KEY),
-                                $route['paramRules'] ?? []
-                            )
-                        ])
-                        : null
-                ),
-                null
-            ) ?? (
-                $this->errorManager->logErrorMessage(
-                    "No matching route for URI: {$uri}",
-                    __FILE__,
-                    __LINE__,
-                    'userError',
-                    'router'
-                ),
-                throw $this->errorManager->resolveException(
-                    'routeNotFound',
-                    "No matching route for URI: {$uri}"
-                )
-            )
-            : (
-                $this->errorManager->logErrorMessage(
-                    "No routes defined for method {$method}",
-                    __FILE__,
-                    __LINE__,
-                    'userError',
-                    'router'
-                ),
-                throw $this->errorManager->resolveException(
-                    'routeNotFound',
-                    "No routes defined for method {$method}."
-                )
+        if (!isset($this->routes[$method])) {
+            throw $this->errorManager->resolveException(
+                'routeNotFound',
+                "No routes defined for method {$method}."
             );
+        }
+
+        foreach ($this->routes[$method] as $pattern => $route) {
+            $matches = [];
+
+            if (preg_match($this->convertPatternToRegex($pattern), $uri, $matches) !== 1) {
+                continue;
+            }
+
+            $this->routeParams = $this->validateParams(
+                array_filter($matches, fn($key) => is_string($key), ARRAY_FILTER_USE_KEY),
+                $route['paramRules'] ?? []
+            );
+
+            $route['params'] = $this->routeParams;
+
+            return $route;
+        }
+
+        throw $this->errorManager->resolveException(
+            'routeNotFound',
+            "No matching route for URI: {$uri}"
+        );
     }
 
     /**
-     * If no route matched, fallback or throw 'routeNotFound'.
+     * Executes the fallback route when defined.
+     *
+     * @return mixed
      */
     private function executeFallback(): mixed
     {
-        return $this->isNull($this->fallbackRoute)
-            ? (
-                $this->errorManager->logErrorMessage(
-                    "No fallback route defined.",
-                    __FILE__,
-                    __LINE__,
-                    'userError',
-                    'router'
-                ),
-                throw $this->errorManager->resolveException(
-                    'routeNotFound',
-                    "No matching route and no fallback defined."
-                )
-            )
-            : $this->moduleManager
-                ->resolveModule($this->fallbackRoute[0])
-                ->{$this->fallbackRoute[1]}();
+        if ($this->fallbackRoute === null) {
+            throw $this->errorManager->resolveException(
+                'routeNotFound',
+                'No matching route and no fallback defined.'
+            );
+        }
+
+        return $this->moduleManager
+            ->resolveModule($this->fallbackRoute[0])
+            ->{$this->fallbackRoute[1]}();
     }
 
     /**
-     * Allows _method override if client can't send PUT/PATCH/DELETE directly.
+     * Allows _method override for limited clients.
+     *
+     * @param string $original
+     * @return string
      */
     private function getHttpMethod(string $original): string
     {
-        return $this->isString($_POST['_method'] ?? $_GET['_method'] ?? null)
-            && $this->contains('PUT|PATCH|DELETE', $this->toUpper($_POST['_method'] ?? $_GET['_method'] ?? ''))
-            ? $this->toUpper($_POST['_method'] ?? $_GET['_method'] ?? '')
-            : $this->toUpper($original);
+        $override = $_POST['_method'] ?? $_GET['_method'] ?? null;
+
+        if (is_string($override)) {
+            $override = strtoupper($override);
+
+            if (in_array($override, ['PUT', 'PATCH', 'DELETE'], true)) {
+                return $override;
+            }
+        }
+
+        return strtoupper($original);
     }
 
     /**
-     * Converts /user/{id:\d+} => named-capturing regex => e.g. (?P<id>\d+).
+     * Converts a route pattern into a regular expression.
+     *
+     * @param string $pattern
+     * @return string
      */
     private function convertPatternToRegex(string $pattern): string
     {
-        return '~^' . $this->replace(
+        $regex = preg_replace_callback(
             '/\{(\w+)(?::([^}]+))?\}/',
-            fn($m) => $this->isSet($m[2])
-                ? "(?P<{$m[1]}>{$m[2]})"
-                : "(?P<{$m[1]}>[^/]+)",
+            fn($matches) => isset($matches[2])
+                ? '(?P<' . $matches[1] . '>' . $matches[2] . ')'
+                : '(?P<' . $matches[1] . '>[^/]+)',
             $pattern
-        ) . '$~';
+        );
+
+        return '#^' . $regex . '$#';
     }
 
     /**
-     * Validates placeholders => param rules or default 'slug'+['notEmpty'] if none.
+     * Validates captured route parameters when rules are defined.
+     *
+     * @param array $placeholders
+     * @param array $rules
+     * @return array
      */
     private function validateParams(array $placeholders, array $rules): array
     {
-        return $this->map(
-            fn($pName, $pVal) =>
-                $this->applyParamRule($pName, $pVal, $rules[$pName] ?? ['slug',['notEmpty']]),
-            $placeholders
-        );
+        $validated = [];
+
+        foreach ($placeholders as $name => $value) {
+            if (!isset($rules[$name])) {
+                $validated[$name] = $value;
+                continue;
+            }
+
+            $validated[$name] = $this->patternValidator->verify(
+                [$name => $rules[$name]],
+                [$name => $value]
+            )[$name];
+        }
+
+        return $validated;
     }
 
     /**
-     * Applies a single param rule (like ['intPos',['between'=>[1,9999]]]) via PatternValidator.
+     * Normalizes a route pattern while preserving placeholders.
+     *
+     * @param string $path
+     * @return string
      */
-    private function applyParamRule(string $paramName, mixed $value, array $ruleConfig): mixed
+    private function normalizeRoutePath(string $path): string
     {
-        return $this->wrapInTry(
-            fn() => $this->patternValidator->verify(
-                [$paramName => $ruleConfig],
-                [$paramName => $value]
-            )[$paramName],
-            'validation'
-        );
+        $path = trim($path);
+
+        if ($path === '') {
+            return '/';
+        }
+
+        $path = preg_replace('#/+#', '/', $path) ?? $path;
+
+        if (substr($path, 0, 1) !== '/') {
+            $path = '/' . $path;
+        }
+
+        if ($path !== '/' && substr($path, -1) === '/') {
+            $path = rtrim($path, '/');
+        }
+
+        return $path === '' ? '/' : $path;
     }
 
     /**
-     * Sanitizes a path => 
-     * 1) GeneralSanitizer => 'string' + flags ['fullSpecialChars','stripLow','stripHigh']
-     * 2) PatternSanitizer => 'slug'
+     * Normalizes a request URI into a clean path.
+     *
+     * @param string $uri
+     * @return string
      */
-    private function sanitizePath(string $path): string
+    private function normalizeRequestPath(string $uri): string
     {
-        return $this->wrapInTry(
-            fn() => $this->patternSanitizer->clean(
-                ['p' => ['slug']],
-                $this->generalSanitizer->clean(
-                    [
-                        'p' => [
-                            'string',
-                            ['fullSpecialChars','stripLow','stripHigh']
-                        ]
-                    ],
-                    ['p' => $this->dataHandler->urlDecode($path)]
-                )
-            )['p'],
-            'sanitization'
-        );
-    }
+        $path = parse_url($uri, PHP_URL_PATH);
 
-    /**
-     * Validates $uri => 'url','pathRequired' via GeneralValidator, alias 'validation'.
-     */
-    private function validateUri(string $uri): string
-    {
-        return $this->wrapInTry(
-            fn() => $this->generalValidator->verify(
-                [
-                    'uri' => [
-                        'url',
-                        ['pathRequired']
-                    ]
-                ],
-                ['uri' => $uri]
-            )['uri'],
-            'validation'
-        );
+        if (!is_string($path) || $path === '') {
+            return '/';
+        }
+
+        $decodedPath = rawurldecode($path);
+
+        return $this->normalizeRoutePath($decodedPath);
     }
 }

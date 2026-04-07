@@ -50,6 +50,7 @@ use ParseError;
 use RangeException;
 use RequestParseBodyException;
 use RuntimeException;
+use ReflectionClass;
 use TypeError;
 use UnderflowException;
 use UnexpectedValueException;
@@ -86,6 +87,8 @@ class ExceptionProvider extends Container
      */
     public function __construct()
     {
+        parent::__construct();
+
         $this->exceptionMap = [
             // Core PHP exceptions
             'argumentCount'      => ArgumentCountError::class,
@@ -119,6 +122,7 @@ class ExceptionProvider extends Container
             // Custom application exceptions
             'app'                => AppException::class,
             'config'             => ConfigException::class,
+            'settings'           => ConfigException::class,
             'routeNotFound'      => RouteNotFoundException::class,
             'router'             => RouterException::class,
 
@@ -163,15 +167,16 @@ class ExceptionProvider extends Container
     public function registerServices(): void
     {
         $this->wrapInTry(
-            fn() => (!$this->isArray($this->exceptionMap) || $this->isEmpty($this->exceptionMap))
-                ? throw new ContainerException("The exception map must be a non-empty array.")
-                : $this->walk(
-                    $this->exceptionMap,
-                    fn($class, $alias) => [
-                        $this->registerAlias($alias, $class),
-                        $this->registerSingleton($class)
-                    ]
-                ),
+            function (): void {
+                if (!$this->isArray($this->exceptionMap) || $this->isEmpty($this->exceptionMap)) {
+                    throw new ContainerException("The exception map must be a non-empty array.");
+                }
+
+                foreach ($this->exceptionMap as $alias => $class) {
+                    $this->registerAlias($alias, $class);
+                    $this->registerSingleton($class);
+                }
+            },
             new ContainerException("Error registering exception services.")
         );
     }
@@ -183,13 +188,54 @@ class ExceptionProvider extends Container
      * @return object The resolved exception instance (singleton).
      * @throws ContainerException If the specified exception is unsupported or on resolution failure.
      */
-    public function getException(string $exceptionAlias): object
+    public function getException(
+        string $exceptionAlias,
+        string $message = "",
+        int $code = 0,
+        ?\Throwable $previous = null
+    ): object
     {
         return $this->wrapInTry(
-            fn() => $this->getInstance(
-                $this->exceptionMap[$exceptionAlias]
-                    ?? throw new ContainerException("Unsupported exception alias: $exceptionAlias")
-            ),
+            function () use ($exceptionAlias, $message, $code, $previous): object {
+                $class = $this->exceptionMap[$exceptionAlias]
+                    ?? throw new ContainerException("Unsupported exception alias: $exceptionAlias");
+                $reflection = new ReflectionClass($class);
+                $constructor = $reflection->getConstructor();
+
+                if ($constructor === null || $constructor->getNumberOfParameters() === 0) {
+                    return $reflection->newInstance();
+                }
+
+                $arguments = [];
+
+                foreach ($constructor->getParameters() as $index => $parameter) {
+                    $name = $parameter->getName();
+
+                    if ($index === 0 || $name === 'message') {
+                        $arguments[] = $message;
+                        continue;
+                    }
+
+                    if ($name === 'code') {
+                        $arguments[] = $code;
+                        continue;
+                    }
+
+                    if ($name === 'previous') {
+                        $arguments[] = $previous;
+                        continue;
+                    }
+
+                    if ($parameter->isDefaultValueAvailable()) {
+                        $arguments[] = $parameter->getDefaultValue();
+                        continue;
+                    }
+
+                    $arguments[] = $parameter->allowsNull() ? null : '';
+                }
+
+                return $reflection->newInstanceArgs($arguments);
+            },
             new ContainerException("Error retrieving exception [$exceptionAlias].")
         );
     }

@@ -108,8 +108,8 @@ use App\Utilities\Traits\{
 	 * @param mixed $data The input data to validate.
 	 * @return array The validated data array.
 	 */
-	public function verify(mixed $data): array
+	public function verify(array $schema, ?array $values = null): array
 	{
-		return $this->handle($data);
+		return $this->handle($schema, $values);
 	}
 }

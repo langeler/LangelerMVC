@@ -1,0 +1,3111 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2820
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 .SFNS-Bold;\f1\fnil\fcharset0 .SFNS-Regular;\f2\fswiss\fcharset0 Helvetica;
+\f3\fmodern\fcharset0 Courier;\f4\fnil\fcharset0 .AppleSystemUIFontMonospaced-Regular;\f5\fnil\fcharset0 .SFNS-Heavy;
+\f6\fmodern\fcharset0 Courier-Oblique;}
+{\colortbl;\red255\green255\blue255;\red14\green14\blue14;\red184\green93\blue213;\red155\green162\blue177;
+\red81\green156\blue233;\red197\green136\blue83;\red74\green80\blue93;\red136\green185\blue102;\red214\green85\blue98;
+\red72\green168\blue181;\red223\green180\blue104;}
+{\*\expandedcolortbl;;\cssrgb\c6700\c6700\c6700;\cssrgb\c77647\c47059\c86667;\cssrgb\c67059\c69804\c74902;
+\cssrgb\c38039\c68235\c93333;\cssrgb\c81961\c60392\c40000;\cssrgb\c36078\c38824\c43922;\cssrgb\c59608\c76471\c47451;\cssrgb\c87843\c42353\c45882;
+\cssrgb\c33725\c71373\c76078;\cssrgb\c90196\c75294\c48235;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs48 \cf2 IteratorManager Class Documentation
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 Namespace Integration
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 use\cf4  \cf5 App\cf4 \\\cf5 Utilities\cf4 \\\cf5 Managers\cf4 \\\cf5 IteratorManger\cf4 ;
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 Methods Overview
+\f1\b0\fs32 \
+\
+The 
+\f4 IteratorManager
+\f1  class provides various methods in conjunction with the integrated 
+\f4 IteratorTrait
+\f1  and 
+\f4 RecursiveIteratorTrait
+\f1 . This allows efficient iteration, traversal, and filtering over both recursive and standard iterators.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs48 \cf2 Available Methods in IteratorManager
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 1. setIterator() Method
+\f1\b0\fs32 \
+\
+Sets the current iterator (either standard or recursive) for the IteratorManager.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 setIterator\cf4 (?Iterator \cf6 $iterator\cf4 ): \cf5 void\cf4 \
+\{\
+    $this->iterator = \cf6 $iterator\cf4 ; 
+\f6\i \cf7 // Direct assignment, follows best practice
+\f3\i0 \cf4 \
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Sets the current iterator to be used by the IteratorManager.\
+	\'95	
+\f0\b Use Case:
+\f1\b0  Reusing or updating the current iterator for further operations.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $iteratorManager\cf4 ->setIterator(\cf6 $recursiveIterator\cf4 );
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 2. getIterator() Method
+\f1\b0\fs32 \
+\
+Retrieves the current iterator that was previously set using 
+\f4 setIterator()
+\f1 .\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 getIterator\cf4 (): ?\cf5 Iterator\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Accesses the current iterator for further processing or iteration.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iterator\cf4  = \cf6 $iteratorManager\cf4 ->getIterator();\
+\cf3 foreach\cf4  (\cf6 $iterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 3. fetchSettings() Method
+\f1\b0\fs32 \
+\
+Fetches default settings for a specific iterator and applies overrides.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 private\cf4  \cf3 function\cf4  \cf5 fetchSettings\cf4 (\cf3 string\cf4  \cf6 $iterator\cf4 , \cf3 array\cf4  \cf6 $overrides\cf4  = []): \cf5 array\cf4 \
+\{\
+    \cf6 $defaultSettings\cf4  = $this->iteratorSettings[\cf6 $iterator\cf4 ]\
+      ?? $this->recursiveIteratorSettings[\cf6 $iterator\cf4 ]\
+      ?? \cf3 throw\cf4  \cf3 new\cf4  IteratorNotFoundException(\cf8 "Settings for iterator '\cf9 \{$iterator\}\cf8 ' not found."\cf4 );\
+\
+    \cf3 return\cf4  array_replace_recursive(\cf6 $defaultSettings\cf4 , array_map(function (\cf6 $value\cf4 , \cf6 $key\cf4 ) \cf3 use\cf4  (\cf6 $defaultSettings\cf4 ) \{\
+      \cf3 return\cf4  is_array(\cf6 $value\cf4 )\
+        ? array_reduce(\
+          array_map(fn(\cf6 $subKey\cf4 ) => \cf6 $defaultSettings\cf4 [\cf6 $key\cf4 ][\cf6 $subKey\cf4 ] ?? \cf6 0\cf4 , \cf6 $value\cf4 ),\
+          \cf3 fn\cf4 (\cf6 $carry\cf4 , \cf6 $item\cf4 ) => \cf6 $carry\cf4  | \cf6 $item\cf4 ,\
+          \cf6 0\cf4 \
+        )\
+        : \cf6 $value\cf4 ;\
+    \}, \cf6 $overrides\cf4 , array_keys(\cf6 $overrides\cf4 )));\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Ensures the correct flags, modes, and settings are applied for each iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 4. resolve() Method
+\f1\b0\fs32 \
+\
+Resolves the class name of the iterator being created.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 private\cf4  \cf3 function\cf4  \cf5 resolve\cf4 (\cf3 string\cf4  \cf6 $iterator\cf4 ): \cf5 string\cf4 \
+\{\
+    \cf3 return\cf4  $this->iteratorSettings[\cf6 $iterator\cf4 ][\cf8 'class'\cf4 ]\
+      ?? $this->recursiveIteratorSettings[\cf6 $iterator\cf4 ][\cf8 'class'\cf4 ]\
+      ?? \cf3 throw\cf4  \cf3 new\cf4  IteratorNotFoundException(\cf8 "Unknown iterator: \cf9 $iterator\cf8 "\cf4 );\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Maps the iterator name to its corresponding class.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 5. createIterator() Method
+\f1\b0\fs32 \
+\
+Creates iterators (both recursive and standard) using the resolved class and fetched settings.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 private\cf4  \cf3 function\cf4  \cf5 createIterator\cf4 (\cf3 string\cf4  \cf6 $iteratorName\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = [], ...\cf6 $args\cf4 ): \cf5 Iterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  ($this->resolve(\cf6 $iteratorName\cf4 ))(\
+            ...\cf6 $args\cf4 ,\
+            ...array_values(\cf6 $this\cf4 ->fetchSettings(\cf6 $iteratorName\cf4 , \cf6 $settings\cf4 ))\
+        );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating \cf9 \{$iteratorName\}\cf8 : "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Core method for creating iterators.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 6. current() Method
+\f1\b0\fs32 \
+\
+Returns the current element in the iterator.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 current\cf4 (): \cf5 mixed\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator?->current();\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Retrieves the current element from the active iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 echo\cf4  \cf6 $iteratorManager\cf4 ->current();
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 7. key() Method
+\f1\b0\fs32 \
+\
+Retrieves the key of the current element in the iterator.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 key\cf4 (): \cf5 mixed\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator?->key();\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Retrieves the key of the current element in the iterator.\
+	\'95	
+\f0\b Return Type:
+\f1\b0  The return type can vary depending on the iterator (e.g., string for associative arrays, integer for numeric arrays).\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iteratorManager\cf4 ->setIterator(\cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 'first'\cf4  => \cf6 1\cf4 , \cf8 'second'\cf4  => \cf6 2\cf4 ], []));\
+\
+\cf3 echo\cf4  \cf8 "Current key: "\cf4  . \cf6 $iteratorManager\cf4 ->key() . PHP_EOL; 
+\f6\i \cf7 // Output: first
+\f3\i0 \cf4 \
+\cf6 $iteratorManager\cf4 ->next();\
+\cf3 echo\cf4  \cf8 "Next key: "\cf4  . \cf6 $iteratorManager\cf4 ->key() . PHP_EOL; 
+\f6\i \cf7 // Output: second
+\f2\i0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 8. next() Method
+\f1\b0\fs32 \
+\
+Advances the iterator to the next element.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 next\cf4 (): \cf5 void\cf4 \
+\{\
+    $this->iterator?->next();\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Advances the iterator to the next element.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 9. previous() Method
+\f1\b0\fs32 \
+\
+Moves the iterator to the previous element in bidirectional iterators (if supported).\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 previous\cf4 (): \cf5 void\cf4 \
+\{\
+    \cf3 if\cf4  (method_exists(\cf6 $this\cf4 ->iterator, \cf8 'previous'\cf4 )) \{\
+        $this->iterator->previous();\
+    \} \cf3 else\cf4  \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Previous operation not supported by this iterator."\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method moves the iterator to the previous element in bidirectional iterators (e.g., 
+\f4 CachingIterator
+\f1 ), if supported.\
+	\'95	
+\f0\b Error Handling:
+\f1\b0  Throws an 
+\f4 IteratorException
+\f1  if the 
+\f4 previous()
+\f1  method is not supported.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iteratorManager\cf4 ->setIterator(\cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 1\cf4 , \cf6 2\cf4 , \cf6 3\cf4 ], []));\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f6\i \cf7 // Move forward to the second element
+\f3\i0 \cf4 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf6 $iteratorManager\cf4 ->next();\
+\cf3 echo\cf4  \cf8 "Current: "\cf4  . \cf6 $iteratorManager\cf4 ->current() . PHP_EOL; 
+\f6\i \cf7 // Output: 2
+\f3\i0 \cf4 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f6\i \cf7 // Move back to the previous element
+\f3\i0 \cf4 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf6 $iteratorManager\cf4 ->previous();\
+\cf3 echo\cf4  \cf8 "Previous: "\cf4  . \cf6 $iteratorManager\cf4 ->current() . PHP_EOL; 
+\f6\i \cf7 // Output: 1
+\f2\i0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 10. rewind() Method
+\f1\b0\fs32 \
+\
+Rewinds the iterator back to the first element.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 rewind\cf4 (): \cf5 void\cf4 \
+\{\
+    $this->iterator?->rewind();\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Rewinds the iterator to the first element.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 11. valid() Method
+\f1\b0\fs32 \
+\
+Checks if the current position of the iterator is valid.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 valid\cf4 (): \cf5 bool\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator?->valid() ?? \cf10 false\cf4 ;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Verifies if there are still elements to iterate.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 12. toArray() Method
+\f1\b0\fs32 \
+\
+Converts any iterator to an array.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 toArray\cf4 (?Iterator \cf6 $iterator\cf4 , \cf3 bool\cf4  \cf6 $useKeys\cf4  = \cf10 true\cf4 ): \cf5 array\cf4 \
+\{\
+    \cf3 return\cf4  iterator_to_array(\cf6 $iterator\cf4 , \cf6 $useKeys\cf4 );\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Converts an iterator to an array.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 13. count() Method
+\f1\b0\fs32 \
+\
+Counts the number of elements in the iterator.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 count\cf4 (?Iterator \cf6 $iterator\cf4 ): \cf5 int\cf4 \
+\{\
+    \cf3 return\cf4  iterator_count(\cf6 $iterator\cf4 );\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Counts the elements in the iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 14. applyCallback() Method
+\f1\b0\fs32 \
+\
+Applies a callback function to each element in the iterator.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 applyCallback\cf4 (?Iterator \cf6 $iterator\cf4 , \cf3 callable\cf4  \cf6 $callback\cf4 ): \cf5 int\cf4 \
+\{\
+    \cf3 return\cf4  iterator_apply(\cf6 $iterator\cf4 , \cf6 $callback\cf4 );\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Applies a callback to each element in the iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 15. getChildren() Method
+\f1\b0\fs32 \
+\
+Retrieves the children of the current item in a recursive iterator.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 getChildren\cf4 (): ?\cf5 RecursiveIterator\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator \cf3 instanceof\cf4  RecursiveIterator\
+        ? $this->iterator->getChildren()\
+        : \cf10 null\cf4 ;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Retrieves the children of the current item in a recursive iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 if\cf4  (\cf6 $iteratorManager\cf4 ->getChildren()) \{\
+    \cf3 foreach\cf4  (\cf6 $iteratorManager\cf4 ->getChildren() \cf3 as\cf4  \cf6 $child\cf4 ) \{\
+        \cf3 echo\cf4  \cf6 $child\cf4 ->getRealPath() . PHP_EOL;\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 Recursive Iterator-Specific Methods
+\f1\b0\fs32 \
+\
+These methods are useful when working with recursive iterators, such as 
+\f4 RecursiveIteratorIterator
+\f1  and 
+\f4 RecursiveDirectoryIterator
+\f1 .\
+\
+
+\f0\b\fs34 16. getDepth() Method
+\f1\b0\fs32 \
+\
+Retrieves the current depth of a 
+\f4 RecursiveIteratorIterator
+\f1 .\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 getDepth\cf4 (): \cf5 int\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator \cf3 instanceof\cf4  RecursiveIteratorIterator\
+        ? $this->iterator->getDepth()\
+        : \cf6 0\cf4 ;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Retrieves the current depth level of a 
+\f4 RecursiveIteratorIterator
+\f1 . Depth starts at 
+\f4 0
+\f1  for the top level, and increments for nested elements.\
+	\'95	
+\f0\b Default Behavior:
+\f1\b0  Returns 
+\f4 0
+\f1  if the current iterator is not a 
+\f4 RecursiveIteratorIterator
+\f1 .\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $iteratorManager\cf4 ->setIterator(\cf6 $directoryIterator\cf4 );\
+\
+\cf3 foreach\cf4  (\cf6 $iteratorManager\cf4 ->getIterator() \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "Current depth: "\cf4  . \cf6 $iteratorManager\cf4 ->getDepth() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 17. hasChildren() Method
+\f1\b0\fs32 \
+\
+Checks if the current element has children in a 
+\f4 RecursiveIterator
+\f1 .\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 hasChildren\cf4 (): \cf5 bool\cf4 \
+\{\
+    \cf3 return\cf4  $this->iterator \cf3 instanceof\cf4  RecursiveIterator && $this->iterator->hasChildren();\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  Checks if the current element in a 
+\f4 RecursiveIterator
+\f1  has child elements (e.g., directories that contain files or subdirectories).\
+	\'95	
+\f0\b Applicability:
+\f1\b0  Only works with iterators that implement 
+\f4 RecursiveIterator
+\f1 .\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $iteratorManager\cf4 ->setIterator(\cf6 $directoryIterator\cf4 );\
+\
+\cf3 if\cf4  (\cf6 $iteratorManager\cf4 ->hasChildren()) \{\
+    \cf3 echo\cf4  \cf8 "This directory has subdirectories."\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 Conclusion
+\f1\b0\fs32 \
+\
+The 
+\f0\b \cf2 IteratorManager
+\f1\b0 \cf2  class provides essential functionality for handling both recursive and standard iterators. These methods offer flexible ways to traverse, filter, and manipulate complex directory structures and datasets. With the addition of advanced navigation methods like 
+\f4 previous()
+\f1  and recursive-specific methods like 
+\f4 getDepth()
+\f1  and 
+\f4 hasChildren()
+\f1 , the class allows for greater control over both flat and nested data structures.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 Recursive Iterators and Standard Iterators
+\f1\b0\fs32 \
+\
+
+\f0\b\fs38 Recursive Iterators Settings
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveArrayIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 asPropy
+\f1 \
+	\'95	
+\f4 stdProps
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveCachingIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 fullCache
+\f1 \
+	\'95	
+\f4 callToString
+\f1 \
+	\'95	
+\f4 catchGetChildren
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveCallbackFilterIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveDirectoryIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 skipDots
+\f1 \
+	\'95	
+\f4 unixPaths
+\f1 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Modes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 asFileInfo
+\f1 \
+	\'95	
+\f4 asPathname
+\f1 \
+	\'95	
+\f4 asSelf
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveFilterIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveIteratorIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Modes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 leavesOnly
+\f1 \
+	\'95	
+\f4 selfFirst
+\f1 \
+	\'95	
+\f4 childFirst
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveRegexIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Modes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 match
+\f1 \
+	\'95	
+\f4 replace
+\f1 \
+	\'95	
+\f4 split
+\f1 \
+	\'95	
+\f4 invertMatch
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RecursiveTreeIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 bypassCurrent
+\f1 \
+	\'95	
+\f4 bypassKey
+\f1 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Prefixes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 left
+\f1 \
+	\'95	
+\f4 midHasNext
+\f1 \
+	\'95	
+\f4 midLast
+\f1 \
+	\'95	
+\f4 endHasNext
+\f1 \
+	\'95	
+\f4 endLast
+\f1 \
+	\'95	
+\f4 right
+\f1 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Modes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 leavesOnly
+\f1 \
+	\'95	
+\f4 selfFirst
+\f1 \
+	\'95	
+\f4 childFirst
+\f1 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Cache:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 catchGetChild
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 Standard Iterators Settings (with Correct Key Names)
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 ArrayIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 asPropy
+\f1 \
+	\'95	
+\f4 stdProps
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 AppendIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 CachingIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 fullCache
+\f1 \
+	\'95	
+\f4 callToString
+\f1 \
+	\'95	
+\f4 catchGetChildren
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 DirectoryIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 EmptyIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 FilesystemIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Modes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 currentAsFileInfo
+\f1 \
+	\'95	
+\f4 currentAsPathname
+\f1 \
+	\'95	
+\f4 currentAsSelf
+\f1 \
+	\'95	
+\f4 followSymlinks
+\f1 \
+	\'95	
+\f4 keyAsFilename
+\f1 \
+	\'95	
+\f4 keyAsPathname
+\f1 \
+	\'95	
+\f4 newCurrentKey
+\f1 \
+	\'95	
+\f4 skipDots
+\f1 \
+	\'95	
+\f4 unixPaths
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 FilterIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 GlobIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 InfiniteIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 IteratorIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 LimitIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 MultipleIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Flags:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 keysNumeric
+\f1 \
+	\'95	
+\f4 needAll
+\f1 \
+	\'95	
+\f4 needAny
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 NoRewindIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 ParentIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 RegexIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Modes:
+\f1\b0 \
+\pard\tqr\tx500\tx660\li660\fi-660\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f4 match
+\f1 \
+	\'95	
+\f4 getMatches
+\f1 \
+	\'95	
+\f4 allMatches
+\f1 \
+	\'95	
+\f4 captureGroups
+\f1 \
+	\'95	
+\f4 invertMatch
+\f1 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 SeekableIterator
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b No flags or modes present
+\f1\b0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 IteratorTrait Methods
+\f1\b0\fs32 \
+\
+The following methods are available in the 
+\f4 IteratorTrait
+\f1  and provide essential iterator functionality.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 1. AppendIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 AppendIterator\cf4 (\cf3 array\cf4  \cf6 $iterators\cf4  = []): \cf5 AppendIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  array_reduce(\cf6 $iterators\cf4 , function (\cf6 $appendIterator\cf4 , \cf6 $iterator\cf4 ) \{\
+            \cf6 $appendIterator\cf4 ->append(\cf6 $iterator\cf4 );\
+            \cf3 return\cf4  \cf6 $appendIterator\cf4 ;\
+        \}, $this->createIterator(\cf8 'AppendIterator'\cf4 ));\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating AppendIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates an 
+\f4 AppendIterator
+\f1  that allows iteration over multiple iterators in sequence, one after another.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iterator1\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 1\cf4 , \cf6 2\cf4 , \cf6 3\cf4 ], []);\
+\cf6 $iterator2\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 4\cf4 , \cf6 5\cf4 , \cf6 6\cf4 ], []);\
+\
+\cf6 $appendIterator\cf4  = \cf6 $iteratorManager\cf4 ->AppendIterator([\cf6 $iterator1\cf4 , \cf6 $iterator2\cf4 ]);\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $appendIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 2. ArrayIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 ArrayIterator\cf4 (\cf3 array\cf4 |\cf3 object\cf4  \cf6 $data\cf4  = [], \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 ArrayIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'ArrayIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $data\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating ArrayIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates an 
+\f4 ArrayIterator
+\f1 , which allows iteration over arrays or objects. Flags like 
+\f4 asPropy
+\f1  allow treating array elements as properties.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $data\cf4  = [\cf8 'item1'\cf4 , \cf8 'item2'\cf4 , \cf8 'item3'\cf4 ];\
+\
+\cf6 $settings\cf4  = [\cf8 'flag'\cf4  => [\cf8 'asPropy'\cf4 ]];\
+\
+\cf6 $iterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator(\cf6 $data\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $iterator\cf4  \cf3 as\cf4  \cf6 $key\cf4  => \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "\cf9 $key\cf8  => \cf9 $value\cf8 "\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 3. CachingIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 CachingIterator\cf4 (Iterator \cf6 $iterator\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 CachingIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  ($this->resolve(\cf8 'CachingIterator'\cf4 ))(\
+            \cf6 $iterator\cf4 ,\
+            $this->fetchSettings(\cf8 'CachingIterator'\cf4 , \cf6 $settings\cf4 )[\cf8 'flag'\cf4 ] ?? CachingIterator::CALL_TOSTRING\
+        );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating CachingIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 CachingIterator
+\f1  that caches the results of the underlying iterator. It supports flags like 
+\f4 fullCache
+\f1  and 
+\f4 callToString
+\f1 .\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 'item1'\cf4 , \cf8 'item2'\cf4 ], []);\
+\
+\cf6 $settings\cf4  = [\cf8 'flag'\cf4  => [\cf8 'fullCache'\cf4 ]];\
+\
+\cf6 $cachingIterator\cf4  = \cf6 $iteratorManager\cf4 ->CachingIterator(\cf6 $arrayIterator\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $cachingIterator\cf4  \cf3 as\cf4  \cf6 $item\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $item\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 4. CallbackFilterIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 CallbackFilterIterator\cf4 (Iterator \cf6 $iterator\cf4 , \cf3 callable\cf4  \cf6 $callback\cf4 ): \cf5 CallbackFilterIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'CallbackFilterIterator'\cf4 , [], \cf6 $iterator\cf4 , \cf6 $callback\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating CallbackFilterIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 CallbackFilterIterator
+\f1 , allowing custom filtering during iteration. The filtering logic is provided via a callback function.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 1\cf4 , \cf6 2\cf4 , \cf6 3\cf4 , \cf6 4\cf4 , \cf6 5\cf4 ], []);\
+\
+
+\f6\i \cf7 // Filter callback to only include even numbers
+\f3\i0 \cf4 \
+\cf6 $callback\cf4  = \cf3 function\cf4  (\cf6 $value\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $value\cf4  % \cf6 2\cf4  === \cf6 0\cf4 ;\
+\};\
+\
+
+\f6\i \cf7 // CallbackFilterIterator with the even number filter
+\f3\i0 \cf4 \
+\cf6 $filterIterator\cf4  = \cf6 $iteratorManager\cf4 ->CallbackFilterIterator(\cf6 $arrayIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $filterIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 5. DirectoryIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 DirectoryIterator\cf4 (\cf3 string\cf4  \cf6 $path\cf4  = \cf8 '.'\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 DirectoryIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'DirectoryIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $path\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating DirectoryIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 DirectoryIterator
+\f1  that allows iterating over the contents of a directory.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iterator\cf4  = \cf6 $iteratorManager\cf4 ->DirectoryIterator(\cf8 '/path/to/directory'\cf4 , []);\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $iterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getFilename() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 6. EmptyIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 EmptyIterator\cf4 (): \cf5 EmptyIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'EmptyIterator'\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating EmptyIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates an 
+\f4 EmptyIterator
+\f1 , which always returns empty results during iteration.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $emptyIterator\cf4  = \cf6 $iteratorManager\cf4 ->EmptyIterator();\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $emptyIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;  
+\f6\i \cf7 // No output expected
+\f3\i0 \cf4 \
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 7. FilesystemIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 FilesystemIterator\cf4 (\cf3 string\cf4  \cf6 $path\cf4  = \cf8 '.'\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 FilesystemIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  ($this->resolve(\cf8 'FilesystemIterator'\cf4 ))(\
+            \cf6 $path\cf4 ,\
+            $this->fetchSettings(\cf8 'FilesystemIterator'\cf4 , \cf6 $settings\cf4 )[\cf8 'mode'\cf4 ] ?? FilesystemIterator::CURRENT_AS_PATHNAME\
+        );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating FilesystemIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 FilesystemIterator
+\f1  that provides advanced iteration over files and directories in a directory. It supports modes like 
+\f4 CURRENT_AS_PATHNAME
+\f1  and 
+\f4 SKIP_DOTS
+\f1 .\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $settings\cf4  = [\cf8 'mode'\cf4  => [\cf8 'currentAsPathname'\cf4 ]];\
+\
+\cf6 $filesystemIterator\cf4  = \cf6 $iteratorManager\cf4 ->FilesystemIterator(\cf8 '/path/to/directory'\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $filesystemIterator\cf4  \cf3 as\cf4  \cf6 $filePath\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $filePath\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 8. FilterIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 FilterIterator\cf4 (Iterator \cf6 $iterator\cf4 , \cf3 callable\cf4  \cf6 $callback\cf4 ): \cf5 FilterIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  \cf3 class\cf4 ($\cf11 iterator\cf4 , $\cf11 callback\cf4 ) \cf3 extends\cf4  \cf11 FilterIterator\cf4  \{\
+            \cf3 private\cf4  \cf6 $callback\cf4 ;\
+\
+            \cf3 public\cf4  \cf3 function\cf4  \cf5 __construct\cf4 (\cf6 $iterator\cf4 , \cf6 $callback\cf4 )\
+            \{\
+                parent::__construct(\cf6 $iterator\cf4 );\
+                $this->callback = \cf6 $callback\cf4 ;\
+            \}\
+\
+            \cf3 public\cf4  \cf3 function\cf4  \cf5 accept\cf4 (): \cf5 bool\cf4 \
+            \{\
+                \cf3 return\cf4  ($this->callback)($this->current(), $this->key(), $this);\
+            \}\
+        \};\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating FilterIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 FilterIterator
+\f1 , which filters items in an iterator based on a custom callback function.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 10\cf4 , \cf6 20\cf4 , \cf6 30\cf4 , \cf6 40\cf4 ], []);\
+\
+
+\f6\i \cf7 // Filter to include only elements greater than 20
+\f3\i0 \cf4 \
+\cf6 $callback\cf4  = \cf3 function\cf4  (\cf6 $value\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $value\cf4  > \cf6 20\cf4 ;\
+\};\
+\
+
+\f6\i \cf7 // FilterIterator with custom callback
+\f3\i0 \cf4 \
+\cf6 $filterIterator\cf4  = \cf6 $iteratorManager\cf4 ->FilterIterator(\cf6 $arrayIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $filterIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 9. GlobIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 GlobIterator\cf4 (\cf3 string\cf4  \cf6 $pattern\cf4  = \cf8 '*'\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 GlobIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'GlobIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $pattern\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating GlobIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 GlobIterator
+\f1 , which iterates over files matching a glob pattern (e.g., 
+\f4 *.php
+\f1  to find all PHP files).\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $globIterator\cf4  = \cf6 $iteratorManager\cf4 ->GlobIterator(\cf8 '/path/to/directory/*.php'\cf4 , []);\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $globIterator\cf4  \cf3 as\cf4  \cf6 $file\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $file\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 10. InfiniteIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 InfiniteIterator\cf4 (Iterator \cf6 $iterator\cf4 ): \cf5 InfiniteIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'InfiniteIterator'\cf4 , [], \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating InfiniteIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates an 
+\f4 InfiniteIterator
+\f1 , which cycles over the underlying iterator infinitely.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 1\cf4 , \cf6 2\cf4 , \cf6 3\cf4 ], []);\
+\
+
+\f6\i \cf7 // InfiniteIterator to repeat the array values endlessly
+\f3\i0 \cf4 \
+\cf6 $infiniteIterator\cf4  = \cf6 $iteratorManager\cf4 ->InfiniteIterator(\cf6 $arrayIterator\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf3 new\cf4  LimitIterator(\cf6 $infiniteIterator\cf4 , \cf6 0\cf4 , \cf6 10\cf4 ) \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 11. IteratorIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 IteratorIterator\cf4 (Traversable \cf6 $iterator\cf4 ): \cf5 IteratorIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'IteratorIterator'\cf4 , [], \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating IteratorIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates an 
+\f4 IteratorIterator
+\f1 , which allows traversal of any 
+\f4 Traversable
+\f1  object (including iterators or arrays).\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 'one'\cf4 , \cf8 'two'\cf4 , \cf8 'three'\cf4 ], []);\
+\
+\cf6 $iterator\cf4  = \cf6 $iteratorManager\cf4 ->IteratorIterator(\cf6 $arrayIterator\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $iterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 12. LimitIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 LimitIterator\cf4 (Iterator \cf6 $iterator\cf4 , \cf3 int\cf4  \cf6 $offset\cf4  = \cf6 0\cf4 , \cf3 int\cf4  \cf6 $count\cf4  = -\cf6 1\cf4 ): \cf5 LimitIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'LimitIterator'\cf4 , [], \cf6 $iterator\cf4 , \cf6 $offset\cf4 , \cf6 $count\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating LimitIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 LimitIterator
+\f1 , which limits the number of items returned from an iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 10\cf4 , \cf6 20\cf4 , \cf6 30\cf4 , \cf6 40\cf4 , \cf6 50\cf4 ], []);\
+\
+
+\f6\i \cf7 // LimitIterator to get only the first 3 elements
+\f3\i0 \cf4 \
+\cf6 $limitIterator\cf4  = \cf6 $iteratorManager\cf4 ->LimitIterator(\cf6 $arrayIterator\cf4 , \cf6 0\cf4 , \cf6 3\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $limitIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 13. MultipleIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 MultipleIterator\cf4 (\cf3 array\cf4  \cf6 $iterators\cf4  = [], \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 MultipleIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  array_reduce(\cf6 $iterators\cf4 , function (\cf6 $multipleIterator\cf4 , \cf6 $iterator\cf4 ) \{\
+            \cf6 $multipleIterator\cf4 ->attachIterator(\cf6 $iterator\cf4 );\
+            \cf3 return\cf4  \cf6 $multipleIterator\cf4 ;\
+        \}, \cf3 new\cf4  ($this->resolve(\cf8 'MultipleIterator'\cf4 ))(\
+            $this->fetchSettings(\cf8 'MultipleIterator'\cf4 , \cf6 $settings\cf4 )[\cf8 'flag'\cf4 ] ?? MultipleIterator::MIT_NEED_ALL\
+        ));\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating MultipleIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 MultipleIterator
+\f1 , which allows iterating over multiple iterators in parallel, yielding tuples (i.e., groups of values from each iterator).\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iterator1\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 'apple'\cf4 , \cf8 'banana'\cf4 ], []);\
+\cf6 $iterator2\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 1\cf4 , \cf6 2\cf4 , \cf6 3\cf4 ], []);\
+\
+
+\f6\i \cf7 // MultipleIterator to iterate over both iterators in parallel
+\f3\i0 \cf4 \
+\cf6 $settings\cf4  = [\cf8 'flag'\cf4  => [\cf8 'needAll'\cf4 ]]; 
+\f6\i \cf7 // Only yield if all iterators have values
+\f3\i0 \cf4 \
+\
+\cf6 $multipleIterator\cf4  = \cf6 $iteratorManager\cf4 ->MultipleIterator([\cf6 $iterator1\cf4 , \cf6 $iterator2\cf4 ], \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $multipleIterator\cf4  \cf3 as\cf4  [\cf6 $fruit\cf4 , \cf6 $number\cf4 ]) \{\
+    \cf3 echo\cf4  \cf8 "\cf9 $fruit\cf8  => \cf9 $number\cf8 "\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 14. NoRewindIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 NoRewindIterator\cf4 (Iterator \cf6 $iterator\cf4 ): \cf5 NoRewindIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'NoRewindIterator'\cf4 , [], \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating NoRewindIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 NoRewindIterator
+\f1 , which prevents rewinding of the iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf6 100\cf4 , \cf6 200\cf4 , \cf6 300\cf4 ], []);\
+\
+
+\f6\i \cf7 // NoRewindIterator to prevent rewinding after traversal
+\f3\i0 \cf4 \
+\cf6 $noRewindIterator\cf4  = \cf6 $iteratorManager\cf4 ->NoRewindIterator(\cf6 $arrayIterator\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $noRewindIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f6\i \cf7 // Attempting to rewind and iterate again won't work
+\f3\i0 \cf4 \
+\cf6 $noRewindIterator\cf4 ->rewind();\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $noRewindIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    
+\f6\i \cf7 // No output, as rewinding is disabled
+\f3\i0 \cf4 \
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 15. ParentIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 ParentIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 ): \cf5 ParentIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'ParentIterator'\cf4 , [], \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating ParentIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 ParentIterator
+\f1 , which is a special type of recursive iterator that only returns directories that have children.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+\cf6 $parentIterator\cf4  = \cf6 $iteratorManager\cf4 ->ParentIterator(\cf6 $recursiveIterator\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $parentIterator\cf4  \cf3 as\cf4  \cf6 $directory\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $directory\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 16. RegexIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RegexIterator\cf4 (Iterator \cf6 $iterator\cf4 , \cf3 string\cf4  \cf6 $regex\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RegexIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  ($this->resolve(\cf8 'RegexIterator'\cf4 ))(\
+            \cf6 $iterator\cf4 ,\
+            \cf6 $regex\cf4 ,\
+            $this->fetchSettings(\cf8 'RegexIterator'\cf4 , \cf6 $settings\cf4 )[\cf8 'mode'\cf4 ] ?? RegexIterator::MATCH\
+        );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RegexIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RegexIterator
+\f1 , which filters items based on a regular expression pattern.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 'apple'\cf4 , \cf8 'banana'\cf4 , \cf8 'cherry'\cf4 ], []);\
+\
+\cf6 $regexIterator\cf4  = \cf6 $iteratorManager\cf4 ->RegexIterator(\cf6 $arrayIterator\cf4 , \cf8 '/a/'\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $regexIterator\cf4  \cf3 as\cf4  \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $value\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 17. SeekableIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 SeekableIterator\cf4 (\cf3 array\cf4 |\cf3 object\cf4  \cf6 $data\cf4  = []): \cf5 SeekableIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'SeekableIterator'\cf4 , [], \cf6 $data\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating SeekableIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 SeekableIterator
+\f1 , which allows seeking to a specific position in the iterator.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $data\cf4  = [\cf8 'first'\cf4 , \cf8 'second'\cf4 , \cf8 'third'\cf4 ];\
+\
+\cf6 $seekableIterator\cf4  = \cf6 $iteratorManager\cf4 ->SeekableIterator(\cf6 $data\cf4 );\
+\
+\cf6 $seekableIterator\cf4 ->seek(\cf6 1\cf4 );  
+\f6\i \cf7 // Seek to the second element
+\f3\i0 \cf4 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 echo\cf4  \cf6 $seekableIterator\cf4 ->current();  
+\f6\i \cf7 // Output: second
+\f2\i0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 RecursiveIteratorTrait Methods
+\f1\b0\fs32 \
+\
+The following methods, available through 
+\f4 RecursiveIteratorTrait
+\f1 , provide additional functionality for recursive iterators.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 1. RecursiveArrayIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveArrayIterator\cf4 (\cf3 array\cf4 |\cf3 object\cf4  \cf6 $data\cf4  = [], \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RecursiveArrayIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'RecursiveArrayIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $data\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveArrayIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveArrayIterator
+\f1  that can recursively iterate over an array or object. Flags like 
+\f4 asPropy
+\f1  allow treating arrays like objects.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $data\cf4  = [\
+    \cf8 'key1'\cf4  => [\cf8 'subkey1'\cf4  => \cf8 'value1'\cf4 , \cf8 'subkey2'\cf4  => \cf8 'value2'\cf4 ],\
+    \cf8 'key2'\cf4  => \cf8 'value3'\cf4 ,\
+];\
+\
+\cf6 $settings\cf4  = [\cf8 'flag'\cf4  => [\cf8 'asPropy'\cf4 ]];\
+\
+\cf6 $iterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveArrayIterator(\cf6 $data\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf3 new\cf4  RecursiveIteratorIterator(\cf6 $iterator\cf4 , RecursiveIteratorIterator::SELF_FIRST) \cf3 as\cf4  \cf6 $key\cf4  => \cf6 $value\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "\cf9 $key\cf8  => \cf9 $value\cf8 "\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 2. RecursiveCachingIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveCachingIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RecursiveCachingIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'RecursiveCachingIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveCachingIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveCachingIterator
+\f1 . It caches results from recursive iteration, optimizing performance for repeated access or expensive operations. Flags like 
+\f4 fullCache
+\f1  allow full caching of all results.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+\cf6 $settings\cf4  = [\cf8 'flag'\cf4  => [\cf8 'fullCache'\cf4 ]];\
+\
+\cf6 $cachingIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveCachingIterator(\cf6 $directoryIterator\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $cachingIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 3. RecursiveCallbackFilterIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveCallbackFilterIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 , \cf3 callable\cf4  \cf6 $callback\cf4 ): \cf5 RecursiveCallbackFilterIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'RecursiveCallbackFilterIterator'\cf4 , [], \cf6 $iterator\cf4 , \cf6 $callback\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveCallbackFilterIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveCallbackFilterIterator
+\f1 , which allows filtering items based on a custom callback function. The callback receives each item and determines whether to include it in the iteration.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+
+\f6\i \cf7 // Custom filter to include only directories
+\f3\i0 \cf4 \
+\cf6 $callback\cf4  = \cf3 function\cf4  (\cf6 $fileInfo\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $fileInfo\cf4 ->isDir();\
+\};\
+\
+\cf6 $filteredIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveCallbackFilterIterator(\cf6 $directoryIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $filteredIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 4. RecursiveDirectoryIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveDirectoryIterator\cf4 (\cf3 string\cf4  \cf6 $path\cf4  = \cf8 '.'\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RecursiveDirectoryIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'RecursiveDirectoryIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $path\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveDirectoryIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveDirectoryIterator
+\f1 , which allows recursive traversal of a directory. It can be configured with flags like 
+\f4 skipDots
+\f1  to skip special directories and 
+\f4 unixPaths
+\f1  to treat paths in Unix format.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $settings\cf4  = [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 , \cf8 'unixPaths'\cf4 ]];\
+\
+\cf6 $iterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $iterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 5. RecursiveFilterIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveFilterIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 , \cf3 callable\cf4  \cf6 $callback\cf4 ): \cf5 RecursiveFilterIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  \cf3 class\cf4 ($\cf11 iterator\cf4 , $\cf11 callback\cf4 ) \cf3 extends\cf4  \cf11 RecursiveFilterIterator\cf4  \{\
+            \cf3 private\cf4  \cf6 $callback\cf4 ;\
+\
+            \cf3 public\cf4  \cf3 function\cf4  \cf5 __construct\cf4 (\cf6 $iterator\cf4 , \cf6 $callback\cf4 )\
+            \{\
+                parent::__construct(\cf6 $iterator\cf4 );\
+                $this->callback = \cf6 $callback\cf4 ;\
+            \}\
+\
+            \cf3 public\cf4  \cf3 function\cf4  \cf5 accept\cf4 (): \cf5 bool\cf4 \
+            \{\
+                \cf3 return\cf4  ($this->callback)($this->current(), $this->key(), $this);\
+            \}\
+        \};\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveFilterIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method provides a 
+\f4 RecursiveFilterIterator
+\f1  that applies a custom filtering logic defined in a callback. The callback determines whether to include each item in the iteration.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+
+\f6\i \cf7 // Filter to only include files modified after a certain date
+\f3\i0 \cf4 \
+\cf6 $callback\cf4  = \cf3 function\cf4  (\cf6 $fileInfo\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $fileInfo\cf4 ->getMTime() > strtotime(\cf8 '2023-01-01'\cf4 );\
+\};\
+\
+
+\f6\i \cf7 // Custom RecursiveFilterIterator using the callback
+\f3\i0 \cf4 \
+\cf6 $filteredIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveFilterIterator(\cf6 $directoryIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $filteredIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 6. RecursiveIteratorIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveIteratorIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RecursiveIteratorIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'RecursiveIteratorIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveIteratorIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveIteratorIterator
+\f1  that flattens a recursive structure into a single-level iterator. Modes like 
+\f4 selfFirst
+\f1 , 
+\f4 leavesOnly
+\f1 , and 
+\f4 childFirst
+\f1  control the order of traversal.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+\cf6 $settings\cf4  = [\cf8 'mode'\cf4  => [\cf8 'selfFirst'\cf4 ]];\
+\
+\cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveIteratorIterator(\cf6 $directoryIterator\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $recursiveIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 7. RecursiveRegexIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveRegexIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 , \cf3 string\cf4  \cf6 $regex\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RecursiveRegexIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  \cf3 new\cf4  ($this->resolve(\cf8 'RecursiveRegexIterator'\cf4 ))(\
+            \cf6 $iterator\cf4 ,\
+            \cf6 $regex\cf4 ,\
+            $this->fetchSettings(\cf8 'RecursiveRegexIterator'\cf4 , \cf6 $settings\cf4 )[\cf8 'mode'\cf4 ] ?? RecursiveRegexIterator::MATCH\
+        );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveRegexIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveRegexIterator
+\f1 , which allows filtering items based on a regular expression pattern.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+\cf6 $regexIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveRegexIterator(\cf6 $directoryIterator\cf4 , \cf8 '/\\.php$/'\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $regexIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 8. RecursiveTreeIterator Method
+\f1\b0\fs32 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 RecursiveTreeIterator\cf4 (RecursiveIterator \cf6 $iterator\cf4 , \cf3 array\cf4  \cf6 $settings\cf4  = []): \cf5 RecursiveTreeIterator\cf4 \
+\{\
+    \cf3 try\cf4  \{\
+        \cf3 return\cf4  $this->createIterator(\cf8 'RecursiveTreeIterator'\cf4 , \cf6 $settings\cf4 , \cf6 $iterator\cf4 );\
+    \} \cf3 catch\cf4  (Throwable \cf6 $e\cf4 ) \{\
+        \cf3 throw\cf4  \cf3 new\cf4  IteratorException(\cf8 "Error creating RecursiveTreeIterator: "\cf4  . \cf6 $e\cf4 ->getMessage(), \cf6 0\cf4 , \cf6 $e\cf4 );\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates a 
+\f4 RecursiveTreeIterator
+\f1 , which presents items in a tree-like structure. Flags like 
+\f4 bypassCurrent
+\f1  and modes like 
+\f4 leavesOnly
+\f1  or 
+\f4 selfFirst
+\f1  help define the traversal order.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ]]);\
+\
+\cf6 $settings\cf4  = [\cf8 'prefix'\cf4  => [\cf8 'left'\cf4 , \cf8 'midHasNext'\cf4 , \cf8 'midLast'\cf4 , \cf8 'right'\cf4 ], \cf8 'mode'\cf4  => [\cf8 'selfFirst'\cf4 ]];\
+\
+\cf6 $treeIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveTreeIterator(\cf6 $directoryIterator\cf4 , \cf6 $settings\cf4 );\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf3 foreach\cf4  (\cf6 $treeIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf6 $fileInfo\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 Conclusion
+\f1\b0\fs32 \
+\
+By focusing on the methods available in 
+\f4 IteratorManager
+\f1  (such as 
+\f4 current()
+\f1 , 
+\f4 next()
+\f1 , 
+\f4 rewind()
+\f1 , 
+\f4 valid()
+\f1 , etc.), and using them in combination with recursive and standard iterators, you can build powerful traversal, filtering, and iteration logic.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+\cf2 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs48 \cf2 SPL FileInfo-Related Methods in IteratorManager
+\f1\b0\fs32 \
+\
+The following methods integrate SPL FileInfo functionalities with iterators, allowing you to manipulate and retrieve detailed information about files and directories.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 FileInfo() Method
+\f1\b0\fs32 \
+\
+Creates and returns a 
+\f4 SplFileInfo
+\f1  object for the given file path, allowing you to access detailed information about the file.\
+\
+
+\f5\b\fs30 Method Definition:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf3 public\cf4  \cf3 function\cf4  \cf5 FileInfo\cf4 (\cf3 string\cf4  \cf6 $filePath\cf4 ): \cf5 SplFileInfo\cf4 \
+\{\
+    \cf3 return\cf4  \cf3 new\cf4  SplFileInfo(\cf6 $filePath\cf4 );\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Explanation:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	
+\f0\b Purpose:
+\f1\b0  This method creates and returns an 
+\f4 SplFileInfo
+\f1  object for the given file path. This allows you to access detailed information about a file, such as its size, permissions, and real path.\
+	\'95	
+\f0\b Use Case:
+\f1\b0  Useful for performing file system operations on individual files by providing detailed metadata.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $fileInfo\cf4  = \cf6 $iteratorManager\cf4 ->FileInfo(\cf8 '/path/to/file.txt'\cf4 );\
+\
+\cf3 echo\cf4  \cf8 "File Size: "\cf4  . \cf6 $fileInfo\cf4 ->getSize() . \cf8 " bytes"\cf4  . PHP_EOL;\
+\cf3 echo\cf4  \cf8 "File Permissions: "\cf4  . decoct(\cf6 $fileInfo\cf4 ->getPerms() & \cf6 0777\cf4 ) . PHP_EOL;
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 1. getRealPath() Method
+\f1\b0\fs32 \
+\
+Retrieves the absolute path of the current file or directory.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Retrieves the absolute path of the current file or directory.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveDirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf3 foreach\cf4  (\cf6 $recursiveIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "File Real Path: "\cf4  . \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with DirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->DirectoryIterator(\cf8 '/path/to/directory'\cf4 , []);\
+\
+\cf3 foreach\cf4  (\cf6 $directoryIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "Real Path: "\cf4  . \cf6 $fileInfo\cf4 ->getRealPath() . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 2. getSize() Method
+\f1\b0\fs32 \
+\
+Returns the size of the current file in bytes.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Returns the size of the current file in bytes.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveDirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf3 foreach\cf4  (\cf6 $recursiveIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 if\cf4  (\cf6 $fileInfo\cf4 ->isFile()) \{\
+        \cf3 echo\cf4  \cf8 "File: "\cf4  . \cf6 $fileInfo\cf4 ->getFilename() . \cf8 " Size: "\cf4  . \cf6 $fileInfo\cf4 ->getSize() . \cf8 " bytes"\cf4  . PHP_EOL;\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with SPL FileInfo and CallbackFilterIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->DirectoryIterator(\cf8 '/path/to/directory'\cf4 , []);\
+\
+\cf6 $callback\cf4  = \cf3 function\cf4  (SplFileInfo \cf6 $fileInfo\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $fileInfo\cf4 ->getSize() > \cf6 500\cf4 ;\
+\};\
+\
+\cf6 $filterIterator\cf4  = \cf6 $iteratorManager\cf4 ->CallbackFilterIterator(\cf6 $directoryIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\cf6 $iteratorManager\cf4 ->applyCallback(\cf6 $filterIterator\cf4 , function (\cf6 $iterator\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "File: "\cf4  . \cf6 $iterator\cf4 ->current()->getFilename() . \cf8 " is larger than 500 bytes."\cf4  . PHP_EOL;\
+    \cf3 return\cf4  \cf10 true\cf4 ;\
+\});
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 3. getPerms() Method
+\f1\b0\fs32 \
+\
+Returns the permissions of the current file in octal format.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Returns the permissions of the current file in octal format.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveDirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf3 foreach\cf4  (\cf6 $recursiveIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "File: "\cf4  . \cf6 $fileInfo\cf4 ->getFilename() . \cf8 " Permissions: "\cf4  . decoct(\cf6 $fileInfo\cf4 ->getPerms() & \cf6 0777\cf4 ) . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with CallbackFilterIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $arrayIterator\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 '/path/to/file1'\cf4 , \cf8 '/path/to/file2'\cf4 ], []);\
+\
+\cf6 $callback\cf4  = \cf3 function\cf4  (\cf6 $filePath\cf4 ) \cf3 use\cf4  (\cf6 $iteratorManager\cf4 ) \{\
+    \cf6 $fileInfo\cf4  = \cf6 $iteratorManager\cf4 ->FileInfo(\cf6 $filePath\cf4 );\
+    \cf3 return\cf4  \cf6 $fileInfo\cf4 ->getPerms() === \cf6 0755\cf4 ;\
+\};\
+\
+\cf6 $filterIterator\cf4  = \cf6 $iteratorManager\cf4 ->CallbackFilterIterator(\cf6 $arrayIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\cf3 foreach\cf4  (\cf6 $filterIterator\cf4  \cf3 as\cf4  \cf6 $filePath\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "File: "\cf4  . \cf6 $filePath\cf4  . \cf8 " has 0755 permissions."\cf4  . PHP_EOL;\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 4. isFile() Method
+\f1\b0\fs32 \
+\
+Determines whether the current item is a file.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Determines whether the current item is a file.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveDirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $recursiveIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf3 foreach\cf4  (\cf6 $recursiveIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 if\cf4  (\cf6 $fileInfo\cf4 ->isFile()) \{\
+        \cf3 echo\cf4  \cf8 "File: "\cf4  . \cf6 $fileInfo\cf4 ->getFilename() . PHP_EOL;\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with MultipleIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $iterator1\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 '/path/to/file1'\cf4 , \cf8 '/path/to/file2'\cf4 ], []);\
+\cf6 $iterator2\cf4  = \cf6 $iteratorManager\cf4 ->ArrayIterator([\cf8 '/path/to/file3'\cf4 , \cf8 '/path/to/file4'\cf4 ], []);\
+\
+\cf6 $multipleIterator\cf4  = \cf6 $iteratorManager\cf4 ->MultipleIterator([\cf6 $iterator1\cf4 , \cf6 $iterator2\cf4 ], []);\
+\
+\cf3 foreach\cf4  (\cf6 $multipleIterator\cf4  \cf3 as\cf4  \cf6 $paths\cf4 ) \{\
+    \cf3 foreach\cf4  (\cf6 $paths\cf4  \cf3 as\cf4  \cf6 $path\cf4 ) \{\
+        \cf6 $fileInfo\cf4  = \cf6 $iteratorManager\cf4 ->FileInfo(\cf6 $path\cf4 );\
+        \cf3 if\cf4  (\cf6 $fileInfo\cf4 ->isFile()) \{\
+            \cf3 echo\cf4  \cf8 "File: "\cf4  . \cf6 $fileInfo\cf4 ->getFilename() . PHP_EOL;\
+        \}\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 5. isDir() Method
+\f1\b0\fs32 \
+\
+Checks if the current item is a directory.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Checks if the current item is a directory.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveTreeIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $treeIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveTreeIterator(\cf6 $directoryIterator\cf4 , [\
+    \cf8 'prefix'\cf4  => [\cf8 'left'\cf4 , \cf8 'midHasNext'\cf4 , \cf8 'midLast'\cf4 , \cf8 'right'\cf4 ],\
+]);\
+\
+\cf3 foreach\cf4  (\cf6 $treeIterator\cf4  \cf3 as\cf4  \cf6 $fileInfo\cf4 ) \{\
+    \cf3 if\cf4  (\cf6 $fileInfo\cf4 ->isDir()) \{\
+        \cf3 echo\cf4  \cf8 "Directory: "\cf4  . \cf6 $fileInfo\cf4 ->getFilename() . PHP_EOL;\
+    \}\
+\}
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs38 \cf2 Combining Utility Methods with SPL FileInfo
+\f1\b0\fs32 \
+\
+These utility methods leverage SPL FileInfo objects to enhance file and directory management.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 1. toArray() + SPL FileInfo
+\f1\b0\fs32 \
+\
+Converts the iterator to an array and combines it with SPL FileInfo to get detailed file properties.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Converts the iterator to an array and combines it with SPL FileInfo to retrieve detailed file properties.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveDirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $filesArray\cf4  = \cf6 $iteratorManager\cf4 ->toArray(\cf6 $directoryIterator\cf4 );\
+\
+\cf6 $filesWithDetails\cf4  = array_map(function (\cf6 $fileInfo\cf4 ) \{\
+    \cf3 return\cf4  [\
+        \cf8 'filename'\cf4  => \cf6 $fileInfo\cf4 ->getFilename(),\
+        \cf8 'size'\cf4  => \cf6 $fileInfo\cf4 ->getSize(),\
+        \cf8 'realPath'\cf4  => \cf6 $fileInfo\cf4 ->getRealPath(),\
+    ];\
+\}, \cf6 $filesArray\cf4 );\
+\
+print_r(\cf6 $filesWithDetails\cf4 );
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 2. applyCallback() + SPL FileInfo
+\f1\b0\fs32 \
+\
+Applies a callback function to each element in the iterator and uses SPL FileInfo to filter files based on their properties.\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Applies a callback function to each element in the iterator, and uses SPL FileInfo to filter files based on their properties.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveCallbackFilterIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $callback\cf4  = \cf3 function\cf4  (\cf6 $fileInfo\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $fileInfo\cf4 ->getSize() > \cf6 1000\cf4 ;\
+\};\
+\
+\cf6 $filterIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveCallbackFilterIterator(\cf6 $directoryIterator\cf4 , \cf6 $callback\cf4 );\
+\
+\cf6 $iteratorManager\cf4 ->applyCallback(\cf6 $filterIterator\cf4 , function (\cf6 $iterator\cf4 ) \{\
+    \cf3 echo\cf4  \cf8 "Large file: "\cf4  . \cf6 $iterator\cf4 ->current()->getFilename() . \cf8 " Size: "\cf4  . \cf6 $iterator\cf4 ->current()->getSize() . \cf8 " bytes"\cf4  . PHP_EOL;\
+    \cf3 return\cf4  \cf10 true\cf4 ;\
+\});
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 3. count() + SPL FileInfo
+\f1\b0\fs32 \
+\
+Counts the number of elements in the iterator and filters files based on specific criteria (e.g., only files, only directories).\
+\
+
+\f5\b\fs30 Purpose:
+\f1\b0\fs32 \
+\
+\pard\tqr\tx100\tx260\li260\fi-260\sl324\slmult1\sb240\partightenfactor0
+\cf2 	\'95	Counts the number of elements in the iterator and filters files based on specific criteria (e.g., only files, only directories).\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f5\b\fs30 \cf2 Usage Example with RecursiveDirectoryIterator:
+\f2\b0\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f3\fs28 \cf6 $directoryIterator\cf4  = \cf6 $iteratorManager\cf4 ->RecursiveDirectoryIterator(\cf8 '/path/to/directory'\cf4 , [\
+    \cf8 'flag'\cf4  => [\cf8 'skipDots'\cf4 ],\
+]);\
+\
+\cf6 $filesArray\cf4  = array_filter(iterator_to_array(\cf6 $directoryIterator\cf4 ), function (\cf6 $fileInfo\cf4 ) \{\
+    \cf3 return\cf4  \cf6 $fileInfo\cf4 ->isFile();\
+\});\
+\
+\cf6 $fileCount\cf4  = count(\cf6 $filesArray\cf4 );\
+\
+\cf3 echo\cf4  \cf8 "Number of files: \cf9 $fileCount\cf8 "\cf4  . PHP_EOL;
+\f2\fs24 \cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl324\slmult1\pardirnatural\partightenfactor0
+
+\f0\b\fs34 \cf2 Conclusion
+\f1\b0\fs32 \
+\
+By integrating SPL FileInfo-related methods (
+\f4 getRealPath()
+\f1 , 
+\f4 getSize()
+\f1 , 
+\f4 getPerms()
+\f1 , 
+\f4 isFile()
+\f1 , 
+\f4 isDir()
+\f1 ) with iterator methods like 
+\f4 toArray()
+\f1 , 
+\f4 applyCallback()
+\f1 , and 
+\f4 count()
+\f1 , 
+\f0\b \cf2 IteratorManager
+\f1\b0 \cf2  provides powerful functionality for managing and manipulating file system contents.}

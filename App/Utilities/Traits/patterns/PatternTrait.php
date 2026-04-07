@@ -90,7 +90,7 @@ trait PatternTrait
 	 * @param string $delimiter If specified, this is the optional delimiter to escape.
 	 * @return string Returns the quoted (escaped) string.
 	 */
-	public function quote(string $str, string $delimiter = null): string
+	public function quote(string $str, ?string $delimiter = null): string
 	{
 		return preg_quote($str, $delimiter);
 	}

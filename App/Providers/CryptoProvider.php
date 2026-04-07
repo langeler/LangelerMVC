@@ -3,10 +3,11 @@
 namespace App\Providers;
 
 use App\Core\Container;
-use App\Drivers\Crypto\{
+use App\Drivers\Cryptography\{
     SodiumCrypto,
     OpenSSLCrypto
 };
+use App\Exceptions\ContainerException;
 
 /**
  * CryptoProvider Class
@@ -30,6 +31,8 @@ class CryptoProvider extends Container
      */
     public function __construct()
     {
+        parent::__construct();
+
         $this->cryptoMap = [
             'sodium' => SodiumCrypto::class,
             'openssl' => OpenSSLCrypto::class,
@@ -47,15 +50,16 @@ class CryptoProvider extends Container
     public function registerServices(): void
     {
         $this->wrapInTry(
-            fn() => (!$this->isArray($this->cryptoMap) || $this->isEmpty($this->cryptoMap))
-                ? throw new ContainerException("The crypto map must be a non-empty array of aliases.")
-                : $this->walk(
-                    $this->cryptoMap,
-                    fn($class, $alias) => [
-                        $this->registerAlias($alias, $class),
-                        $this->registerLazy($class, fn() => $this->resolveInstance($class))
-                    ]
-                ),
+            function (): void {
+                if (!$this->isArray($this->cryptoMap) || $this->isEmpty($this->cryptoMap)) {
+                    throw new ContainerException("The crypto map must be a non-empty array of aliases.");
+                }
+
+                foreach ($this->cryptoMap as $alias => $class) {
+                    $this->registerAlias($alias, $class);
+                    $this->registerLazy($class, fn() => $this->registerInstance($class));
+                }
+            },
             new ContainerException("Error registering cryptographic services.")
         );
     }

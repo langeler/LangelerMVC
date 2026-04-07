@@ -124,9 +124,11 @@ trait ArrayTrait
 	 * @param callable|null $callback The callback function (default: null).
 	 * @return array The filtered array.
 	 */
-	public function filter(array $array, callable|null $callback = null): array
+	public function filter(array $array, callable|null $callback = null, int $mode = 0): array
 	{
-		return array_filter($array, $callback);
+		return $callback === null
+			? array_filter($array)
+			: array_filter($array, $callback, $mode);
 	}
 
 	/**
@@ -184,7 +186,6 @@ trait ArrayTrait
 	{
 		return array_map($callback, ...$arrays);
 	}
-}
 
 	/**
 	 * Create an array containing a range of elements.
@@ -413,17 +414,6 @@ trait ArrayTrait
 	 * @param array ...$arrays Arrays to intersect.
 	 * @return array The resulting intersection array.
 	 */
-	public function uIntersect(array ...$arrays): array
-	{
-		return array_uintersect(...$arrays);
-	}
-
-	/**
-	 * Compute the intersection of arrays with data and index comparison using callbacks.
-	 *
-	 * @param array ...$arrays Arrays to intersect.
-	 * @return array The resulting intersection array.
-	 */
 	public function uIntersectUAssoc(array ...$arrays): array
 	{
 		return array_uintersect_uassoc(...$arrays);
@@ -531,22 +521,20 @@ trait ArrayTrait
 	 * @param callable $callback The comparison function.
 	 * @return array The resulting intersection array.
 	 */
-	public function uIntersect(array $array1, array $array2, callable $callback): array
-	{
-		return array_uintersect($array1, $array2, $callback);
-	}
-
-	/**
-	 * Compute the intersection of arrays with index check using a callback.
-	 *
-	 * @param array $array1 The first array.
-	 * @param array $array2 The second array.
-	 * @param callable $callback The comparison function for values.
-	 * @return array The resulting intersection array.
-	 */
 	public function uIntersectAssoc(array $array1, array $array2, callable $callback): array
 	{
 		return array_uintersect_assoc($array1, $array2, $callback);
+	}
+
+	/**
+	 * Merges one or more arrays.
+	 *
+	 * @param array ...$arrays The arrays to merge.
+	 * @return array The merged array.
+	 */
+	public function merge(array ...$arrays): array
+	{
+		return array_merge(...$arrays);
 	}
 
 	/**

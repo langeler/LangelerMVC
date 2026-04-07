@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Presentation;
 
-use RuntimeException; // Exception thrown if an error occurs that can only be found at runtime.
-use Throwable;        // Base interface for all errors and exceptions in PHP.
-
+use App\Contracts\Presentation\PresenterInterface;
 use App\Utilities\Handlers\{
-	DataHandler,       // Handles general data operations and processing.
-	DateTimeHandler    // Provides utilities for handling and manipulating date and time.
+	DataHandler        // Handles general data operations and processing.
 };
+
+use App\Utilities\Managers\DateTimeManager;
+use App\Exceptions\Presentation\PresenterException;
 
 use App\Utilities\Traits\{
 	ArrayTrait,         // Provides utility methods for array operations.
-	TypeCheckerTrait,   // Offers utilities for validating and checking data types.
+	ErrorTrait,         // Provides framework-aligned exception wrapping.
 	ManipulationTrait,  // Adds support for data manipulation tasks.
 	MetricsTrait,       // Includes methods for measuring and analyzing data metrics.
 	ConversionTrait     // Facilitates data type and format conversions.
@@ -26,7 +26,7 @@ use App\Utilities\Traits\{
  * Responsibilities:
  * - Transform raw data into a presentation-ready format.
  * - Add computed properties, append metadata, and prepare a final payload for the view layer.
- * - Utilize DataHandler and DateTimeHandler for formatting and timestamps.
+ * - Utilize DataHandler and DateTimeManager for formatting and timestamps.
  * - Offer optional metric computations and data normalization.
  *
  * Boundaries:
@@ -37,25 +37,34 @@ use App\Utilities\Traits\{
  * - Uses strict typing and typed return values for abstract methods.
  * - Constructor property promotion and typed properties where appropriate.
  */
-abstract class Presenter
+abstract class Presenter implements PresenterInterface
 {
-	use ArrayTrait;
-	use TypeCheckerTrait;
-	use ManipulationTrait;
-	use MetricsTrait;
-	use ConversionTrait;
+	use ErrorTrait,
+		ArrayTrait,
+		ManipulationTrait,
+		MetricsTrait,
+		ConversionTrait {
+		ManipulationTrait::pad insteadof ArrayTrait;
+		ManipulationTrait::replace insteadof ArrayTrait;
+		ManipulationTrait::reverse insteadof ArrayTrait;
+		ManipulationTrait::shuffle insteadof ArrayTrait;
+		ArrayTrait::pad as arrayPad;
+		ArrayTrait::replace as arrayReplace;
+		ArrayTrait::reverse as arrayReverse;
+		ArrayTrait::shuffle as arrayShuffle;
+	}
 
 	/**
 	 * Constructor for initializing dependencies and raw data.
 	 *
 	 * @param array<string,mixed> $data          The raw data to prepare and transform.
 	 * @param DataHandler         $dataHandler   Utility for advanced data processing.
-	 * @param DateTimeHandler     $dateTimeHandler Utility for handling date/time formats.
+	 * @param DateTimeManager     $dateTimeManager Utility for handling date/time formats.
 	 */
 	public function __construct(
-		protected array $data = [],
 		protected DataHandler $dataHandler,
-		protected DateTimeHandler $dateTimeHandler
+		protected DateTimeManager $dateTimeManager,
+		protected array $data = []
 	) {
 		$this->initializeState();
 	}
@@ -74,37 +83,100 @@ abstract class Presenter
 	 */
 	protected array $metadata = [];
 
-	/**
-	 * Abstract Protected Methods
-	 */
+	public function fill(array $data): static
+	{
+		$this->data = $data;
+		$this->initializeState();
+		$this->metadata = [];
+
+		return $this;
+	}
 
 	/**
 	 * Transform raw data into a structure suitable for presentation.
 	 *
 	 * @return array<string,mixed>
 	 */
-	abstract protected function transform(): array;
+	public function transform(): array
+	{
+		return $this->wrapInTry(function (): array {
+			$transformed = $this->transformData($this->data);
+
+			if (!$this->isArray($transformed)) {
+				throw new PresenterException('Presenter transformData() must return an array.');
+			}
+
+			$this->state = $transformed;
+
+			return $this->state;
+		}, PresenterException::class);
+	}
 
 	/**
 	 * Add computed or derived properties to the transformed data.
 	 *
 	 * @return array<string,mixed>
 	 */
-	abstract protected function addComputedProperties(): array;
+	public function addComputedProperties(): array
+	{
+		return $this->wrapInTry(function (): array {
+			$computed = $this->computeProperties($this->state);
+
+			if (!$this->isArray($computed)) {
+				throw new PresenterException('Presenter computeProperties() must return an array.');
+			}
+
+			$this->state = $this->merge($this->state, $computed);
+
+			return $this->state;
+		}, PresenterException::class);
+	}
 
 	/**
 	 * Append metadata (e.g., pagination, timestamps) to the data.
 	 *
 	 * @return array<string,mixed>
 	 */
-	abstract protected function addMetadata(): array;
+	public function addMetadata(): array
+	{
+		return $this->wrapInTry(function (): array {
+			$metadata = $this->buildMetadata($this->state);
+
+			if (!$this->isArray($metadata)) {
+				throw new PresenterException('Presenter buildMetadata() must return an array.');
+			}
+
+			if ($metadata !== []) {
+				$this->appendMetadata($metadata);
+			}
+
+			if ($this->metadata !== []) {
+				$existingMeta = $this->state['meta'] ?? [];
+				$existingMeta = $this->isArray($existingMeta) ? $existingMeta : [];
+				$this->state['meta'] = $this->merge($existingMeta, $this->metadata);
+			}
+
+			return $this->state;
+		}, PresenterException::class);
+	}
 
 	/**
 	 * Finalize and prepare the data for the view.
 	 *
 	 * @return array<string,mixed>
 	 */
-	abstract protected function prepare(): array;
+	public function prepare(): array
+	{
+		return $this->wrapInTry(function (): array {
+			$this->initializeState();
+			$this->metadata = [];
+			$this->transform();
+			$this->addComputedProperties();
+			$this->addMetadata();
+
+			return $this->state;
+		}, PresenterException::class);
+	}
 
 	/**
 	 * Retrieve a specific value from the prepared data or state.
@@ -113,7 +185,24 @@ abstract class Presenter
 	 * @param mixed|null $default Default value if the key is not found.
 	 * @return mixed
 	 */
-	abstract protected function get(string $key, mixed $default = null): mixed;
+	public function get(string $key, mixed $default = null): mixed
+	{
+		if ($key === '') {
+			return $this->state !== [] ? $this->state : $this->prepare();
+		}
+
+		$current = $this->state !== [] ? $this->state : $this->prepare();
+
+		foreach (explode('.', $key) as $segment) {
+			if (!$this->isArray($current) || !array_key_exists($segment, $current)) {
+				return $default;
+			}
+
+			$current = $current[$segment];
+		}
+
+		return $current;
+	}
 
 	/**
 	 * Centralized Protected Methods
@@ -127,27 +216,7 @@ abstract class Presenter
 	 */
 	protected function initializeState(): void
 	{
-		$this->state = $this->reduce(
-			$this->data,
-			fn(array $carry, mixed $value, string $key): array => $carry + [$key => $value],
-			[]
-		);
-	}
-
-	/**
-	 * Handle consistent error handling with try-catch.
-	 *
-	 * @param callable $operation Operation to execute.
-	 * @return mixed
-	 * @throws RuntimeException On failure.
-	 */
-	protected function wrapInTry(callable $operation): mixed
-	{
-		try {
-			return $operation();
-		} catch (Throwable $e) {
-			throw new RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
-		}
+		$this->state = $this->data;
 	}
 
 	/**
@@ -159,12 +228,13 @@ abstract class Presenter
 	 */
 	protected function formatData(array $data, string $format = 'json'): mixed
 	{
-		return $this->wrapInTry(fn(): mixed =>
-			match ($format) {
+		return $this->wrapInTry(
+			fn(): mixed => match ($format) {
 				'json' => $this->dataHandler->jsonEncode($data),
 				'xml' => $this->dataHandler->toXml($data),
 				default => $data
-			}
+			},
+			PresenterException::class
 		);
 	}
 
@@ -180,15 +250,15 @@ abstract class Presenter
 	}
 
 	/**
-	 * Add timestamps to the metadata using DateTimeHandler.
+	 * Add timestamps to the metadata using DateTimeManager.
 	 *
 	 * @return void
 	 */
 	protected function addTimestamps(): void
 	{
 		$this->appendMetadata([
-			'createdAt' => $this->dateTimeHandler->formatDateTime(
-				$this->dateTimeHandler->createDateTime('now'),
+			'createdAt' => $this->dateTimeManager->formatDateTime(
+				$this->dateTimeManager->createDateTime('now'),
 				\DateTime::RFC3339
 			),
 		]);
@@ -203,12 +273,13 @@ abstract class Presenter
 	 */
 	protected function computeMetric(string $metric, mixed $value): mixed
 	{
-		return $this->wrapInTry(fn(): mixed =>
-			match ($metric) {
+		return $this->wrapInTry(
+			fn(): mixed => match ($metric) {
 				'similarity' => $this->similarityScore($this->data[$value] ?? '', $value),
 				'distance'   => $this->distance($this->data[$value] ?? '', $value),
 				default       => null
-			}
+			},
+			PresenterException::class
 		);
 	}
 
@@ -231,7 +302,12 @@ abstract class Presenter
 	protected function extractKeys(array $keys): array
 	{
 		return $this->wrapInTry(fn(): array =>
-			$this->filter($this->state, fn(mixed $value, string $key): bool => $this->inArray($key, $keys), ARRAY_FILTER_USE_BOTH)
+			$this->filter(
+				$this->state,
+				fn(mixed $value, string $key): bool => $this->isInArray($key, $keys, true),
+				ARRAY_FILTER_USE_BOTH
+			),
+			PresenterException::class
 		);
 	}
 
@@ -243,5 +319,38 @@ abstract class Presenter
 	protected function getMetadata(): array
 	{
 		return $this->metadata;
+	}
+
+	/**
+	 * Override to transform the raw presenter data.
+	 *
+	 * @param array<string,mixed> $data
+	 * @return array<string,mixed>
+	 */
+	protected function transformData(array $data): array
+	{
+		return $data;
+	}
+
+	/**
+	 * Override to compute derived properties for the current state.
+	 *
+	 * @param array<string,mixed> $data
+	 * @return array<string,mixed>
+	 */
+	protected function computeProperties(array $data): array
+	{
+		return [];
+	}
+
+	/**
+	 * Override to build metadata for the current state.
+	 *
+	 * @param array<string,mixed> $data
+	 * @return array<string,mixed>
+	 */
+	protected function buildMetadata(array $data): array
+	{
+		return [];
 	}
 }

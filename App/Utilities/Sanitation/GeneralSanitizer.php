@@ -135,8 +135,8 @@ use App\Utilities\Traits\{
 	 * @param mixed $data The input data to clean.
 	 * @return mixed The sanitized data.
 	 */
-	public function clean(mixed $data): mixed
+	public function clean(array $schema, ?array $values = null): array
 	{
-		return $this->handle($data);
+		return $this->handle($schema, $values);
 	}
 }

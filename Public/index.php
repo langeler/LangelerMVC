@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Dotenv\Dotenv;
-use App\Services\CoreProvider;
+use App\Providers\CoreProvider;
 use App\Core\App;
 
 // Define application directories
@@ -15,13 +15,13 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
 // Redirect to installation script if the install directory exists
-if (is_dir(BASE_PATH . '/public/install')) {
+if (is_dir(BASE_PATH . '/Public/install')) {
     header('Location: /install/index.php');
     exit;
 }
 
 // Autoload dependencies or terminate with an error message
-if (!file_exists($autoload = BASE_PATH . '/autoload.php')) {
+if (!file_exists($autoload = BASE_PATH . '/vendor/autoload.php')) {
     exit('Autoload file not found. Ensure Composer dependencies are installed.');
 }
 require_once $autoload;

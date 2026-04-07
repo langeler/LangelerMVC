@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Utilities\Managers;
+namespace App\Utilities\Managers\System;
 
 use ZipArchive;
 

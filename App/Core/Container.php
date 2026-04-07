@@ -4,6 +4,10 @@ namespace App\Core;
 
 use App\Exceptions\ContainerException;
 use App\Utilities\Managers\ReflectionManager;
+use ReflectionIntersectionType;
+use ReflectionNamedType;
+use ReflectionParameter;
+use ReflectionUnionType;
 use App\Utilities\Traits\{
     ArrayTrait,
     ErrorTrait,
@@ -170,21 +174,29 @@ public function __construct(
       * @param string $className The fully qualified class name to resolve.
       * @return object The resolved instance of the class.
       * @throws ContainerException If the class name is invalid, circular dependencies are detected, or resolution fails.
-      */
+     */
      protected function resolveInstance(string $className): object
      {
-         return $this->wrapInTry(
-             fn() => (!$this->isString($className) || $this->isEmpty($className))
-                 ? throw new ContainerException("Invalid class name provided.")
-                 : ($this->keyExists($this->resolving, $className)
-                     ? throw new ContainerException("Circular dependency detected for [$className].")
-                     : $this->resolving[$className] = true) &&
-                 $this->wrapInTry(
+         return $this->wrapInTry(function () use ($className) {
+             if (!$this->isString($className) || $this->isEmpty($className)) {
+                 throw new ContainerException("Invalid class name provided.");
+             }
+
+             if ($this->keyExists($this->resolving, $className)) {
+                 throw new ContainerException("Circular dependency detected for [$className].");
+             }
+
+             $this->resolving[$className] = true;
+
+             try {
+                 return $this->wrapInTry(
                      fn() => $this->processInstance($className),
                      new ContainerException("Failed to resolve class [$className].")
-                 ),
-             fn() => unset($this->resolving[$className])
-         );
+                 );
+             } finally {
+                 unset($this->resolving[$className]);
+             }
+         });
      }
 
      /**
@@ -197,15 +209,15 @@ public function __construct(
      protected function processInstance(string $className): object
      {
          return $this->wrapInTry(
-             fn() => $this->arrayKeyExists($className, $this->aliases)
-                 ? ($this->arrayKeyExists($alias = $this->aliases[$className], $this->instances)
+             fn() => $this->keyExists($this->aliases, $className)
+                 ? ($this->keyExists($this->instances, $alias = $this->aliases[$className])
                      ? ($this->isCallable($this->instances[$alias]) ? $this->instances[$alias] = ($this->instances[$alias])() : $this->instances[$alias])
-                     : ($this->arrayKeyExists($alias, $this->singletons) && $this->singletons[$alias]
+                     : ($this->keyExists($this->singletons, $alias) && $this->singletons[$alias]
                          ? $this->instances[$alias] = $this->registerInstance($alias)
                          : $this->registerInstance($alias)))
-                 : ($this->arrayKeyExists($className, $this->instances)
+                 : ($this->keyExists($this->instances, $className)
                      ? ($this->isCallable($this->instances[$className]) ? $this->instances[$className] = ($this->instances[$className])() : $this->instances[$className])
-                     : ($this->arrayKeyExists($className, $this->singletons) && $this->singletons[$className]
+                     : ($this->keyExists($this->singletons, $className) && $this->singletons[$className]
                          ? $this->instances[$className] = $this->registerInstance($className)
                          : $this->registerInstance($className))),
              new ContainerException("Failed to process instance for [$className].")
@@ -222,27 +234,109 @@ public function __construct(
      protected function registerInstance(string $className): object
      {
          return $this->wrapInTry(
-             fn() => ($reflectionClass = $this->cachedInstance($className)) &&
-                 ($constructor = $this->reflectionManager->getClassConstructor($reflectionClass))
-                 ? $this->reflectionManager->newClassInstanceArgs(
-                     $reflectionClass,
-                     $this->filterNonEmpty(
-                         $this->map(
-                             fn($parameter) => $this->reflectionManager->getParameterType($parameter) &&
-                                               !$this->reflectionManager->isBuiltinType($this->reflectionManager->getParameterType($parameter))
-                                 ? $this->resolveInstance($this->reflectionManager->getParameterType($parameter)->getName())
-                                 : ($this->reflectionManager->isParameterOptional($parameter)
-                                     ? $this->reflectionManager->getParameterDefaultValue($parameter)
-                                     : throw new ContainerException(
-                                         "Cannot resolve parameter [{$this->reflectionManager->getParameterName($parameter)}]."
-                                       )
-                                   ),
-                             $this->reflectionManager->getFunctionParameters($constructor)
-                         )
-                     )
-                 )
-                 : $this->reflectionManager->newClassInstanceWithoutConstructor($reflectionClass),
+             function () use ($className): object {
+                 $reflectionClass = $this->cachedInstance($className);
+                 $constructor = $this->reflectionManager->getClassConstructor($reflectionClass);
+
+                 if (!$constructor) {
+                     return $this->reflectionManager->newClassInstanceWithoutConstructor($reflectionClass);
+                 }
+
+                 $arguments = $this->map(
+                     fn($parameter) => $this->resolveParameterValue($parameter),
+                     $this->reflectionManager->getFunctionParameters($constructor)
+                 );
+
+                 return $this->reflectionManager->newClassInstanceArgs($reflectionClass, $arguments);
+             },
              new ContainerException("Failed to create instance for [$className].")
+         );
+     }
+
+     /**
+      * Resolves an individual constructor parameter.
+      *
+      * @param ReflectionParameter $parameter
+      * @return mixed
+      */
+     protected function resolveParameterValue(ReflectionParameter $parameter): mixed
+     {
+         $type = $this->reflectionManager->getParameterType($parameter);
+
+         if ($type instanceof ReflectionNamedType) {
+             return $this->resolveNamedParameter($parameter, $type);
+         }
+
+         if ($type instanceof ReflectionUnionType) {
+             return $this->resolveUnionParameter($parameter, $type);
+         }
+
+         if ($type instanceof ReflectionIntersectionType && $this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+             return $this->reflectionManager->getParameterDefaultValue($parameter);
+         }
+
+         if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+             return $this->reflectionManager->getParameterDefaultValue($parameter);
+         }
+
+         throw new ContainerException(
+             "Cannot resolve parameter [{$this->reflectionManager->getParameterName($parameter)}]."
+         );
+     }
+
+     /**
+      * Resolves a named constructor parameter.
+      *
+      * @param ReflectionParameter $parameter
+      * @param ReflectionNamedType $type
+      * @return mixed
+      */
+     protected function resolveNamedParameter(ReflectionParameter $parameter, ReflectionNamedType $type): mixed
+     {
+         if ($this->reflectionManager->isBuiltinType($type)) {
+             if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+                 return $this->reflectionManager->getParameterDefaultValue($parameter);
+             }
+
+             throw new ContainerException(
+                 "Cannot resolve parameter [{$this->reflectionManager->getParameterName($parameter)}]."
+             );
+         }
+
+         if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+             return $this->reflectionManager->getParameterDefaultValue($parameter);
+         }
+
+         return $this->resolveInstance($type->getName());
+     }
+
+     /**
+      * Resolves a union-typed constructor parameter.
+      *
+      * @param ReflectionParameter $parameter
+      * @param ReflectionUnionType $type
+      * @return mixed
+      */
+     protected function resolveUnionParameter(ReflectionParameter $parameter, ReflectionUnionType $type): mixed
+     {
+         if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+             return $this->reflectionManager->getParameterDefaultValue($parameter);
+         }
+
+         foreach ($type->getTypes() as $namedType) {
+             if (!$namedType instanceof ReflectionNamedType || $this->reflectionManager->isBuiltinType($namedType)) {
+                 continue;
+             }
+
+             return $this->resolveInstance($namedType->getName());
+         }
+
+         if ($type->allowsNull()) {
+             return null;
+         }
+
+         throw new ContainerException(
+             "Cannot resolve union parameter [{$this->reflectionManager->getParameterName($parameter)}]."
          );
      }
 
@@ -258,7 +352,7 @@ public function __construct(
          return $this->wrapInTry(
              fn() => !$this->classExists($className)
                  ? throw new ContainerException("Class [$className] does not exist.")
-                 : ($this->arrayKeyExists($className, $this->cache)
+                 : ($this->keyExists($this->cache, $className)
                      ? $this->cache[$className]
                      : $this->cache[$className] = $this->reflectionManager->createClass($className)),
              new ContainerException("Failed to cache ReflectionClass for [$className].")

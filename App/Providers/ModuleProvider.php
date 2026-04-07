@@ -3,17 +3,17 @@
 namespace App\Providers;
 
 use App\Core\Container;
+use App\Exceptions\ContainerException;
 
 /**
  * ModuleProvider Class
  *
- * Manages module-related services and dependencies.
- * Populates module map via a dedicated method called by ModuleManager.
+ * Registers module classes with aliases derived from the resolved class metadata.
  */
 class ModuleProvider extends Container
 {
 	/**
-	 * Map of module aliases to their class namespaces.
+	 * Map of aliases => fully qualified module class names.
 	 *
 	 * @var array<string, string>
 	 */
@@ -22,56 +22,94 @@ class ModuleProvider extends Container
 	/**
 	 * Populates the module map dynamically.
 	 *
-	 * @param array $classes Array of classes in the format [namespace, className].
+	 * @param array $classes
 	 * @return void
-	 * @throws ContainerException If the module map cannot be populated.
 	 */
 	public function populate(array $classes): void
 	{
-		$this->wrapInTry(
-			fn() => $this->moduleMap = $this->reduce(
-				$classes,
-				fn($acc, $class) => $this->merge($acc, [$class[1] => $class[0]]),
-				[]
-			),
-			new ContainerException("Failed to populate module map.")
-		);
+		$this->wrapInTry(function () use ($classes): void {
+			$aliases = [];
+			$shortNameCounts = [];
+
+			foreach ($classes as $class) {
+				if (!is_array($class) || !isset($class['class'], $class['shortName'])) {
+					continue;
+				}
+
+				$shortName = $class['shortName'];
+				$shortNameCounts[$shortName] = ($shortNameCounts[$shortName] ?? 0) + 1;
+			}
+
+			foreach ($classes as $class) {
+				if (!is_array($class) || !isset($class['class'], $class['shortName'])) {
+					continue;
+				}
+
+				$fqcn = $class['class'];
+				$shortName = $class['shortName'];
+				$moduleAlias = $this->buildModuleAlias($fqcn, $shortName);
+
+				$aliases[$fqcn] = $fqcn;
+				$aliases[$moduleAlias] = $fqcn;
+
+				if (($shortNameCounts[$shortName] ?? 0) === 1) {
+					$aliases[$shortName] = $fqcn;
+				}
+			}
+
+			$this->moduleMap = $aliases;
+		}, new ContainerException('Failed to populate module map.'));
 	}
 
 	/**
 	 * Registers module-related services in the container.
 	 *
-	 * Dynamically maps and lazily loads resolved module classes.
-	 *
 	 * @return void
-	 * @throws ContainerException If an error occurs during module registration.
 	 */
 	public function registerServices(): void
 	{
-		$this->wrapInTry(
-			fn() => $this->walk(
-				$this->moduleMap,
-				fn($class, $alias) => [
-					$this->registerAlias($alias, $class),
-					$this->registerLazy($class, fn() => $this->processInstance($class))
-				]
-			),
-			new ContainerException("Error registering module services.")
-		);
+		$this->wrapInTry(function (): void {
+			$registered = [];
+
+			foreach ($this->moduleMap as $alias => $class) {
+				$this->registerAlias($alias, $class);
+
+				if (!isset($registered[$class])) {
+					$this->registerLazy($class, fn() => $this->registerInstance($class));
+					$registered[$class] = true;
+				}
+			}
+		}, new ContainerException('Error registering module services.'));
 	}
 
 	/**
-	 * Resolves and returns a module class instance by its alias.
+	 * Resolves and returns a module class instance by alias or FQCN.
 	 *
-	 * @param string $alias The alias of the module class.
-	 * @return object The resolved module instance.
-	 * @throws ContainerException If the module class cannot be resolved.
+	 * @param string $alias
+	 * @return object
 	 */
 	public function getModule(string $alias): object
 	{
-		return $this->wrapInTry(
-			fn() => $this->getInstance($this->moduleMap[$alias]),
-			new ContainerException("Module [$alias] could not be resolved.")
-		);
+		return $this->wrapInTry(function () use ($alias): object {
+			$class = $this->moduleMap[$alias] ?? $alias;
+
+			return $this->getInstance($class);
+		}, new ContainerException("Module [$alias] could not be resolved."));
+	}
+
+	/**
+	 * Builds a stable module-qualified alias from a module class name.
+	 *
+	 * @param string $fqcn
+	 * @param string $shortName
+	 * @return string
+	 */
+	private function buildModuleAlias(string $fqcn, string $shortName): string
+	{
+		if (preg_match('/App\\\\Modules\\\\([^\\\\]+)/', $fqcn, $matches) === 1) {
+			return $matches[1] . '.' . $shortName;
+		}
+
+		return $shortName;
 	}
 }

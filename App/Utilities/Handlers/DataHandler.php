@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Handlers;
 
 use JsonSerializable;
 use DOMDocument;
+use DOMElement;
 use SimpleXMLElement;
 use LibXMLError;
 use Normalizer;
@@ -224,6 +227,62 @@ class DataHandler
 		return $element->asXML($filename);
 	}
 
+	/**
+	 * Determine whether a value already contains valid XML.
+	 *
+	 * @param mixed $value The value to inspect.
+	 * @return bool True when the provided string is valid XML.
+	 */
+	public function isXmlFormat(mixed $value): bool
+	{
+		if (!is_string($value) || trim($value) === '') {
+			return false;
+		}
+
+		$previousState = libxml_use_internal_errors(true);
+
+		try {
+			return simplexml_load_string($value) !== false;
+		} finally {
+			libxml_clear_errors();
+			libxml_use_internal_errors($previousState);
+		}
+	}
+
+	/**
+	 * Convert data into an XML string.
+	 *
+	 * If a valid XML string is already provided, it is returned unchanged.
+	 *
+	 * @param mixed $value The value to convert.
+	 * @param string $rootElement The root XML node name.
+	 * @return string
+	 */
+	public function toXml(mixed $value, string $rootElement = 'response'): string
+	{
+		if ($value instanceof SimpleXMLElement) {
+			return $value->asXML() ?: '';
+		}
+
+		if ($value instanceof DOMDocument) {
+			return $value->saveXML() ?: '';
+		}
+
+		if ($this->isXmlFormat($value)) {
+			return (string) $value;
+		}
+
+		$document = new DOMDocument('1.0', 'UTF-8');
+		$document->formatOutput = true;
+
+		$root = $document->createElement($this->normalizeXmlElementName($rootElement));
+		$document->appendChild($root);
+
+		$this->appendValueToXml($document, $root, $value);
+
+		return $document->saveXML() ?: '';
+	}
+
 	// Libxml Error Handling Methods
 
 	/**
@@ -435,7 +494,7 @@ class DataHandler
 	 * @param string|null $locale The locale to get the language from, or the class locale.
 	 * @return string The display language.
 	 */
-	public function getLanguage(string $locale = null): string
+	public function getLanguage(?string $locale = null): string
 	{
 		return Locale::getDisplayLanguage($locale ?? $this->locale);
 	}
@@ -446,7 +505,7 @@ class DataHandler
 	 * @param string|null $locale The locale to get the primary language from, or the class locale.
 	 * @return string The primary language.
 	 */
-	public function getPrimaryLanguage(string $locale = null): string
+	public function getPrimaryLanguage(?string $locale = null): string
 	{
 		return Locale::getPrimaryLanguage($locale ?? $this->locale);
 	}
@@ -457,7 +516,7 @@ class DataHandler
 	 * @param string|null $locale The locale to get the region from, or the class locale.
 	 * @return string|null The region, or null if none.
 	 */
-	public function getRegion(string $locale = null): ?string
+	public function getRegion(?string $locale = null): ?string
 	{
 		return Locale::getRegion($locale ?? $this->locale);
 	}
@@ -468,7 +527,7 @@ class DataHandler
 	 * @param string|null $locale The locale to get the script from, or the class locale.
 	 * @return string|null The script, or null if none.
 	 */
-	public function getScript(string $locale = null): ?string
+	public function getScript(?string $locale = null): ?string
 	{
 		return Locale::getScript($locale ?? $this->locale);
 	}
@@ -483,7 +542,7 @@ class DataHandler
 	 * @param string|null $locale The locale to use, or the class locale.
 	 * @return string The formatted currency string.
 	 */
-	public function formatCurrency(float $amount, string $currency, string $locale = null): string
+	public function formatCurrency(float $amount, string $currency, ?string $locale = null): string
 	{
 		$formatter = new NumberFormatter($locale ?? $this->locale, NumberFormatter::CURRENCY);
 		return $formatter->formatCurrency($amount, $currency);
@@ -496,7 +555,7 @@ class DataHandler
 	 * @param string|null $locale The locale to use, or the class locale.
 	 * @return string The formatted percentage string.
 	 */
-	public function formatPercentage(float $number, string $locale = null): string
+	public function formatPercentage(float $number, ?string $locale = null): string
 	{
 		$formatter = new NumberFormatter($locale ?? $this->locale, NumberFormatter::PERCENT);
 		return $formatter->format($number);
@@ -509,9 +568,68 @@ class DataHandler
 	 * @param string|null $locale The locale to use, or the class locale.
 	 * @return float The parsed number.
 	 */
-	public function parseNumber(string $number, string $locale = null): float
+	public function parseNumber(string $number, ?string $locale = null): float
 	{
 		$formatter = new NumberFormatter($locale ?? $this->locale, NumberFormatter::DECIMAL);
 		return $formatter->parse($number);
+	}
+
+	/**
+	 * Recursively append a value to an XML document.
+	 *
+	 * @param DOMDocument $document
+	 * @param DOMElement $parent
+	 * @param mixed $value
+	 * @param string $defaultNode
+	 * @return void
+	 */
+	private function appendValueToXml(
+		DOMDocument $document,
+		DOMElement $parent,
+		mixed $value,
+		string $defaultNode = 'item'
+	): void {
+		if (is_array($value)) {
+			foreach ($value as $key => $item) {
+				$nodeName = is_string($key) && $key !== ''
+					? $this->normalizeXmlElementName($key)
+					: $defaultNode;
+				$child = $document->createElement($nodeName);
+				$parent->appendChild($child);
+				$this->appendValueToXml($document, $child, $item, $defaultNode);
+			}
+
+			return;
+		}
+
+		if ($value instanceof JsonSerializable) {
+			$this->appendValueToXml($document, $parent, $value->jsonSerialize(), $defaultNode);
+			return;
+		}
+
+		if (is_object($value)) {
+			$this->appendValueToXml($document, $parent, get_object_vars($value), $defaultNode);
+			return;
+		}
+
+		if ($value === null) {
+			return;
+		}
+
+		$parent->appendChild($document->createTextNode((string) $value));
+	}
+
+	/**
+	 * Normalize a string into a valid XML element name.
+	 *
+	 * @param string $name
+	 * @return string
+	 */
+	private function normalizeXmlElementName(string $name): string
+	{
+		$normalized = preg_replace('/[^A-Za-z0-9_\-\.]+/', '_', trim($name)) ?? '';
+		$normalized = ltrim($normalized, '0123456789');
+
+		return $normalized !== '' ? $normalized : 'item';
 	}
 }

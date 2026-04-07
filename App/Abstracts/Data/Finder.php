@@ -2,17 +2,14 @@
 
 namespace App\Abstracts\Data;
 
-use Throwable;                                   // Base interface for all errors and exceptions in PHP.
-
 use App\Exceptions\Data\FinderException;        // Exception for errors occurring during finder operations.
 
 use App\Utilities\Managers\IteratorManager;     // Manages and facilitates operations involving iterators.
 
 use App\Utilities\Traits\{
     ArrayTrait,              // Provides utility methods for array operations and transformations.
-    ExistenceCheckerTrait,   // Verifies the existence of classes, methods, properties, etc.
+    ErrorTrait,              // Provides framework-aligned exception wrapping.
     LoopTrait,               // Adds support for iterating over data structures.
-    TypeCheckerTrait         // Offers utilities for validating and checking data types.
 };
 
 /**
@@ -23,7 +20,12 @@ use App\Utilities\Traits\{
  */
 abstract class Finder
 {
-    use ArrayTrait, ExistenceCheckerTrait, LoopTrait, TypeCheckerTrait;
+    use ErrorTrait;
+    use ArrayTrait {
+        search as private;
+        search as protected arraySearch;
+    }
+    use LoopTrait;
 
     /**
      * @var string|null $root The root directory path where searches will start.
@@ -39,6 +41,14 @@ abstract class Finder
      * @var array $cache Stores cached directory and file information for optimized lookups.
      */
     protected array $cache = [];
+
+    /**
+     * @var array<string, array<int, string>>
+     */
+    protected array $foundMarkers = [
+        'files' => [],
+        'directories' => [],
+    ];
 
     /**
      * @var bool $cacheState Determines whether caching is enabled or disabled.
@@ -81,13 +91,12 @@ abstract class Finder
      * @return mixed The result of the callback function.
      * @throws FinderException If the callback throws an exception.
      */
-    private function wrapInTry(callable $callback, string $message): mixed
+    protected function wrapFinder(callable $callback, string $message): mixed
     {
-        try {
-            return $callback();
-        } catch (Throwable $e) {
-            throw new FinderException("$message: " . $e->getMessage(), 0, $e);
-        }
+        return $this->wrapInTry(
+            $callback,
+            fn(\Throwable $caught) => new FinderException("$message: " . $caught->getMessage(), 0, $caught)
+        );
     }
 
     /**
@@ -100,27 +109,33 @@ abstract class Finder
      */
     protected function setRoot(): void
     {
-        $this->wrapInTry(function () {
-            $path = $this->isEmpty(getcwd()) ? '/' : getcwd();
+        $this->wrapFinder(function () {
+            $fallbackRoot = realpath(dirname(__DIR__, 3)) ?: dirname(__DIR__, 3);
+            $path = $this->isEmpty(getcwd()) ? $fallbackRoot : getcwd();
 
-            $this->until($path, '/', function () use (&$path) {
-                $iterator = $this->iteratorManager->RecursiveCallbackFilterIterator(
-                    $this->iteratorManager->ParentIterator(
-                        $this->iteratorManager->RecursiveDirectoryIterator($path, [
-                            'flag' => ['skipDots' => true],
-                            'mode' => ['asFileInfo' => true]
-                        ])
-                    ),
-                    fn($fileInfo) => $this->isMarkerMatch($fileInfo)
-                );
+            while (true) {
+                if ($this->isDirectory($path) && $this->isValidRootDirectory($path)) {
+                    $this->root = $path;
 
-                $this->iteratorManager->setIterator($iterator);
-                $this->iteratorManager->applyCallback($iterator, fn($fileInfo) => $this->collectMarker($fileInfo));
+                    return;
+                }
 
-                $this->allMarkersFound() && $this->isValidRootDirectory($path) && $this->isDirectory($path)
-                    ? ($this->root = $path) && false
-                    : $path = $this->prev($path);
-            });
+                $parent = dirname($path);
+
+                if ($parent === $path) {
+                    break;
+                }
+
+                $path = $parent;
+            }
+
+            if ($this->isDirectory($fallbackRoot) && $this->isValidRootDirectory($fallbackRoot)) {
+                $this->root = $fallbackRoot;
+
+                return;
+            }
+
+            throw new FinderException("Unable to determine the project root directory.");
         }, "Error in setRoot");
     }
 
@@ -148,9 +163,9 @@ abstract class Finder
     {
         return match (true) {
             $this->iteratorManager->isFile() =>
-                $this->search($this->markers['files'], $fileInfo->getFilename()) !== false,
+                $this->arraySearch($this->markers['files'], $fileInfo->getFilename()) !== false,
             $this->iteratorManager->isDir() =>
-                $this->search($this->markers['directories'], $fileInfo->getFilename()) !== false,
+                $this->arraySearch($this->markers['directories'], $fileInfo->getFilename()) !== false,
             default => false,
         };
     }
@@ -184,7 +199,7 @@ abstract class Finder
     private function addToMarkers(string $type, string $marker): void
     {
         $this->foundMarkers[$type] ??= [];
-        !$this->keyExists($this->foundMarkers[$type], $marker)
+        $this->arraySearch($this->foundMarkers[$type], $marker) === false
             ? $this->foundMarkers[$type][] = $marker
             : null;
     }
@@ -241,7 +256,7 @@ abstract class Finder
      */
     protected function handle(array $criteria = [], ?string $path = null, array $sort = []): array
     {
-        return $this->wrapInTry(
+        return $this->wrapFinder(
             fn() => !$this->isEmpty($sort)
                 ? $this->applySort($this->filterElements($criteria, $path ?? $this->root), $sort)
                 : $this->filterElements($criteria, $path ?? $this->root),
@@ -263,7 +278,7 @@ abstract class Finder
      */
     private function filterElements(array $criteria, string $path): array
     {
-        return $this->wrapInTry(function () use ($criteria, $path) {
+        return $this->wrapFinder(function () use ($criteria, $path) {
             $this->iteratorManager->setIterator($this->fetchFiltrator($path, $criteria));
             $this->iteratorManager->rewind();
 
@@ -288,14 +303,16 @@ abstract class Finder
      */
     private function fetchFiltrator(string $path, array $criteria): \Iterator
     {
-        return $this->wrapInTry(
+        return $this->wrapFinder(
             fn() => match (true) {
                 // Use RecursiveRegexIterator when a pattern is provided
-                !$this->isEmpty($criteria['pattern']) =>
+                !$this->isEmpty($criteria['pattern'] ?? []) =>
                     $this->iteratorManager->RecursiveIteratorIterator(
                         $this->iteratorManager->RecursiveRegexIterator(
                             $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                            $this->current($criteria['pattern'])
+                            is_array($criteria['pattern'])
+                                ? (string) $this->current($criteria['pattern'])
+                                : (string) $criteria['pattern']
                         )
                     ),
                 // Use caching iterator if cacheState is enabled
@@ -319,6 +336,37 @@ abstract class Finder
     }
 
     /**
+     * Applies finder criteria by dispatching to trait-provided `filterBy...` methods.
+     */
+    protected function applyFilter(mixed $fileInfo, array $criteria): bool
+    {
+        return $this->wrapFinder(function () use ($fileInfo, $criteria) {
+            foreach ($criteria as $key => $value) {
+                if ($key === 'pattern') {
+                    continue;
+                }
+
+                $method = 'filterBy' . ucfirst((string) $key);
+
+                if (!$this->methodExists($this, $method)) {
+                    continue;
+                }
+
+                $reflectionMethod = new \ReflectionMethod($this, $method);
+                $arguments = $reflectionMethod->getNumberOfParameters() <= 1 || $value === true
+                    ? []
+                    : (is_array($value) ? array_values($value) : [$value]);
+
+                if (!$this->$method($fileInfo, ...$arguments)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }, "Error applying filter");
+    }
+
+    /**
      * Applies sorting to the filtered items.
      *
      * This method sorts the provided array of items recursively based on the provided criteria.
@@ -331,8 +379,30 @@ abstract class Finder
      */
     private function applySort(array $items, array $sortCriteria = []): array
     {
-        return $this->wrapInTry(function () use ($items) {
-            $this->sortRecursive($items);
+        return $this->wrapFinder(function () use ($items, $sortCriteria) {
+            if ($this->isEmpty($sortCriteria)) {
+                return $items;
+            }
+
+            $sortBy = (string) ($sortCriteria['callback'] ?? $sortCriteria['by'] ?? '');
+
+            if ($sortBy === '') {
+                return $items;
+            }
+
+            $method = 'sortBy' . ucfirst($sortBy);
+
+            if (!$this->methodExists($this, $method)) {
+                throw new FinderException("Unsupported sort criteria '{$sortBy}'.");
+            }
+
+            $direction = strtolower((string) ($sortCriteria['direction'] ?? 'asc'));
+
+            uasort($items, function ($left, $right) use ($method, $direction): int {
+                $result = $this->{$method}($left, $right);
+                return $direction === 'desc' ? $result * -1 : $result;
+            });
+
             return $items;
         }, "Error during sorting");
     }
@@ -346,9 +416,9 @@ abstract class Finder
      * @return string The validated path.
      * @throws FinderException If the path cannot be resolved.
      */
-    private function validatePath(string $path): string
+    protected function validatePath(string $path): string
     {
-        return $this->wrapInTry(
+        return $this->wrapFinder(
             fn() => $this->resolvePath($path),
             "Error validating path"
         );
@@ -366,7 +436,7 @@ abstract class Finder
      */
     protected function resolvePath(string $path): string
     {
-        return $this->wrapInTry(
+        return $this->wrapFinder(
             fn() => match (true) {
                 // Path does not exist
                 !$this->iteratorManager->FileInfo($path) =>
@@ -392,32 +462,19 @@ abstract class Finder
      *
      * @throws FinderException If an error occurs while populating the cache.
      */
-    private function populateCache(): void
+    private function populateCache(string $path): void
     {
-        $this->wrapInTry(function () {
-            // Set up the caching iterator for the root directory
+        $this->wrapFinder(function () use ($path) {
             $this->iteratorManager->setIterator(
-                $this->iteratorManager->RecursiveCachingIterator(
-                    $this->iteratorManager->RecursiveDirectoryIterator($this->root, [
+                $this->iteratorManager->RecursiveIteratorIterator(
+                    $this->iteratorManager->RecursiveDirectoryIterator($path, [
                         'flag' => ['skipDots' => true],
                         'mode' => ['asFileInfo' => true]
                     ])
                 )
             );
 
-            // Populate the cache with mapped file and directory information
-            $this->cache = $this->map(
-                fn($item) => [
-                    'path' => $item?->getRealPath(),
-                    'name' => $item->getFilename(),
-                    'type' => $item->isDirectory($item?->getRealPath())
-                        ? 'directory'
-                        : ($item->isFile($item?->getRealPath()) ? 'file' : 'unknown'),
-                    'size' => $item->getSize(),
-                    'permissions' => $item->getPerms(),
-                ],
-                $this->iteratorManager->toArray($this->iteratorManager->getIterator())
-            );
+            $this->cache[$path] = $this->iteratorManager->toArray($this->iteratorManager->getIterator());
         }, "Error populating cache");
     }
 
@@ -435,15 +492,28 @@ abstract class Finder
      */
     protected function filterWithRegex(array $criteria, string $path): array
     {
-        return $this->wrapInTry(
-            fn() => $this->iteratorManager->toArray(
-                $this->iteratorManager->RecursiveIteratorIterator(
-                    $this->iteratorManager->RecursiveRegexIterator(
-                        $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                        $this->isEmpty($criteria['pattern']) ? '/.*/' : $criteria['pattern']
+        return $this->wrapFinder(
+            function () use ($criteria, $path): array {
+                $pattern = $this->isEmpty($criteria['pattern'] ?? [])
+                    ? '/.*/'
+                    : (is_array($criteria['pattern'])
+                        ? (string) $this->current($criteria['pattern'])
+                        : (string) $criteria['pattern']);
+
+                $results = $this->iteratorManager->toArray(
+                    $this->iteratorManager->RecursiveIteratorIterator(
+                        $this->iteratorManager->RecursiveRegexIterator(
+                            $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
+                            $pattern
+                        )
                     )
-                )
-            ),
+                );
+
+                return $this->filter(
+                    $results,
+                    fn($fileInfo): bool => $this->applyFilter($fileInfo, $criteria)
+                );
+            },
             "Error during regex filtering"
         );
     }
@@ -460,17 +530,24 @@ abstract class Finder
      * @return array The filtered (and optionally sorted) cached data.
      * @throws FinderException If an error occurs during filtering or sorting.
      */
-    protected function filterWithCache(array $criteria = [], array $sort = []): array
+    protected function filterWithCache(array $criteria = [], ?string $path = null, array $sort = []): array
     {
-        return $this->wrapInTry(
-            fn() => $this->isEmpty($this->cache) && $this->populateCache() ?: $this->isEmpty($sort)
-                ? $this->filter($this->cache, fn($item) => $this->applyFilter($item, $criteria))
-                : $this->applySort(
-                    $this->filter($this->cache, fn($item) => $this->applyFilter($item, $criteria)),
-                    $sort
-                ),
-            "Error filtering cache"
-        );
+        return $this->wrapFinder(function () use ($criteria, $path, $sort) {
+            $validatedPath = $this->validatePath($path ?? $this->root);
+
+            if ($this->isEmpty($this->cache[$validatedPath] ?? [])) {
+                $this->populateCache($validatedPath);
+            }
+
+            $filtered = $this->filter(
+                $this->cache[$validatedPath],
+                fn($item): bool => $this->applyFilter($item, $criteria)
+            );
+
+            return $this->isEmpty($sort)
+                ? $filtered
+                : $this->applySort($filtered, $sort);
+        }, "Error filtering cache");
     }
 
     /**
@@ -485,7 +562,7 @@ abstract class Finder
      */
     protected function displayDirectoryTree(string $path): void
     {
-        $this->wrapInTry(function () use ($path) {
+        $this->wrapFinder(function () use ($path) {
             $this->iteratorManager->setIterator(
                 $this->iteratorManager->RecursiveTreeIterator(
                     $this->iteratorManager->RecursiveIteratorIterator(
@@ -513,26 +590,19 @@ abstract class Finder
      */
     protected function searchMultipleDirectories(array $paths, array $criteria = [], array $sort = []): array
     {
-        return $this->wrapInTry(
-            fn() => $this->applySort(
-                $this->iteratorManager->toArray(
-                    $this->iteratorManager->RecursiveIteratorIterator(
-                        $this->iteratorManager->RecursiveCallbackFilterIterator(
-                            $this->iteratorManager->AppendIterator(
-                                ...$this->map(
-                                    fn($path) => $this->iteratorManager->RecursiveDirectoryIterator(
-                                        $this->validatePath($path),
-                                        ['flag' => ['skipDots' => true]]
-                                    ),
-                                    $paths
-                                )
-                            ),
-                            fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
-                        )
-                    )
-                ),
-                $sort
-            ),
+        return $this->wrapFinder(
+            function () use ($paths, $criteria, $sort): array {
+                $results = [];
+
+                foreach ($paths as $path) {
+                    $results = array_merge(
+                        $results,
+                        $this->filterElements($criteria, $this->validatePath($path))
+                    );
+                }
+
+                return $this->applySort($results, $sort);
+            },
             "Error during multi-directory search"
         );
     }
@@ -553,19 +623,29 @@ abstract class Finder
      */
     protected function filterWithDepthControl(array $criteria, string $path, int $maxDepth, array $sort = []): array
     {
-        return $this->wrapInTry(
-            fn() => $this->applySort(
-                $this->iteratorManager->toArray(
-                    $this->iteratorManager->RecursiveIteratorIterator(
-                        $this->iteratorManager->RecursiveCallbackFilterIterator(
-                            $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                            fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
-                        ),
-                        ['mode' => ['selfFirst'], 'maxDepth' => $maxDepth]
-                    )
-                ),
-                $this->isEmpty($sort) ? [] : $sort
-            ),
+        return $this->wrapFinder(
+            function () use ($criteria, $path, $maxDepth, $sort): array {
+                $iterator = $this->iteratorManager->RecursiveIteratorIterator(
+                    $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
+                    ['mode' => ['selfFirst'], 'maxDepth' => $maxDepth]
+                );
+
+                $results = [];
+                $this->iteratorManager->setIterator($iterator);
+                $this->iteratorManager->rewind();
+
+                while ($this->iteratorManager->valid()) {
+                    $fileInfo = $this->iteratorManager->current();
+
+                    if ($this->applyFilter($fileInfo, $criteria)) {
+                        $results[$this->iteratorManager->key()] = $fileInfo;
+                    }
+
+                    $this->iteratorManager->next();
+                }
+
+                return $this->applySort($results, $sort);
+            },
             "Error during depth-controlled filtering"
         );
     }
@@ -586,7 +666,7 @@ abstract class Finder
      */
     protected function customIterator(string $type, array $settings = [], array $criteria = [], array $sort = []): array
     {
-        return $this->wrapInTry(
+        return $this->wrapFinder(
             fn() => $this->applySort(
                 $this->iteratorManager->toArray(
                     $this->iteratorManager->CallbackFilterIterator(

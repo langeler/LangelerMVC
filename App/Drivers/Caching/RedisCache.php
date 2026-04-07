@@ -16,18 +16,20 @@ class RedisCache extends Cache
 		parent::__construct();
 	}
 
-	public function set(string $key, $data, ?int $ttl = null): bool
+	public function set(string $key, mixed $data, ?int $ttl = null): bool
 	{
 		return $this->wrapInTry(function () use ($key, $data, $ttl) {
 			$ttl = $ttl ?? (int)$this->settings['cache']['TTL'];
 			$result = $this->redis->set(
 				$key,
 				json_encode([
-					'timestamp' => $this->dateTimeHandler->getCurrentTimestamp(),
+					'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
 					'ttl' => $ttl,
-					'data' => $this->compressData(
-						$this->encryptData(
-							$this->serializeData($data)
+					'data' => base64_encode(
+						$this->compressData(
+							$this->encryptData(
+								$this->serializeData($data)
+							)
 						)
 					)
 				])
@@ -47,7 +49,7 @@ class RedisCache extends Cache
 		});
 	}
 
-	public function get(string $key)
+	public function get(string $key): mixed
 	{
 		return $this->wrapInTry(function () use ($key) {
 			$result = $this->redis->get($key);
@@ -56,13 +58,15 @@ class RedisCache extends Cache
 			}
 
 			$cacheData = json_decode($result, true);
-			return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? $this->delete($key) : $this->unserializeData(
-				$this->decryptData(
-					$this->decompressData($cacheData['data'])
-				)
-			);
-		});
-	}
+				return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
+					$this->decryptData(
+						$this->decompressData(
+							base64_decode((string) ($cacheData['data'] ?? ''), true) ?: ''
+						)
+					)
+				);
+			});
+		}
 
 	public function delete(string $key): bool
 	{

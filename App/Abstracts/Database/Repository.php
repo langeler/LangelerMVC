@@ -4,126 +4,546 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Database;
 
+use App\Contracts\Database\ModelInterface;
+use App\Contracts\Database\RepositoryInterface;
 use App\Core\Database;
+use App\Exceptions\Database\RepositoryException;
 
 /**
- * Abstract Repository Class
- *
- * Responsibilities:
- * - Encapsulate CRUD operations and data retrieval logic using the provided Database instance.
- * - Return model instances rather than raw arrays.
- * - Provide a uniform interface for data operations, enforced by abstract methods.
- *
- * Boundaries:
- * - Does NOT handle HTTP requests, responses, or presentation logic.
- * - Does NOT contain business logic; it only interacts with the database.
- * - Concrete repositories must implement table association and data mapping.
+ * Generic repository with safe CRUD, criteria handling, and model hydration.
  */
-abstract class Repository
+abstract class Repository implements RepositoryInterface
 {
-	/**
-	 * The model instance or a prototype model used for instantiation.
-	 * The Database instance for executing queries.
-	 */
-	public function __construct(
-		protected object $model,
-		protected Database $db
-	) {
-		// All necessary properties are already set via constructor property promotion.
-	}
+    /**
+     * Fully-qualified model class handled by the repository.
+     *
+     * @var class-string<ModelInterface>
+     */
+    protected string $modelClass;
 
-	/**
-	 * Get the database table name associated with this repository.
-	 * Concrete implementations must specify which table they operate on.
-	 *
-	 * @return string The table name.
-	 */
-	abstract protected function getTable(): string;
+    public function __construct(protected Database $db)
+    {
+        $this->assertModelClass();
+    }
 
-	/**
-	 * Map a raw database row to a model instance.
-	 * Ensures that data returned from the database is converted into a model object.
-	 *
-	 * @param array $row The raw database row.
-	 * @return object A model instance representing the row.
-	 */
-	abstract protected function mapRowToModel(array $row): object;
+    public function getTable(): string
+    {
+        return $this->newEmptyModel()->getTable();
+    }
 
-	/**
-	 * Find a record by its primary key.
-	 *
-	 * @param mixed $id The primary key value.
-	 * @return object|null The found model instance, or null if not found.
-	 */
-	abstract protected function find(mixed $id): ?object;
+    public function mapRowToModel(array $row): ModelInterface
+    {
+        $model = $this->newEmptyModel();
+        $model->forceFill($row);
+        $model->markAsExisting();
+        $model->syncOriginal();
 
-	/**
-	 * Retrieve all records from the associated table.
-	 *
-	 * @return object[] An array of model instances.
-	 */
-	abstract protected function all(): array;
+        return $model;
+    }
 
-	/**
-	 * Retrieve a paginated list of records.
-	 *
-	 * @param int $perPage Number of records per page.
-	 * @param int $page    The current page number.
-	 * @return array {
-	 *     'data' => object[],   // The page of model instances
-	 *     'total' => int,       // Total number of records
-	 *     'per_page' => int,    // Records per page
-	 *     'current_page' => int // Current page number
-	 * }
-	 */
-	abstract protected function paginate(int $perPage = 15, int $page = 1): array;
+    public function find(mixed $id): ?ModelInterface
+    {
+        $primaryKey = $this->qualifyIdentifier($this->getPrimaryKey());
+        $row = $this->db->fetchOne(
+            sprintf(
+                'SELECT * FROM %s WHERE %s = ? LIMIT 1',
+                $this->qualifyIdentifier($this->getTable()),
+                $primaryKey
+            ),
+            [$id]
+        );
 
-	/**
-	 * Create a new record in the database.
-	 *
-	 * @param array $data The data to create the record.
-	 * @return object The created model instance.
-	 */
-	abstract protected function create(array $data): object;
+        return $row !== null ? $this->mapRowToModel($row) : null;
+    }
 
-	/**
-	 * Update an existing record by its primary key.
-	 *
-	 * @param mixed $id   The primary key value of the record.
-	 * @param array $data The data to update.
-	 * @return bool True if the update was successful, false otherwise.
-	 */
-	abstract protected function update(mixed $id, array $data): bool;
+    public function all(): array
+    {
+        return $this->hydrateMany(
+            $this->db->fetchAll(
+                sprintf(
+                    'SELECT * FROM %s ORDER BY %s ASC',
+                    $this->qualifyIdentifier($this->getTable()),
+                    $this->qualifyIdentifier($this->getPrimaryKey())
+                )
+            )
+        );
+    }
 
-	/**
-	 * Delete a record by its primary key.
-	 *
-	 * @param mixed $id The primary key value of the record.
-	 * @return bool True if the deletion was successful, false otherwise.
-	 */
-	abstract protected function delete(mixed $id): bool;
+    public function paginate(int $perPage = 15, int $page = 1): array
+    {
+        if ($perPage < 1 || $page < 1) {
+            throw new RepositoryException('Pagination values must be positive integers.');
+        }
 
-	/**
-	 * Find records by specific criteria.
-	 *
-	 * @param array $criteria Key-value pairs for filtering.
-	 * @return object[] An array of model instances matching the criteria.
-	 */
-	abstract protected function findBy(array $criteria): array;
+        $offset = ($page - 1) * $perPage;
+        $table = $this->qualifyIdentifier($this->getTable());
+        $primaryKey = $this->qualifyIdentifier($this->getPrimaryKey());
+        $total = (int) $this->db->fetchColumn(sprintf('SELECT COUNT(*) FROM %s', $table));
+        $rows = $this->db->fetchAll(
+            sprintf(
+                'SELECT * FROM %s ORDER BY %s ASC LIMIT %d OFFSET %d',
+                $table,
+                $primaryKey,
+                $perPage,
+                $offset
+            )
+        );
 
-	/**
-	 * Find a single record by specific criteria.
-	 *
-	 * @param array $criteria Key-value pairs for filtering.
-	 * @return object|null The found model instance, or null if not found.
-	 */
-	abstract protected function findOneBy(array $criteria): ?object;
+        return [
+            'data' => $this->hydrateMany($rows),
+            'total' => $total,
+            'per_page' => $perPage,
+            'current_page' => $page,
+            'last_page' => max(1, (int) ceil($total / $perPage)),
+        ];
+    }
 
-	/**
-	 * Count records matching specific criteria.
-	 *
-	 * @param array $criteria Key-value pairs for filtering.
-	 * @return int The number of matching records.
-	 */
-	abstract protected function count(array $criteria): int;
+    public function create(array $data): ModelInterface
+    {
+        $model = $this->newModel($data);
+
+        return $this->persistNewModel($model);
+    }
+
+    public function update(mixed $id, array $data): bool
+    {
+        $existing = $this->find($id);
+
+        if ($existing === null) {
+            return false;
+        }
+
+        $existing->fill($data);
+        $this->persistExistingModel($existing);
+
+        return true;
+    }
+
+    public function delete(mixed $id): bool
+    {
+        return $this->db->execute(
+            sprintf(
+                'DELETE FROM %s WHERE %s = ?',
+                $this->qualifyIdentifier($this->getTable()),
+                $this->qualifyIdentifier($this->getPrimaryKey())
+            ),
+            [$id]
+        ) > 0;
+    }
+
+    public function findBy(array $criteria): array
+    {
+        [$where, $params] = $this->compileCriteria($criteria);
+        $query = sprintf(
+            'SELECT * FROM %s%s ORDER BY %s ASC',
+            $this->qualifyIdentifier($this->getTable()),
+            $where,
+            $this->qualifyIdentifier($this->getPrimaryKey())
+        );
+
+        return $this->hydrateMany($this->db->fetchAll($query, $params));
+    }
+
+    public function findOneBy(array $criteria): ?ModelInterface
+    {
+        [$where, $params] = $this->compileCriteria($criteria);
+        $row = $this->db->fetchOne(
+            sprintf(
+                'SELECT * FROM %s%s ORDER BY %s ASC LIMIT 1',
+                $this->qualifyIdentifier($this->getTable()),
+                $where,
+                $this->qualifyIdentifier($this->getPrimaryKey())
+            ),
+            $params
+        );
+
+        return $row !== null ? $this->mapRowToModel($row) : null;
+    }
+
+    public function count(array $criteria): int
+    {
+        [$where, $params] = $this->compileCriteria($criteria);
+
+        return (int) $this->db->fetchColumn(
+            sprintf(
+                'SELECT COUNT(*) FROM %s%s',
+                $this->qualifyIdentifier($this->getTable()),
+                $where
+            ),
+            $params
+        );
+    }
+
+    public function save(ModelInterface $model): ModelInterface
+    {
+        $this->assertRepositoryModel($model);
+
+        return $model->exists()
+            ? $this->persistExistingModel($model)
+            : $this->persistNewModel($model);
+    }
+
+    public function deleteModel(ModelInterface $model): bool
+    {
+        $this->assertRepositoryModel($model);
+        $key = $model->getKey();
+
+        if ($key === null) {
+            throw new RepositoryException('Cannot delete a model without a primary key value.');
+        }
+
+        $deleted = $this->delete($key);
+
+        if ($deleted) {
+            $model->markAsExisting(false);
+        }
+
+        return $deleted;
+    }
+
+    protected function newModel(array $attributes = []): ModelInterface
+    {
+        $model = $this->newEmptyModel();
+        $model->fill($attributes);
+
+        return $model;
+    }
+
+    protected function persistNewModel(ModelInterface $model): ModelInterface
+    {
+        $attributes = $this->prepareAttributesForCreate($model);
+
+        if ($attributes === []) {
+            throw new RepositoryException('Cannot create a model without any persistable attributes.');
+        }
+
+        [$columns, $params] = $this->extractColumnsAndParams($attributes);
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+
+        $this->db->execute(
+            sprintf(
+                'INSERT INTO %s (%s) VALUES (%s)',
+                $this->qualifyIdentifier($this->getTable()),
+                implode(', ', array_map([$this, 'qualifyIdentifier'], $columns)),
+                $placeholders
+            ),
+            $params
+        );
+
+        $primaryKey = $this->getPrimaryKey();
+
+        if ($model->getAttribute($primaryKey) === null) {
+            $insertedId = $this->db->lastInsertId();
+
+            if ($insertedId !== '') {
+                $model->setAttribute($primaryKey, is_numeric($insertedId) ? (int) $insertedId : $insertedId);
+            }
+        }
+
+        $fresh = $model->getAttribute($primaryKey) !== null
+            ? $this->find($model->getAttribute($primaryKey))
+            : null;
+
+        if ($fresh !== null) {
+            return $fresh;
+        }
+
+        $model->markAsExisting();
+        $model->syncOriginal();
+
+        return $model;
+    }
+
+    protected function persistExistingModel(ModelInterface $model): ModelInterface
+    {
+        $dirty = $model->getDirty();
+        $primaryKey = $this->getPrimaryKey();
+
+        if (array_key_exists($primaryKey, $dirty)) {
+            throw new RepositoryException('Updating the primary key of an existing model is not supported.');
+        }
+
+        if ($dirty === []) {
+            return $model;
+        }
+
+        $key = $model->getAttribute($primaryKey);
+
+        if ($key === null) {
+            throw new RepositoryException('Cannot update a model without a primary key value.');
+        }
+
+        if ($model->usesTimestamps()) {
+            $updatedAtColumn = $model->getUpdatedAtColumn();
+            $timestamp = $this->freshTimestamp();
+            $model->setAttribute($updatedAtColumn, $timestamp);
+            $dirty[$updatedAtColumn] = $timestamp;
+        }
+
+        [$columns, $params] = $this->extractColumnsAndParams($dirty);
+        $assignments = implode(
+            ', ',
+            array_map(
+                fn(string $column): string => $this->qualifyIdentifier($column) . ' = ?',
+                $columns
+            )
+        );
+
+        $params[] = $key;
+
+        $updated = $this->db->execute(
+            sprintf(
+                'UPDATE %s SET %s WHERE %s = ?',
+                $this->qualifyIdentifier($this->getTable()),
+                $assignments,
+                $this->qualifyIdentifier($primaryKey)
+            ),
+            $params
+        );
+
+        if ($updated === 0 && $this->find($key) === null) {
+            throw new RepositoryException(
+                sprintf('Unable to update [%s] because the record no longer exists.', static::class)
+            );
+        }
+
+        $fresh = $this->find($key);
+
+        if ($fresh !== null) {
+            return $fresh;
+        }
+
+        $model->syncOriginal();
+
+        return $model;
+    }
+
+    /**
+     * @return array{0: string, 1: list<mixed>}
+     */
+    protected function compileCriteria(array $criteria): array
+    {
+        if ($criteria === []) {
+            return ['', []];
+        }
+
+        $clauses = [];
+        $params = [];
+
+        foreach ($criteria as $column => $value) {
+            $qualifiedColumn = $this->qualifyIdentifier((string) $column);
+
+            if ($value === null) {
+                $clauses[] = $qualifiedColumn . ' IS NULL';
+                continue;
+            }
+
+            if (is_array($value) && $this->isAssociative($value)) {
+                foreach ($value as $operator => $operand) {
+                    [$clause, $clauseParams] = $this->compileOperatorCriterion(
+                        $qualifiedColumn,
+                        (string) $operator,
+                        $operand
+                    );
+                    $clauses[] = $clause;
+                    array_push($params, ...$clauseParams);
+                }
+
+                continue;
+            }
+
+            if (is_array($value)) {
+                [$clause, $clauseParams] = $this->compileInCriterion($qualifiedColumn, $value, false);
+                $clauses[] = $clause;
+                array_push($params, ...$clauseParams);
+                continue;
+            }
+
+            $clauses[] = $qualifiedColumn . ' = ?';
+            $params[] = $value;
+        }
+
+        return [' WHERE ' . implode(' AND ', $clauses), $params];
+    }
+
+    protected function getPrimaryKey(): string
+    {
+        return $this->newEmptyModel()->getPrimaryKey();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function prepareAttributesForCreate(ModelInterface $model): array
+    {
+        $attributes = $model->getAttributes();
+
+        if ($model->usesTimestamps()) {
+            $timestamp = $this->freshTimestamp();
+            $createdAtColumn = $model->getCreatedAtColumn();
+            $updatedAtColumn = $model->getUpdatedAtColumn();
+
+            if (!array_key_exists($createdAtColumn, $attributes)) {
+                $model->setAttribute($createdAtColumn, $timestamp);
+                $attributes[$createdAtColumn] = $timestamp;
+            }
+
+            if (!array_key_exists($updatedAtColumn, $attributes)) {
+                $model->setAttribute($updatedAtColumn, $timestamp);
+                $attributes[$updatedAtColumn] = $timestamp;
+            }
+        }
+
+        return $attributes;
+    }
+
+    protected function freshTimestamp(): string
+    {
+        return gmdate('Y-m-d H:i:s');
+    }
+
+    /**
+     * @return array{0: list<string>, 1: list<mixed>}
+     */
+    protected function extractColumnsAndParams(array $attributes): array
+    {
+        $columns = [];
+        $params = [];
+
+        foreach ($attributes as $column => $value) {
+            $columns[] = (string) $column;
+            $params[] = $value;
+        }
+
+        return [$columns, $params];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rows
+     * @return ModelInterface[]
+     */
+    protected function hydrateMany(array $rows): array
+    {
+        return array_map(fn(array $row): ModelInterface => $this->mapRowToModel($row), $rows);
+    }
+
+    /**
+     * @return ModelInterface
+     */
+    protected function newEmptyModel(): ModelInterface
+    {
+        $class = $this->modelClass;
+
+        return new $class();
+    }
+
+    protected function qualifyIdentifier(string $identifier): string
+    {
+        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $identifier)) {
+            throw new RepositoryException(sprintf('Invalid SQL identifier [%s].', $identifier));
+        }
+
+        $driver = strtolower((string) $this->db->getAttribute('driverName'));
+
+        return match ($driver) {
+            'pgsql', 'sqlite' => '"' . $identifier . '"',
+            'sqlsrv' => '[' . $identifier . ']',
+            default => '`' . $identifier . '`',
+        };
+    }
+
+    protected function assertModelClass(): void
+    {
+        if (!isset($this->modelClass) || $this->modelClass === '') {
+            throw new RepositoryException(
+                sprintf('Repository [%s] must define a model class.', static::class)
+            );
+        }
+
+        if (!is_subclass_of($this->modelClass, ModelInterface::class)) {
+            throw new RepositoryException(
+                sprintf(
+                    'Repository [%s] model class [%s] must implement [%s].',
+                    static::class,
+                    $this->modelClass,
+                    ModelInterface::class
+                )
+            );
+        }
+    }
+
+    protected function assertRepositoryModel(ModelInterface $model): void
+    {
+        if (!$model instanceof $this->modelClass) {
+            throw new RepositoryException(
+                sprintf(
+                    'Repository [%s] cannot persist model [%s]. Expected [%s].',
+                    static::class,
+                    $model::class,
+                    $this->modelClass
+                )
+            );
+        }
+    }
+
+    /**
+     * @param array<int|string, mixed> $value
+     */
+    private function isAssociative(array $value): bool
+    {
+        if ($value === []) {
+            return false;
+        }
+
+        return array_keys($value) !== range(0, count($value) - 1);
+    }
+
+    /**
+     * @return array{0: string, 1: list<mixed>}
+     */
+    private function compileOperatorCriterion(string $column, string $operator, mixed $operand): array
+    {
+        $normalized = strtolower(trim($operator));
+
+        return match ($normalized) {
+            '=', '!=', '<>', '>', '>=', '<', '<=', 'like', 'not like' => [
+                $column . ' ' . strtoupper($normalized) . ' ?',
+                [$operand],
+            ],
+            'in' => $this->compileInCriterion($column, (array) $operand, false),
+            'not in' => $this->compileInCriterion($column, (array) $operand, true),
+            'is' => [$column . ' IS ' . $this->normalizeIsOperand($operand), []],
+            'is not' => [$column . ' IS NOT ' . $this->normalizeIsOperand($operand), []],
+            default => throw new RepositoryException(sprintf('Unsupported criteria operator [%s].', $operator)),
+        };
+    }
+
+    /**
+     * @param array<int, mixed> $values
+     * @return array{0: string, 1: list<mixed>}
+     */
+    private function compileInCriterion(string $column, array $values, bool $negated): array
+    {
+        if ($values === []) {
+            return [$negated ? '1 = 1' : '1 = 0', []];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($values), '?'));
+
+        return [
+            sprintf('%s %s (%s)', $column, $negated ? 'NOT IN' : 'IN', $placeholders),
+            array_values($values),
+        ];
+    }
+
+    private function normalizeIsOperand(mixed $operand): string
+    {
+        return match (true) {
+            $operand === null => 'NULL',
+            $operand === true => 'TRUE',
+            $operand === false => 'FALSE',
+            is_string($operand) && in_array(strtoupper($operand), ['NULL', 'TRUE', 'FALSE'], true) => strtoupper($operand),
+            default => throw new RepositoryException('The IS operator only supports NULL and boolean operands.'),
+        };
+    }
 }

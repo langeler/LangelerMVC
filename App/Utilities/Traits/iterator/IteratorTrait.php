@@ -45,7 +45,7 @@ trait IteratorTrait
 			'ArrayIterator' => [
 				'class' => ArrayIterator::class, // Iterates over arrays and objects
 				'flag' => [
-					'asPropy' => ArrayIterator::ARRAY_AS_PROPS, // Treat array elements as object properties
+					'asProps' => ArrayIterator::ARRAY_AS_PROPS, // Treat array elements as object properties
 					'stdProps' => ArrayIterator::STD_PROP_LIST, // Standard property list for objects
 				],
 			],
@@ -160,9 +160,15 @@ trait IteratorTrait
 		 *
 		 * @return AppendIterator
 		 */
-		public function AppendIterator(): AppendIterator
+		public function AppendIterator(\Iterator ...$iterators): AppendIterator
 		{
-			return new ($this->resolve('AppendIterator'))();
+			$iterator = new ($this->resolve('AppendIterator'))();
+
+			foreach ($iterators as $childIterator) {
+				$iterator->append($childIterator);
+			}
+
+			return $iterator;
 		}
 
 		/**
@@ -176,7 +182,7 @@ trait IteratorTrait
 		{
 			return new ($this->resolve('ArrayIterator'))(
 				$data,
-				$this->fetchSettings('ArrayIterator', $settings)['flag']['asProps'] ?? $this->iteratorSettings['ArrayIterator']['flag']['asProps']
+				$this->fetchSettings('ArrayIterator', $settings)['flag'] ?? $this->iteratorSettings['ArrayIterator']['flag']['asProps']
 			);
 		}
 
@@ -191,7 +197,7 @@ trait IteratorTrait
 		{
 			return new ($this->resolve('CachingIterator'))(
 				$iterator,
-				$this->fetchSettings('CachingIterator', $settings)['flag']['fullCache'] ?? $this->iteratorSettings['CachingIterator']['flag']['fullCache']
+				$this->fetchSettings('CachingIterator', $settings)['flag'] ?? $this->iteratorSettings['CachingIterator']['flag']['fullCache']
 			);
 		}
 
@@ -239,7 +245,7 @@ trait IteratorTrait
 		{
 			return new ($this->resolve('FilesystemIterator'))(
 				$path,
-				$this->fetchSettings('FilesystemIterator', $settings)['mode']['skipDots'] ?? $this->iteratorSettings['FilesystemIterator']['mode']['skipDots']
+				$this->fetchSettings('FilesystemIterator', $settings)['mode'] ?? $this->iteratorSettings['FilesystemIterator']['mode']['skipDots']
 			);
 		}
 
@@ -310,7 +316,7 @@ trait IteratorTrait
 		public function MultipleIterator(array $settings = []): MultipleIterator
 		{
 			return new ($this->resolve('MultipleIterator'))(
-				$this->fetchSettings('MultipleIterator', $settings)['flag']['needAll'] ?? $this->iteratorSettings['MultipleIterator']['flag']['needAll']
+				$this->fetchSettings('MultipleIterator', $settings)['flag'] ?? $this->iteratorSettings['MultipleIterator']['flag']['needAll']
 			);
 		}
 
@@ -349,7 +355,7 @@ trait IteratorTrait
 			return new ($this->resolve('RegexIterator'))(
 				$iterator,
 				$regex,
-				$this->fetchSettings('RegexIterator', $settings)['mode']['match'] ?? $this->iteratorSettings['RegexIterator']['mode']['match']
+				$this->fetchSettings('RegexIterator', $settings)['mode'] ?? $this->iteratorSettings['RegexIterator']['mode']['match']
 			);
 		}
 
@@ -364,4 +370,3 @@ trait IteratorTrait
 			return new ($this->resolve('SeekableIterator'))($iterator);
 		}
 	}
-}

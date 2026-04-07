@@ -178,7 +178,9 @@ class FileFinder extends Finder implements FinderInterface
      */
     public function find(array $criteria = [], ?string $path = null, array $sort = []): array
     {
-        return $this->wrapInTry(
+        $criteria = $this->merge(['type' => 'file'], $criteria);
+
+        return $this->wrapFinder(
             fn() => $this->handle($criteria, $path, $sort),
             "Error in FileFinder find"
         );
@@ -196,7 +198,9 @@ class FileFinder extends Finder implements FinderInterface
      */
     public function search(array $criteria = [], ?string $path = null, array $sort = []): array
     {
-        return $this->wrapInTry(
+        $criteria = $this->merge(['type' => 'file'], $criteria);
+
+        return $this->wrapFinder(
             fn() => $this->searchMultipleDirectories([$this->validatePath($path ?? $this->root)], $criteria, $sort),
             "Error during searchFiles"
         );
@@ -212,7 +216,7 @@ class FileFinder extends Finder implements FinderInterface
      */
     public function scan(?string $path = null): array
     {
-        return $this->wrapInTry(
+        return $this->wrapFinder(
             fn() => $this->filter(
                 $this->map(
                     fn($item) => $this->getFileInfo($item, $path),
@@ -232,7 +236,7 @@ class FileFinder extends Finder implements FinderInterface
      */
     public function showTree(?string $path = null): void
     {
-        $this->wrapInTry(
+        $this->wrapFinder(
             fn() => $this->displayDirectoryTree($this->validatePath($path ?? $this->root)),
             "Error displaying file tree"
         );
@@ -248,10 +252,12 @@ class FileFinder extends Finder implements FinderInterface
      *
      * @throws FinderException If an error occurs during filtering.
      */
-    public function findByDepth(array $criteria = [], int $maxDepth = 0, ?string $path = null): array
+    public function findByDepth(array $criteria, ?string $path, int $maxDepth = 0, array $sort = []): array
     {
-        return $this->wrapInTry(
-            fn() => $this->filterWithDepthControl($criteria, $this->validatePath($path ?? $this->root), $maxDepth, []),
+        $criteria = $this->merge(['type' => 'file'], $criteria);
+
+        return $this->wrapFinder(
+            fn() => $this->filterWithDepthControl($criteria, $this->validatePath($path ?? $this->root), $maxDepth, $sort),
             "Error filtering files by depth"
         );
     }
@@ -267,7 +273,9 @@ class FileFinder extends Finder implements FinderInterface
      */
     public function findByCache(array $criteria = [], ?string $path = null): array
     {
-        return $this->wrapInTry(
+        $criteria = $this->merge(['type' => 'file'], $criteria);
+
+        return $this->wrapFinder(
             fn() => $this->filterWithCache($criteria, $this->validatePath($path ?? $this->root)),
             "Error during cacheFiles"
         );
@@ -284,7 +292,9 @@ class FileFinder extends Finder implements FinderInterface
      */
     public function findByRegEx(array $criteria = [], ?string $path = null): array
     {
-        return $this->wrapInTry(
+        $criteria = $this->merge(['type' => 'file'], $criteria);
+
+        return $this->wrapFinder(
             fn() => $this->filterWithRegex($criteria, $this->validatePath($path ?? $this->root)),
             "Error during regexFiles"
         );
@@ -301,7 +311,7 @@ class FileFinder extends Finder implements FinderInterface
      */
     protected function getFileInfo(string $item, ?string $path): array
     {
-        return $this->wrapInTry(function () use ($item, $path) {
+        return $this->wrapFinder(function () use ($item, $path) {
             $fileInfo = $this->iteratorManager->FileInfo(
                 $this->validatePath($path ?? $this->root) . DIRECTORY_SEPARATOR . $item
             );

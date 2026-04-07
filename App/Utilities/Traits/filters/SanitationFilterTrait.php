@@ -11,7 +11,7 @@ use App\Utilities\Traits\ArrayTrait;
  * Provides methods to sanitize various data types using PHP filters with flexible flag handling.
  * Preserves the original filters and flags properties while leveraging ArrayTrait methods to avoid native array operations.
  */
-trait SanitationTrait
+trait SanitationFilterTrait
 {
 	use FiltrationTrait, ArrayTrait;
 

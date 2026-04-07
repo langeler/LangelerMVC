@@ -31,7 +31,7 @@ trait RecursiveIteratorTrait
 			'RecursiveArrayIterator' => [
 				'class' => RecursiveArrayIterator::class, // Reference to the RecursiveArrayIterator class
 				'flag' => [
-					'asPropy' => RecursiveArrayIterator::ARRAY_AS_PROPS, // Treats array elements as object properties
+					'asProps' => RecursiveArrayIterator::ARRAY_AS_PROPS, // Treats array elements as object properties
 					'stdProps' => RecursiveArrayIterator::STD_PROP_LIST, // Standard property list for array access
 				],
 			],
@@ -199,10 +199,16 @@ trait RecursiveIteratorTrait
 	 */
 	public function RecursiveIteratorIterator($iterator, array $settings = []): RecursiveIteratorIterator
 	{
-		return new ($this->resolve('RecursiveIteratorIterator'))(
+		$recursiveIterator = new ($this->resolve('RecursiveIteratorIterator'))(
 			$iterator,
 			$this->fetchSettings('RecursiveIteratorIterator', $settings)['mode'] ?? $this->recursiveIteratorSettings['RecursiveIteratorIterator']['mode']['selfFirst']
 		);
+
+		if (isset($settings['maxDepth']) && is_int($settings['maxDepth'])) {
+			$recursiveIterator->setMaxDepth($settings['maxDepth']);
+		}
+
+		return $recursiveIterator;
 	}
 
 	/**

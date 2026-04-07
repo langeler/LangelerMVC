@@ -2,8 +2,8 @@
 
 # LangelerMVC Framework
 
-[![PHP Version](https://img.shields.io/badge/PHP-7.4%20%7C%208.x-blue.svg)](https://www.php.net/)
-**A PHP 7.4 / 8+ MVC Framework focusing on structure, adhering to the Single Responsibility Principle (SRP), Separation of Concerns (SoC), and Object-Oriented Programming (OOP)**.
+[![PHP Version](https://img.shields.io/badge/PHP-8.4%2B-blue.svg)](https://www.php.net/)
+**A PHP 8.4+ MVC Framework focusing on structure, adhering to the Single Responsibility Principle (SRP), Separation of Concerns (SoC), and Object-Oriented Programming (OOP)**.
 
 ---
 
@@ -39,7 +39,7 @@ This framework is ideal for developers who want a solid foundation for building 
 ## Features
 
 - **MVC Architecture** (Model-View-Controller)
-- **PHP 7.4+ Support**
+- **PHP 8.4+ Support**
 - **Modular Design** with Admin and User Modules
 - **SQL Integration** with MySQL using PDO
 - **Custom Templating System** with Layouts, Pages, Partials, and Components
@@ -58,7 +58,7 @@ This framework is ideal for developers who want a solid foundation for building 
 
 ### Prerequisites
 
-- PHP 7.4 or PHP 8.0+
+- PHP 8.4+
 - MySQL Database
 - Composer
 

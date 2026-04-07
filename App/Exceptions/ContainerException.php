@@ -18,9 +18,9 @@ class ContainerException extends Exception
 	 * @param string $message A message detailing the error.
 	 * @param Throwable|null $previous The previous exception, if any.
 	 */
-	public function __construct(string $message, ?Throwable $previous = null)
+	public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null)
 	{
-		parent::__construct($message, 0, $previous);
+		parent::__construct($message, $code, $previous);
 	}
 
 	/**

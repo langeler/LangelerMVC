@@ -4,82 +4,70 @@ declare(strict_types=1);
 
 namespace App\Contracts\Database;
 
+use JsonSerializable;
+
 /**
- * ModelInterface
- *
- * Defines the contract for representing a single database entity (row).
- * Aligns with the abstract Model class, providing a public API for
- * getting/setting attributes, table and primary key info, timestamps,
- * and handling mass assignment.
+ * Public contract for a database-backed domain entity.
  */
-interface ModelInterface
+interface ModelInterface extends JsonSerializable
 {
-	/**
-	 * Get the database table name associated with the model.
-	 *
-	 * @return string
-	 */
-	public function getTable(): string;
+    public function getTable(): string;
 
-	/**
-	 * Get the primary key for the model.
-	 *
-	 * @return string
-	 */
-	public function getPrimaryKey(): string;
+    public function getPrimaryKey(): string;
 
-	/**
-	 * Retrieve all attributes of the model.
-	 *
-	 * @return array<string,mixed>
-	 */
-	public function getAttributes(): array;
+    public function getKey(): mixed;
 
-	/**
-	 * Set a specific attribute on the model.
-	 *
-	 * @param string $key
-	 * @param mixed $value
-	 * @return void
-	 */
-	public function setAttribute(string $key, mixed $value): void;
+    /**
+     * @return array<string, mixed>
+     */
+    public function getAttributes(): array;
 
-	/**
-	 * Get a specific attribute from the model.
-	 *
-	 * @param string $key
-	 * @return mixed
-	 */
-	public function getAttribute(string $key): mixed;
+    public function setAttribute(string $key, mixed $value): void;
 
-	/**
-	 * Determine if a specific attribute exists on the model.
-	 *
-	 * @param string $key
-	 * @return bool
-	 */
-	public function hasAttribute(string $key): bool;
+    public function getAttribute(string $key): mixed;
 
-	/**
-	 * Check if timestamps are enabled for the model.
-	 *
-	 * @return bool
-	 */
-	public function usesTimestamps(): bool;
+    public function hasAttribute(string $key): bool;
 
-	/**
-	 * Fill the model with an array of attributes,
-	 * respecting fillable and guarded rules.
-	 *
-	 * @param array<string,mixed> $attributes
-	 * @return void
-	 */
-	public function fill(array $attributes): void;
+    public function usesTimestamps(): bool;
 
-	/**
-	 * Retrieve the original attributes as retrieved from the database.
-	 *
-	 * @return array<string,mixed>
-	 */
-	public function getOriginal(): array;
+    public function fill(array $attributes): void;
+
+    public function forceFill(array $attributes): void;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getOriginal(): array;
+
+    public function syncOriginal(): void;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getDirty(): array;
+
+    public function isDirty(?string $attribute = null): bool;
+
+    public function exists(): bool;
+
+    public function markAsExisting(bool $exists = true): void;
+
+    /**
+     * @return string[]
+     */
+    public function getFillable(): array;
+
+    /**
+     * @return string[]
+     */
+    public function getGuarded(): array;
+
+    public function getCreatedAtColumn(): string;
+
+    public function getUpdatedAtColumn(): string;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array;
 }

@@ -17,20 +17,54 @@ trait ErrorTrait
      * @return mixed The result of the callback if successful.
      * @throws Throwable The original or transformed exception if the callback fails.
      */
-    public function wrapInTry(callable $callback, string|Throwable|callable|object|null $wrapException = null): mixed
+    public function wrapInTry(callable $callback, string|Throwable|callable|null $wrapException = null): mixed
     {
-        return $this->isCallable($callback)
-            ? (try {
-                return $callback();
-            } catch (Throwable $caught) {
-                throw $this->isNull($wrapException) ? $caught
-                    : ($this->isObject($wrapException) && $this->isSubclassOf($wrapException, Throwable::class) ? $wrapException
-                        : ($this->isCallable($wrapException) ? $wrapException($caught)
-                            : ($this->isObject($wrapException) && $this->methodExists($wrapException, 'resolveException') ? $wrapException->resolveException($caught)
-                                : ($this->isString($wrapException) && $this->classExists($wrapException) && $this->isSubclassOf($wrapException, Throwable::class)
-                                    ? new $wrapException($caught->getMessage(), $caught->getCode(), $caught)
-                                    : throw new UnexpectedValueException('Invalid wrapException type or unresolvable exception.')))));
-            })
-            : throw new UnexpectedValueException('Provided callback is not callable.');
+        if (!$this->isCallable($callback)) {
+            throw new UnexpectedValueException('Provided callback is not callable.');
+        }
+
+        try {
+            return $callback();
+        } catch (Throwable $caught) {
+            if ($this->isNull($wrapException)) {
+                throw $caught;
+            }
+
+            if ($this->isObject($wrapException) && $wrapException instanceof Throwable) {
+                throw $wrapException;
+            }
+
+            if ($this->isCallable($wrapException)) {
+                throw $wrapException($caught);
+            }
+
+            if ($this->isObject($wrapException) && $this->methodExists($wrapException, 'resolveException')) {
+                throw $wrapException->resolveException($caught);
+            }
+
+            if ($this->isString($wrapException)) {
+                if (
+                    $this->propertyExists($this, 'errorManager')
+                    && $this->isObject($this->errorManager)
+                    && $this->methodExists($this->errorManager, 'resolveException')
+                ) {
+                    throw $this->errorManager->resolveException(
+                        $wrapException,
+                        $caught->getMessage(),
+                        $caught->getCode(),
+                        $caught
+                    );
+                }
+
+                if (
+                    $this->classExists($wrapException)
+                    && is_subclass_of($wrapException, Throwable::class, true)
+                ) {
+                    throw new $wrapException($caught->getMessage(), $caught->getCode(), $caught);
+                }
+            }
+
+            throw new UnexpectedValueException('Invalid wrapException type or unresolvable exception.', 0, $caught);
+        }
     }
 }

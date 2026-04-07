@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Presentation;
 
+use App\Contracts\Presentation\ViewInterface;
 use App\Exceptions\Data\FinderException;          // Exception for errors occurring during finder operations.
 use App\Exceptions\Presentation\ViewException;    // Exception for errors in presentation layer views.
-
-use App\Helpers\TypeChecker;                      // Provides utility methods for type validation.
 
 use App\Utilities\Finders\{
 	FileFinder,      // Handles searching and managing files.
@@ -21,6 +20,7 @@ use App\Utilities\Managers\{
 
 use App\Utilities\Sanitation\PatternSanitizer;    // Provides utilities for sanitizing data using patterns.
 use App\Utilities\Validation\PatternValidator;    // Provides utilities for validating data using patterns.
+use App\Utilities\Traits\ErrorTrait;
 
 /**
  * Abstract View Class
@@ -39,8 +39,10 @@ use App\Utilities\Validation\PatternValidator;    // Provides utilities for vali
  * - Constructor property promotion for dependencies.
  * - Utilizes custom exceptions for finder and view errors.
  */
-abstract class View
+abstract class View implements ViewInterface
 {
+	use ErrorTrait;
+
 	protected array $globals = [];
 	protected string $templateExt = 'php';
 	protected string $resourceExt = 'php';
@@ -63,7 +65,6 @@ abstract class View
 	public function __construct(
 		private FileFinder $files,
 		private DirectoryFinder $dirs,
-		private TypeChecker $types,
 		private CacheManager $cache,
 		private FileManager $fileManager,
 		private PatternSanitizer $sanitizer,
@@ -73,22 +74,65 @@ abstract class View
 		$this->templatesPath = $this->resolveBasePath('Templates');
 	}
 
-	/**
-	 * Abstract methods for rendering various template types.
-	 */
-	abstract protected function renderLayout(string $layout, array $data = []): string;
-	abstract protected function renderPage(string $page, array $data = []): string;
-	abstract protected function renderPartial(string $partial, array $data = []): string;
-	abstract protected function renderComponent(string $component, array $data = []): string;
-	abstract protected function renderAsset(string $type, string $asset): string;
+	public function renderLayout(string $layout, array $data = []): string
+	{
+		return $this->renderTemplate($this->getLayoutPath($layout), $data);
+	}
 
-	/**
-	 * Abstract methods for managing globals and cached templates.
-	 */
-	abstract protected function setGlobals(array $variables): void;
-	abstract protected function getGlobals(): array;
-	abstract protected function cacheTemplate(string $key, string $content, ?int $ttl = null): void;
-	abstract protected function fetchCachedTemplate(string $key): ?string;
+	public function renderPage(string $page, array $data = []): string
+	{
+		return $this->renderTemplate($this->getPagePath($page), $data);
+	}
+
+	public function renderPartial(string $partial, array $data = []): string
+	{
+		return $this->renderTemplate($this->getPartialPath($partial), $data);
+	}
+
+	public function renderComponent(string $component, array $data = []): string
+	{
+		return $this->renderTemplate($this->getComponentPath($component), $data);
+	}
+
+	public function renderAsset(string $type, string $asset): string
+	{
+		return $this->wrapInTry(function () use ($type, $asset): string {
+			return match (strtolower($type)) {
+				'css' => $this->getCssPath($asset),
+				'js' => $this->getJsPath($asset),
+				'image', 'images', 'img' => $this->getImagePath($asset),
+				default => throw new ViewException("Unsupported asset type '{$type}'."),
+			};
+		}, ViewException::class);
+	}
+
+	public function setGlobals(array $variables): void
+	{
+		$this->globals = array_replace($this->globals, $variables);
+	}
+
+	public function getGlobals(): array
+	{
+		return $this->globals;
+	}
+
+	public function cacheTemplate(string $key, string $content, ?int $ttl = null): void
+	{
+		$this->wrapInTry(function () use ($key, $content, $ttl): void {
+			if (!$this->cache->set($key, $content, $ttl)) {
+				throw new ViewException("Failed to cache template '{$key}'.");
+			}
+		}, ViewException::class);
+	}
+
+	public function fetchCachedTemplate(string $key): ?string
+	{
+		return $this->wrapInTry(function () use ($key): ?string {
+			$cached = $this->cache->get($key);
+
+			return is_string($cached) ? $cached : null;
+		}, ViewException::class);
+	}
 
 	/**
 	 * Resolve the base directory for resources or templates.
@@ -100,9 +144,10 @@ abstract class View
 	{
 		return $this->wrapInTry(fn(): string =>
 			$this->getValidPath(
-				$this->dirs->find(['name' => $dirName])[0] ?? null,
+				array_key_first($this->dirs->find(['name' => $dirName])) ?: null,
 				"Base directory '{$dirName}' not found."
-			)
+			),
+			ViewException::class
 		);
 	}
 
@@ -117,9 +162,10 @@ abstract class View
 	{
 		return $this->wrapInTry(fn(): string =>
 			$this->getValidPath(
-				$this->dirs->find(['name' => $subDir], $basePath)[0] ?? null,
+				array_key_first($this->dirs->find(['name' => $subDir], $basePath)) ?: null,
 				"Subdirectory '{$subDir}' not found in '{$basePath}'."
-			)
+			),
+			ViewException::class
 		);
 	}
 
@@ -141,7 +187,8 @@ abstract class View
 				)['path'],
 				"File '{$fileName}' not found in '{$basePath}'.",
 				isFileCheck: true
-			)
+			),
+			ViewException::class
 		);
 	}
 
@@ -157,9 +204,9 @@ abstract class View
 	private function getValidPath(?string $path, string $errorMessage, bool $isFileCheck = false): string
 	{
 		if (
-			!$this->types->isSet($path)
+			!$this->isSet($path)
 			|| ($isFileCheck && !$this->fileManager->fileExists($path))
-			|| (!$isFileCheck && !$this->types->isDirectory($path))
+			|| (!$isFileCheck && !$this->fileManager->isDirectory($path))
 		) {
 			throw new FinderException($errorMessage);
 		}
@@ -176,7 +223,17 @@ abstract class View
 	 */
 	private function sanitizeAndValidate(array $data, array $rules): array
 	{
-		return $this->validator->verify($this->sanitizer->clean($data), $rules);
+		$sanitized = [];
+
+		foreach ($data as $key => $value) {
+			$sanitized[$key] = $this->sanitizer->sanitizePathUnix((string) $value);
+
+			if (!$this->validator->validatePathUnix((string) $sanitized[$key])) {
+				throw new FinderException("Invalid path provided for '{$key}'.");
+			}
+		}
+
+		return $sanitized;
 	}
 
 	/**
@@ -187,23 +244,7 @@ abstract class View
 	 */
 	private function normalizePath(string $path): string
 	{
-		return $this->fileManager->getRealPath($path) ?? str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
-	}
-
-	/**
-	 * Wrapper for handling exceptions with a consistent exception type.
-	 *
-	 * @param callable $callback The operation to attempt.
-	 * @return mixed Result of the operation.
-	 * @throws ViewException If an error occurs during operation.
-	 */
-	private function wrapInTry(callable $callback): mixed
-	{
-		try {
-			return $callback();
-		} catch (\Throwable $e) {
-			throw new ViewException("Error occurred: {$e->getMessage()}", 0, $e);
-		}
+		return $this->fileManager->normalizePath($this->fileManager->getRealPath($path) ?? $path);
 	}
 
 	/**
@@ -229,21 +270,53 @@ abstract class View
 	 */
 	protected function getLayoutPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'layouts'), $file, $this->templateExt);
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Layouts'), $file, $this->templateExt);
 	}
 
 	protected function getPagePath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'pages'), $file, $this->templateExt);
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Pages'), $file, $this->templateExt);
 	}
 
 	protected function getPartialPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'partials'), $file, $this->templateExt);
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Partials'), $file, $this->templateExt);
 	}
 
 	protected function getComponentPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'components'), $file, $this->templateExt);
+		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Components'), $file, $this->templateExt);
+	}
+
+	/**
+	 * Render a resolved template file with merged globals and local data.
+	 *
+	 * @param array<string,mixed> $data
+	 * @return string
+	 */
+	protected function renderTemplate(string $path, array $data = []): string
+	{
+		return $this->wrapInTry(function () use ($path, $data): string {
+			$variables = array_replace($this->globals, $data);
+			$view = $this;
+
+			ob_start();
+
+			try {
+				extract($variables, EXTR_SKIP);
+				$result = include $path;
+			} catch (\Throwable $exception) {
+				ob_end_clean();
+				throw $exception;
+			}
+
+			$output = ob_get_clean();
+
+			if ($output !== false && $output !== '') {
+				return $output;
+			}
+
+			return is_string($result ?? null) ? $result : '';
+		}, ViewException::class);
 	}
 }

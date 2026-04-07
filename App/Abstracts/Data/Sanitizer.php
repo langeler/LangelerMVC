@@ -4,166 +4,348 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Data;
 
-use Throwable; // Base interface for exceptions and errors in PHP.
-use App\Exceptions\Data\SanitationException; // Custom exception for data sanitization errors.
+use ReflectionMethod;
+use ReflectionNamedType;
+use Throwable;
+use App\Exceptions\Data\SanitizationException;
 use App\Utilities\Traits\{
-    TypeCheckerTrait,       // Offers utilities for validating and checking data types.
-    ArrayTrait,             // Provides utility methods for array operations.
-    ExistenceCheckerTrait   // Adds methods to verify the existence of classes, methods, properties, etc.
+    TypeCheckerTrait,
+    ArrayTrait,
+    ExistenceCheckerTrait
 };
 
 /**
  * Abstract Class Sanitizer
  *
- * Provides a base implementation for data sanitization and validation processes.
- * Designed to handle configurable sanitization methods and validation rules.
- *
- * Key Features:
- * - Configurable sanitization and validation methods.
- * - Dynamic resolution of validation rules.
- * - Error handling with exception throwing for invalid data.
- *
- * Traits Used:
- * - **TypeCheckerTrait**: Validates and ensures correct data types.
- * - **ArrayTrait**: Utility methods for handling array operations.
- * - **ExistenceCheckerTrait**: Provides methods to verify existence of various elements in PHP.
- *
- * @package App\Abstracts\Data
- * @abstract
+ * Base implementation for schema-driven sanitization.
  */
 abstract class Sanitizer
 {
-    use TypeCheckerTrait,       // Ensures and validates data types.
-        ArrayTrait,             // Handles array operations and transformations.
-        ExistenceCheckerTrait;  // Verifies existence of classes, methods, and other PHP elements.
+    use ArrayTrait {
+        replace as private;
+        replace as protected arrayReplace;
+    }
+    use TypeCheckerTrait, ExistenceCheckerTrait;
 
     /**
-     * Entry point for the sanitization process.
+     * Runs sanitization for the given schema and optional payload.
      *
-     * @param array $data Associative array where keys are data items, and values define sanitation methods and rules.
-     * @return array The sanitized and validated data.
-     * @throws SanitationException If an error occurs during sanitization.
+     * @param array $schema
+     * @param array|null $values
+     * @return array
      */
-    protected function handle(array $data): array
+    protected function handle(array $schema, ?array $values = null): array
     {
+        $payload = $values ?? $schema;
+
         return $this->wrapInTry(
-            fn() => $this->map($data, fn($config, $key) => $this->processValue($data[$key], $this->normalizeConfig($config))),
-            "Sanitization process failed."
+            function () use ($schema, $payload): array {
+                $sanitized = [];
+
+                foreach ($schema as $key => $config) {
+                    if (!array_key_exists($key, $payload)) {
+                        throw new SanitizationException("Missing value for key '{$key}'.");
+                    }
+
+                    $sanitized[$key] = $this->processValue(
+                        $payload[$key],
+                        $this->normalizeConfig($config)
+                    );
+                }
+
+                return $sanitized;
+            },
+            'Sanitization process failed.'
         );
     }
 
     /**
-     * Normalizes configurations with nested "=>" operators into a standard structure.
+     * Normalizes a schema config into methods, options, and rules.
      *
-     * @param mixed $config The raw configuration.
-     * @return array Normalized configuration with separate sanitization methods and rules.
-     * @throws SanitationException If the configuration is invalid.
+     * @param mixed $config
+     * @return array{0: array, 1: array, 2: array}
      */
     private function normalizeConfig(mixed $config): array
     {
         return $this->wrapInTry(
-            fn() => match (true) {
-                $this->isString($config) || ($this->isArray($config) && $this->arrayKeyExists(0, $config)) =>
-                    [$this->isArray($config) ? $config : [$config], []],
-                $this->isArray($config) && $this->count($config) === 2 && $this->isArray($config[1]) =>
-                    $config,
-                $this->isArray($config) && $this->count($config) > 2 =>
-                    [$this->filterKeys($config, fn($key) => $this->isString($key)), $this->pop($config)],
-                default =>
-                    throw new SanitationException("Invalid configuration format.")
+            function () use ($config): array {
+                if ($this->isString($config)) {
+                    return [[$config], [], []];
+                }
+
+                if (!$this->isArray($config) || $config === []) {
+                    throw new SanitizationException('Invalid configuration format.');
+                }
+
+                $parts = array_values($config);
+                $methods = $this->normalizeMethods($parts[0] ?? null);
+                $options = [];
+                $rules = [];
+
+                foreach (array_slice($parts, 1) as $part) {
+                    if (!$this->isArray($part)) {
+                        throw new SanitizationException('Configuration sections must be arrays.');
+                    }
+
+                    if ($options === [] && !$this->isRuleConfig($part)) {
+                        $options = $part;
+                        continue;
+                    }
+
+                    $rules = array_replace($rules, $part);
+                }
+
+                return [$methods, $options, $rules];
             },
-            "Failed to normalize configuration."
+            'Failed to normalize configuration.'
         );
     }
 
     /**
-     * Processes a single value using defined sanitation methods and rules.
+     * Sanitizes a single value against a normalized config definition.
      *
-     * @param mixed $value The value to process.
-     * @param array $config Configuration for sanitation and validation.
-     * @return mixed The sanitized and validated value.
-     * @throws SanitationException If a rule or sanitation method fails.
+     * @param mixed $value
+     * @param array $config
+     * @return mixed
      */
     private function processValue(mixed $value, array $config): mixed
     {
         return $this->wrapInTry(
             fn() => $this->applySanitation(
-                $this->applyRules($value, $config[1]),
-                $config[0]
+                $this->applyRules($value, $config[2]),
+                $config[0],
+                $config[1]
             ),
-            "Failed to process value."
+            'Failed to process value.'
         );
     }
 
     /**
-     * Applies validation rules to a value.
+     * Applies configured rules to a value.
      *
-     * @param mixed $value The value to validate.
-     * @param array $rules The validation rules to apply.
-     * @return mixed The validated value.
-     * @throws SanitationException If validation fails.
+     * @param mixed $value
+     * @param array $rules
+     * @return mixed
      */
     private function applyRules(mixed $value, array $rules): mixed
     {
         return $this->wrapInTry(
-            fn() => $this->reduce(
-                $rules,
-                fn($carry, $rule, $params) =>
-                    $this->methodExists($this, $method = 'rule' . ucfirst($rule)) &&
-                    $this->$method($carry, $params)
-                        ? $carry
-                        : throw new SanitationException("Validation failed for rule '{$rule}' on value '{$carry}'."),
-                $value
-            ),
-            "Failed to apply validation rules."
+            function () use ($value, $rules): mixed {
+                foreach ($rules as $rule => $params) {
+                    $ruleName = is_int($rule) ? $params : $rule;
+                    $arguments = is_int($rule)
+                        ? []
+                        : (is_array($params) ? array_values($params) : [$params]);
+                    $method = 'rule' . ucfirst((string) $ruleName);
+
+                    $ruleValue = $this->normalizeRuleInput($value, (string) $ruleName);
+
+                    if (
+                        !$this->methodExists($this, $method)
+                        || !$this->$method($ruleValue, ...$arguments)
+                    ) {
+                        throw new SanitizationException("Validation failed for rule '{$ruleName}'.");
+                    }
+                }
+
+                return $value;
+            },
+            'Failed to apply validation rules.'
         );
     }
 
     /**
-     * Applies sanitation methods to a value.
+     * Applies configured sanitization methods to a value.
      *
-     * @param mixed $value The value to sanitize.
-     * @param array $methods The sanitation methods to apply.
-     * @return mixed The sanitized value.
-     * @throws SanitationException If a sanitation method fails.
+     * @param mixed $value
+     * @param array $methods
+     * @param array $options
+     * @return mixed
      */
-    private function applySanitation(mixed $value, array $methods): mixed
+    private function applySanitation(mixed $value, array $methods, array $options = []): mixed
     {
         return $this->wrapInTry(
-            fn() => $this->reduce(
-                $methods,
-                fn($carry, $method) =>
-                    $this->methodExists($this, $sanitizer = 'sanitize' . ucfirst($method))
-                        ? $this->$sanitizer($carry)
-                        : throw new SanitationException("Undefined sanitization method: '{$method}'."),
-                $value
-            ),
-            "Failed to apply sanitation methods."
+            function () use ($value, $methods, $options): mixed {
+                return array_reduce(
+                    $methods,
+                    function (mixed $carry, string $method) use ($options): mixed {
+                        $sanitizer = 'sanitize' . ucfirst($method);
+
+                        if (!$this->methodExists($this, $sanitizer)) {
+                            throw new SanitizationException("Undefined sanitization method: '{$method}'.");
+                        }
+
+                        return $this->invokeConfiguredMethod($sanitizer, $carry, $options);
+                    },
+                    $value
+                );
+            },
+            'Failed to apply sanitation methods.'
         );
+    }
+
+    /**
+     * Normalizes the configured method list.
+     *
+     * @param mixed $methods
+     * @return array
+     */
+    private function normalizeMethods(mixed $methods): array
+    {
+        if ($this->isString($methods)) {
+            return [$methods];
+        }
+
+        if ($this->isArray($methods) && $methods !== [] && $this->all($methods, fn($method) => $this->isString($method))) {
+            return array_values($methods);
+        }
+
+        throw new SanitizationException('Invalid sanitization methods configuration.');
+    }
+
+    /**
+     * Determines whether a config segment should be interpreted as rules.
+     *
+     * @param array $config
+     * @return bool
+     */
+    private function isRuleConfig(array $config): bool
+    {
+        if ($config === []) {
+            return false;
+        }
+
+        foreach ($config as $key => $value) {
+            $rule = is_int($key) ? $value : $key;
+
+            if (!$this->isString($rule) || !$this->methodExists($this, 'rule' . ucfirst($rule))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Invokes a sanitization method while adapting the provided options to its signature.
+     *
+     * @param string $method
+     * @param mixed $value
+     * @param array $options
+     * @return mixed
+     */
+    private function invokeConfiguredMethod(string $method, mixed $value, array $options): mixed
+    {
+        $reflection = new ReflectionMethod($this, $method);
+        $parameters = array_slice($reflection->getParameters(), 1);
+        $arguments = [$value];
+
+        if ($parameters !== []) {
+            $arguments = array_merge($arguments, $this->buildMethodArguments($parameters, $options));
+        }
+
+        return $reflection->invokeArgs($this, $arguments);
+    }
+
+    /**
+     * Builds a method argument list from the configured options.
+     *
+     * @param array $parameters
+     * @param array $options
+     * @return array
+     */
+    private function buildMethodArguments(array $parameters, array $options): array
+    {
+        if (count($parameters) === 1) {
+            $parameter = $parameters[0];
+            $type = $parameter->getType();
+
+            if ($type instanceof ReflectionNamedType && $type->getName() === 'array') {
+                return [$this->isListArray($options) ? array_values($options) : $options];
+            }
+
+            if ($options === []) {
+                return $parameter->isDefaultValueAvailable() ? [$parameter->getDefaultValue()] : [];
+            }
+
+            if (!$this->isListArray($options) && array_key_exists($parameter->getName(), $options)) {
+                return [$options[$parameter->getName()]];
+            }
+
+            return [array_values($options)[0]];
+        }
+
+        if ($this->isListArray($options)) {
+            return array_values($options);
+        }
+
+        return array_map(
+            fn($parameter) => array_key_exists($parameter->getName(), $options)
+                ? $options[$parameter->getName()]
+                : ($parameter->isDefaultValueAvailable()
+                    ? $parameter->getDefaultValue()
+                    : throw new SanitizationException(
+                        "Missing option '{$parameter->getName()}' for sanitization method."
+                    )),
+            $parameters
+        );
+    }
+
+    /**
+     * Compatibility helper for PHP versions without array_is_list.
+     *
+     * @param array $value
+     * @return bool
+     */
+    private function isListArray(array $value): bool
+    {
+        return array_keys($value) === range(0, count($value) - 1);
+    }
+
+    /**
+     * Normalizes input values for numeric rules while preserving original strings for other rules.
+     *
+     * @param mixed $value
+     * @param string $ruleName
+     * @return mixed
+     */
+    private function normalizeRuleInput(mixed $value, string $ruleName): mixed
+    {
+        if (
+            is_string($value)
+            && is_numeric($value)
+            && in_array($ruleName, ['min', 'max', 'between', 'less', 'greater', 'divisibleBy', 'positive', 'negative', 'step'], true)
+        ) {
+            return strpos($value, '.') !== false || stripos($value, 'e') !== false
+                ? (float) $value
+                : (int) $value;
+        }
+
+        return $value;
     }
 
     /**
      * Wraps a callback in a try/catch block and handles exceptions consistently.
      *
-     * @param callable $callback The callback to execute.
-     * @param string $errorMessage Custom error message for exceptions.
-     * @return mixed The result of the callback execution.
-     * @throws SanitationException If an exception occurs.
+     * @param callable $callback
+     * @param string $errorMessage
+     * @return mixed
      */
     protected function wrapInTry(callable $callback, string $errorMessage): mixed
     {
         try {
             return $callback();
         } catch (Throwable $e) {
-            throw new SanitationException("{$errorMessage}: {$e->getMessage()}", 0, $e);
+            throw new SanitizationException("{$errorMessage}: {$e->getMessage()}", 0, $e);
         }
     }
 
     /**
-     * Abstract method to define default cleaning logic.
+     * Cleans the provided schema and optional values.
      *
-     * @param mixed $data The data to clean.
-     * @return mixed The cleaned data.
+     * @param array $schema
+     * @param array|null $values
+     * @return array
      */
-    abstract public function clean(mixed $data): mixed;
+    abstract public function clean(array $schema, ?array $values = null): array;
 }

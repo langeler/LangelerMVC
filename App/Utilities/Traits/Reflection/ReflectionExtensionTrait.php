@@ -148,3 +148,4 @@ public function extensionToString(ReflectionExtension $extension): string
 {
 	return $extension->__toString();
 }
+}

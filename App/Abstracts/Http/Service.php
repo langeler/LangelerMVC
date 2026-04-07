@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use RuntimeException;
-use Throwable;
+use App\Contracts\Http\ServiceInterface;
+use App\Exceptions\Http\ServiceException;
+use App\Utilities\Traits\ErrorTrait;
 
 /**
  * Abstract Service Class
@@ -26,8 +27,10 @@ use Throwable;
  * and implement `execute()` to perform their core operations.
  * The controller calls `execute()` and uses the returned data for further steps.
  */
-abstract class Service
+abstract class Service implements ServiceInterface
 {
+	use ErrorTrait;
+
 	/**
 	 * Constructor for injecting dependencies required by the service.
 	 * Concrete services define their own dependencies (e.g., repositories, domain services).
@@ -61,23 +64,18 @@ abstract class Service
 	 *
 	 * @return mixed The structured data or result of the operation.
 	 */
-	abstract public function execute(): mixed;
+	public function execute(): mixed
+	{
+		return $this->wrapInTry(
+			fn(): mixed => $this->handle(),
+			ServiceException::class
+		);
+	}
 
 	/**
-	 * Utility method to handle errors uniformly within the service’s operations.
+	 * Override to implement the actual business workflow.
 	 *
-	 * Use `wrapInTry()` to consistently catch exceptions and rethrow them as RuntimeExceptions.
-	 *
-	 * @param callable $operation The operation to attempt.
-	 * @return mixed The result of the operation if successful.
-	 * @throws RuntimeException If the operation fails.
+	 * @return mixed
 	 */
-	protected function wrapInTry(callable $operation): mixed
-	{
-		try {
-			return $operation();
-		} catch (Throwable $e) {
-			throw new RuntimeException("An error occurred in the service: {$e->getMessage()}", $e->getCode(), $e);
-		}
-	}
+	abstract protected function handle(): mixed;
 }

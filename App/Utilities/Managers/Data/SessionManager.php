@@ -1,98 +1,105 @@
 <?php
 
-namespace App\Utilities\Managers;
+declare(strict_types=1);
 
+namespace App\Utilities\Managers\Data;
+
+use RuntimeException;
 use SessionHandler;
 
 /**
- * Class SessionManager
- *
- * Provides utility methods for managing sessions using a custom session handler.
+ * Manages low-level PHP session handler interactions.
  */
 class SessionManager
 {
-	// Session Handler Methods
+    /**
+     * Create a new SessionHandler instance.
+     */
+    public function createHandler(): SessionHandler
+    {
+        return new SessionHandler();
+    }
 
-	/**
-	 * Create a new SessionHandler instance.
-	 *
-	 * @return SessionHandler The created SessionHandler instance.
-	 */
-	public function createHandler(): SessionHandler
-	{
-		return new SessionHandler();
-	}
+    /**
+     * Register a custom PHP session handler when runtime conditions allow it.
+     *
+     * Native SessionHandler does not need explicit registration because PHP
+     * already uses it by default. Custom subclasses still can be registered.
+     */
+    public function registerHandler(SessionHandler $handler, bool $registerShutdown = true): bool
+    {
+        if (!$this->requiresCustomRegistration($handler)) {
+            return true;
+        }
 
-	/**
-	 * Read session data by session ID.
-	 *
-	 * @param SessionHandler $handler The SessionHandler instance.
-	 * @param string $sessionId The session ID.
-	 * @return string The session data.
-	 */
-	public function read(SessionHandler $handler, string $sessionId): string
-	{
-		return $handler->read($sessionId);
-	}
+        if (session_status() !== PHP_SESSION_NONE) {
+            throw new RuntimeException('Cannot register a custom session handler after the session has started.');
+        }
 
-	/**
-	 * Write session data to the session storage.
-	 *
-	 * @param SessionHandler $handler The SessionHandler instance.
-	 * @param string $sessionId The session ID.
-	 * @param string $data The session data to write.
-	 * @return bool True on success, false on failure.
-	 */
-	public function write(SessionHandler $handler, string $sessionId, string $data): bool
-	{
-		return $handler->write($sessionId, $data);
-	}
+        if (headers_sent($file, $line)) {
+            $location = $file !== '' ? sprintf(' (%s:%d)', $file, $line) : '';
 
-	/**
-	 * Destroy a session by session ID.
-	 *
-	 * @param SessionHandler $handler The SessionHandler instance.
-	 * @param string $sessionId The session ID.
-	 * @return bool True on success, false on failure.
-	 */
-	public function destroy(SessionHandler $handler, string $sessionId): bool
-	{
-		return $handler->destroy($sessionId);
-	}
+            throw new RuntimeException(
+                sprintf('Cannot register a custom session handler after headers have been sent%s.', $location)
+            );
+        }
 
-	/**
-	 * Cleanup old session data based on the max lifetime.
-	 *
-	 * @param SessionHandler $handler The SessionHandler instance.
-	 * @param int $maxLifetime The maximum session lifetime in seconds.
-	 * @return bool True on success, false on failure.
-	 */
-	public function cleanup(SessionHandler $handler, int $maxLifetime): bool
-	{
-		return $handler->gc($maxLifetime);
-	}
+        return session_set_save_handler($handler, $registerShutdown);
+    }
 
-	/**
-	 * Open a session.
-	 *
-	 * @param SessionHandler $handler The SessionHandler instance.
-	 * @param string $savePath The path where session data will be saved.
-	 * @param string $sessionName The name of the session.
-	 * @return bool True on success, false on failure.
-	 */
-	public function open(SessionHandler $handler, string $savePath, string $sessionName): bool
-	{
-		return $handler->open($savePath, $sessionName);
-	}
+    /**
+     * Determine whether the provided handler differs from PHP's native default.
+     */
+    public function requiresCustomRegistration(SessionHandler $handler): bool
+    {
+        return $handler::class !== SessionHandler::class;
+    }
 
-	/**
-	 * Close the session.
-	 *
-	 * @param SessionHandler $handler The SessionHandler instance.
-	 * @return bool True on success, false on failure.
-	 */
-	public function close(SessionHandler $handler): bool
-	{
-		return $handler->close();
-	}
+    /**
+     * Read session data by session ID.
+     */
+    public function read(SessionHandler $handler, string $sessionId): string
+    {
+        return $handler->read($sessionId);
+    }
+
+    /**
+     * Write session data to the session storage.
+     */
+    public function write(SessionHandler $handler, string $sessionId, string $data): bool
+    {
+        return $handler->write($sessionId, $data);
+    }
+
+    /**
+     * Destroy a session by session ID.
+     */
+    public function destroy(SessionHandler $handler, string $sessionId): bool
+    {
+        return $handler->destroy($sessionId);
+    }
+
+    /**
+     * Cleanup old session data based on the max lifetime.
+     */
+    public function cleanup(SessionHandler $handler, int $maxLifetime): bool
+    {
+        return $handler->gc($maxLifetime);
+    }
+
+    /**
+     * Open a session.
+     */
+    public function open(SessionHandler $handler, string $savePath, string $sessionName): bool
+    {
+        return $handler->open($savePath, $sessionName);
+    }
+
+    /**
+     * Close the session.
+     */
+    public function close(SessionHandler $handler): bool
+    {
+        return $handler->close();
+    }
 }

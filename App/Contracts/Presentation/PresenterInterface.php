@@ -14,6 +14,14 @@ namespace App\Contracts\Presentation;
 interface PresenterInterface
 {
 	/**
+	 * Replace the presenter's working dataset.
+	 *
+	 * @param array<string,mixed> $data
+	 * @return static
+	 */
+	public function fill(array $data): static;
+
+	/**
 	 * Transform raw data into a structure suitable for presentation.
 	 *
 	 * @return array<string,mixed> The transformed data.

@@ -65,6 +65,18 @@ trait FileCriteriaTrait
     }
 
     /**
+     * Filter items by type (files only).
+     *
+     * @param \SplFileInfo $fileInfo File information object.
+     * @param string $type The type to match (default: 'file').
+     * @return bool True if the item is a file, otherwise false.
+     */
+    protected function filterByType($fileInfo, string $type = 'file'): bool
+    {
+        return $fileInfo->isFile();
+    }
+
+    /**
      * Filter files by size.
      *
      * @param \SplFileInfo $fileInfo File information object.

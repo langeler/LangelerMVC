@@ -3,11 +3,14 @@
 namespace App\Providers;
 
 use App\Core\{
+    App,
     Config,
     Container,
     Database,
-    Router
+    Router,
+    Session
 };
+use App\Exceptions\ContainerException;
 use App\Utilities\Managers\System\ErrorManager;
 
 /**
@@ -39,10 +42,14 @@ class CoreProvider extends Container
      */
     public function __construct()
     {
+        parent::__construct();
+
         $this->coreServiceMap = [
+            'app'      => App::class,
             'config'   => Config::class,
             'database' => Database::class,
             'router'   => Router::class,
+            'session'  => Session::class,
 
             // System
             'errorManager' => ErrorManager::class,
@@ -61,15 +68,16 @@ class CoreProvider extends Container
     public function registerServices(): void
     {
         $this->wrapInTry(
-            fn() => (!$this->isArray($this->coreServiceMap) || $this->isEmpty($this->coreServiceMap))
-                ? throw new ContainerException("The core service map must be a non-empty array.")
-                : $this->walk(
-                    $this->coreServiceMap,
-                    fn($class, $alias) => [
-                        $this->registerAlias($alias, $class),
-                        $this->registerLazy($class, fn() => $this->resolveInstance($class))
-                    ]
-                ),
+            function (): void {
+                if (!$this->isArray($this->coreServiceMap) || $this->isEmpty($this->coreServiceMap)) {
+                    throw new ContainerException("The core service map must be a non-empty array.");
+                }
+
+                foreach ($this->coreServiceMap as $alias => $class) {
+                    $this->registerAlias($alias, $class);
+                    $this->registerLazy($class, fn() => $this->registerInstance($class));
+                }
+            },
             new ContainerException("Error registering core services.")
         );
     }
@@ -83,6 +91,10 @@ class CoreProvider extends Container
      */
     public function getCoreService(string $serviceAlias): object
     {
+        if ($serviceAlias === 'container') {
+            return $this;
+        }
+
         return $this->wrapInTry(
             fn() => $this->getInstance(
                 $this->coreServiceMap[$serviceAlias]

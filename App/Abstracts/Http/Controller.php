@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use RuntimeException; // Exception thrown if an error occurs at runtime.
-use Throwable;        // Base interface for all errors and exceptions in PHP.
-
 use App\Contracts\Http\{
+	ControllerInterface, // Contract for orchestrating controllers.
 	RequestInterface,  // Contract for handling HTTP requests.
 	ResponseInterface, // Contract for handling HTTP responses.
 	ServiceInterface   // Contract for defining HTTP services.
@@ -17,6 +15,8 @@ use App\Contracts\Presentation\{
 	PresenterInterface, // Contract for defining presentation logic in a presenter.
 	ViewInterface       // Contract for handling the rendering of views.
 };
+use App\Exceptions\Http\ControllerException;
+use App\Utilities\Traits\ErrorTrait;
 
 /**
  * Base abstract Controller that orchestrates the request handling lifecycle.
@@ -33,8 +33,10 @@ use App\Contracts\Presentation\{
  * - No handling of presentation logic beyond calling Presenter and View.
  * - Strict typing and interfaces ensure clarity and consistency with updated classes.
  */
-abstract class Controller
+abstract class Controller implements ControllerInterface
 {
+	use ErrorTrait;
+
 	/**
 	 * Constructor for injecting dependencies.
 	 *
@@ -51,7 +53,12 @@ abstract class Controller
 		protected PresenterInterface $presenter,
 		protected ViewInterface $view
 	) {
-		$this->wrapInTry(fn() => $this->initializeController());
+		$this->wrapInTry(
+			function (): void {
+				$this->initializeController();
+			},
+			ControllerException::class
+		);
 	}
 
 	/**
@@ -60,7 +67,9 @@ abstract class Controller
 	 *
 	 * @return void
 	 */
-	abstract protected function initialize(): void;
+	protected function initialize(): void
+	{
+	}
 
 	/**
 	 * Process the incoming request.
@@ -68,7 +77,10 @@ abstract class Controller
 	 *
 	 * @return void
 	 */
-	abstract protected function process(): void;
+	protected function process(): void
+	{
+		$this->request->handle();
+	}
 
 	/**
 	 * Execute the main business logic of the controller.
@@ -76,7 +88,10 @@ abstract class Controller
 	 *
 	 * @return void
 	 */
-	abstract protected function execute(): void;
+	protected function execute(): mixed
+	{
+		return $this->service->execute();
+	}
 
 	/**
 	 * Finalize the controller lifecycle by preparing the response.
@@ -84,7 +99,18 @@ abstract class Controller
 	 *
 	 * @return ResponseInterface The finalized response object, ready to be rendered.
 	 */
-	abstract protected function finalize(): ResponseInterface;
+	protected function finalize(mixed $result): ResponseInterface
+	{
+		if ($result instanceof ResponseInterface) {
+			return $result;
+		}
+
+		if (is_array($result)) {
+			$result = $this->preparePresenterData('prepare', $result);
+		}
+
+		return $this->respond($result);
+	}
 
 	/**
 	 * Render the output using the view class.
@@ -94,7 +120,10 @@ abstract class Controller
 	 * @param array  $data   Data to pass to the view method
 	 * @return ResponseInterface The rendered response.
 	 */
-	abstract protected function render(string $method, array $data = []): ResponseInterface;
+	protected function render(string $method, string $template, array $data = []): ResponseInterface
+	{
+		return $this->prepareViewResponse($method, $template, $data);
+	}
 
 	/**
 	 * Orchestrate the complete controller lifecycle.
@@ -102,7 +131,16 @@ abstract class Controller
 	 *
 	 * @return ResponseInterface The final response after the full lifecycle.
 	 */
-	abstract protected function run(): ResponseInterface;
+	public function run(): ResponseInterface
+	{
+		return $this->wrapInTry(function (): ResponseInterface {
+			$this->initialize();
+			$this->process();
+			$result = $this->execute();
+
+			return $this->finalize($result);
+		}, ControllerException::class);
+	}
 
 	/**
 	 * Perform any default initialization for the controller.
@@ -117,22 +155,6 @@ abstract class Controller
 	}
 
 	/**
-	 * Consistent error handling for callable operations.
-	 *
-	 * @param callable $callback The operation to execute.
-	 * @return mixed Result of the operation.
-	 * @throws RuntimeException On failure.
-	 */
-	protected function wrapInTry(callable $callback): mixed
-	{
-		try {
-			return $callback();
-		} catch (Throwable $e) {
-			throw new RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
-		}
-	}
-
-	/**
 	 * Prepare data using the presenter.
 	 *
 	 * If the finalize logic directly uses the presenter, this helper may not be needed.
@@ -144,7 +166,17 @@ abstract class Controller
 	 */
 	protected function preparePresenterData(string $method, array $arguments = []): mixed
 	{
-		return $this->wrapInTry(fn() => $this->presenter->{$method}(...$arguments));
+		return $this->wrapInTry(function () use ($method, $arguments): mixed {
+			if ($arguments !== []) {
+				$this->presenter->fill($arguments);
+			}
+
+			if (!method_exists($this->presenter, $method)) {
+				throw new ControllerException("Presenter method '{$method}' does not exist.");
+			}
+
+			return $this->presenter->{$method}();
+		}, ControllerException::class);
 	}
 
 	/**
@@ -154,12 +186,71 @@ abstract class Controller
 	 * Typically, finalize or render handles this step. The controller itself
 	 * should not transform data; it should just pass already prepared data.
 	 *
-	 * @param string $method The method to call on the view class
-	 * @param array  $data   Data to pass to the view
+	 * @param string $method   The view method to call.
+	 * @param string $template The template name to render.
+	 * @param array  $data     Data to pass to the view.
 	 * @return ResponseInterface The prepared view response.
 	 */
-	protected function prepareViewResponse(string $method, array $data = []): ResponseInterface
+	protected function prepareViewResponse(string $method, string $template, array $data = []): ResponseInterface
 	{
-		return $this->wrapInTry(fn() => $this->view->{$method}($data));
+		return $this->respondWithView($method, $template, $data);
+	}
+
+	/**
+	 * Populate the response object with content, status, and headers.
+	 *
+	 * @param mixed $content
+	 * @param int $status
+	 * @param array<string, string> $headers
+	 * @return ResponseInterface
+	 */
+	protected function respond(mixed $content = null, int $status = 200, array $headers = []): ResponseInterface
+	{
+		return $this->wrapInTry(function () use ($content, $status, $headers): ResponseInterface {
+			$this->response->setStatus($status);
+
+			foreach ($headers as $key => $value) {
+				$this->response->addHeader((string) $key, (string) $value);
+			}
+
+			$this->response->setContent($content);
+
+			return $this->response;
+		}, ControllerException::class);
+	}
+
+	/**
+	 * Render a template and mark the response as HTML.
+	 *
+	 * @param string $method
+	 * @param string $template
+	 * @param array<string, mixed> $data
+	 * @param int $status
+	 * @param array<string, string> $headers
+	 * @return ResponseInterface
+	 */
+	protected function respondWithView(
+		string $method,
+		string $template,
+		array $data = [],
+		int $status = 200,
+		array $headers = []
+	): ResponseInterface {
+		return $this->wrapInTry(function () use ($method, $template, $data, $status, $headers): ResponseInterface {
+			if (!method_exists($this->view, $method)) {
+				throw new ControllerException("View method '{$method}' does not exist.");
+			}
+
+			$this->response->setStatus($status);
+			$this->response->addHeader('Content-Type', 'text/html; charset=UTF-8');
+
+			foreach ($headers as $key => $value) {
+				$this->response->addHeader((string) $key, (string) $value);
+			}
+
+			$this->response->setContent($this->view->{$method}($template, $data));
+
+			return $this->response;
+		}, ControllerException::class);
 	}
 }

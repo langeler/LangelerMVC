@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use Throwable; // Base interface for all errors and exceptions in PHP.
-
+use App\Contracts\Http\ResponseInterface;
 use App\Utilities\Handlers\{
-	DataHandler,       // Handles general data processing tasks.
-	DateTimeHandler    // Provides utilities for handling and manipulating date and time.
+	DataHandler        // Handles general data processing tasks.
 };
+
+use App\Utilities\Managers\DateTimeManager;
+use App\Exceptions\Http\ResponseException;
 
 use App\Utilities\Traits\{
 	ArrayTrait,         // Provides utility methods for array operations.
-	TypeCheckerTrait,   // Offers utilities for validating and checking data types.
+	ErrorTrait,         // Provides framework-aligned exception wrapping.
 	ManipulationTrait,  // Adds support for data manipulation tasks.
 	EncodingTrait,      // Facilitates encoding and decoding operations.
 	ConversionTrait     // Provides utilities for data type and format conversions.
@@ -35,13 +36,27 @@ use App\Utilities\Traits\{
  * - Constructor property promotion and typed parameters/returns.
  * - Strict typed methods, matching modern PHP best practices.
  */
-abstract class Response
+abstract class Response implements ResponseInterface
 {
-	use ArrayTrait;
-	use TypeCheckerTrait;
-	use ManipulationTrait;
-	use EncodingTrait;
-	use ConversionTrait;
+	use ErrorTrait,
+		ArrayTrait,
+		ManipulationTrait,
+		EncodingTrait,
+		ConversionTrait {
+		ManipulationTrait::pad insteadof ArrayTrait;
+		ManipulationTrait::replace insteadof ArrayTrait;
+		ManipulationTrait::reverse insteadof ArrayTrait;
+		ManipulationTrait::shuffle insteadof ArrayTrait;
+		ArrayTrait::pad as arrayPad;
+		ArrayTrait::replace as arrayReplace;
+		ArrayTrait::reverse as arrayReverse;
+		ArrayTrait::shuffle as arrayShuffle;
+	}
+
+	/**
+	 * Tracks whether Content-Type was explicitly set by caller code.
+	 */
+	protected bool $contentTypeExplicitlySet = false;
 
 	/**
 	 * Constructor to inject all dependencies.
@@ -50,15 +65,16 @@ abstract class Response
 	 * @param array           $headers         Initial headers.
 	 * @param mixed           $content         The response content (string, array, or object).
 	 * @param DataHandler     $dataHandler     Utility for encoding data (JSON/XML).
-	 * @param DateTimeHandler $dateTimeHandler Utility for formatting date/time headers.
+	 * @param DateTimeManager $dateTimeManager Utility for formatting date/time headers.
 	 */
 	public function __construct(
+		protected DataHandler $dataHandler,
+		protected DateTimeManager $dateTimeManager,
 		protected int $status = 200,
 		protected array $headers = [],
-		protected mixed $content = null,
-		protected DataHandler $dataHandler,
-		protected DateTimeHandler $dateTimeHandler
+		protected mixed $content = null
 	) {
+		$this->contentTypeExplicitlySet = $this->hasHeader('Content-Type', $this->headers);
 		$this->initializeDefaultHeaders();
 	}
 
@@ -69,30 +85,16 @@ abstract class Response
 	 */
 	protected function initializeDefaultHeaders(): void
 	{
-		$this->headers = [
+		$defaults = [
 			'Content-Type' => 'text/html; charset=UTF-8',
 			'Cache-Control' => 'no-cache, must-revalidate',
-			'Expires' => $this->dateTimeHandler->formatDateTime(
-				$this->dateTimeHandler->createDateTime('now -1 day'),
+			'Expires' => $this->dateTimeManager->formatDateTime(
+				$this->dateTimeManager->createDateTime('now -1 day'),
 				\DateTime::RFC7231
 			),
 		];
-	}
 
-	/**
-	 * Centralized error handling for callable operations.
-	 *
-	 * @param callable $callback The operation to execute.
-	 * @return mixed The result of the operation.
-	 * @throws \RuntimeException On failure.
-	 */
-	protected function wrapInTry(callable $callback): mixed
-	{
-		try {
-			return $callback();
-		} catch (Throwable $e) {
-			throw new \RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
-		}
+		$this->headers = array_replace($defaults, $this->headers);
 	}
 
 	/**
@@ -101,15 +103,18 @@ abstract class Response
 	 * @param int $status The desired HTTP status code.
 	 * @return void
 	 */
-	protected function setStatus(int $status): void
+	public function setStatus(int $status): void
 	{
-		$this->status = $this->wrapInTry(fn(): int => $this->validateStatus($status));
+		$this->status = $this->wrapInTry(
+			fn(): int => $this->validateStatus($status),
+			ResponseException::class
+		);
 	}
 
 	/**
 	 * Get the current HTTP status code.
 	 */
-	protected function getStatus(): int
+	public function getStatus(): int
 	{
 		return $this->status;
 	}
@@ -121,9 +126,15 @@ abstract class Response
 	 * @param string $value Header value.
 	 * @return void
 	 */
-	protected function addHeader(string $key, string $value): void
+	public function addHeader(string $key, string $value): void
 	{
-		$this->headers[$this->trim($key)] = $this->trim($value);
+		$normalizedKey = $this->trim($key);
+
+		if (strtolower($normalizedKey) === 'content-type') {
+			$this->contentTypeExplicitlySet = true;
+		}
+
+		$this->headers[$normalizedKey] = $this->trim($value);
 	}
 
 	/**
@@ -131,7 +142,7 @@ abstract class Response
 	 *
 	 * @return array The normalized headers.
 	 */
-	protected function getHeaders(): array
+	public function getHeaders(): array
 	{
 		return $this->normalizeHeaders();
 	}
@@ -143,12 +154,12 @@ abstract class Response
 	 * @return void
 	 * @throws \RuntimeException If validation fails.
 	 */
-	protected function setContent(mixed $content): void
+	public function setContent(mixed $content): void
 	{
 		$this->wrapInTry(function () use ($content): void {
 			$this->validateContent($content);
 			$this->content = $content;
-		});
+		}, ResponseException::class);
 	}
 
 	/**
@@ -156,7 +167,7 @@ abstract class Response
 	 *
 	 * @return mixed The response content.
 	 */
-	protected function getContent(): mixed
+	public function getContent(): mixed
 	{
 		return $this->content;
 	}
@@ -167,7 +178,7 @@ abstract class Response
 	 *
 	 * @return void
 	 */
-	abstract protected function send(): void;
+	abstract public function send(): void;
 
 	/**
 	 * Validate the HTTP status code.
@@ -193,7 +204,15 @@ abstract class Response
 	 */
 	protected function validateContent(mixed $content): void
 	{
-		if (!$this->isString($content) && !$this->isArray($content) && !$this->isObject($content)) {
+		if (
+			!$this->isNull($content)
+			&& !$this->isString($content)
+			&& !$this->isArray($content)
+			&& !$this->isObject($content)
+			&& !$this->isBool($content)
+			&& !$this->isInt($content)
+			&& !$this->isFloat($content)
+		) {
 			throw new \InvalidArgumentException("Content must be a string, array, or object.");
 		}
 	}
@@ -206,10 +225,13 @@ abstract class Response
 	 */
 	protected function normalizeHeaders(): array
 	{
-		return $this->map(
-			fn($key, $value): array => [$this->toLowerCase($key) => $this->trim($value)],
-			$this->headers
-		);
+		$normalized = [];
+
+		foreach ($this->headers as $key => $value) {
+			$normalized[$this->toLower((string) $key)] = $this->trim((string) $value);
+		}
+
+		return $normalized;
 	}
 
 	/**
@@ -220,9 +242,10 @@ abstract class Response
 	protected function determineContentType(): string
 	{
 		return match (true) {
-			$this->isString($this->content) => 'text/plain; charset=UTF-8',
-			$this->isArray($this->content) => 'application/json',
 			$this->isXmlFormat($this->content) => 'application/xml',
+			$this->isArray($this->content) || $this->isObject($this->content) => 'application/json',
+			$this->isHtmlFormat($this->content) => 'text/html; charset=UTF-8',
+			$this->isString($this->content) => 'text/plain; charset=UTF-8',
 			default => 'application/octet-stream',
 		};
 	}
@@ -236,8 +259,10 @@ abstract class Response
 	{
 		return match ($this->determineContentType()) {
 			'application/json' => $this->dataHandler->jsonEncode($this->content),
-			'application/xml' => $this->dataHandler->toXml($this->content),
-			default => (string)$this->content,
+			'application/xml' => $this->isString($this->content)
+				? $this->content
+				: $this->dataHandler->toXml($this->content),
+			default => $this->isNull($this->content) ? '' : (string) $this->content,
 		};
 	}
 
@@ -270,12 +295,12 @@ abstract class Response
 	 */
 	protected function addDateHeaders(): void
 	{
-		$this->addHeader('Date', $this->dateTimeHandler->formatDateTime(
-			$this->dateTimeHandler->createDateTime('now'),
+		$this->addHeader('Date', $this->dateTimeManager->formatDateTime(
+			$this->dateTimeManager->createDateTime('now'),
 			\DateTime::RFC7231
 		));
-		$this->addHeader('Last-Modified', $this->dateTimeHandler->formatDateTime(
-			$this->dateTimeHandler->createDateTime('now -1 day'),
+		$this->addHeader('Last-Modified', $this->dateTimeManager->formatDateTime(
+			$this->dateTimeManager->createDateTime('now -1 day'),
 			\DateTime::RFC7231
 		));
 	}
@@ -288,7 +313,10 @@ abstract class Response
 	 */
 	protected function isXmlFormat(mixed $content): bool
 	{
-		return $this->wrapInTry(fn(): bool => $this->dataHandler->isXmlFormat($content));
+		return $this->wrapInTry(
+			fn(): bool => $this->dataHandler->isXmlFormat($content),
+			ResponseException::class
+		);
 	}
 
 	/**
@@ -296,9 +324,12 @@ abstract class Response
 	 *
 	 * @return void
 	 */
-	protected function prepareForSend(): void
+	public function prepareForSend(): void
 	{
-		$this->addHeader('Content-Type', $this->determineContentType());
+		if (!$this->contentTypeExplicitlySet) {
+			$this->headers['Content-Type'] = $this->determineContentType();
+		}
+
 		$this->addDateHeaders();
 	}
 
@@ -311,12 +342,135 @@ abstract class Response
 	 *     "content": string
 	 * }
 	 */
-	protected function toArray(): array
+	public function toArray(): array
 	{
 		return [
 			'status' => $this->status,
 			'headers' => $this->normalizeHeaders(),
 			'content' => $this->transformContent(),
 		];
+	}
+
+	/**
+	 * Fluently update the response status.
+	 */
+	public function withStatus(int $status): static
+	{
+		$this->setStatus($status);
+
+		return $this;
+	}
+
+	/**
+	 * Fluently add a single header.
+	 */
+	public function withHeader(string $key, string $value): static
+	{
+		$this->addHeader($key, $value);
+
+		return $this;
+	}
+
+	/**
+	 * Fluently add multiple headers.
+	 *
+	 * @param array<string, string> $headers
+	 */
+	public function withHeaders(array $headers): static
+	{
+		foreach ($headers as $key => $value) {
+			$this->addHeader((string) $key, (string) $value);
+		}
+
+		return $this;
+	}
+
+	/**
+	 * Fluently update the response content.
+	 */
+	public function withContent(mixed $content): static
+	{
+		$this->setContent($content);
+
+		return $this;
+	}
+
+	/**
+	 * Mark the response as HTML.
+	 */
+	public function asHtml(string $content, int $status = 200, array $headers = []): static
+	{
+		return $this
+			->withStatus($status)
+			->withHeaders($headers)
+			->withHeader('Content-Type', 'text/html; charset=UTF-8')
+			->withContent($content);
+	}
+
+	/**
+	 * Mark the response as plain text.
+	 */
+	public function asText(string $content, int $status = 200, array $headers = []): static
+	{
+		return $this
+			->withStatus($status)
+			->withHeaders($headers)
+			->withHeader('Content-Type', 'text/plain; charset=UTF-8')
+			->withContent($content);
+	}
+
+	/**
+	 * Mark the response as JSON.
+	 */
+	public function asJson(array|object $content, int $status = 200, array $headers = []): static
+	{
+		return $this
+			->withStatus($status)
+			->withHeaders($headers)
+			->withHeader('Content-Type', 'application/json')
+			->withContent($content);
+	}
+
+	/**
+	 * Mark the response as XML.
+	 */
+	public function asXml(mixed $content, int $status = 200, array $headers = []): static
+	{
+		return $this
+			->withStatus($status)
+			->withHeaders($headers)
+			->withHeader('Content-Type', 'application/xml')
+			->withContent($content);
+	}
+
+	/**
+	 * Check if the current content looks like HTML.
+	 */
+	protected function isHtmlFormat(mixed $content): bool
+	{
+		if (!$this->isString($content) || $content === '') {
+			return false;
+		}
+
+		return preg_match('/<([a-z][a-z0-9]*)\b[^>]*>/i', $content) === 1;
+	}
+
+	/**
+	 * Determine if a header already exists, case-insensitively.
+	 *
+	 * @param array<string, mixed>|null $headers
+	 */
+	protected function hasHeader(string $header, ?array $headers = null): bool
+	{
+		$headers ??= $this->headers;
+		$needle = strtolower($header);
+
+		foreach (array_keys($headers) as $key) {
+			if (strtolower((string) $key) === $needle) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

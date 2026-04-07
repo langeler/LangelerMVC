@@ -3,6 +3,7 @@
 namespace App\Core;
 
 use App\Providers\CoreProvider;
+use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ErrorTrait;
 
 /**

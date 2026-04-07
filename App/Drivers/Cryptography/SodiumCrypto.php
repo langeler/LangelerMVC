@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Drivers\Crypto;
+namespace App\Drivers\Cryptography;
 
 use App\Abstracts\Data\Crypto;
+use App\Contracts\Data\CryptoInterface;
+use RuntimeException as CryptoException;
 
 class SodiumCrypto extends Crypto implements CryptoInterface
 {
@@ -11,7 +13,7 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 	public function __construct()
 	{
 		$this->config = [
-			'version' =>
+			'version' => [
 				'libraryVersion' => SODIUM_LIBRARY_VERSION,
 				'libraryMajorVersion' => SODIUM_LIBRARY_MAJOR_VERSION,
 				'libraryMinorVersion' => SODIUM_LIBRARY_MINOR_VERSION,
@@ -541,86 +543,6 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 		};
 	}
 
-	public function Hasher(string $type): callable
-	{
-		return match ($type) {
-			'generic' => fn(
-				string $data,
-				?string $key = null,
-				?int $length = null
-			) => sodium_crypto_generichash(
-				$data,
-				$key,
-				$length ?? $this->config['genericHash']['bytes'] ?? 32
-			),
-
-			'short' => fn(
-				string $data,
-				string $key
-			) => sodium_crypto_shorthash(
-				$data,
-				$key
-			),
-
-			'stateful' => fn(
-				string $action,
-				$state = null,
-				string $data = '',
-				?string $key = null,
-				?int $length = null
-			) => match ($action) {
-				'init' => sodium_crypto_generichash_init(
-					$key,
-					$length ?? $this->config['genericHash']['bytes'] ?? 32
-				),
-				'update' => sodium_crypto_generichash_update($state, $data),
-				'final' => sodium_crypto_generichash_final($state),
-				default => throw new CryptoException("Unsupported stateful hashing action: {$action}."),
-			},
-
-			default => throw new CryptoException("Unsupported hash type: {$type}."),
-		};
-	}
-
-	public function ScalarHandler(string $operation): callable
-	{
-		return match ($operation) {
-			'add' => fn(string $scalarA, string $scalarB) =>
-				sodium_crypto_core_ristretto255_scalar_add($scalarA, $scalarB)
-				?: throw new CryptoException("Scalar addition failed."),
-
-			'subtract' => fn(string $scalarA, string $scalarB) =>
-				sodium_crypto_core_ristretto255_scalar_sub($scalarA, $scalarB)
-				?: throw new CryptoException("Scalar subtraction failed."),
-
-			'multiply' => fn(string $scalarA, string $scalarB) =>
-				sodium_crypto_core_ristretto255_scalar_mul($scalarA, $scalarB)
-				?: throw new CryptoException("Scalar multiplication failed."),
-
-			'invert' => fn(string $scalar) =>
-				sodium_crypto_core_ristretto255_scalar_invert($scalar)
-				?: throw new CryptoException("Scalar inversion failed."),
-
-			'negate' => fn(string $scalar) =>
-				sodium_crypto_core_ristretto255_scalar_negate($scalar)
-				?: throw new CryptoException("Scalar negation failed."),
-
-			'reduce' => fn(string $scalar) =>
-				sodium_crypto_core_ristretto255_scalar_reduce($scalar)
-				?: throw new CryptoException("Scalar reduction failed."),
-
-			'scalarmult' => fn(string $scalar, string $point) =>
-				sodium_crypto_scalarmult($scalar, $point)
-				?: throw new CryptoException("Scalar multiplication with point failed."),
-
-			'base' => fn(string $scalar) =>
-				sodium_crypto_scalarmult_base($scalar)
-				?: throw new CryptoException("Scalar multiplication with base point failed."),
-
-			default => throw new CryptoException("Unsupported scalar operation: {$operation}."),
-		};
-	}
-
 	public function MemoryHandler(string $action): callable
 	{
 		return match ($action) {
@@ -644,129 +566,6 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 				sodium_unpad($data, $blockSize),
 
 			default => throw new CryptoException("Unsupported memory action: {$action}."),
-		};
-	}
-
-	public function RistrettoHandler(string $operation): callable
-	{
-		return match ($operation) {
-			'add' => fn(string $pointA, string $pointB) =>
-				sodium_crypto_core_ristretto255_add($pointA, $pointB)
-				?: throw new CryptoException("Ristretto255 addition failed."),
-
-			'subtract' => fn(string $pointA, string $pointB) =>
-				sodium_crypto_core_ristretto255_sub($pointA, $pointB)
-				?: throw new CryptoException("Ristretto255 subtraction failed."),
-
-			'hash' => fn(string $data) =>
-				sodium_crypto_core_ristretto255_from_hash($data)
-				?: throw new CryptoException("Ristretto255 hashing failed."),
-
-			'validate' => fn(string $point) =>
-				sodium_crypto_core_ristretto255_is_valid_point($point),
-
-			'random' => fn() =>
-				sodium_crypto_core_ristretto255_random()
-				?: throw new CryptoException("Failed to generate random Ristretto255 point."),
-
-			default => throw new CryptoException("Unsupported Ristretto255 operation: {$operation}."),
-		};
-	}
-
-	public function PasswordHasher(string $type): callable
-	{
-		return match ($type) {
-			'argon2i' => fn(
-				string $password,
-				?int $opslimit = null,
-				?int $memlimit = null
-			) => sodium_crypto_pwhash_str(
-				$password,
-				$opslimit ?? $this->config['pwHash']['opslimitInteractive'],
-				$memlimit ?? $this->config['pwHash']['memlimitInteractive']
-			) ?: throw new CryptoException("Password hashing with Argon2i failed."),
-
-			'argon2id' => fn(
-				string $password,
-				?int $opslimit = null,
-				?int $memlimit = null
-			) => sodium_crypto_pwhash_str(
-				$password,
-				$opslimit ?? $this->config['pwHash']['opslimitInteractive'],
-				$memlimit ?? $this->config['pwHash']['memlimitInteractive']
-			) ?: throw new CryptoException("Password hashing with Argon2id failed."),
-
-			default => throw new CryptoException("Unsupported password hash type: {$type}."),
-		};
-	}
-
-	public function PasswordVerifier(string $action): callable
-	{
-		return match ($action) {
-			'verify' => fn(string $hash, string $password) =>
-				sodium_crypto_pwhash_str_verify(
-					$hash,
-					$password
-				) ?: throw new CryptoException("Password verification failed."),
-
-			'rehash' => fn(
-				string $hash,
-				?int $opslimit = null,
-				?int $memlimit = null
-			) => sodium_crypto_pwhash_str_needs_rehash(
-				$hash,
-				$opslimit ?? $this->config['pwHash']['opslimitInteractive'],
-				$memlimit ?? $this->config['pwHash']['memlimitInteractive']
-			) ?: throw new CryptoException("Password rehash check failed."),
-
-			default => throw new CryptoException("Unsupported password verifier action: {$action}."),
-		};
-	}
-
-	public function RandomGenerator(string $type, ?int $length = null): callable
-	{
-		return match ($type) {
-			'default' => fn() =>
-				random_bytes(
-					$length ?? $this->config['stream']['keyBytes'] ?? 32
-				),
-
-			'xchacha20' => fn() =>
-				random_bytes(
-					$length ?? $this->config['stream']['xchacha20KeyBytes'] ?? 32
-				),
-
-			'short' => fn() =>
-				random_bytes(
-					$length ?? $this->config['shortHash']['bytes'] ?? 16
-				),
-
-			'long' => fn() =>
-				random_bytes(
-					$length ?? $this->config['genericHash']['bytesMax'] ?? 128
-				),
-
-			'passwordSalt' => fn() =>
-				random_bytes(
-					$length ?? $this->config['pwHash']['saltBytes'] ?? 32
-				),
-
-			'scalar' => fn() =>
-				random_bytes(
-					$length ?? $this->config['scalarMult']['scalarBytes'] ?? 32
-				),
-
-			'ristretto' => fn() =>
-				random_bytes(
-					$length ?? $this->config['ristretto255']['scalarBytes'] ?? 32
-				),
-
-			'custom' => fn() =>
-				random_bytes(
-					$length ?? throw new CryptoException("Custom random generator requires a length parameter.")
-				),
-
-			default => throw new CryptoException("Unsupported random generator type: {$type}."),
 		};
 	}
 

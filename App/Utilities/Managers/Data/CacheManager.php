@@ -1,13 +1,15 @@
 <?php
 
-namespace App\Utilities\Managers;
+namespace App\Utilities\Managers\Data;
 
+use Throwable;
 use App\Providers\CacheProvider;                  // Provides caching services and manages cache storage.
 use App\Utilities\Managers\SettingsManager;       // Handles configuration settings for the application.
 
 use App\Exceptions\Data\CacheException;           // Exception class for cache-related errors.
 
 use App\Utilities\Traits\{
+	ErrorTrait,
 	TypeCheckerTrait, // Offers utilities for validating and checking data types.
 	ArrayTrait        // Provides utility methods for array operations.
 };
@@ -20,6 +22,7 @@ use App\Utilities\Traits\{
  */
 class CacheManager
 {
+	use ErrorTrait;
 	use TypeCheckerTrait;
 	use ArrayTrait;
 
@@ -38,7 +41,7 @@ class CacheManager
 	public function __construct(
 		protected CacheProvider $cacheProvider,
 		protected SettingsManager $settingsManager,
-		protected object $cacheDriver
+		protected ?object $cacheDriver = null
 	) {
 		$this->wrapInTry(fn() => $this->cacheProvider->registerServices(), "Failed to register cache services.");
 		$this->wrapInTry(fn() => $this->initializeCacheDriver(), "Failed to initialize cache driver.");

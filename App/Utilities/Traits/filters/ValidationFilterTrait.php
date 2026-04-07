@@ -11,7 +11,7 @@ use App\Utilities\Traits\ArrayTrait;
  * Provides robust methods for validating various data types using PHP's filter extensions.
  * Supports optional flags and fallback to default property values when flags are omitted.
  */
-trait ValidationTrait
+trait ValidationFilterTrait
 {
 	use FiltrationTrait, ArrayTrait;
 

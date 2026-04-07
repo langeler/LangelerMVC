@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Http;
 
-use RuntimeException;            // Exception thrown if an error occurs at runtime.
-use Throwable;                   // Base interface for all errors and exceptions in PHP.
-
+use App\Contracts\Http\MiddlewareInterface;
+use App\Exceptions\Http\MiddlewareException;
 use App\Contracts\Http\ResponseInterface; // Contract for handling HTTP responses.
+use App\Utilities\Traits\ErrorTrait;
 
 /**
  * Abstract Middleware Class
@@ -24,18 +24,25 @@ use App\Contracts\Http\ResponseInterface; // Contract for handling HTTP response
  * - Remains focused on its responsibility: filtering or transforming the request/response pipeline.
  * - Does not incorporate business logic or presentation logic, staying aligned with layered architecture principles.
  */
-abstract class Middleware
+abstract class Middleware implements MiddlewareInterface
 {
+	use ErrorTrait;
+
 	/**
-	 * Abstract method that each middleware must implement.
-	 *
-	 * This is the main entry point for the middleware. It should handle the request,
-	 * optionally call `authenticate()`, `authorize()`, `before()` methods, pass the
-	 * request to the next handler (e.g., controller), and then optionally call `after()`.
+	 * Handle the middleware lifecycle.
 	 *
 	 * @return ResponseInterface The final response after the middleware processing.
 	 */
-	abstract protected function handle(): ResponseInterface;
+	public function handle(): ResponseInterface
+	{
+		return $this->wrapInTry(function (): ResponseInterface {
+			$this->authenticate();
+			$this->authorize();
+			$this->before();
+
+			return $this->after($this->process());
+		}, MiddlewareException::class);
+	}
 
 	/**
 	 * Lifecycle hook to run before handling the request.
@@ -54,9 +61,9 @@ abstract class Middleware
 	 *
 	 * @return void
 	 */
-	protected function after(): void
+	protected function after(ResponseInterface $response): ResponseInterface
 	{
-		// No-op by default.
+		return $response;
 	}
 
 	/**
@@ -88,12 +95,5 @@ abstract class Middleware
 	 * @return mixed The result of the operation.
 	 * @throws RuntimeException On failure.
 	 */
-	protected function wrapInTry(callable $operation): mixed
-	{
-		try {
-			return $operation();
-		} catch (Throwable $e) {
-			throw new RuntimeException("An error occurred: {$e->getMessage()}", $e->getCode(), $e);
-		}
-	}
+	abstract protected function process(): ResponseInterface;
 }

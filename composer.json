@@ -1,8 +1,27 @@
 {
     "name": "langeler/mvc",
-    "description": "Personal Project: PHP MVC Framework built on PHP 8.4+",
+    "description": "LangelerMVC is a custom-built PHP MVC framework focused on structure, modularity, and maintainable backend architecture.",
     "type": "project",
     "license": "MIT",
+    "homepage": "https://github.com/langeler/LangelerMVC",
+    "keywords": [
+        "php",
+        "mvc",
+        "framework",
+        "custom",
+        "modular",
+        "oop",
+        "srp",
+        "soc",
+        "php84"
+    ],
+    "authors": [
+        {
+            "name": "Joakim Langeler",
+            "homepage": "https://github.com/langeler",
+            "role": "Developer"
+        }
+    ],
     "require": {
         "php": "^8.4",
         "vlucas/phpdotenv": "^5.6",
@@ -13,6 +32,11 @@
     "autoload": {
         "psr-4": {
             "App\\": "App/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "Tests/"
         }
     },
     "require-dev": {
@@ -36,19 +60,17 @@
         },
         "project": {
             "github": "https://github.com/langeler/LangelerMVC",
-            "description": "A PHP 8.4+ MVC Project. Focusing on structure, adhering to the Single Responsibility Principle, Separation of Concerns, and Object-Oriented Programming (OOP).",
-            "status": "Development ongoing",
+            "description": "LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles.",
+            "status": "Framework core and WebModule starter slice implemented; additional modules scaffolded.",
             "topics": [
                 "php",
-                "development",
-                "sql",
                 "mvc",
-                "pdo",
+                "framework",
                 "custom",
+                "modular",
                 "oop",
                 "srp",
                 "soc",
-                "php8",
                 "php84"
             ],
             "support": {

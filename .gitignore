@@ -1,12 +1,19 @@
-/public/assets/css/
-/public/assets/js/
-/public/assets/images/
+/Public/assets/css/*
+!/Public/assets/css/README.md
+/Public/assets/js/*
+!/Public/assets/js/README.md
+/Public/assets/images/*
+!/Public/assets/images/README.md
 /Storage/Cache/
-/Storage/Logs/
-/Storage/Uploads/
+/Storage/Logs/*
+!/Storage/Logs/README.md
+/Storage/Uploads/*
+!/Storage/Uploads/README.md
 /node_modules/
-/Tests/Integration/
-/Tests/Unit/
+/Tests/Integration/*
+!/Tests/Integration/README.md
+/Tests/Unit/*
+!/Tests/Unit/README.md
 /vendor/
 
 .env

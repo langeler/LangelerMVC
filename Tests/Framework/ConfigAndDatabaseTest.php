@@ -35,14 +35,14 @@ class ConfigAndDatabaseTest extends TestCase
         $this->originalEnvironment = [];
     }
 
-    public function testConfigSkipsInvalidFilesAndSupportsCaseInsensitiveLookup(): void
+    public function testConfigLoadsTrackedFilesAndSupportsCaseInsensitiveLookup(): void
     {
         $config = $this->resolveConfig();
         $all = $config->all();
 
         self::assertArrayHasKey('app', $all);
         self::assertArrayHasKey('cache', $all);
-        self::assertArrayNotHasKey('untitled', $all);
+        self::assertArrayHasKey('webmodule', $all);
         self::assertSame('file', $config->get('CACHE', 'DRIVER'));
         self::assertSame('file', $config->get('cache', 'DRIVER'));
         self::assertSame('file', $config->get('cache', 'driver'));

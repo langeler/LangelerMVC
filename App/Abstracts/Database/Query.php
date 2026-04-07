@@ -209,7 +209,7 @@ abstract class Query
 	{
 		return $this->map(
 			fn($c) => $this->isString($c)
-				? $this->capitalizeWords($this->replace(['_'], [' '], trim($c)))
+				? $this->capitalizeWords($this->replace(['_'], [' '], $this->trim($c)))
 				: $c,
 			$this->filter($parameters, fn($col) => !($this->isString($col) && $this->isNumeric($col)))
 		);

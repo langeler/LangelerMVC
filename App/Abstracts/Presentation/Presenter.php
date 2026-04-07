@@ -194,7 +194,7 @@ abstract class Presenter implements PresenterInterface
 		$current = $this->state !== [] ? $this->state : $this->prepare();
 
 		foreach (explode('.', $key) as $segment) {
-			if (!$this->isArray($current) || !array_key_exists($segment, $current)) {
+			if (!$this->isArray($current) || !$this->keyExists($current, $segment)) {
 				return $default;
 			}
 

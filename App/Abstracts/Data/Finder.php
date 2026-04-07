@@ -360,7 +360,7 @@ abstract class Finder
                 $reflectionMethod = new \ReflectionMethod($this, $method);
                 $arguments = $reflectionMethod->getNumberOfParameters() <= 1 || $value === true
                     ? []
-                    : (is_array($value) ? array_values($value) : [$value]);
+                    : ($this->isArray($value) ? $this->getValues($value) : [$value]);
 
                 if (!$this->$method($fileInfo, ...$arguments)) {
                     return false;
@@ -600,7 +600,7 @@ abstract class Finder
                 $results = [];
 
                 foreach ($paths as $path) {
-                    $results = array_merge(
+                    $results = $this->merge(
                         $results,
                         $this->filterElements($criteria, $this->validatePath($path))
                     );

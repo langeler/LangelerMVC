@@ -11,8 +11,10 @@ use App\Utilities\Traits\{
     ArrayTrait,
     TypeCheckerTrait,
     CheckerTrait,
-    ErrorTrait
+    ErrorTrait,
+    ManipulationTrait
 };
+use App\Utilities\Traits\Patterns\PatternTrait;
 use App\Utilities\Sanitation\{
     PatternSanitizer
 };
@@ -29,7 +31,18 @@ use App\Utilities\Validation\{
  */
 class SettingsManager
 {
-    use ArrayTrait, ErrorTrait;
+    use ArrayTrait, ErrorTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+        ArrayTrait::pad insteadof ManipulationTrait;
+        ArrayTrait::reverse insteadof ManipulationTrait;
+        ArrayTrait::shuffle insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::trim as private trimString;
+        ManipulationTrait::toLower as private toLowerString;
+        ManipulationTrait::toUpper as private toUpperString;
+        ManipulationTrait::substring as private substringString;
+        PatternTrait::replace as private patternReplace;
+    }
     use CheckerTrait, TypeCheckerTrait {
         TypeCheckerTrait::isNumeric insteadof CheckerTrait;
         CheckerTrait::isNumeric as isStringNumeric;
@@ -149,7 +162,7 @@ class SettingsManager
         return $this->wrapInTry(function (): array {
             $configs = [];
 
-            foreach (array_keys($this->files) as $fileName) {
+            foreach ($this->getKeys($this->files) as $fileName) {
                 try {
                     $configs[$fileName] = $this->getConfigData($fileName);
                 } catch (Throwable $exception) {
@@ -181,7 +194,7 @@ class SettingsManager
         return $this->wrapInTry(function (): string {
             $directories = $this->dirFinder->find(['name' => 'Config']);
             $directoryPath = $this->isArray($directories) && !$this->isEmpty($directories)
-                ? array_key_first($directories)
+                ? $this->keyFirst($directories)
                 : null;
 
             if ($this->isString($directoryPath) && $this->fileManager->isDirectory($directoryPath)) {
@@ -247,10 +260,10 @@ class SettingsManager
                 return [];
             }
 
-            return array_reduce(
-                array_keys($files),
+            return $this->reduce(
+                $this->getKeys($files),
                 function (array $carry, string $filePath): array {
-                    $name = strtolower((string) $this->fileManager->getBaseName($filePath, '.php'));
+                    $name = $this->toLowerString((string) $this->fileManager->getBaseName($filePath, '.php'));
 
                     if ($name !== '') {
                         $carry[$name] = $filePath;
@@ -360,16 +373,16 @@ class SettingsManager
         $envFile = dirname($this->folder) . '/.env';
 
         if ($this->fileManager->fileExists($envFile)) {
-            $variables = array_replace($variables, $this->parseEnvFile($envFile));
+            $variables = $this->replace($variables, $this->parseEnvFile($envFile));
         }
 
         foreach ([getenv(), $_ENV, $_SERVER] as $source) {
-            if (!is_array($source)) {
+            if (!$this->isArray($source)) {
                 continue;
             }
 
             foreach ($source as $key => $value) {
-                if (is_string($key) && (is_string($value) || is_numeric($value) || is_bool($value))) {
+                if ($this->isString($key) && ($this->isString($value) || $this->isNumeric($value) || $this->isBool($value))) {
                     $variables[$key] = (string) $value;
                 }
             }
@@ -388,21 +401,21 @@ class SettingsManager
     {
         $contents = $this->fileManager->readContents($envFile);
 
-        if (!is_string($contents) || $contents === '') {
+        if (!$this->isString($contents) || $contents === '') {
             return [];
         }
 
         $variables = [];
 
-        foreach (preg_split('/\R/', $contents) ?: [] as $line) {
-            $line = trim($line);
+        foreach (($this->split('/\R/', $contents) ?: []) as $line) {
+            $line = $this->trimString($line);
 
-            if ($line === '' || substr($line, 0, 1) === '#' || strpos($line, '=') === false) {
+            if ($line === '' || $this->substringString($line, 0, 1) === '#' || !$this->contains($line, '=')) {
                 continue;
             }
 
             [$key, $value] = explode('=', $line, 2);
-            $variables[trim($key)] = $this->normalizeScalarValue($value);
+            $variables[$this->trimString($key)] = $this->normalizeScalarValue($value);
         }
 
         return $variables;
@@ -419,19 +432,19 @@ class SettingsManager
         $grouped = [];
 
         foreach ($variables as $key => $value) {
-            $segments = array_values(array_filter(explode('_', $key), fn($segment) => $segment !== ''));
+            $segments = $this->getValues($this->filter(explode('_', $key), fn($segment) => $segment !== ''));
 
             if (count($segments) < 2) {
                 continue;
             }
 
-            $file = strtolower((string) array_shift($segments));
+            $file = $this->toLowerString((string) array_shift($segments));
 
             if (!isset($this->files[$file])) {
                 continue;
             }
 
-            $path = array_map('strtoupper', $segments);
+            $path = $this->map(fn(string $segment): string => $this->toUpperString($segment), $segments);
             $this->setNestedValue($grouped[$file], $path, $this->normalizeScalarValue($value));
         }
 
@@ -457,7 +470,7 @@ class SettingsManager
                 return;
             }
 
-            if (!isset($cursor[$segment]) || !is_array($cursor[$segment])) {
+            if (!isset($cursor[$segment]) || !$this->isArray($cursor[$segment])) {
                 $cursor[$segment] = [];
             }
 
@@ -475,7 +488,7 @@ class SettingsManager
     private function mergeEnvironmentOverrides(string $fileName, array $config): array
     {
         return isset($this->environment[$fileName])
-            ? array_replace_recursive($config, $this->environment[$fileName])
+            ? $this->replaceRecursive($config, $this->environment[$fileName])
             : $config;
     }
 
@@ -512,20 +525,20 @@ class SettingsManager
      */
     private function normalizeScalarValue(string $value): string
     {
-        $trimmed = trim($value);
+        $trimmed = $this->trimString($value);
 
         if ($trimmed === '') {
             return '';
         }
 
-        $firstChar = substr($trimmed, 0, 1);
-        $lastChar = substr($trimmed, -1);
+        $firstChar = $this->substringString($trimmed, 0, 1);
+        $lastChar = $this->substringString($trimmed, -1);
 
         if (($firstChar === '"' && $lastChar === '"') || ($firstChar === "'" && $lastChar === "'")) {
-            return substr($trimmed, 1, -1);
+            return $this->substringString($trimmed, 1, -1);
         }
 
-        return trim((string) preg_replace('/\s+#.*$/', '', $trimmed));
+        return $this->trimString((string) ($this->patternReplace('/\s+#.*$/', '', $trimmed) ?? $trimmed));
     }
 
     /**
@@ -536,7 +549,9 @@ class SettingsManager
      */
     private function normalizeFileName(string $fileName): string
     {
-        return strtolower((string) preg_replace('/\.php$/i', '', trim($fileName)));
+        return $this->toLowerString(
+            (string) ($this->patternReplace('/\.php$/i', '', $this->trimString($fileName)) ?? $this->trimString($fileName))
+        );
     }
 
     /**

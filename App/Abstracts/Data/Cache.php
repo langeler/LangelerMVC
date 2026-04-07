@@ -20,6 +20,7 @@ use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\ApplicationPathTrait;
 use App\Utilities\Traits\CheckerTrait;
 use App\Utilities\Traits\ConversionTrait;
+use App\Utilities\Traits\EncodingTrait;
 use App\Utilities\Traits\ErrorTrait;
 use App\Utilities\Traits\LoopTrait;
 use App\Utilities\Traits\ManipulationTrait;
@@ -31,6 +32,7 @@ abstract class Cache
     use ErrorTrait,
         ApplicationPathTrait,
         ConversionTrait,
+        EncodingTrait,
         MetricsTrait,
         LoopTrait,
         ManipulationTrait,
@@ -116,8 +118,8 @@ abstract class Cache
     {
         return $this->wrapInTry(function () {
             return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
-                'openssl' => base64_decode($this->settings['encryption']['KEY'] ?? '', true) ?: '',
-                'sodium' => base64_decode($this->settings['encryption']['SODIUM'] ?? '', true) ?: '',
+                'openssl' => $this->base64DecodeString($this->settings['encryption']['KEY'] ?? '', true) ?: '',
+                'sodium' => $this->base64DecodeString($this->settings['encryption']['SODIUM'] ?? '', true) ?: '',
                 default => $this->throwCacheException('Invalid encryption key type.'),
             };
         }, 'cache');
@@ -136,7 +138,7 @@ abstract class Cache
         return $this->wrapInTry(function () {
             $directories = $this->directoryFinder->find(['name' => 'Cache']);
             $cacheDirectory = !$this->isEmpty($directories)
-                ? array_key_first($directories)
+                ? $this->keyFirst($directories)
                 : null;
 
             if ($this->isString($cacheDirectory) && $this->isDirectory($cacheDirectory)) {
@@ -168,7 +170,7 @@ abstract class Cache
                 return $localFallback;
             }
 
-            $tempFallback = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/LangelerMVC/Cache';
+            $tempFallback = $this->trimRight(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/LangelerMVC/Cache';
 
             if (
                 $this->fileManager->isDirectory($tempFallback)
@@ -233,9 +235,9 @@ abstract class Cache
     protected function compressData(string $data): string
     {
         return $this->wrapInTry(function () use ($data) {
-            $compressionEnabled = strtolower((string) ($this->settings['cache']['COMPRESSION'] ?? 'false')) === 'true';
+            $compressionEnabled = $this->toLower((string) ($this->settings['cache']['COMPRESSION'] ?? 'false')) === 'true';
 
-            if (!$compressionEnabled || !function_exists('gzcompress')) {
+            if (!$compressionEnabled || !$this->functionExists('gzcompress')) {
                 return $data;
             }
 
@@ -248,9 +250,9 @@ abstract class Cache
     protected function decompressData(string $data): string
     {
         return $this->wrapInTry(function () use ($data) {
-            $compressionEnabled = strtolower((string) ($this->settings['cache']['COMPRESSION'] ?? 'false')) === 'true';
+            $compressionEnabled = $this->toLower((string) ($this->settings['cache']['COMPRESSION'] ?? 'false')) === 'true';
 
-            if (!$compressionEnabled || !function_exists('gzuncompress')) {
+            if (!$compressionEnabled || !$this->functionExists('gzuncompress')) {
                 return $data;
             }
 

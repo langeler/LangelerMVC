@@ -10,7 +10,17 @@ use App\Utilities\Managers\{
     CacheManager,
     System\ErrorManager
 };
-use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\{
+    ArrayTrait,
+    CheckerTrait,
+    ConversionTrait,
+    EncodingTrait,
+    ErrorTrait,
+    ExistenceCheckerTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 use App\Utilities\Validation\PatternValidator;
 
 /**
@@ -21,7 +31,23 @@ use App\Utilities\Validation\PatternValidator;
  */
 class Router
 {
-    use ErrorTrait;
+    use ErrorTrait, TypeCheckerTrait, ExistenceCheckerTrait, CheckerTrait, EncodingTrait, ConversionTrait {
+        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
+        CheckerTrait::isNumeric as isStringNumeric;
+    }
+    use ArrayTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+        ArrayTrait::pad insteadof ManipulationTrait;
+        ArrayTrait::reverse insteadof ManipulationTrait;
+        ArrayTrait::shuffle insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::replace as private stringReplace;
+        PatternTrait::replace as private patternReplace;
+        ManipulationTrait::trim as private trimString;
+        ManipulationTrait::trimRight as private trimRightString;
+        ManipulationTrait::toLower as private toLowerString;
+        ManipulationTrait::toUpper as private toUpperString;
+    }
 
     /**
      * @var array<string, array<string, array>>
@@ -110,12 +136,12 @@ class Router
         string $action,
         array $options = []
     ): void {
-        $normalizedMethod = strtoupper($method);
+        $normalizedMethod = $this->toUpperString($method);
         $normalizedPath = $this->normalizeRoutePath($this->groupPrefix . $path);
 
         $this->routes[$normalizedMethod][$normalizedPath] = [
             'callback' => [$controllerAlias, $action],
-            'middleware' => array_values(array_merge($this->groupMiddleware, $options['middleware'] ?? [])),
+            'middleware' => $this->getValues($this->merge($this->groupMiddleware, $options['middleware'] ?? [])),
             'paramRules' => $options['params'] ?? [],
         ];
     }
@@ -172,9 +198,9 @@ class Router
         string $action,
         array $options = []
     ): void {
-        $normalizedMethod = strtoupper($method);
+        $normalizedMethod = $this->toUpperString($method);
 
-        if (!in_array($normalizedMethod, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], true)) {
+        if (!$this->isInArray($normalizedMethod, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], true)) {
             throw $this->errorManager->resolveException(
                 'invalidArgument',
                 "Unsupported HTTP method: {$method}"
@@ -245,11 +271,11 @@ class Router
         $route = $this->namedRoutes[$name];
 
         foreach ($params as $key => $value) {
-            $route = str_replace('{' . $key . '}', (string) $value, $route);
-            $route = str_replace('{' . $key . '?}', (string) $value, $route);
+            $route = $this->stringReplace('{' . $key . '}', (string) $value, $route);
+            $route = $this->stringReplace('{' . $key . '?}', (string) $value, $route);
         }
 
-        return (string) preg_replace('/\/?\{(\w+)\?\}/', '', $route);
+        return (string) $this->patternReplace('/\/?\{(\w+)\?\}/', '', $route);
     }
 
     /**
@@ -270,7 +296,7 @@ class Router
             $this->applyMiddleware($route['middleware'] ?? []);
 
             return $this->moduleManager->resolveModule($route['callback'][0])
-                ->{$route['callback'][1]}(...array_values($this->routeParams));
+                ->{$route['callback'][1]}(...$this->getValues($this->routeParams));
         } catch (RouteNotFoundException) {
             return $this->executeFallback();
         } catch (Throwable $exception) {
@@ -314,7 +340,7 @@ class Router
             $module = $this->moduleManager->resolveModule($middleware[0] ?? '');
             $method = $middleware[1] ?? 'handle';
 
-            if (!method_exists($module, $method)) {
+            if (!$this->methodExists($module, $method)) {
                 throw $this->errorManager->resolveException(
                     'middleware',
                     "Method [{$method}] not found in middleware [" . ($middleware[0] ?? '') . '].'
@@ -353,12 +379,12 @@ class Router
     {
         $definition = require $file;
 
-        if (is_callable($definition)) {
+        if ($this->isCallable($definition)) {
             $definition($this);
             return;
         }
 
-        if (is_array($definition)) {
+        if ($this->isArray($definition)) {
             $this->importRouteArray($definition);
             return;
         }
@@ -377,20 +403,20 @@ class Router
      */
     private function importRouteArray(array $definition): void
     {
-        if (isset($definition['routes']) || isset($definition['namedRoutes']) || array_key_exists('fallbackRoute', $definition)) {
-            $this->routes = array_replace_recursive($this->routes, $definition['routes'] ?? []);
-            $this->namedRoutes = array_replace($this->namedRoutes, $definition['namedRoutes'] ?? []);
+        if (isset($definition['routes']) || isset($definition['namedRoutes']) || $this->keyExists($definition, 'fallbackRoute')) {
+            $this->routes = $this->replaceRecursive($this->routes, $definition['routes'] ?? []);
+            $this->namedRoutes = $this->replace($this->namedRoutes, $definition['namedRoutes'] ?? []);
             $this->fallbackRoute = $definition['fallbackRoute'] ?? $this->fallbackRoute;
             return;
         }
 
         if ($this->isMethodMap($definition)) {
-            $this->routes = array_replace_recursive($this->routes, $definition);
+            $this->routes = $this->replaceRecursive($this->routes, $definition);
             return;
         }
 
         foreach ($definition as $route) {
-            if (is_array($route)) {
+            if ($this->isArray($route)) {
                 $this->registerDeclarativeRoute($route);
             }
         }
@@ -415,11 +441,11 @@ class Router
         $action = $route['action'] ?? 'index';
         $options = $route['options'] ?? [];
 
-        if (!is_string($controller)) {
+        if (!$this->isString($controller)) {
             throw $this->errorManager->resolveException('router', 'Declarative routes require a controller.');
         }
 
-        if (isset($route['alias']) && is_string($route['alias'])) {
+        if (isset($route['alias']) && $this->isString($route['alias'])) {
             $this->addRouteWithAlias($method, $path, $controller, $action, $route['alias'], $options);
             return;
         }
@@ -439,8 +465,8 @@ class Router
             return false;
         }
 
-        foreach (array_keys($definition) as $key) {
-            if (!in_array((string) $key, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], true)) {
+        foreach ($this->getKeys($definition) as $key) {
+            if (!$this->isInArray((string) $key, ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], true)) {
                 return false;
             }
         }
@@ -458,19 +484,19 @@ class Router
         try {
             $payload = $this->cacheManager->get('routes');
 
-            if (!is_string($payload) || $payload === '') {
+            if (!$this->isString($payload) || $payload === '') {
                 return null;
             }
 
-            $decoded = base64_decode($payload, true);
+            $decoded = $this->base64DecodeString($payload, true);
 
             if ($decoded === false) {
                 return null;
             }
 
-            $state = json_decode($decoded, true);
+            $state = $this->fromJson($decoded, true);
 
-            return is_array($state) ? $state : null;
+            return $this->isArray($state) ? $state : null;
         } catch (Throwable $exception) {
             $this->errorManager->logThrowable($exception, 'router', 'userWarning');
             return null;
@@ -486,7 +512,7 @@ class Router
     private function persistRouteState(array $state): void
     {
         try {
-            $payload = base64_encode((string) json_encode($state, JSON_THROW_ON_ERROR));
+            $payload = $this->base64EncodeString($this->toJson($state, JSON_THROW_ON_ERROR));
             $this->cacheManager->set('routes', $payload, $this->cacheDuration);
         } catch (Throwable $exception) {
             $this->errorManager->logThrowable($exception, 'router', 'userWarning');
@@ -517,9 +543,9 @@ class Router
      */
     private function hydrateRouteState(array $state): void
     {
-        $this->routes = is_array($state['routes'] ?? null) ? $state['routes'] : [];
-        $this->namedRoutes = is_array($state['namedRoutes'] ?? null) ? $state['namedRoutes'] : [];
-        $this->fallbackRoute = is_array($state['fallbackRoute'] ?? null) ? $state['fallbackRoute'] : null;
+        $this->routes = $this->isArray($state['routes'] ?? null) ? $state['routes'] : [];
+        $this->namedRoutes = $this->isArray($state['namedRoutes'] ?? null) ? $state['namedRoutes'] : [];
+        $this->fallbackRoute = $this->isArray($state['fallbackRoute'] ?? null) ? $state['fallbackRoute'] : null;
     }
 
     /**
@@ -546,9 +572,9 @@ class Router
      */
     private function isRouteCacheValid(?array $state, string $signature): bool
     {
-        return is_array($state)
+        return $this->isArray($state)
             && ($state['signature'] ?? null) === $signature
-            && is_array($state['routes'] ?? null);
+            && $this->isArray($state['routes'] ?? null);
     }
 
     /**
@@ -571,7 +597,7 @@ class Router
 
         usort($fingerprints, fn($left, $right) => strcmp($left['file'], $right['file']));
 
-        return sha1((string) json_encode($fingerprints));
+        return sha1($this->toJson($fingerprints, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -593,12 +619,12 @@ class Router
         foreach ($this->routes[$method] as $pattern => $route) {
             $matches = [];
 
-            if (preg_match($this->convertPatternToRegex($pattern), $uri, $matches) !== 1) {
+            if ($this->match($this->convertPatternToRegex($pattern), $uri, $matches) !== 1) {
                 continue;
             }
 
             $this->routeParams = $this->validateParams(
-                array_filter($matches, fn($key) => is_string($key), ARRAY_FILTER_USE_KEY),
+                $this->filter($matches, fn($key) => $this->isString($key), ARRAY_FILTER_USE_KEY),
                 $route['paramRules'] ?? []
             );
 
@@ -640,7 +666,7 @@ class Router
      */
     private function getHttpMethod(string $original): string
     {
-        return strtoupper($original);
+        return $this->toUpperString($original);
     }
 
     /**
@@ -651,13 +677,13 @@ class Router
      */
     private function convertPatternToRegex(string $pattern): string
     {
-        $regex = preg_replace_callback(
+        $regex = $this->replaceCallback(
             '/\{(\w+)(?::([^}]+))?\}/',
             fn($matches) => isset($matches[2])
                 ? '(?P<' . $matches[1] . '>' . $matches[2] . ')'
                 : '(?P<' . $matches[1] . '>[^/]+)',
             $pattern
-        );
+        ) ?? $pattern;
 
         return '#^' . $regex . '$#';
     }
@@ -696,20 +722,20 @@ class Router
      */
     private function normalizeRoutePath(string $path): string
     {
-        $path = trim($path);
+        $path = $this->trimString($path);
 
         if ($path === '') {
             return '/';
         }
 
-        $path = preg_replace('#/+#', '/', $path) ?? $path;
+        $path = $this->patternReplace('#/+#', '/', $path) ?? $path;
 
-        if (substr($path, 0, 1) !== '/') {
+        if (!$this->startsWith($path, '/')) {
             $path = '/' . $path;
         }
 
-        if ($path !== '/' && substr($path, -1) === '/') {
-            $path = rtrim($path, '/');
+        if ($path !== '/' && $this->endsWith($path, '/')) {
+            $path = $this->trimRightString($path, '/');
         }
 
         return $path === '' ? '/' : $path;
@@ -725,11 +751,11 @@ class Router
     {
         $path = parse_url($uri, PHP_URL_PATH);
 
-        if (!is_string($path) || $path === '') {
+        if (!$this->isString($path) || $path === '') {
             return '/';
         }
 
-        $decodedPath = rawurldecode($path);
+        $decodedPath = $this->decodeStringFromRawUrl($path);
 
         return $this->normalizeRoutePath($decodedPath);
     }

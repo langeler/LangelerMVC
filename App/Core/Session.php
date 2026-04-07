@@ -11,7 +11,15 @@ use App\Utilities\Managers\FileManager;
 use App\Utilities\Managers\SessionManager;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ApplicationPathTrait;
-use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\Filters\FiltrationTrait;
+use App\Utilities\Traits\Patterns\PatternTrait;
+use App\Utilities\Traits\{
+    ArrayTrait,
+    CheckerTrait,
+    ErrorTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
 
 /**
  * Core session facade.
@@ -23,7 +31,20 @@ use App\Utilities\Traits\ErrorTrait;
 class Session
 {
     use ApplicationPathTrait;
-    use ErrorTrait;
+    use ArrayTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::pad insteadof ManipulationTrait;
+        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+        ArrayTrait::reverse insteadof ManipulationTrait;
+        ArrayTrait::shuffle insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::trim as private trimString;
+        ManipulationTrait::toLower as private toLowerString;
+        PatternTrait::match as private matchPattern;
+    }
+    use ErrorTrait, TypeCheckerTrait, CheckerTrait, FiltrationTrait {
+        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
+        CheckerTrait::isNumeric as isStringNumeric;
+    }
 
     private SessionHandler $handler;
     private bool $started = false;
@@ -90,7 +111,7 @@ class Session
     public function all(): array
     {
         return $this->wrapInTry(
-            fn(): array => isset($_SESSION) && is_array($_SESSION) ? $_SESSION : [],
+            fn(): array => isset($_SESSION) && $this->isArray($_SESSION) ? $_SESSION : [],
             'runtime'
         );
     }
@@ -100,7 +121,7 @@ class Session
      */
     public function has(string $key): bool
     {
-        return array_key_exists($key, $this->all());
+        return $this->keyExists($this->all(), $key);
     }
 
     /**
@@ -110,7 +131,7 @@ class Session
     {
         $values = $this->all();
 
-        return array_key_exists($key, $values) ? $values[$key] : $default;
+        return $this->keyExists($values, $key) ? $values[$key] : $default;
     }
 
     /**
@@ -284,12 +305,12 @@ class Session
 
     private function shouldUseEphemeralStore(): bool
     {
-        return in_array(PHP_SAPI, ['cli', 'phpdbg'], true);
+        return $this->isInArray(PHP_SAPI, ['cli', 'phpdbg'], true);
     }
 
     private function startEphemeralSession(): bool
     {
-        if (!isset($_SESSION) || !is_array($_SESSION)) {
+        if (!isset($_SESSION) || !$this->isArray($_SESSION)) {
             $_SESSION = [];
         }
 
@@ -301,7 +322,7 @@ class Session
 
     private function guardSupportedDriver(): void
     {
-        $driver = strtolower($this->normalizeString(
+        $driver = $this->toLowerString($this->normalizeString(
             $this->config->get('session', 'driver', 'native'),
             'native'
         ));
@@ -350,7 +371,7 @@ class Session
     private function resolveOption(array $options, array $keys, mixed $default = null): mixed
     {
         foreach ($keys as $key) {
-            if (array_key_exists($key, $options)) {
+            if ($this->keyExists($options, $key)) {
                 return $options[$key];
             }
         }
@@ -360,17 +381,17 @@ class Session
 
     private function normalizeBool(mixed $value, bool $default = false): bool
     {
-        if (is_bool($value)) {
+        if ($this->isBool($value)) {
             return $value;
         }
 
-        if (is_string($value)) {
-            $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($this->isString($value)) {
+            $normalized = $this->var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
             return $normalized ?? $default;
         }
 
-        if (is_int($value) || is_float($value)) {
+        if ($this->isInt($value) || $this->isFloat($value)) {
             return (bool) $value;
         }
 
@@ -379,17 +400,17 @@ class Session
 
     private function normalizeInt(mixed $value, int $default): int
     {
-        return is_numeric($value) ? (int) $value : $default;
+        return $this->isNumeric($value) ? (int) $value : $default;
     }
 
     private function normalizeString(mixed $value, string $default = ''): string
     {
-        return is_scalar($value) ? trim((string) $value) : $default;
+        return $this->isScalar($value) ? $this->trimString((string) $value) : $default;
     }
 
     private function normalizeSameSite(mixed $value): string
     {
-        $normalized = strtolower($this->normalizeString($value, 'lax'));
+        $normalized = $this->toLowerString($this->normalizeString($value, 'lax'));
 
         return match ($normalized) {
             'strict' => 'Strict',
@@ -400,7 +421,7 @@ class Session
 
     private function isAbsolutePath(string $path): bool
     {
-        return str_starts_with($path, DIRECTORY_SEPARATOR)
-            || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;
+        return $this->startsWith($path, DIRECTORY_SEPARATOR)
+            || $this->matchPattern('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;
     }
 }

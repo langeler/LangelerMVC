@@ -43,7 +43,7 @@ abstract class Sanitizer
                 $sanitized = [];
 
                 foreach ($schema as $key => $config) {
-                    if (!array_key_exists($key, $payload)) {
+                    if (!$this->keyExists($payload, $key)) {
                         throw new SanitizationException("Missing value for key '{$key}'.");
                     }
 
@@ -77,7 +77,7 @@ abstract class Sanitizer
                     throw new SanitizationException('Invalid configuration format.');
                 }
 
-                $parts = array_values($config);
+                $parts = $this->getValues($config);
                 $methods = $this->normalizeMethods($parts[0] ?? null);
                 $options = [];
                 $rules = [];
@@ -92,7 +92,7 @@ abstract class Sanitizer
                         continue;
                     }
 
-                    $rules = array_replace($rules, $part);
+                    $rules = $this->arrayReplace($rules, $part);
                 }
 
                 return [$methods, $options, $rules];
@@ -132,10 +132,10 @@ abstract class Sanitizer
         return $this->wrapInTry(
             function () use ($value, $rules): mixed {
                 foreach ($rules as $rule => $params) {
-                    $ruleName = is_int($rule) ? $params : $rule;
-                    $arguments = is_int($rule)
+                    $ruleName = $this->isInt($rule) ? $params : $rule;
+                    $arguments = $this->isInt($rule)
                         ? []
-                        : (is_array($params) ? array_values($params) : [$params]);
+                        : ($this->isArray($params) ? $this->getValues($params) : [$params]);
                     $method = 'rule' . ucfirst((string) $ruleName);
 
                     $ruleValue = $this->normalizeRuleInput($value, (string) $ruleName);
@@ -166,7 +166,7 @@ abstract class Sanitizer
     {
         return $this->wrapInTry(
             function () use ($value, $methods, $options): mixed {
-                return array_reduce(
+                return $this->reduce(
                     $methods,
                     function (mixed $carry, string $method) use ($options): mixed {
                         $sanitizer = 'sanitize' . ucfirst($method);
@@ -197,7 +197,7 @@ abstract class Sanitizer
         }
 
         if ($this->isArray($methods) && $methods !== [] && $this->all($methods, fn($method) => $this->isString($method))) {
-            return array_values($methods);
+            return $this->getValues($methods);
         }
 
         throw new SanitizationException('Invalid sanitization methods configuration.');
@@ -216,7 +216,7 @@ abstract class Sanitizer
         }
 
         foreach ($config as $key => $value) {
-            $rule = is_int($key) ? $value : $key;
+            $rule = $this->isInt($key) ? $value : $key;
 
             if (!$this->isString($rule) || !$this->methodExists($this, 'rule' . ucfirst($rule))) {
                 return false;
@@ -241,7 +241,7 @@ abstract class Sanitizer
         $arguments = [$value];
 
         if ($parameters !== []) {
-            $arguments = array_merge($arguments, $this->buildMethodArguments($parameters, $options));
+            $arguments = $this->merge($arguments, $this->buildMethodArguments($parameters, $options));
         }
 
         return $reflection->invokeArgs($this, $arguments);
@@ -261,26 +261,26 @@ abstract class Sanitizer
             $type = $parameter->getType();
 
             if ($type instanceof ReflectionNamedType && $type->getName() === 'array') {
-                return [$this->isListArray($options) ? array_values($options) : $options];
+                return [$this->isListArray($options) ? $this->getValues($options) : $options];
             }
 
             if ($options === []) {
                 return $parameter->isDefaultValueAvailable() ? [$parameter->getDefaultValue()] : [];
             }
 
-            if (!$this->isListArray($options) && array_key_exists($parameter->getName(), $options)) {
+            if (!$this->isListArray($options) && $this->keyExists($options, $parameter->getName())) {
                 return [$options[$parameter->getName()]];
             }
 
-            return [array_values($options)[0]];
+            return [$this->getValues($options)[0]];
         }
 
         if ($this->isListArray($options)) {
-            return array_values($options);
+            return $this->getValues($options);
         }
 
-        return array_map(
-            fn($parameter) => array_key_exists($parameter->getName(), $options)
+        return $this->map(
+            fn($parameter) => $this->keyExists($options, $parameter->getName())
                 ? $options[$parameter->getName()]
                 : ($parameter->isDefaultValueAvailable()
                     ? $parameter->getDefaultValue()
@@ -299,7 +299,7 @@ abstract class Sanitizer
      */
     private function isListArray(array $value): bool
     {
-        return array_keys($value) === range(0, count($value) - 1);
+        return $this->isList($value);
     }
 
     /**
@@ -312,9 +312,9 @@ abstract class Sanitizer
     private function normalizeRuleInput(mixed $value, string $ruleName): mixed
     {
         if (
-            is_string($value)
-            && is_numeric($value)
-            && in_array($ruleName, ['min', 'max', 'between', 'less', 'greater', 'divisibleBy', 'positive', 'negative', 'step'], true)
+            $this->isString($value)
+            && $this->isNumeric($value)
+            && $this->isInArray($ruleName, ['min', 'max', 'between', 'less', 'greater', 'divisibleBy', 'positive', 'negative', 'step'], true)
         ) {
             return strpos($value, '.') !== false || stripos($value, 'e') !== false
                 ? (float) $value

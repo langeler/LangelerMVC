@@ -23,7 +23,9 @@ use App\Utilities\Finders\DirectoryFinder;      // Handles searching and managin
 use App\Utilities\Traits\{
 	ArrayTrait,        // Provides utility methods for array operations.
 	ApplicationPathTrait,
-	ErrorTrait         // Offers framework-aligned exception wrapping.
+	ErrorTrait,        // Offers framework-aligned exception wrapping.
+	ManipulationTrait,
+	TypeCheckerTrait
 };
 
 /**
@@ -42,7 +44,15 @@ use App\Utilities\Traits\{
  */
 abstract class Request implements RequestInterface
 {
-	use ArrayTrait, ErrorTrait;
+	use ArrayTrait, ManipulationTrait {
+		ArrayTrait::pad insteadof ManipulationTrait;
+		ArrayTrait::replace insteadof ManipulationTrait;
+		ArrayTrait::reverse insteadof ManipulationTrait;
+		ArrayTrait::shuffle insteadof ManipulationTrait;
+		ManipulationTrait::trim as private trimString;
+		ManipulationTrait::toLower as private toLowerString;
+	}
+	use ErrorTrait, TypeCheckerTrait;
 	use ApplicationPathTrait;
 
 	/**
@@ -93,8 +103,8 @@ abstract class Request implements RequestInterface
 	{
 		$this->storage = $this->wrapInTry(function (): string {
 			$uploads = $this->directoryFinder->find(['name' => 'Uploads']);
-			$path = is_array($uploads) && $uploads !== []
-				? array_key_first($uploads)
+			$path = $this->isArray($uploads) && $uploads !== []
+				? $this->keyFirst($uploads)
 				: null;
 
 			if ($this->isString($path) && $this->fileManager->isDirectory($path)) {
@@ -216,9 +226,9 @@ abstract class Request implements RequestInterface
 	public function header(string $key, mixed $default = null): mixed
 	{
 		$headers = $this->headers();
-		$normalizedKey = strtolower(trim($key));
+		$normalizedKey = $this->toLowerString($this->trimString($key));
 
-		return array_key_exists($normalizedKey, $headers) ? $headers[$normalizedKey] : $default;
+		return $this->keyExists($headers, $normalizedKey) ? $headers[$normalizedKey] : $default;
 	}
 
 	/**
@@ -232,7 +242,7 @@ abstract class Request implements RequestInterface
 			$normalized = [];
 
 			foreach ($this->headers as $key => $value) {
-				$normalized[strtolower(trim((string) $key))] = $value;
+				$normalized[$this->toLowerString($this->trimString((string) $key))] = $value;
 			}
 
 			return $normalized;
@@ -279,8 +289,8 @@ abstract class Request implements RequestInterface
 	 */
 	protected function sanitizeData(array $data, ?array $schema = null): array
 	{
-		$schema ??= array_reduce(
-			array_keys($data),
+		$schema ??= $this->reduce(
+			$this->getKeys($data),
 			fn(array $carry, string $key): array => $carry + [$key => ['string']],
 			[]
 		);
@@ -321,9 +331,9 @@ abstract class Request implements RequestInterface
 			$extensionSource = $this->isString($file['name'] ?? null)
 				? $file['name']
 				: $file['tmp_name'];
-			$extension = strtolower((string) $this->fileManager->getExtension($extensionSource));
+			$extension = $this->toLowerString((string) $this->fileManager->getExtension($extensionSource));
 			$allowedExtensions = $this->map(
-				fn(mixed $value): string => strtolower((string) $value),
+				fn(mixed $value): string => $this->toLowerString((string) $value),
 				$this->unique($this->settings['ext'] ?? [])
 			);
 
@@ -368,7 +378,7 @@ abstract class Request implements RequestInterface
 	{
 		return $this->wrapInTry(function () use ($fileName): string {
 			$sanitized = $this->patternSanitizer->sanitizeFileName(basename($fileName)) ?? '';
-			$sanitized = trim($sanitized, '.');
+			$sanitized = $this->trimString($sanitized, '.');
 
 			if ($sanitized === '' || !$this->patternValidator->validateFileName($sanitized)) {
 				throw new RequestException("Invalid file name '{$fileName}'.");
@@ -468,7 +478,7 @@ abstract class Request implements RequestInterface
 		$value = $source;
 
 		foreach (explode('.', $key) as $segment) {
-			if (!is_array($value) || !array_key_exists($segment, $value)) {
+			if (!$this->isArray($value) || !$this->keyExists($value, $segment)) {
 				return $default;
 			}
 

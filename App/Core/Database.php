@@ -6,10 +6,13 @@ namespace App\Core;
 
 use PDO;
 use PDOStatement;
+use App\Utilities\Traits\Filters\FiltrationTrait;
+use App\Utilities\Traits\Patterns\PatternTrait;
 use App\Utilities\Traits\{
 	ErrorTrait,
 	TypeCheckerTrait,
-	ArrayTrait
+	ArrayTrait,
+	ManipulationTrait
 };
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Managers\SettingsManager;
@@ -22,7 +25,17 @@ use App\Utilities\Managers\SettingsManager;
  */
 class Database
 {
-	use ErrorTrait, TypeCheckerTrait, ArrayTrait;
+	use ErrorTrait, TypeCheckerTrait, FiltrationTrait;
+	use ArrayTrait, ManipulationTrait, PatternTrait {
+		ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+		ArrayTrait::pad insteadof ManipulationTrait;
+		ArrayTrait::reverse insteadof ManipulationTrait;
+		ArrayTrait::shuffle insteadof ManipulationTrait;
+		PatternTrait::split insteadof ManipulationTrait;
+		ManipulationTrait::trim as private trimString;
+		ManipulationTrait::toLower as private toLowerString;
+		PatternTrait::match as private matchPattern;
+	}
 
 	public function __construct(
 		protected SettingsManager $settingsManager,
@@ -185,7 +198,7 @@ class Database
 		$this->errorManager->logError('Attempting failover connection.', 'userWarning');
 
 		return $this->wrapInTry(
-			fn(): PDO => $this->createPdo(array_replace($this->config, $this->config['FAILOVER'])),
+			fn(): PDO => $this->createPdo($this->replace($this->config, $this->config['FAILOVER'])),
 			'database'
 		);
 	}
@@ -333,7 +346,7 @@ class Database
 		return $this->wrapInTry(function () use ($query, $params): ?array {
 			$result = $this->executeQuery($query, $params)->fetch(PDO::FETCH_ASSOC);
 
-			return is_array($result) ? $result : null;
+			return $this->isArray($result) ? $result : null;
 		}, 'database');
 	}
 
@@ -379,7 +392,7 @@ class Database
 	{
 		$this->ensureConnection();
 
-		if (!is_string($query) || trim($query) === '') {
+		if (!$this->isString($query) || $this->trimString($query) === '') {
 			throw $this->errorManager->resolveException('invalidArgument', 'Query must be a non-empty string.');
 		}
 
@@ -402,8 +415,8 @@ class Database
 		$type = $parameterType ?? $this->constants['str'];
 
 		return $this->wrapInTry(
-			fn(): string|array => is_array($value)
-				? array_map(fn($item) => $this->pdo->quote($item, $type), $value)
+			fn(): string|array => $this->isArray($value)
+				? $this->map(fn($item) => $this->pdo->quote($item, $type), $value)
 				: $this->pdo->quote($value, $type),
 			'database'
 		);
@@ -417,7 +430,7 @@ class Database
 	 */
 	public function truncate(string $table): void
 	{
-		if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $table)) {
+		if ($this->matchPattern('/^[A-Za-z_][A-Za-z0-9_]*$/', $table) !== 1) {
 			throw $this->errorManager->resolveException('invalidArgument', 'Invalid or empty table name provided.');
 		}
 
@@ -499,11 +512,11 @@ class Database
 	{
 		foreach ($params as $key => $value) {
 			$stmt->bindValue(
-				is_int($key) ? $key + 1 : $key,
+				$this->isInt($key) ? $key + 1 : $key,
 				$value,
 				$this->constants[match (true) {
-					is_int($value) => 'int',
-					is_bool($value) => 'bool',
+					$this->isInt($value) => 'int',
+					$this->isBool($value) => 'bool',
 					$value === null => 'null',
 					default => 'str',
 				}]
@@ -532,7 +545,7 @@ class Database
 	 */
 	private function executeQuery(string $query, array $params = []): PDOStatement
 	{
-		if (!is_string($query) || trim($query) === '') {
+		if (!$this->isString($query) || $this->trimString($query) === '') {
 			throw $this->errorManager->resolveException('invalidArgument', 'Query must be a non-empty string.');
 		}
 
@@ -566,7 +579,7 @@ class Database
 			[
 				$this->constants['errMode'] => $this->constants['errException'],
 				$this->constants['defaultFetchMode'] => $this->constants['fetchAssoc'],
-				$this->constants['persistent'] => filter_var($config['POOLING'] ?? false, FILTER_VALIDATE_BOOLEAN),
+				$this->constants['persistent'] => $this->var($config['POOLING'] ?? false, FILTER_VALIDATE_BOOLEAN),
 				$this->constants['emulatePrepares'] => false,
 			]
 		);
@@ -580,7 +593,7 @@ class Database
 	 */
 	private function buildDsn(array $config): string
 	{
-		$driver = strtolower((string) ($config['CONNECTION'] ?? 'mysql'));
+		$driver = $this->toLowerString((string) ($config['CONNECTION'] ?? 'mysql'));
 
 		return match ($driver) {
 			'sqlite' => 'sqlite:' . (string) ($config['DATABASE'] ?? ':memory:'),
@@ -631,12 +644,12 @@ class Database
 	 */
 	private function normalizeFailoverConfig(mixed $failover): array
 	{
-		if (is_array($failover)) {
+		if ($this->isArray($failover)) {
 			return $failover;
 		}
 
-		if (is_string($failover) && trim($failover) !== '') {
-			return ['PORT' => trim($failover)];
+		if ($this->isString($failover) && $this->trimString($failover) !== '') {
+			return ['PORT' => $this->trimString($failover)];
 		}
 
 		return [];
@@ -649,6 +662,6 @@ class Database
 	 */
 	private function hasFailoverConfig(): bool
 	{
-		return is_array($this->config['FAILOVER'] ?? null) && $this->config['FAILOVER'] !== [];
+		return $this->isArray($this->config['FAILOVER'] ?? null) && $this->config['FAILOVER'] !== [];
 	}
 }

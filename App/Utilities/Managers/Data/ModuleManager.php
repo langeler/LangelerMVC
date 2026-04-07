@@ -81,13 +81,13 @@ class ModuleManager
 		$modulePath = $this->resolveModulePath($module);
 		$targetPath = $this->resolveSubdirectoryPath($modulePath, $subDir);
 
-		if (!is_string($targetPath)) {
+		if (!$this->isString($targetPath)) {
 			throw new AppException("Subdirectory '{$subDir}' not found in module '{$module}'.");
 		}
 
-		return array_keys(
+		return $this->getKeys(
 			$this->files->find(
-				array_replace(['extension' => 'php'], $filter),
+				$this->replace(['extension' => 'php'], $filter),
 				$targetPath,
 				$sort
 			)
@@ -126,7 +126,7 @@ class ModuleManager
 			$paths = $this->getModuleFilesByPath($modulePath, $subDir, $filter, $sort);
 
 			if ($paths !== []) {
-				$classes = array_merge($classes, $this->resolver->resolvePaths($paths));
+				$classes = $this->merge($classes, $this->resolver->resolvePaths($paths));
 			}
 		}
 
@@ -146,7 +146,7 @@ class ModuleManager
 		$files = [];
 
 		foreach ($this->modules as $modulePath) {
-			$files = array_merge(
+			$files = $this->merge(
 				$files,
 				$this->getModuleFilesByPath($modulePath, $subDir, $filter, $sort)
 			);
@@ -177,7 +177,7 @@ class ModuleManager
 	private function initializeModules(): void
 	{
 		$baseDirectories = $this->dirs->find(['name' => 'Modules', 'readable' => true]);
-		$this->base = array_key_first($baseDirectories)
+		$this->base = $this->keyFirst($baseDirectories)
 			?? throw new AppException('Modules directory not found or not readable.');
 
 		$moduleDirectories = glob($this->base . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR) ?: [];
@@ -185,7 +185,7 @@ class ModuleManager
 		foreach ($moduleDirectories as $modulePath) {
 			$moduleName = basename($modulePath);
 
-			if (is_readable($modulePath)) {
+			if ($this->isReadable($modulePath)) {
 				$this->modules[$moduleName] = $modulePath;
 			}
 		}
@@ -222,7 +222,7 @@ class ModuleManager
 			return $this->modules[$module];
 		}
 
-		if (in_array($module, $this->modules, true)) {
+		if ($this->isInArray($module, $this->modules, true)) {
 			return $module;
 		}
 
@@ -266,13 +266,13 @@ class ModuleManager
 	{
 		$targetPath = $this->resolveSubdirectoryPath($modulePath, $subDir);
 
-		if (!is_string($targetPath)) {
+		if (!$this->isString($targetPath)) {
 			return [];
 		}
 
-		return array_keys(
+		return $this->getKeys(
 			$this->files->find(
-				array_replace(['extension' => 'php'], $filter),
+				$this->replace(['extension' => 'php'], $filter),
 				$targetPath,
 				$sort
 			)

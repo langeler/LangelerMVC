@@ -16,8 +16,10 @@ use App\Utilities\Validation\{
 use App\Utilities\Traits\{
     TypeCheckerTrait,
     ExistenceCheckerTrait,
-    ErrorTrait
+    ErrorTrait,
+    ManipulationTrait
 };
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Class NamespaceResolveHandler
@@ -27,7 +29,12 @@ use App\Utilities\Traits\{
  */
 class NamespaceResolveHandler
 {
-    use ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait;
+    use ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait, ManipulationTrait, PatternTrait {
+        PatternTrait::replace insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::trim as private trimString;
+        PatternTrait::replace as private patternReplace;
+    }
 
     public function __construct(
         protected FileManager $fileManager,
@@ -45,9 +52,9 @@ class NamespaceResolveHandler
     public function resolvePaths(string|array $paths): array
     {
         return $this->wrapInTry(function () use ($paths): array {
-            $pathList = is_string($paths) ? [$paths] : $paths;
+            $pathList = $this->isString($paths) ? [$paths] : $paths;
 
-            if (!is_array($pathList)) {
+            if (!$this->isArray($pathList)) {
                 throw $this->errorManager->resolveException(
                     'invalidArgument',
                     'Input must be a string or an array of strings.'
@@ -55,7 +62,7 @@ class NamespaceResolveHandler
             }
 
             foreach ($pathList as $path) {
-                if (!is_string($path)) {
+                if (!$this->isString($path)) {
                     throw $this->errorManager->resolveException(
                         'invalidArgument',
                         'Input must be a string or an array of strings.'
@@ -98,7 +105,7 @@ class NamespaceResolveHandler
 
             $source = $this->fileManager->readContents($validatedPath);
 
-            if (!is_string($source)) {
+            if (!$this->isString($source)) {
                 throw $this->errorManager->resolveException(
                     'runtime',
                     "Failed to read file: {$validatedPath}"
@@ -119,7 +126,7 @@ class NamespaceResolveHandler
     {
         return $this->wrapInTry(
             fn() => $this->patternSanitizer->sanitizePathUnix(
-                (string) preg_replace('/[\x00-\x1F\x7F]/u', '', $filePath)
+                (string) ($this->patternReplace('/[\x00-\x1F\x7F]/u', '', $filePath) ?? $filePath)
             ) ?? '',
             'sanitization'
         );
@@ -175,7 +182,7 @@ class NamespaceResolveHandler
         for ($index = 0; $index < $tokenCount; $index++) {
             $token = $tokens[$index];
 
-            if (!is_array($token)) {
+            if (!$this->isArray($token)) {
                 continue;
             }
 
@@ -225,7 +232,7 @@ class NamespaceResolveHandler
         for ($cursor = $index; $cursor < $tokenCount; $cursor++) {
             $token = $tokens[$cursor];
 
-            if (is_string($token)) {
+            if ($this->isString($token)) {
                 if ($token === ';' || $token === '{') {
                     break;
                 }
@@ -246,7 +253,7 @@ class NamespaceResolveHandler
             }
         }
 
-        return trim($namespace, '\\');
+        return $this->trimString($namespace, '\\');
     }
 
     /**
@@ -263,11 +270,11 @@ class NamespaceResolveHandler
         for ($cursor = $index; $cursor < $tokenCount; $cursor++) {
             $token = $tokens[$cursor];
 
-            if (is_array($token) && $token[0] === T_STRING) {
+            if ($this->isArray($token) && $token[0] === T_STRING) {
                 return $token[1];
             }
 
-            if (is_string($token) && $token === '(') {
+            if ($this->isString($token) && $token === '(') {
                 return null;
             }
         }

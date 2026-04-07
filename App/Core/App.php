@@ -7,7 +7,15 @@ namespace App\Core;
 use App\Contracts\Http\ResponseInterface;
 use App\Providers\CoreProvider;
 use App\Utilities\Managers\System\ErrorManager;
-use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\{
+    CheckerTrait,
+    ConversionTrait,
+    ErrorTrait,
+    ExistenceCheckerTrait,
+    Filters\FiltrationTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
 use JsonSerializable;
 use Stringable;
 
@@ -19,7 +27,10 @@ use Stringable;
  */
 class App
 {
-    use ErrorTrait;
+    use ErrorTrait, TypeCheckerTrait, ExistenceCheckerTrait, CheckerTrait, ManipulationTrait, ConversionTrait, FiltrationTrait {
+        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
+        CheckerTrait::isNumeric as isStringNumeric;
+    }
 
     private bool $booted = false;
     private bool $maintenanceMode = false;
@@ -142,7 +153,7 @@ class App
                     return;
                 }
 
-                if (is_object($result) && method_exists($result, 'send')) {
+                if ($this->isObject($result) && $this->methodExists($result, 'send')) {
                     $result->send();
                     return;
                 }
@@ -151,12 +162,12 @@ class App
                     return;
                 }
 
-                if (is_array($result) || $result instanceof JsonSerializable) {
+                if ($this->isArray($result) || $result instanceof JsonSerializable) {
                     $this->emitJson($result);
                     return;
                 }
 
-                if (is_scalar($result) || $result instanceof Stringable) {
+                if ($this->isScalar($result) || $result instanceof Stringable) {
                     $this->emitText((string) $result);
                 }
             },
@@ -173,7 +184,7 @@ class App
     {
         $this->sendHeaderIfMissing('Content-Type', 'application/json; charset=UTF-8');
 
-        $encoded = json_encode(
+        $encoded = $this->toJson(
             $payload,
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
         );
@@ -205,10 +216,10 @@ class App
             return;
         }
 
-        $normalizedName = strtolower($name) . ':';
+        $normalizedName = $this->toLower($name) . ':';
 
         foreach (headers_list() as $header) {
-            if (str_starts_with(strtolower($header), $normalizedName)) {
+            if ($this->startsWith($this->toLower($header), $normalizedName)) {
                 return;
             }
         }
@@ -220,12 +231,12 @@ class App
     {
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 
-        return is_string($requestUri) && $requestUri !== '' ? $requestUri : '/';
+        return $this->isString($requestUri) && $requestUri !== '' ? $requestUri : '/';
     }
 
     private function resolveRequestMethod(): string
     {
-        $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $method = $this->toUpper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
         if ($method !== 'POST') {
             return $method;
@@ -233,14 +244,14 @@ class App
 
         $override = $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ?? $_POST['_method'] ?? null;
 
-        if (!is_string($override)) {
+        if (!$this->isString($override)) {
             return $method;
         }
 
-        $normalizedOverride = strtoupper(trim($override));
+        $normalizedOverride = $this->toUpper($this->trim($override));
         $supportedOverrides = ['PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
-        return in_array($normalizedOverride, $supportedOverrides, true)
+        return $this->isInArray($normalizedOverride, $supportedOverrides, true)
             ? $normalizedOverride
             : $method;
     }
@@ -253,17 +264,17 @@ class App
 
     private function normalizeBool(mixed $value, bool $default = false): bool
     {
-        if (is_bool($value)) {
+        if ($this->isBool($value)) {
             return $value;
         }
 
-        if (is_string($value)) {
-            $normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($this->isString($value)) {
+            $normalized = $this->var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
             return $normalized ?? $default;
         }
 
-        if (is_int($value) || is_float($value)) {
+        if ($this->isInt($value) || $this->isFloat($value)) {
             return (bool) $value;
         }
 
@@ -272,9 +283,9 @@ class App
 
     private function normalizeTimezone(mixed $value): string
     {
-        $timezone = is_scalar($value) ? trim((string) $value) : 'UTC';
+        $timezone = $this->isScalar($value) ? $this->trim((string) $value) : 'UTC';
 
-        return in_array($timezone, timezone_identifiers_list(), true) ? $timezone : 'UTC';
+        return $this->isInArray($timezone, timezone_identifiers_list(), true) ? $timezone : 'UTC';
     }
 
     private function isHttpContext(): bool

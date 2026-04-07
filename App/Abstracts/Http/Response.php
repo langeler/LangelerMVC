@@ -19,6 +19,7 @@ use App\Utilities\Traits\{
 	EncodingTrait,      // Facilitates encoding and decoding operations.
 	ConversionTrait     // Provides utilities for data type and format conversions.
 };
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Abstract Response Class
@@ -42,15 +43,18 @@ abstract class Response implements ResponseInterface
 		ArrayTrait,
 		ManipulationTrait,
 		EncodingTrait,
-		ConversionTrait {
+		ConversionTrait,
+		PatternTrait {
 		ManipulationTrait::pad insteadof ArrayTrait;
-		ManipulationTrait::replace insteadof ArrayTrait;
+		ManipulationTrait::replace insteadof ArrayTrait, PatternTrait;
 		ManipulationTrait::reverse insteadof ArrayTrait;
 		ManipulationTrait::shuffle insteadof ArrayTrait;
+		PatternTrait::split insteadof ManipulationTrait;
 		ArrayTrait::pad as arrayPad;
 		ArrayTrait::replace as arrayReplace;
 		ArrayTrait::reverse as arrayReverse;
 		ArrayTrait::shuffle as arrayShuffle;
+		PatternTrait::match as private matchPattern;
 	}
 
 	/**
@@ -94,7 +98,7 @@ abstract class Response implements ResponseInterface
 			),
 		];
 
-		$this->headers = array_replace($defaults, $this->headers);
+		$this->headers = $this->arrayReplace($defaults, $this->headers);
 	}
 
 	/**
@@ -130,7 +134,7 @@ abstract class Response implements ResponseInterface
 	{
 		$normalizedKey = $this->trim($key);
 
-		if (strtolower($normalizedKey) === 'content-type') {
+		if ($this->toLower($normalizedKey) === 'content-type') {
 			$this->contentTypeExplicitlySet = true;
 		}
 
@@ -452,7 +456,7 @@ abstract class Response implements ResponseInterface
 			return false;
 		}
 
-		return preg_match('/<([a-z][a-z0-9]*)\b[^>]*>/i', $content) === 1;
+		return $this->matchPattern('/<([a-z][a-z0-9]*)\b[^>]*>/i', $content) === 1;
 	}
 
 	/**
@@ -463,10 +467,10 @@ abstract class Response implements ResponseInterface
 	protected function hasHeader(string $header, ?array $headers = null): bool
 	{
 		$headers ??= $this->headers;
-		$needle = strtolower($header);
+		$needle = $this->toLower($header);
 
-		foreach (array_keys($headers) as $key) {
-			if (strtolower((string) $key) === $needle) {
+		foreach ($this->getKeys($headers) as $key) {
+			if ($this->toLower((string) $key) === $needle) {
 				return true;
 			}
 		}

@@ -8,12 +8,31 @@ use App\Contracts\Database\ModelInterface;
 use App\Contracts\Database\RepositoryInterface;
 use App\Core\Database;
 use App\Exceptions\Database\RepositoryException;
+use App\Utilities\Traits\{
+    ArrayTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Generic repository with safe CRUD, criteria handling, and model hydration.
  */
 abstract class Repository implements RepositoryInterface
 {
+    use TypeCheckerTrait;
+    use ArrayTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+        ArrayTrait::pad insteadof ManipulationTrait;
+        ArrayTrait::reverse insteadof ManipulationTrait;
+        ArrayTrait::shuffle insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::trim as private trimString;
+        ManipulationTrait::toLower as private toLowerString;
+        ManipulationTrait::toUpper as private toUpperString;
+        PatternTrait::match as private matchPattern;
+    }
+
     /**
      * Fully-qualified model class handled by the repository.
      *
@@ -224,7 +243,7 @@ abstract class Repository implements RepositoryInterface
             sprintf(
                 'INSERT INTO %s (%s) VALUES (%s)',
                 $this->qualifyIdentifier($this->getTable()),
-                implode(', ', array_map([$this, 'qualifyIdentifier'], $columns)),
+                implode(', ', $this->map([$this, 'qualifyIdentifier'], $columns)),
                 $placeholders
             ),
             $params
@@ -236,7 +255,7 @@ abstract class Repository implements RepositoryInterface
             $insertedId = $this->db->lastInsertId();
 
             if ($insertedId !== '') {
-                $model->setAttribute($primaryKey, is_numeric($insertedId) ? (int) $insertedId : $insertedId);
+                $model->setAttribute($primaryKey, $this->isNumeric($insertedId) ? (int) $insertedId : $insertedId);
             }
         }
 
@@ -259,7 +278,7 @@ abstract class Repository implements RepositoryInterface
         $dirty = $model->getDirty();
         $primaryKey = $this->getPrimaryKey();
 
-        if (array_key_exists($primaryKey, $dirty)) {
+        if ($this->keyExists($dirty, $primaryKey)) {
             throw new RepositoryException('Updating the primary key of an existing model is not supported.');
         }
 
@@ -283,7 +302,7 @@ abstract class Repository implements RepositoryInterface
         [$columns, $params] = $this->extractColumnsAndParams($dirty);
         $assignments = implode(
             ', ',
-            array_map(
+            $this->map(
                 fn(string $column): string => $this->qualifyIdentifier($column) . ' = ?',
                 $columns
             )
@@ -338,7 +357,7 @@ abstract class Repository implements RepositoryInterface
                 continue;
             }
 
-            if (is_array($value) && $this->isAssociative($value)) {
+            if ($this->isArray($value) && $this->isAssociative($value)) {
                 foreach ($value as $operator => $operand) {
                     [$clause, $clauseParams] = $this->compileOperatorCriterion(
                         $qualifiedColumn,
@@ -352,7 +371,7 @@ abstract class Repository implements RepositoryInterface
                 continue;
             }
 
-            if (is_array($value)) {
+            if ($this->isArray($value)) {
                 [$clause, $clauseParams] = $this->compileInCriterion($qualifiedColumn, $value, false);
                 $clauses[] = $clause;
                 array_push($params, ...$clauseParams);
@@ -383,12 +402,12 @@ abstract class Repository implements RepositoryInterface
             $createdAtColumn = $model->getCreatedAtColumn();
             $updatedAtColumn = $model->getUpdatedAtColumn();
 
-            if (!array_key_exists($createdAtColumn, $attributes)) {
+            if (!$this->keyExists($attributes, $createdAtColumn)) {
                 $model->setAttribute($createdAtColumn, $timestamp);
                 $attributes[$createdAtColumn] = $timestamp;
             }
 
-            if (!array_key_exists($updatedAtColumn, $attributes)) {
+            if (!$this->keyExists($attributes, $updatedAtColumn)) {
                 $model->setAttribute($updatedAtColumn, $timestamp);
                 $attributes[$updatedAtColumn] = $timestamp;
             }
@@ -424,7 +443,7 @@ abstract class Repository implements RepositoryInterface
      */
     protected function hydrateMany(array $rows): array
     {
-        return array_map(fn(array $row): ModelInterface => $this->mapRowToModel($row), $rows);
+        return $this->map(fn(array $row): ModelInterface => $this->mapRowToModel($row), $rows);
     }
 
     /**
@@ -439,11 +458,11 @@ abstract class Repository implements RepositoryInterface
 
     protected function qualifyIdentifier(string $identifier): string
     {
-        if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $identifier)) {
+        if ($this->matchPattern('/^[A-Za-z_][A-Za-z0-9_]*$/', $identifier) !== 1) {
             throw new RepositoryException(sprintf('Invalid SQL identifier [%s].', $identifier));
         }
 
-        $driver = strtolower((string) $this->db->getAttribute('driverName'));
+        $driver = $this->toLowerString((string) $this->db->getAttribute('driverName'));
 
         return match ($driver) {
             'pgsql', 'sqlite' => '"' . $identifier . '"',
@@ -460,7 +479,7 @@ abstract class Repository implements RepositoryInterface
             );
         }
 
-        if (!is_subclass_of($this->modelClass, ModelInterface::class)) {
+        if (!$this->isSubclassOf($this->modelClass, ModelInterface::class)) {
             throw new RepositoryException(
                 sprintf(
                     'Repository [%s] model class [%s] must implement [%s].',
@@ -495,7 +514,7 @@ abstract class Repository implements RepositoryInterface
             return false;
         }
 
-        return array_keys($value) !== range(0, count($value) - 1);
+        return !$this->isList($value);
     }
 
     /**
@@ -503,11 +522,11 @@ abstract class Repository implements RepositoryInterface
      */
     private function compileOperatorCriterion(string $column, string $operator, mixed $operand): array
     {
-        $normalized = strtolower(trim($operator));
+        $normalized = $this->toLowerString($this->trimString($operator));
 
         return match ($normalized) {
             '=', '!=', '<>', '>', '>=', '<', '<=', 'like', 'not like' => [
-                $column . ' ' . strtoupper($normalized) . ' ?',
+                $column . ' ' . $this->toUpperString($normalized) . ' ?',
                 [$operand],
             ],
             'in' => $this->compileInCriterion($column, (array) $operand, false),
@@ -532,7 +551,7 @@ abstract class Repository implements RepositoryInterface
 
         return [
             sprintf('%s %s (%s)', $column, $negated ? 'NOT IN' : 'IN', $placeholders),
-            array_values($values),
+            $this->getValues($values),
         ];
     }
 
@@ -542,7 +561,7 @@ abstract class Repository implements RepositoryInterface
             $operand === null => 'NULL',
             $operand === true => 'TRUE',
             $operand === false => 'FALSE',
-            is_string($operand) && in_array(strtoupper($operand), ['NULL', 'TRUE', 'FALSE'], true) => strtoupper($operand),
+            $this->isString($operand) && $this->isInArray($this->toUpperString($operand), ['NULL', 'TRUE', 'FALSE'], true) => $this->toUpperString($operand),
             default => throw new RepositoryException('The IS operator only supports NULL and boolean operands.'),
         };
     }

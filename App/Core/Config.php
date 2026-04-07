@@ -4,7 +4,13 @@ namespace App\Core;
 
 use App\Utilities\Managers\SettingsManager;
 use App\Utilities\Managers\System\ErrorManager;
-use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\{
+    ArrayTrait,
+    ErrorTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Runtime configuration facade.
@@ -15,7 +21,17 @@ use App\Utilities\Traits\ErrorTrait;
  */
 class Config
 {
-    use ErrorTrait;
+    use ErrorTrait, TypeCheckerTrait;
+    use ArrayTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+        ArrayTrait::pad insteadof ManipulationTrait;
+        ArrayTrait::reverse insteadof ManipulationTrait;
+        ArrayTrait::shuffle insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::trim as private trimString;
+        ManipulationTrait::toLower as private toLowerString;
+        PatternTrait::replace as private patternReplace;
+    }
 
     /**
      * Cached configuration payload.
@@ -65,10 +81,12 @@ class Config
     public function get(string $file, ?string $key = null, mixed $default = null): mixed
     {
         return $this->wrapInTry(function () use ($file, $key, $default): mixed {
-            $normalizedFile = strtolower((string) preg_replace('/\.php$/i', '', trim($file)));
+            $normalizedFile = $this->toLowerString(
+                (string) ($this->patternReplace('/\.php$/i', '', $this->trimString($file)) ?? $this->trimString($file))
+            );
             $settings = $this->all()[$normalizedFile] ?? null;
 
-            if (!is_array($settings)) {
+            if (!$this->isArray($settings)) {
                 return $default;
             }
 
@@ -79,7 +97,7 @@ class Config
             $value = $settings;
 
             foreach (explode('.', $key) as $segment) {
-                if (!is_array($value)) {
+                if (!$this->isArray($value)) {
                     return $default;
                 }
 
@@ -118,14 +136,14 @@ class Config
      */
     private function resolveSegmentKey(array $value, string $segment): int|string|null
     {
-        if (array_key_exists($segment, $value)) {
+        if ($this->keyExists($value, $segment)) {
             return $segment;
         }
 
-        $normalizedSegment = strtolower($segment);
+        $normalizedSegment = $this->toLowerString($segment);
 
         foreach ($value as $key => $_) {
-            if (is_string($key) && strtolower($key) === $normalizedSegment) {
+            if ($this->isString($key) && $this->toLowerString($key) === $normalizedSegment) {
                 return $key;
             }
         }

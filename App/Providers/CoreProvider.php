@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Core\{
@@ -34,6 +36,7 @@ class CoreProvider extends Container
      * @var array<string, string>
      */
     protected readonly array $coreServiceMap;
+    private bool $servicesRegistered = false;
 
     /**
      * Constructor for CoreProvider.
@@ -67,6 +70,10 @@ class CoreProvider extends Container
      */
     public function registerServices(): void
     {
+        if ($this->servicesRegistered) {
+            return;
+        }
+
         $this->wrapInTry(
             function (): void {
                 if (!$this->isArray($this->coreServiceMap) || $this->isEmpty($this->coreServiceMap)) {
@@ -77,9 +84,27 @@ class CoreProvider extends Container
                     $this->registerAlias($alias, $class);
                     $this->registerLazy($class, fn() => $this->registerInstance($class));
                 }
+
+                $this->servicesRegistered = true;
             },
             new ContainerException("Error registering core services.")
         );
+    }
+
+    /**
+     * Creates the application instance after ensuring core services are registered.
+     */
+    public function createApplication(): App
+    {
+        $this->registerServices();
+
+        $errorManager = $this->getCoreService('errorManager');
+
+        if (!$errorManager instanceof ErrorManager) {
+            throw new ContainerException('Failed to resolve the core error manager.');
+        }
+
+        return new App($this, $errorManager);
     }
 
     /**

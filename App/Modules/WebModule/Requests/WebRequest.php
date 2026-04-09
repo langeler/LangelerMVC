@@ -33,7 +33,7 @@ class WebRequest extends Request
             $fileManager,
             $directoryFinder,
             $this->captureInput(),
-            is_array($_FILES ?? null) ? $_FILES : [],
+            $this->isArray($_FILES ?? null) ? $_FILES : [],
             [
                 'ext' => ['jpg', 'jpeg', 'png', 'webp', 'svg', 'pdf'],
                 'max' => 4096,
@@ -49,10 +49,10 @@ class WebRequest extends Request
      */
     private function captureInput(): array
     {
-        $query = is_array($_GET ?? null) ? $_GET : [];
-        $body = is_array($_POST ?? null) ? $_POST : [];
+        $query = $this->isArray($_GET ?? null) ? $_GET : [];
+        $body = $this->isArray($_POST ?? null) ? $_POST : [];
 
-        return array_replace($query, $body);
+        return $this->replaceElements($query, $body);
     }
 
     /**
@@ -60,12 +60,12 @@ class WebRequest extends Request
      */
     private function captureHeaders(): array
     {
-        if (function_exists('getallheaders')) {
+        if ($this->functionExists('getallheaders')) {
             $headers = getallheaders();
 
-            if (is_array($headers)) {
-                return array_map(
-                    static fn(mixed $value): string => is_scalar($value) ? trim((string) $value) : '',
+            if ($this->isArray($headers)) {
+                return $this->map(
+                    fn(mixed $value): string => $this->isScalar($value) ? $this->trimString((string) $value) : '',
                     $headers
                 );
             }
@@ -74,19 +74,19 @@ class WebRequest extends Request
         $headers = [];
 
         foreach ($_SERVER as $key => $value) {
-            if (!is_string($key) || !is_scalar($value)) {
+            if (!$this->isString($key) || !$this->isScalar($value)) {
                 continue;
             }
 
-            if (str_starts_with($key, 'HTTP_')) {
-                $normalized = str_replace('_', '-', substr($key, 5));
-                $headers[$normalized] = trim((string) $value);
+            if ($this->startsWith($key, 'HTTP_')) {
+                $normalized = $this->replaceText('_', '-', $this->substring($key, 5));
+                $headers[$normalized] = $this->trimString((string) $value);
                 continue;
             }
 
-            if (in_array($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true)) {
-                $normalized = str_replace('_', '-', $key);
-                $headers[$normalized] = trim((string) $value);
+            if ($this->isInArray($key, ['CONTENT_TYPE', 'CONTENT_LENGTH'], true)) {
+                $normalized = $this->replaceText('_', '-', $key);
+                $headers[$normalized] = $this->trimString((string) $value);
             }
         }
 

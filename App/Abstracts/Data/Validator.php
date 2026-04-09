@@ -256,7 +256,7 @@ abstract class Validator
      */
     private function buildMethodArguments(array $parameters, array $options): array
     {
-        if (count($parameters) === 1) {
+        if ($this->countElements($parameters) === 1) {
             $parameter = $parameters[0];
             $type = $parameter->getType();
 

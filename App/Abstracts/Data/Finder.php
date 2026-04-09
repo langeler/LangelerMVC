@@ -13,6 +13,8 @@ use App\Utilities\Traits\{
     ArrayTrait,              // Provides utility methods for array operations and transformations.
     ErrorTrait,              // Provides framework-aligned exception wrapping.
     LoopTrait,               // Adds support for iterating over data structures.
+    ManipulationTrait,
+    TypeCheckerTrait,
 };
 
 /**
@@ -29,7 +31,9 @@ abstract class Finder
         search as private;
         search as protected arraySearch;
     }
+    use ManipulationTrait;
     use LoopTrait;
+    use TypeCheckerTrait;
 
     /**
      * @var string|null $root The root directory path where searches will start.
@@ -315,7 +319,7 @@ abstract class Finder
                     $this->iteratorManager->RecursiveIteratorIterator(
                         $this->iteratorManager->RecursiveRegexIterator(
                             $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                            is_array($criteria['pattern'])
+                            $this->isArray($criteria['pattern'])
                                 ? (string) $this->getCurrentValue($criteria['pattern'])
                                 : (string) $criteria['pattern']
                         )
@@ -401,7 +405,7 @@ abstract class Finder
                 throw new FinderException("Unsupported sort criteria '{$sortBy}'.");
             }
 
-            $direction = strtolower((string) ($sortCriteria['direction'] ?? 'asc'));
+            $direction = $this->toLower((string) ($sortCriteria['direction'] ?? 'asc'));
 
             uasort($items, function ($left, $right) use ($method, $direction): int {
                 $result = $this->{$method}($left, $right);
@@ -501,7 +505,7 @@ abstract class Finder
             function () use ($criteria, $path): array {
                 $pattern = $this->isEmpty($criteria['pattern'] ?? [])
                     ? '/.*/'
-                    : (is_array($criteria['pattern'])
+                    : ($this->isArray($criteria['pattern'])
                         ? (string) $this->getCurrentValue($criteria['pattern'])
                         : (string) $criteria['pattern']);
 

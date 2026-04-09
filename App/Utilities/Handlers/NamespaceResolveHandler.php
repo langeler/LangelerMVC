@@ -14,6 +14,7 @@ use App\Utilities\Validation\{
     PatternValidator
 };
 use App\Utilities\Traits\{
+    ArrayTrait,
     TypeCheckerTrait,
     ExistenceCheckerTrait,
     ErrorTrait,
@@ -29,7 +30,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
  */
 class NamespaceResolveHandler
 {
-    use ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait, ManipulationTrait, PatternTrait {
+    use ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait, ManipulationTrait, ArrayTrait, PatternTrait {
         PatternTrait::replaceByPattern as private patternReplace;
     }
 
@@ -174,7 +175,7 @@ class NamespaceResolveHandler
         $tokens = token_get_all($source);
         $namespace = '';
         $shortName = null;
-        $tokenCount = count($tokens);
+        $tokenCount = $this->countElements($tokens);
 
         for ($index = 0; $index < $tokenCount; $index++) {
             $token = $tokens[$index];
@@ -224,7 +225,7 @@ class NamespaceResolveHandler
     private function readNamespace(array $tokens, int $index): string
     {
         $namespace = '';
-        $tokenCount = count($tokens);
+        $tokenCount = $this->countElements($tokens);
 
         for ($cursor = $index; $cursor < $tokenCount; $cursor++) {
             $token = $tokens[$cursor];
@@ -262,7 +263,7 @@ class NamespaceResolveHandler
      */
     private function readDeclarationName(array $tokens, int $index): ?string
     {
-        $tokenCount = count($tokens);
+        $tokenCount = $this->countElements($tokens);
 
         for ($cursor = $index; $cursor < $tokenCount; $cursor++) {
             $token = $tokens[$cursor];

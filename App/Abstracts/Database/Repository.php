@@ -386,7 +386,7 @@ abstract class Repository implements RepositoryInterface
             $params[] = $value;
         }
 
-        return [' WHERE ' . implode(' AND ', $clauses), $params];
+        return [' WHERE ' . $this->joinStrings(' AND ', $clauses), $params];
     }
 
     protected function getPrimaryKey(): string
@@ -551,7 +551,7 @@ abstract class Repository implements RepositoryInterface
             return [$negated ? '1 = 1' : '1 = 0', []];
         }
 
-        $placeholders = implode(', ', array_fill(0, count($values), '?'));
+        $placeholders = $this->joinStrings(', ', array_fill(0, $this->countElements($values), '?'));
 
         return [
             sprintf('%s %s (%s)', $column, $negated ? 'NOT IN' : 'IN', $placeholders),

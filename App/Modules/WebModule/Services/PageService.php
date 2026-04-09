@@ -9,6 +9,7 @@ use App\Core\Config;
 use App\Modules\WebModule\Models\Page;
 use App\Modules\WebModule\Repositories\PageRepository;
 use App\Utilities\Managers\System\ErrorManager;
+use App\Utilities\Traits\ManipulationTrait;
 use Throwable;
 
 /**
@@ -16,6 +17,8 @@ use Throwable;
  */
 class PageService extends Service
 {
+    use ManipulationTrait;
+
     private string $slug = 'home';
     private int $status = 200;
 
@@ -50,7 +53,7 @@ class PageService extends Service
      */
     private function loadPage(string $slug): array
     {
-        if (strtolower((string) $this->config->get('webmodule', 'CONTENT_SOURCE', 'memory')) !== 'database') {
+        if ($this->toLower((string) $this->config->get('webmodule', 'CONTENT_SOURCE', 'memory')) !== 'database') {
             return $this->defaultPage($slug);
         }
 

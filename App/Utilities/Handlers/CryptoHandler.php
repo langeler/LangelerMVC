@@ -2,6 +2,8 @@
 
 namespace App\Utilities\Handlers;
 
+use App\Utilities\Traits\ManipulationTrait;
+
 /**
  * Class CryptoHandler
  *
@@ -9,6 +11,8 @@ namespace App\Utilities\Handlers;
  */
 class CryptoHandler
 {
+	use ManipulationTrait;
+
 	// Sodium Methods
 
 	/**
@@ -21,7 +25,7 @@ class CryptoHandler
 	 */
 	public function sodiumEncrypt(string $plaintext, string $key): string
 	{
-		if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+		if ($this->length($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
 			throw new \Exception("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
 		}
 
@@ -39,12 +43,12 @@ class CryptoHandler
 	 */
 	public function sodiumDecrypt(string $ciphertext, string $key): string
 	{
-		if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
+		if ($this->length($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
 			throw new \SodiumException("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
 		}
 
-		$nonce = substr($ciphertext, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // Extract the nonce from the ciphertext
-		$ciphertext = substr($ciphertext, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // The actual ciphertext
+		$nonce = $this->substring($ciphertext, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // Extract the nonce from the ciphertext
+		$ciphertext = $this->substring($ciphertext, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // The actual ciphertext
 		$plaintext = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
 
 		if ($plaintext === false) {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Utilities\Handlers;
 
 use InvalidArgumentException;
+use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Central SQL vocabulary registry for the framework query layer.
@@ -15,6 +17,8 @@ use InvalidArgumentException;
  */
 class SQLHandler
 {
+    use ManipulationTrait, PatternTrait;
+
     /**
      * @var array<string, string>
      */
@@ -214,11 +218,11 @@ class SQLHandler
 
     public function normalize(?string $type): string
     {
-        $value = trim((string) $type);
-        $value = preg_replace('/(?<!^)[A-Z]/', '_$0', $value) ?? $value;
-        $value = strtolower($value);
+        $value = $this->trimString((string) $type);
+        $value = $this->replaceByPattern('/(?<!^)[A-Z]/', '_$0', $value) ?? $value;
+        $value = $this->toLower($value);
 
-        return preg_replace('/[^a-z0-9]+/', '', $value) ?? '';
+        return $this->replaceByPattern('/[^a-z0-9]+/', '', $value) ?? '';
     }
 
     /**

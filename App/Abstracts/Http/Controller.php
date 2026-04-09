@@ -16,7 +16,11 @@ use App\Contracts\Presentation\{
 	ViewInterface       // Contract for handling the rendering of views.
 };
 use App\Exceptions\Http\ControllerException;
-use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\{
+	ErrorTrait,
+	ExistenceCheckerTrait,
+	TypeCheckerTrait
+};
 
 /**
  * Base abstract Controller that orchestrates the request handling lifecycle.
@@ -35,7 +39,7 @@ use App\Utilities\Traits\ErrorTrait;
  */
 abstract class Controller implements ControllerInterface
 {
-	use ErrorTrait;
+	use ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait;
 
 	/**
 	 * Constructor for injecting dependencies.
@@ -105,7 +109,7 @@ abstract class Controller implements ControllerInterface
 			return $result;
 		}
 
-		if (is_array($result)) {
+		if ($this->isArray($result)) {
 			$result = $this->preparePresenterData('prepare', $result);
 		}
 
@@ -171,7 +175,7 @@ abstract class Controller implements ControllerInterface
 				$this->presenter->fill($arguments);
 			}
 
-			if (!method_exists($this->presenter, $method)) {
+			if (!$this->methodExists($this->presenter, $method)) {
 				throw new ControllerException("Presenter method '{$method}' does not exist.");
 			}
 
@@ -237,7 +241,7 @@ abstract class Controller implements ControllerInterface
 		array $headers = []
 	): ResponseInterface {
 		return $this->wrapInTry(function () use ($method, $template, $data, $status, $headers): ResponseInterface {
-			if (!method_exists($this->view, $method)) {
+			if (!$this->methodExists($this->view, $method)) {
 				throw new ControllerException("View method '{$method}' does not exist.");
 			}
 

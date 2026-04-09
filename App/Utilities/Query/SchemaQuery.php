@@ -156,7 +156,7 @@ class SchemaQuery extends Query
         $table = $this->quoteIdentifier((string) $tableOp['table']);
         $action = $this->sql->normalize((string) $tableOp['action']);
         $extra = $tableOp['extra'];
-        $constraints = array_values($tableOp['constraints'] ?? []);
+        $constraints = $this->getValuesList((array) ($tableOp['constraints'] ?? []));
 
         return match ($action) {
             'create' => sprintf(
@@ -164,7 +164,7 @@ class SchemaQuery extends Query
                 $this->sql->statement('create'),
                 $this->sql->statement('table'),
                 $table,
-                $this->implodeWith(', ', array_merge(array_values((array) $extra), $constraints))
+                $this->implodeWith(', ', $this->merge($this->getValuesList((array) $extra), $constraints))
             ),
             'rename' => sprintf(
                 '%s %s %s %s %s',
@@ -191,7 +191,7 @@ class SchemaQuery extends Query
                 $this->sql->clause('alter'),
                 $this->sql->statement('table'),
                 $table,
-                $this->implodeWith(' ', array_values((array) $extra))
+                $this->implodeWith(' ', $this->getValuesList((array) $extra))
             ),
             default => throw $this->errorManager->resolveException(
                 'database',
@@ -266,7 +266,7 @@ class SchemaQuery extends Query
                     $this->sql->statement('add'),
                     $this->sql->statement('constraint'),
                     $this->quoteIdentifier((string) ($params[0] ?? '')),
-                    $this->implodeWith(' ', array_values((array) ($params[1] ?? [])))
+                    $this->implodeWith(' ', $this->getValuesList((array) ($params[1] ?? [])))
                 ),
                 'drop' => sprintf(
                     '%s %s %s %s %s %s',
@@ -345,9 +345,9 @@ class SchemaQuery extends Query
                     $this->quoteIdentifier((string) ($params[1] ?? '')),
                     $this->quoteIdentifier((string) ($params[2] ?? '')),
                     $this->sql->operator('onDelete'),
-                    strtoupper((string) ($params[3] ?? 'RESTRICT')),
+                    $this->toUpperString((string) ($params[3] ?? 'RESTRICT')),
                     $this->sql->operator('onUpdate'),
-                    strtoupper((string) ($params[4] ?? 'RESTRICT'))
+                    $this->toUpperString((string) ($params[4] ?? 'RESTRICT'))
                 ),
                 'drop' => sprintf(
                     '%s %s %s %s %s %s',
@@ -445,8 +445,8 @@ class SchemaQuery extends Query
                 $this->sql->statement('create'),
                 $this->sql->statement('trigger'),
                 $trigger,
-                strtoupper((string) ($triggerOp['timing'] ?? '')),
-                strtoupper((string) ($triggerOp['event'] ?? '')),
+                $this->toUpperString((string) ($triggerOp['timing'] ?? '')),
+                $this->toUpperString((string) ($triggerOp['event'] ?? '')),
                 $this->sql->operator('on'),
                 $this->quoteIdentifier((string) ($triggerOp['table'] ?? '')),
                 $this->sql->operator('forEachRow'),
@@ -489,7 +489,7 @@ class SchemaQuery extends Query
                 $this->sql->clause('alter'),
                 $this->sql->statement('database'),
                 $database,
-                $this->implodeWith(' ', array_values((array) ($dbOp['options'] ?? [])))
+                $this->implodeWith(' ', $this->getValuesList((array) ($dbOp['options'] ?? [])))
             ),
             default => throw $this->errorManager->resolveException('database', 'Invalid schema database action.'),
         };
@@ -512,7 +512,7 @@ class SchemaQuery extends Query
     public function buildRoutine(array $routineOp): string
     {
         $name = $this->quoteIdentifier((string) $routineOp['name']);
-        $type = strtoupper((string) $routineOp['routineType']);
+        $type = $this->toUpperString((string) $routineOp['routineType']);
 
         return match ($this->sql->normalize((string) $routineOp['action'])) {
             'create' => sprintf(
@@ -551,7 +551,7 @@ class SchemaQuery extends Query
                 $this->sql->statement('create'),
                 $this->sql->statement('sequence'),
                 $sequence,
-                ($seqOp['options'] ?? []) === [] ? '' : ' ' . $this->implodeWith(' ', array_values((array) $seqOp['options']))
+                ($seqOp['options'] ?? []) === [] ? '' : ' ' . $this->implodeWith(' ', $this->getValuesList((array) $seqOp['options']))
             ),
             'drop' => sprintf('%s %s %s', $this->sql->statement('drop'), $this->sql->statement('sequence'), $sequence),
             default => throw $this->errorManager->resolveException('database', 'Invalid schema sequence action.'),
@@ -593,7 +593,7 @@ class SchemaQuery extends Query
     {
         return $this->implodeWith(
             ', ',
-            $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), array_values($identifiers))
+            $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), $this->getValuesList($identifiers))
         );
     }
 }

@@ -56,12 +56,12 @@ class HomeController extends Controller
 
     protected function finalize(mixed $result): ResponseInterface
     {
-        if (!is_array($result)) {
+        if (!$this->isArray($result)) {
             return parent::finalize($result);
         }
 
         $payload = $this->preparePresenterData('prepare', $result);
-        $status = isset($payload['status']) && is_int($payload['status'])
+        $status = isset($payload['status']) && $this->isInt($payload['status'])
             ? $payload['status']
             : $this->status;
 

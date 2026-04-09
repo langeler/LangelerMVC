@@ -29,11 +29,11 @@ class WebResponse extends Response
 
     private function formatHeaderName(string $header): string
     {
-        return implode(
+        return $this->joinStrings(
             '-',
-            array_map(
+            $this->map(
                 static fn(string $segment): string => ucfirst($segment),
-                explode('-', strtolower($header))
+                $this->splitString('-', $this->toLower($header))
             )
         );
     }

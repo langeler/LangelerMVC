@@ -19,6 +19,11 @@ use App\Utilities\Traits\Iterator\{
     IteratorTrait,                  // Provides utility methods for working with iterators.
     RecursiveIteratorTrait          // Adds functionality for recursive iteration handling.
 };
+use App\Utilities\Traits\{
+    ArrayTrait,
+    ExistenceCheckerTrait,
+    TypeCheckerTrait
+};
 
 /**
  * Class IteratorManager
@@ -32,6 +37,7 @@ use App\Utilities\Traits\Iterator\{
  */
 class IteratorManager
 {
+    use ArrayTrait, ExistenceCheckerTrait, TypeCheckerTrait;
     use IteratorTrait;
     use RecursiveIteratorTrait;
 
@@ -97,12 +103,12 @@ class IteratorManager
 
             $overrideGroup = $overrides[$group];
 
-            if (is_int($overrideGroup)) {
+            if ($this->isInt($overrideGroup)) {
                 $resolved[$group] = $overrideGroup;
                 continue;
             }
 
-            if (!is_array($overrideGroup)) {
+            if (!$this->isArray($overrideGroup)) {
                 continue;
             }
 
@@ -110,7 +116,7 @@ class IteratorManager
             $selectedFlags = [];
 
             foreach ($overrideGroup as $key => $value) {
-                if (is_int($key) && is_int($value)) {
+                if ($this->isInt($key) && $this->isInt($value)) {
                     $selectedFlags[] = $value;
                     continue;
                 }
@@ -125,7 +131,7 @@ class IteratorManager
             }
         }
 
-        if (isset($overrides['maxDepth']) && is_int($overrides['maxDepth'])) {
+        if (isset($overrides['maxDepth']) && $this->isInt($overrides['maxDepth'])) {
             $resolved['maxDepth'] = $overrides['maxDepth'];
         }
 
@@ -141,8 +147,8 @@ class IteratorManager
      */
     private function combineFlags(array $defaultFlags, array $overrideFlags): int
     {
-        return array_reduce(
-            [...array_values($defaultFlags), ...array_values($overrideFlags)],
+        return $this->reduce(
+            [...$this->getValues($defaultFlags), ...$this->getValues($overrideFlags)],
             fn($carry, $flag) => $carry | $flag,
             0
         );
@@ -176,10 +182,10 @@ class IteratorManager
         try {
             $iterator = null;
 
-            if (method_exists($this, $iteratorName)) {
+            if ($this->methodExists($this, $iteratorName)) {
                 $iterator = $settings === []
                     ? $this->{$iteratorName}(...$args)
-                    : $this->{$iteratorName}(...array_merge($args, [$settings]));
+                    : $this->{$iteratorName}(...$this->merge($args, [$settings]));
             } else {
                 $iteratorClass = $this->resolve($iteratorName);
                 $iterator = new $iteratorClass(...$args);
@@ -217,7 +223,7 @@ class IteratorManager
      */
     public function previous(): void
     {
-        if ($this->iterator !== null && method_exists($this->iterator, 'previous')) {
+        if ($this->iterator !== null && $this->methodExists($this->iterator, 'previous')) {
             $this->iterator->previous();
         } else {
             throw new IteratorException("Previous operation not supported by this iterator.");

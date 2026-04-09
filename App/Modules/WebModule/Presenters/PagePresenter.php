@@ -13,8 +13,8 @@ class PagePresenter extends Presenter
 {
     protected function transformData(array $data): array
     {
-        $page = isset($data['page']) && is_array($data['page']) ? $data['page'] : [];
-        $status = isset($data['status']) && is_int($data['status']) ? $data['status'] : 200;
+        $page = isset($data['page']) && $this->isArray($data['page']) ? $data['page'] : [];
+        $status = isset($data['status']) && $this->isInt($data['status']) ? $data['status'] : 200;
 
         return [
             'status' => $status,
@@ -24,7 +24,7 @@ class PagePresenter extends Presenter
             'summary' => (string) ($page['summary'] ?? ''),
             'body' => (string) ($page['body'] ?? ''),
             'source' => (string) ($page['source'] ?? 'memory'),
-            'callToAction' => is_array($page['callToAction'] ?? null)
+            'callToAction' => $this->isArray($page['callToAction'] ?? null)
                 ? $page['callToAction']
                 : ['label' => 'Home', 'href' => '/'],
         ];
@@ -32,11 +32,11 @@ class PagePresenter extends Presenter
 
     protected function computeProperties(array $data): array
     {
-        $status = isset($data['status']) && is_int($data['status']) ? $data['status'] : 200;
+        $status = isset($data['status']) && $this->isInt($data['status']) ? $data['status'] : 200;
         $slug = (string) ($data['slug'] ?? 'home');
 
         return [
-            'pageClass' => 'page-' . str_replace('_', '-', strtolower($slug)),
+            'pageClass' => 'page-' . $this->replaceText('_', '-', $this->toLower($slug)),
             'isErrorPage' => $status >= 400,
             'metaDescription' => (string) ($data['summary'] ?? ''),
         ];

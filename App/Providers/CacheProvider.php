@@ -10,6 +10,8 @@ use App\Drivers\Caching\{
     RedisCache
 };
 use App\Exceptions\ContainerException;
+use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * CacheProvider Class
@@ -19,6 +21,8 @@ use App\Exceptions\ContainerException;
  */
 class CacheProvider extends Container
 {
+    use ManipulationTrait, PatternTrait;
+
     /**
      * A mapping of cache driver aliases to their fully qualified class names.
      *
@@ -86,7 +90,7 @@ class CacheProvider extends Container
     {
         return $this->wrapInTry(
             function () use ($cacheSettings): object {
-                $driver = strtolower(trim((string) preg_replace('/\s+#.*$/', '', (string) ($cacheSettings['DRIVER'] ?? ''))));
+                $driver = $this->toLower($this->trimString((string) ($this->replaceByPattern('/\s+#.*$/', '', (string) ($cacheSettings['DRIVER'] ?? '')) ?? '')));
                 $driver = $driver === 'memcached' ? 'memcache' : $driver;
 
                 return $this->getInstance(

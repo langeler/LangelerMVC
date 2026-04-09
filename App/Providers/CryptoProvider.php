@@ -8,6 +8,8 @@ use App\Drivers\Cryptography\{
     OpenSSLCrypto
 };
 use App\Exceptions\ContainerException;
+use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * CryptoProvider Class
@@ -17,6 +19,8 @@ use App\Exceptions\ContainerException;
  */
 class CryptoProvider extends Container
 {
+    use ManipulationTrait, PatternTrait;
+
     /**
      * A mapping of crypto driver aliases to their fully qualified class names.
      *
@@ -82,7 +86,7 @@ class CryptoProvider extends Container
     {
         return $this->wrapInTry(
             function () use ($cryptoSettings): object {
-                $driver = strtolower(trim((string) preg_replace('/\s+#.*$/', '', (string) ($cryptoSettings['DRIVER'] ?? ''))));
+                $driver = $this->toLower($this->trimString((string) ($this->replaceByPattern('/\s+#.*$/', '', (string) ($cryptoSettings['DRIVER'] ?? '')) ?? '')));
 
                 return $this->getInstance(
                     $this->cryptoMap[$driver

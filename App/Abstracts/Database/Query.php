@@ -9,6 +9,7 @@ use App\Utilities\Handlers\SQLHandler;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\{
     ArrayTrait,
+    ConversionTrait,
     ErrorTrait,
     ManipulationTrait,
     TypeCheckerTrait
@@ -27,7 +28,10 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 abstract class Query
 {
     use ErrorTrait, TypeCheckerTrait;
+    use ConversionTrait;
     use ArrayTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::getKeys as protected arrayKeys;
+        ArrayTrait::getValues as protected arrayValues;
         ManipulationTrait::joinStrings as protected implodeWith;
         ManipulationTrait::toLower as protected toLowerString;
         ManipulationTrait::toUpper as protected toUpperString;
@@ -141,7 +145,7 @@ abstract class Query
      */
     public function setBindings(array $bindings): void
     {
-        $this->bindings = array_values($bindings);
+        $this->bindings = $this->arrayValues($bindings);
     }
 
     public function clearBindings(): void
@@ -186,7 +190,7 @@ abstract class Query
      */
     public function parseIdentifiers(array $parameters): array
     {
-        return array_values(
+        return $this->arrayValues(
             $this->filter(
                 $this->map(
                     fn(mixed $identifier): string => $this->trimString((string) $identifier),
@@ -202,7 +206,7 @@ abstract class Query
      */
     public function parseOperators(array $parameters): array
     {
-        return array_values(
+        return $this->arrayValues(
             $this->filter(
                 $this->map(
                     fn(mixed $operator): string => $this->trimString((string) $operator),
@@ -218,7 +222,7 @@ abstract class Query
      */
     public function parseColumns(array $parameters): array
     {
-        return array_values(
+        return $this->arrayValues(
             $this->filter(
                 $this->map(
                     fn(mixed $column): string => $this->trimString((string) $column),
@@ -234,7 +238,7 @@ abstract class Query
      */
     public function parseValues(array $parameters): array
     {
-        return array_values($parameters);
+        return $this->arrayValues($parameters);
     }
 
     /**
@@ -288,7 +292,7 @@ abstract class Query
             return '*';
         }
 
-        $segments = explode('.', $identifier);
+        $segments = $this->splitString('.', $identifier);
 
         if ($segments === []) {
             throw $this->errorManager->resolveException('database', 'SQL identifier cannot be empty.');
@@ -325,7 +329,7 @@ abstract class Query
             return $this->quoteIdentifier($column);
         }
 
-        if (preg_match('/^(.+)\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/i', $column, $matches) === 1) {
+        if ($this->matchPattern('/^(.+)\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/i', $column, $matches) === 1) {
             return $this->quoteExpression($matches[1]) . ' AS ' . $this->quoteIdentifier($matches[2]);
         }
 
@@ -389,7 +393,7 @@ abstract class Query
 
         return $this->joinStrings(
             ', ',
-            $this->map(fn(mixed $value): string => $this->bindValue($value), array_values($values))
+            $this->map(fn(mixed $value): string => $this->bindValue($value), $this->arrayValues($values))
         );
     }
 
@@ -409,19 +413,19 @@ abstract class Query
             $value === null => 'NULL',
             $this->isBool($value) => $value ? '1' : '0',
             $this->isInt($value), $this->isFloat($value) => (string) $value,
-            $this->isArray($value) => "'" . str_replace("'", "''", json_encode($value, JSON_THROW_ON_ERROR)) . "'",
-            default => "'" . str_replace("'", "''", (string) $value) . "'",
+            $this->isArray($value) => "'" . $this->replaceText("'", "''", $this->toJson($value, JSON_THROW_ON_ERROR)) . "'",
+            default => "'" . $this->replaceText("'", "''", (string) $value) . "'",
         };
     }
 
     protected function getKeys(array $data): array
     {
-        return array_keys($data);
+        return $this->arrayKeys($data);
     }
 
     protected function getValuesList(array $data): array
     {
-        return array_values($data);
+        return $this->arrayValues($data);
     }
 
     protected function isAssociativeArray(array $value): bool
@@ -430,11 +434,11 @@ abstract class Query
             return false;
         }
 
-        return array_keys($value) !== range(0, count($value) - 1);
+        return $this->arrayKeys($value) !== range(0, $this->countElements($value) - 1);
     }
 
     private function escapeSqlComment(string $comment): string
     {
-        return str_replace(['/*', '*/'], '', $comment);
+        return $this->replaceText(['/*', '*/'], '', $comment);
     }
 }

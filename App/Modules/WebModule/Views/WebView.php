@@ -43,7 +43,7 @@ class WebView extends View
     {
         $pageContent = parent::renderPage($page, $data);
 
-        return parent::renderLayout($this->defaultLayout, array_replace($data, [
+        return parent::renderLayout($this->defaultLayout, $this->replaceElements($data, [
             'content' => $pageContent,
         ]));
     }

@@ -74,11 +74,12 @@ trait ConversionTrait
 	 *
 	 * @param mixed $input The input variable to convert.
 	 * @param int $flags Optional flags for JSON encoding.
+	 * @param int $depth Maximum depth to traverse while encoding.
 	 * @return string The JSON encoded string.
 	 */
-	public function toJson(mixed $input, int $flags = 0): string
+	public function toJson(mixed $input, int $flags = 0, int $depth = 512): string
 	{
-		return json_encode($input, $flags);
+		return json_encode($input, $flags, $depth);
 	}
 
 	/**

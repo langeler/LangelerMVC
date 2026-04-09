@@ -298,7 +298,7 @@ my %native_map = (
 		{ trait => 'App\\Utilities\\Traits\\ArrayTrait', method => 'reduce', note => 'Prefer the shared array reduction helper.' },
 	],
 	'array_replace' => [
-		{ trait => 'App\\Utilities\\Traits\\ArrayTrait', method => 'replace', note => 'Prefer the framework array replacement helper.' },
+		{ trait => 'App\\Utilities\\Traits\\ArrayTrait', method => 'replaceElements', note => 'Prefer the framework array replacement helper.' },
 	],
 	'array_replace_recursive' => [
 		{ trait => 'App\\Utilities\\Traits\\ArrayTrait', method => 'replaceRecursive', note => 'A framework recursive replace helper already exists.' },
@@ -363,7 +363,7 @@ my %native_map = (
 	],
 	'is_numeric' => [
 		{ trait => 'App\\Utilities\\Traits\\TypeCheckerTrait', method => 'isNumeric', note => 'Prefer the shared type helper for numeric checks.' },
-		{ trait => 'App\\Utilities\\Traits\\CheckerTrait', method => 'isNumeric', note => 'String numeric validation also exists in the checker trait.' },
+		{ trait => 'App\\Utilities\\Traits\\CheckerTrait', method => 'isDigitString', note => 'Digit-only string validation also exists in the checker trait.' },
 	],
 	'is_object' => [
 		{ trait => 'App\\Utilities\\Traits\\TypeCheckerTrait', method => 'isObject', note => 'Prefer the shared type helper for object checks.' },
@@ -393,13 +393,13 @@ my %native_map = (
 		{ trait => 'App\\Utilities\\Traits\\Patterns\\PatternTrait', method => 'quote', note => 'Use the shared regex helper for quoting patterns.' },
 	],
 	'preg_replace' => [
-		{ trait => 'App\\Utilities\\Traits\\Patterns\\PatternTrait', method => 'replace', note => 'Use the shared regex helper when regex behavior should align across the framework.' },
+		{ trait => 'App\\Utilities\\Traits\\Patterns\\PatternTrait', method => 'replaceByPattern', note => 'Use the shared regex helper when regex behavior should align across the framework.' },
 	],
 	'preg_replace_callback' => [
 		{ trait => 'App\\Utilities\\Traits\\Patterns\\PatternTrait', method => 'replaceCallback', note => 'Use the shared regex helper when regex behavior should align across the framework.' },
 	],
 	'preg_split' => [
-		{ trait => 'App\\Utilities\\Traits\\Patterns\\PatternTrait', method => 'split', note => 'Use the shared regex split helper when regex behavior should align across the framework.' },
+		{ trait => 'App\\Utilities\\Traits\\Patterns\\PatternTrait', method => 'splitByPattern', note => 'Use the shared regex split helper when regex behavior should align across the framework.' },
 	],
 	'property_exists' => [
 		{ trait => 'App\\Utilities\\Traits\\ExistenceCheckerTrait', method => 'propertyExists', note => 'A framework existence check wrapper already exists.' },
@@ -414,7 +414,7 @@ my %native_map = (
 		{ trait => 'App\\Utilities\\Traits\\ManipulationTrait', method => 'trimRight', note => 'Prefer the shared string-trimming helper.' },
 	],
 	'setlocale' => [
-		{ trait => 'App\\Utilities\\Traits\\LocaleUtilityTrait', method => 'setLocale', note => 'Locale changes can be centralized through the locale utility trait.' },
+		{ trait => 'App\\Utilities\\Traits\\LocaleUtilityTrait', method => 'applyLocale', note => 'Locale changes can be centralized through the locale utility trait.' },
 	],
 	'str_contains' => [
 		{ trait => 'App\\Utilities\\Traits\\CheckerTrait', method => 'contains', note => 'Prefer the shared string check helper.' },
@@ -423,7 +423,7 @@ my %native_map = (
 		{ trait => 'App\\Utilities\\Traits\\CheckerTrait', method => 'endsWith', note => 'Prefer the shared string check helper.' },
 	],
 	'str_replace' => [
-		{ trait => 'App\\Utilities\\Traits\\ManipulationTrait', method => 'replace', note => 'Prefer the shared string replacement helper where string semantics are intended.' },
+		{ trait => 'App\\Utilities\\Traits\\ManipulationTrait', method => 'replaceText', note => 'Prefer the shared string replacement helper where string semantics are intended.' },
 	],
 	'str_starts_with' => [
 		{ trait => 'App\\Utilities\\Traits\\CheckerTrait', method => 'startsWith', note => 'Prefer the shared string check helper.' },
@@ -444,7 +444,7 @@ my %native_map = (
 		{ trait => 'App\\Utilities\\Traits\\ExistenceCheckerTrait', method => 'traitExists', note => 'A framework existence check wrapper already exists.' },
 	],
 	'trim' => [
-		{ trait => 'App\\Utilities\\Traits\\ManipulationTrait', method => 'trim', note => 'Prefer the shared string-trimming helper.' },
+		{ trait => 'App\\Utilities\\Traits\\ManipulationTrait', method => 'trimString', note => 'Prefer the shared string-trimming helper.' },
 	],
 	'urldecode' => [
 		{ trait => 'App\\Utilities\\Traits\\EncodingTrait', method => 'decodeStringFromUrl', note => 'Prefer the shared encoding helper for URL decoding.' },

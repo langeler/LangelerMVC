@@ -2,6 +2,10 @@
 
 namespace App\Utilities\Handlers;
 
+use App\Utilities\Traits\{
+	ArrayTrait,
+	TypeCheckerTrait
+};
 use SplStack;
 use SplQueue;
 use SplMinHeap;
@@ -18,6 +22,8 @@ use SplObjectStorage;
  */
 class DataStructureHandler
 {
+	use ArrayTrait, TypeCheckerTrait;
+
 	// Stack Methods
 
 	/**
@@ -194,8 +200,8 @@ class DataStructureHandler
 	 */
 	public function count($dataStructure): int
 	{
-		if (is_array($dataStructure)) {
-			return count($dataStructure);
+		if ($this->isArray($dataStructure)) {
+			return $this->countElements($dataStructure);
 		}
 
 		if ($dataStructure instanceof \Countable) {

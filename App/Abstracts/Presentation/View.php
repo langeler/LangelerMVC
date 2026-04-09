@@ -20,7 +20,12 @@ use App\Utilities\Managers\{
 
 use App\Utilities\Sanitation\PatternSanitizer;    // Provides utilities for sanitizing data using patterns.
 use App\Utilities\Validation\PatternValidator;    // Provides utilities for validating data using patterns.
-use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\{
+	ArrayTrait,
+	ErrorTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
 
 /**
  * Abstract View Class
@@ -41,7 +46,7 @@ use App\Utilities\Traits\ErrorTrait;
  */
 abstract class View implements ViewInterface
 {
-	use ErrorTrait;
+	use ErrorTrait, ArrayTrait, ManipulationTrait, TypeCheckerTrait;
 
 	protected array $globals = [];
 	protected string $templateExt = 'php';
@@ -97,7 +102,7 @@ abstract class View implements ViewInterface
 	public function renderAsset(string $type, string $asset): string
 	{
 		return $this->wrapInTry(function () use ($type, $asset): string {
-			return match (strtolower($type)) {
+			return match ($this->toLower($type)) {
 				'css' => $this->getCssPath($asset),
 				'js' => $this->getJsPath($asset),
 				'image', 'images', 'img' => $this->getImagePath($asset),
@@ -108,7 +113,7 @@ abstract class View implements ViewInterface
 
 	public function setGlobals(array $variables): void
 	{
-		$this->globals = array_replace($this->globals, $variables);
+		$this->globals = $this->replaceElements($this->globals, $variables);
 	}
 
 	public function getGlobals(): array
@@ -130,7 +135,7 @@ abstract class View implements ViewInterface
 		return $this->wrapInTry(function () use ($key): ?string {
 			$cached = $this->cache->get($key);
 
-			return is_string($cached) ? $cached : null;
+			return $this->isString($cached) ? $cached : null;
 		}, ViewException::class);
 	}
 
@@ -144,7 +149,7 @@ abstract class View implements ViewInterface
 	{
 		return $this->wrapInTry(fn(): string =>
 			$this->getValidPath(
-				array_key_first($this->dirs->find(['name' => $dirName])) ?: null,
+				$this->keyFirst($this->dirs->find(['name' => $dirName])) ?: null,
 				"Base directory '{$dirName}' not found."
 			),
 			ViewException::class
@@ -162,7 +167,7 @@ abstract class View implements ViewInterface
 	{
 		return $this->wrapInTry(fn(): string =>
 			$this->getValidPath(
-				array_key_first($this->dirs->find(['name' => $subDir], $basePath)) ?: null,
+				$this->keyFirst($this->dirs->find(['name' => $subDir], $basePath)) ?: null,
 				"Subdirectory '{$subDir}' not found in '{$basePath}'."
 			),
 			ViewException::class
@@ -297,7 +302,7 @@ abstract class View implements ViewInterface
 	protected function renderTemplate(string $path, array $data = []): string
 	{
 		return $this->wrapInTry(function () use ($path, $data): string {
-			$variables = array_replace($this->globals, $data);
+			$variables = $this->replaceElements($this->globals, $data);
 			$view = $this;
 
 			ob_start();
@@ -316,7 +321,7 @@ abstract class View implements ViewInterface
 				return $output;
 			}
 
-			return is_string($result ?? null) ? $result : '';
+			return $this->isString($result ?? null) ? $result : '';
 		}, ViewException::class);
 	}
 }

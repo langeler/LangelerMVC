@@ -4,10 +4,18 @@ namespace App\Utilities\Managers\Data;
 
 use App\Providers\CryptoProvider;
 use App\Utilities\Managers\SettingsManager;
+use App\Utilities\Traits\{
+	ArrayTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 use ReflectionMethod;
 
 class CryptoManager
 {
+    use ArrayTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
     public readonly array $cryptoSettings;
     public object $cryptoDriver;
 
@@ -36,7 +44,7 @@ class CryptoManager
         $method = new ReflectionMethod($this->cryptoDriver, 'RandomGenerator');
         $parameterCount = $method->getNumberOfParameters();
 
-        if ($parameterCount > 1 && count($args) === 1 && is_int($args[0])) {
+        if ($parameterCount > 1 && $this->countElements($args) === 1 && $this->isInt($args[0])) {
             return ($this->cryptoDriver->RandomGenerator($type, $args[0]))();
         }
 
@@ -60,11 +68,11 @@ class CryptoManager
 
     protected function resolveCryptoDriver(): object
     {
-        $driver = strtolower(trim((string) preg_replace(
+        $driver = $this->toLower($this->trimString((string) ($this->replaceByPattern(
             '/\s+#.*$/',
             '',
             (string) ($this->cryptoSettings['DRIVER'] ?? $this->cryptoSettings['TYPE'] ?? 'openssl')
-        )));
+        ) ?? '')));
 
         return $this->cryptoProvider->getCryptoDriver([
             'DRIVER' => $driver,

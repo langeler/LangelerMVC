@@ -2,6 +2,10 @@
 
 namespace App\Utilities\Managers\System;
 
+use App\Utilities\Traits\{
+	ArrayTrait,
+	TypeCheckerTrait
+};
 use App\Utilities\Traits\Reflection\{
 	ReflectionAttributeTrait,
 	ReflectionClassTrait,
@@ -41,6 +45,7 @@ use ReflectionProperty;
  */
 class ReflectionManager
 {
+	use ArrayTrait, TypeCheckerTrait;
 	use ReflectionAttributeTrait,
 		ReflectionClassTrait,
 		ReflectionConstantTrait,
@@ -205,8 +210,8 @@ class ReflectionManager
 	public function invokeMethodDynamically(object|string $class, string $method, array $args = []): mixed
 	{
 		return $this->invokeMethod(
-			$this->getClassMethod($this->createClass(is_string($class) ? $class : $class::class), $method),
-			is_object($class) ? $class : null,
+			$this->getClassMethod($this->createClass($this->isString($class) ? $class : $class::class), $method),
+			$this->isObject($class) ? $class : null,
 			...$args
 		);
 	}
@@ -223,7 +228,7 @@ class ReflectionManager
 		$instance = $reflectionClass->isAbstract() ? null : $this->newClassInstanceWithoutConstructor($reflectionClass);
 		$defaults = $this->getClassDefaultProperties($reflectionClass);
 
-		return array_reduce(
+		return $this->reduce(
 			$this->getClassProperties($reflectionClass, ReflectionProperty::IS_PUBLIC),
 			function (array $carry, ReflectionProperty $property) use ($instance, $defaults): array {
 				$name = $this->getPropertyName($property);
@@ -251,7 +256,7 @@ class ReflectionManager
 	 */
 	public function getMethodVisibilities(string $class): array
 	{
-		return array_map(
+		return $this->map(
 			fn($method) => [
 				'name' => $method->getName(),
 				'visibility' => $this->isMethodPublic($method)
@@ -272,7 +277,7 @@ class ReflectionManager
 	 */
 	public function getConstantsWithMetadata(string $class): array
 	{
-		return array_map(
+		return $this->map(
 			fn($constant) => [
 				'name' => $this->getClassConstantName($constant),
 				'value' => $this->getClassConstantValue($constant),
@@ -292,7 +297,7 @@ class ReflectionManager
 	 */
 	public function listUsedTraits(string $class): array
 	{
-		return array_keys($this->getClassTraits($this->createClass($class)));
+		return $this->getKeys($this->getClassTraits($this->createClass($class)));
 	}
 
 	/**
@@ -316,7 +321,7 @@ class ReflectionManager
 	 */
 	public function getAttributeData(string|object $class, ?string $member = null): array
 	{
-		$reflectionClass = $this->createClass(is_string($class) ? $class : $class::class);
+		$reflectionClass = $this->createClass($this->isString($class) ? $class : $class::class);
 		return $member
 			? ($this->hasClassProperty($reflectionClass, $member)
 				? $this->getPropertyAttributes($this->getClassProperty($reflectionClass, $member))

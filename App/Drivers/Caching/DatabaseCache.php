@@ -23,10 +23,10 @@ class DatabaseCache extends Cache
 			$cacheData = [
 				'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
 				'ttl' => $ttl,
-				'data' => base64_encode(
-					$this->compressData(
-						$this->encryptData(
-							$this->serializeData($data)
+					'data' => $this->base64EncodeString(
+						$this->compressData(
+							$this->encryptData(
+								$this->serializeData($data)
 						)
 					)
 				),
@@ -35,7 +35,7 @@ class DatabaseCache extends Cache
 			$this->delete($key);
 			$result = $this->database->query(
 				'INSERT INTO cache (cache_key, cache_data, timestamp, ttl) VALUES (?, ?, ?, ?)',
-				[$key, json_encode($cacheData), $cacheData['timestamp'], $ttl]
+					[$key, $this->toJson($cacheData, JSON_THROW_ON_ERROR), $cacheData['timestamp'], $ttl]
 			);
 
 			if ($result === false) {
@@ -60,14 +60,14 @@ class DatabaseCache extends Cache
 				return null;
 			}
 
-			$cacheData = json_decode($result['cache_data'], true);
-				return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
-					$this->decryptData(
-						$this->decompressData(
-							base64_decode((string) ($cacheData['data'] ?? ''), true) ?: ''
+				$cacheData = $this->fromJson($result['cache_data'], true, 512, JSON_THROW_ON_ERROR);
+					return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
+						$this->decryptData(
+							$this->decompressData(
+								$this->base64DecodeString((string) ($cacheData['data'] ?? ''), true) ?: ''
+							)
 						)
-					)
-				);
+					);
 			});
 		}
 

@@ -90,7 +90,7 @@ class Config
 
             $value = $settings;
 
-            foreach (explode('.', $key) as $segment) {
+            foreach ($this->splitString('.', $key) as $segment) {
                 if (!$this->isArray($value)) {
                     return $default;
                 }

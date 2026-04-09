@@ -12,13 +12,13 @@ class FileCache extends Cache
 	{
 		return $this->runCacheOperation(function () use ($key, $data, $ttl) {
 			$cachePath = $this->getCacheFilePath($key);
-			$cacheData = json_encode([
-				'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
-				'ttl' => $ttl ?? (int)$this->settings['cache']['TTL'],
-				'data' => base64_encode(
-					$this->compressData($this->encryptData($this->serializeData($data)))
-				),
-			]);
+				$cacheData = $this->toJson([
+					'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
+					'ttl' => $ttl ?? (int)$this->settings['cache']['TTL'],
+					'data' => $this->base64EncodeString(
+						$this->compressData($this->encryptData($this->serializeData($data)))
+					),
+				], JSON_THROW_ON_ERROR);
 
 			if ($this->fileManager->writeContents($cachePath, $cacheData) === false) {
 				throw new CacheException("Failed to write cache data for key: $key");
@@ -44,7 +44,7 @@ class FileCache extends Cache
 				return null;
 			}
 
-			$cacheData = json_decode($this->fileManager->readContents($cachePath), true);
+				$cacheData = $this->fromJson((string) $this->fileManager->readContents($cachePath), true, 512, JSON_THROW_ON_ERROR);
 			return $cacheData ? $this->validateAndReturnData($cacheData, $key) : null;
 		});
 	}
@@ -59,10 +59,10 @@ class FileCache extends Cache
 			return $this->unserializeData(
 				$this->decryptData(
 					$this->decompressData(
-						base64_decode((string) ($cacheData['data'] ?? ''), true) ?: ''
+							$this->base64DecodeString((string) ($cacheData['data'] ?? ''), true) ?: ''
+						)
 					)
-				)
-			);
+				);
 		}
 
 	public function delete(string $key): bool

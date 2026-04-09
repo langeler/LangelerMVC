@@ -22,18 +22,18 @@ class RedisCache extends Cache
 			$ttl = $ttl ?? (int)$this->settings['cache']['TTL'];
 			$result = $this->redis->set(
 				$key,
-				json_encode([
-					'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
-					'ttl' => $ttl,
-					'data' => base64_encode(
-						$this->compressData(
-							$this->encryptData(
-								$this->serializeData($data)
+					$this->toJson([
+						'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
+						'ttl' => $ttl,
+						'data' => $this->base64EncodeString(
+							$this->compressData(
+								$this->encryptData(
+									$this->serializeData($data)
+								)
 							)
 						)
-					)
-				])
-			);
+					], JSON_THROW_ON_ERROR)
+				);
 
 			if (!$result) {
 				throw new CacheException("Failed to set cache data for key: $key");
@@ -57,14 +57,14 @@ class RedisCache extends Cache
 				return null;
 			}
 
-			$cacheData = json_decode($result, true);
-				return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
-					$this->decryptData(
-						$this->decompressData(
-							base64_decode((string) ($cacheData['data'] ?? ''), true) ?: ''
+				$cacheData = $this->fromJson($result, true, 512, JSON_THROW_ON_ERROR);
+					return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
+						$this->decryptData(
+							$this->decompressData(
+								$this->base64DecodeString((string) ($cacheData['data'] ?? ''), true) ?: ''
+							)
 						)
-					)
-				);
+					);
 			});
 		}
 

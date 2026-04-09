@@ -405,7 +405,7 @@ class SettingsManager
                 continue;
             }
 
-            [$key, $value] = explode('=', $line, 2);
+            [$key, $value] = $this->splitString('=', $line, 2) + [null, null];
             $variables[$this->trimString($key)] = $this->normalizeScalarValue($value);
         }
 
@@ -423,9 +423,9 @@ class SettingsManager
         $grouped = [];
 
         foreach ($variables as $key => $value) {
-            $segments = $this->getValues($this->filter(explode('_', $key), fn($segment) => $segment !== ''));
+            $segments = $this->getValues($this->filter($this->splitString('_', $key), fn($segment) => $segment !== ''));
 
-            if (count($segments) < 2) {
+            if ($this->countElements($segments) < 2) {
                 continue;
             }
 
@@ -456,7 +456,7 @@ class SettingsManager
         $cursor = &$target;
 
         foreach ($path as $index => $segment) {
-            if ($index === count($path) - 1) {
+            if ($index === $this->countElements($path) - 1) {
                 $cursor[$segment] = $value;
                 return;
             }

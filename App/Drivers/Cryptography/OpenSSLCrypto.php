@@ -4,10 +4,18 @@ namespace App\Drivers\Cryptography;
 
 use App\Abstracts\Data\Crypto;
 use App\Contracts\Data\CryptoInterface;
+use App\Utilities\Traits\{
+	EncodingTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 use RuntimeException as CryptoException;
 
 class OpenSSLCrypto extends Crypto implements CryptoInterface
 {
+	use EncodingTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
 	protected readonly array $config;
 
 	public function __construct()
@@ -405,9 +413,9 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				?array $untrustedCerts = null
 			) => openssl_x509_checkpurpose(
 				$certificate,
-				is_int($purpose)
-					? $purpose
-					: ($this->config['x509'][$purpose]
+					$this->isInt($purpose)
+						? $purpose
+						: ($this->config['x509'][$purpose]
 						?? throw new CryptoException("Unsupported certificate purpose: {$purpose}.")),
 				$caInfo,
 				$untrustedCerts
@@ -424,13 +432,17 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				$binary
 			) ?: throw new CryptoException("Certificate fingerprint calculation failed."),
 
-			'convertPemToDer' => fn(string $pem) =>
-				base64_decode(
-					str_replace(["\n", "\r", " "], '', preg_replace('/-----BEGIN (.+?)-----|-----END (.+?)-----/', '', $pem))
-				) ?: throw new CryptoException("Invalid PEM format."),
+				'convertPemToDer' => fn(string $pem) =>
+					$this->base64DecodeString(
+						$this->replaceText(
+							["\n", "\r", " "],
+							'',
+							$this->replaceByPattern('/-----BEGIN (.+?)-----|-----END (.+?)-----/', '', $pem) ?? ''
+						)
+					) ?: throw new CryptoException("Invalid PEM format."),
 
-			'convertDerToPem' => fn(string $der, string $label = 'CERTIFICATE') =>
-				"-----BEGIN {$label}-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END {$label}-----\n",
+				'convertDerToPem' => fn(string $der, string $label = 'CERTIFICATE') =>
+					"-----BEGIN {$label}-----\n" . chunk_split($this->base64EncodeString($der), 64, "\n") . "-----END {$label}-----\n",
 
 			'free' => function ($certificate): bool {
 				openssl_x509_free($certificate);
@@ -598,7 +610,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 	{
 		return match ($action) {
 			'clearSensitiveData' => fn(string &$data) =>
-				$data = str_repeat("\0", strlen($data)),
+				$data = $this->repeatString("\0", $this->length($data)),
 
 			'compareSecurely' => fn(string $a, string $b) =>
 				hash_equals($a, $b),
@@ -610,12 +622,12 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 	public function DataConverter(string $type): callable
 	{
 		return match ($type) {
-			'bin2base64' => fn(string $data) =>
-				base64_encode($data),
+				'bin2base64' => fn(string $data) =>
+					$this->base64EncodeString($data),
 
-			'base642bin' => fn(string $data) =>
-				base64_decode($data, true)
-					?: throw new CryptoException("Invalid Base64 encoded string."),
+				'base642bin' => fn(string $data) =>
+					$this->base64DecodeString($data, true)
+						?: throw new CryptoException("Invalid Base64 encoded string."),
 
 			'bin2hex' => fn(string $data) =>
 				bin2hex($data),
@@ -707,7 +719,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 
 	private function resolveCipherMethod(string $cipher): string
 	{
-		$normalized = strtolower((string) preg_replace('/[^a-z0-9]/i', '', $cipher));
+		$normalized = $this->toLower((string) ($this->replaceByPattern('/[^a-z0-9]/i', '', $cipher) ?? ''));
 
 		return $this->config['ciphers'][$normalized]
 			?? throw new CryptoException("Invalid cipher type: {$cipher}.");

@@ -23,7 +23,9 @@ use App\Utilities\Finders\DirectoryFinder;      // Handles searching and managin
 use App\Utilities\Traits\{
 	ArrayTrait,        // Provides utility methods for array operations.
 	ApplicationPathTrait,
+	CheckerTrait,
 	ErrorTrait,        // Offers framework-aligned exception wrapping.
+	ExistenceCheckerTrait,
 	ManipulationTrait,
 	TypeCheckerTrait
 };
@@ -47,7 +49,7 @@ abstract class Request implements RequestInterface
 	use ArrayTrait, ManipulationTrait {
 		ManipulationTrait::toLower as private toLowerString;
 	}
-	use ErrorTrait, TypeCheckerTrait;
+	use CheckerTrait, ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait;
 	use ApplicationPathTrait;
 
 	/**
@@ -472,7 +474,7 @@ abstract class Request implements RequestInterface
 
 		$value = $source;
 
-		foreach (explode('.', $key) as $segment) {
+		foreach ($this->splitString('.', $key) as $segment) {
 			if (!$this->isArray($value) || !$this->keyExists($value, $segment)) {
 				return $default;
 			}

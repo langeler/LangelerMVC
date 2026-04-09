@@ -16,11 +16,12 @@ trait ManipulationTrait
 	 *
 	 * @param string $delimiter The delimiter to split the string by.
 	 * @param string $string The string to split.
+	 * @param int $limit The maximum number of elements to return.
 	 * @return array The split string as an array.
 	 */
-	public function splitString(string $delimiter, string $string): array
+	public function splitString(string $delimiter, string $string, int $limit = PHP_INT_MAX): array
 	{
-		return explode($delimiter, $string);
+		return explode($delimiter, $string, $limit);
 	}
 
 	/**

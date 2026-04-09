@@ -9,6 +9,7 @@ use App\Providers\ExceptionProvider;             // Manages and resolves excepti
 use App\Utilities\Traits\{
     ArrayTrait,             // Provides utility methods for array operations and validations.
     ExistenceCheckerTrait,  // Adds methods for verifying the existence of classes, methods, properties, etc.
+    ManipulationTrait,      // Provides shared string normalization helpers.
     TypeCheckerTrait        // Offers utilities for validating and checking data types.
 };
 
@@ -27,7 +28,7 @@ use App\Utilities\Traits\{
  */
 class ErrorManager
 {
-    use ArrayTrait, ExistenceCheckerTrait, TypeCheckerTrait;
+    use ArrayTrait, ExistenceCheckerTrait, ManipulationTrait, TypeCheckerTrait;
 
     /**
      * Read-only array mapping error level keys to PHP error constants.
@@ -195,7 +196,7 @@ class ErrorManager
         string $context = 'default'
     ): string {
         return $this->isString($key) && $this->isString($message) && $this->isString($file) && $this->isString($context)
-            ? sprintf("[%s][%s] %s in %s on line %d", strtoupper($context), strtoupper($key), $message, $file, $line)
+            ? sprintf("[%s][%s] %s in %s on line %d", $this->toUpper($context), $this->toUpper($key), $message, $file, $line)
             : throw $this->resolveException('invalidArgument', "Key, message, file, and context must be strings.");
     }
 

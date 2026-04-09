@@ -8,9 +8,18 @@ use Imagick;
 use ImagickDraw;
 use ImagickPixel;
 use Throwable;
+use App\Utilities\Traits\{
+	ArrayTrait,
+	CheckerTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 class FileManager
 {
+	use ArrayTrait, CheckerTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
 	// Method to get SplFileInfo instance
 	private function getFileInfo(string $path): ?SplFileInfo
 	{
@@ -104,7 +113,7 @@ class FileManager
 
 			$tempFile = tempnam($directory, 'langeler-write-');
 
-			if (!is_string($tempFile)) {
+			if (!$this->isString($tempFile)) {
 				return false;
 			}
 
@@ -209,7 +218,7 @@ class FileManager
 	 */
 	public function normalizePath(string $path): string
 	{
-		$path = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, trim($path));
+		$path = $this->replaceText(['\\', '/'], DIRECTORY_SEPARATOR, $this->trimString($path));
 
 		if ($path === '') {
 			return '';
@@ -217,30 +226,30 @@ class FileManager
 
 		$prefix = '';
 
-		if (preg_match('/^[A-Za-z]:' . preg_quote(DIRECTORY_SEPARATOR, '/') . '/', $path) === 1) {
-			$prefix = substr($path, 0, 2);
-			$path = substr($path, 2);
-		} elseif (str_starts_with($path, DIRECTORY_SEPARATOR)) {
+		if ($this->match('/^[A-Za-z]:' . $this->quote(DIRECTORY_SEPARATOR, '/') . '/', $path) === 1) {
+			$prefix = $this->substring($path, 0, 2);
+			$path = $this->substring($path, 2);
+		} elseif ($this->startsWith($path, DIRECTORY_SEPARATOR)) {
 			$prefix = DIRECTORY_SEPARATOR;
 			$path = ltrim($path, DIRECTORY_SEPARATOR);
 		}
 
 		$segments = [];
 
-		foreach (preg_split('#[\\\\/]#', $path) ?: [] as $segment) {
+		foreach ($this->splitByPattern('#[\\\\/]#', $path) ?: [] as $segment) {
 			if ($segment === '' || $segment === '.') {
 				continue;
 			}
 
 			if ($segment === '..') {
-				array_pop($segments);
+				$this->pop($segments);
 				continue;
 			}
 
 			$segments[] = $segment;
 		}
 
-		$normalized = implode(DIRECTORY_SEPARATOR, $segments);
+		$normalized = $this->joinStrings(DIRECTORY_SEPARATOR, $segments);
 
 		if ($prefix === DIRECTORY_SEPARATOR) {
 			return $prefix . $normalized;

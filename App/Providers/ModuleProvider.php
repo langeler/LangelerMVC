@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Core\Container;
 use App\Exceptions\ContainerException;
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * ModuleProvider Class
@@ -12,6 +13,10 @@ use App\Exceptions\ContainerException;
  */
 class ModuleProvider extends Container
 {
+	use PatternTrait {
+		PatternTrait::match as private matchPattern;
+	}
+
 	/**
 	 * Map of aliases => fully qualified module class names.
 	 *
@@ -32,7 +37,7 @@ class ModuleProvider extends Container
 			$shortNameCounts = [];
 
 			foreach ($classes as $class) {
-				if (!is_array($class) || !isset($class['class'], $class['shortName'])) {
+				if (!$this->isArray($class) || !isset($class['class'], $class['shortName'])) {
 					continue;
 				}
 
@@ -41,7 +46,7 @@ class ModuleProvider extends Container
 			}
 
 			foreach ($classes as $class) {
-				if (!is_array($class) || !isset($class['class'], $class['shortName'])) {
+				if (!$this->isArray($class) || !isset($class['class'], $class['shortName'])) {
 					continue;
 				}
 
@@ -106,7 +111,7 @@ class ModuleProvider extends Container
 	 */
 	private function buildModuleAlias(string $fqcn, string $shortName): string
 	{
-		if (preg_match('/App\\\\Modules\\\\([^\\\\]+)/', $fqcn, $matches) === 1) {
+		if ($this->matchPattern('/App\\\\Modules\\\\([^\\\\]+)/', $fqcn, $matches) === 1) {
 			return $matches[1] . '.' . $shortName;
 		}
 

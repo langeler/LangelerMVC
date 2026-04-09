@@ -14,6 +14,13 @@ use Transliterator;
 use Locale;
 use NumberFormatter;
 use RuntimeException;
+use App\Utilities\Traits\{
+	ConversionTrait,
+	EncodingTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Class DataHandler
@@ -22,6 +29,8 @@ use RuntimeException;
  */
 class DataHandler
 {
+	use ConversionTrait, EncodingTrait, ManipulationTrait, TypeCheckerTrait, PatternTrait;
+
 	private ?Transliterator $transliterator;
 	private string $locale;
 
@@ -44,7 +53,7 @@ class DataHandler
 	public function jsonEncode($value, int $options = 0, int $depth = 512): string
 	{
 		try {
-			return json_encode($value, $options | JSON_THROW_ON_ERROR, $depth);
+			return $this->toJson($value, $options | JSON_THROW_ON_ERROR, $depth);
 		} catch (\JsonException $exception) {
 			throw new RuntimeException('Failed to encode JSON payload.', 0, $exception);
 		}
@@ -62,7 +71,7 @@ class DataHandler
 	public function jsonDecode(string $json, bool $assoc = false, int $depth = 512, int $options = 0)
 	{
 		try {
-			return json_decode($json, $assoc, $depth, $options | JSON_THROW_ON_ERROR);
+			return $this->fromJson($json, $assoc, $depth, $options | JSON_THROW_ON_ERROR);
 		} catch (\JsonException $exception) {
 			throw new RuntimeException('Failed to decode JSON payload.', 0, $exception);
 		}
@@ -97,7 +106,7 @@ class DataHandler
 	public function encodeJsonSerializable(JsonSerializable $object): string
 	{
 		try {
-			return json_encode($object, JSON_THROW_ON_ERROR);
+			return $this->toJson($object, JSON_THROW_ON_ERROR);
 		} catch (\JsonException $exception) {
 			throw new RuntimeException('Failed to encode JsonSerializable payload.', 0, $exception);
 		}
@@ -248,7 +257,7 @@ class DataHandler
 	 */
 	public function isXmlFormat(mixed $value): bool
 	{
-		if (!is_string($value) || trim($value) === '') {
+		if (!$this->isString($value) || $this->trimString($value) === '') {
 			return false;
 		}
 
@@ -360,7 +369,7 @@ class DataHandler
 	 */
 	public function base64Encode(string $data): string
 	{
-		return base64_encode($data);
+		return $this->base64EncodeString($data);
 	}
 
 	/**
@@ -371,7 +380,7 @@ class DataHandler
 	 */
 	public function base64Decode(string $data): string
 	{
-		return base64_decode($data);
+		return $this->base64DecodeString($data) ?: '';
 	}
 
 	// URL Encode/Decode Methods
@@ -384,7 +393,7 @@ class DataHandler
 	 */
 	public function urlEncode(string $data): string
 	{
-		return urlencode($data);
+		return $this->encodeStringForUrl($data);
 	}
 
 	/**
@@ -395,7 +404,7 @@ class DataHandler
 	 */
 	public function urlDecode(string $data): string
 	{
-		return urldecode($data);
+		return $this->decodeStringFromUrl($data);
 	}
 
 	// Hex Encode/Decode Methods
@@ -602,9 +611,9 @@ class DataHandler
 		mixed $value,
 		string $defaultNode = 'item'
 	): void {
-		if (is_array($value)) {
+		if ($this->isArray($value)) {
 			foreach ($value as $key => $item) {
-				$nodeName = is_string($key) && $key !== ''
+				$nodeName = $this->isString($key) && $key !== ''
 					? $this->normalizeXmlElementName($key)
 					: $defaultNode;
 				$child = $document->createElement($nodeName);
@@ -620,7 +629,7 @@ class DataHandler
 			return;
 		}
 
-		if (is_object($value)) {
+		if ($this->isObject($value)) {
 			$this->appendValueToXml($document, $parent, get_object_vars($value), $defaultNode);
 			return;
 		}
@@ -640,7 +649,7 @@ class DataHandler
 	 */
 	private function normalizeXmlElementName(string $name): string
 	{
-		$normalized = preg_replace('/[^A-Za-z0-9_\-\.]+/', '_', trim($name)) ?? '';
+		$normalized = $this->replaceByPattern('/[^A-Za-z0-9_\-\.]+/', '_', $this->trimString($name)) ?? '';
 		$normalized = ltrim($normalized, '0123456789');
 
 		return $normalized !== '' ? $normalized : 'item';

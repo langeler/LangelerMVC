@@ -213,9 +213,9 @@ class DataQuery extends Query
             $normalizedTarget = $this->toLowerString($this->trimString($target));
 
             return match ($normalizedTarget) {
-                'having' => $this->havingConditions = array_merge($this->havingConditions, $conditions),
-                'on' => $this->pendingJoinConditions = array_merge($this->pendingJoinConditions, $conditions),
-                default => $this->whereConditions = array_merge($this->whereConditions, $conditions),
+                'having' => $this->havingConditions = $this->merge($this->havingConditions, $conditions),
+                'on' => $this->pendingJoinConditions = $this->merge($this->pendingJoinConditions, $conditions),
+                default => $this->whereConditions = $this->merge($this->whereConditions, $conditions),
             };
         }, 'database');
     }
@@ -233,9 +233,9 @@ class DataQuery extends Query
     {
         foreach ($specialConditions as $specialCondition) {
             if (($specialCondition['type'] ?? null) === 'distinctOn') {
-                $this->distinctOnColumns = array_merge(
+                $this->distinctOnColumns = $this->merge(
                     $this->distinctOnColumns,
-                    array_values($specialCondition['columns'] ?? [])
+                    $this->getValuesList((array) ($specialCondition['columns'] ?? []))
                 );
                 continue;
             }
@@ -255,7 +255,7 @@ class DataQuery extends Query
 
     public function processLocking(array $lockingOptions): array
     {
-        $this->locking = array_merge(
+        $this->locking = $this->merge(
             $this->locking,
             $this->map(fn(mixed $option): string => $this->trimString((string) $option), $lockingOptions)
         );
@@ -276,20 +276,20 @@ class DataQuery extends Query
             $effectiveConditions = $join['on'] ?? [];
 
             if ($this->pendingJoinConditions !== []) {
-                $effectiveConditions = array_merge($this->pendingJoinConditions, $effectiveConditions);
+                $effectiveConditions = $this->merge($this->pendingJoinConditions, $effectiveConditions);
                 $this->pendingJoinConditions = [];
             }
 
-            $columns = array_values($join['cols'] ?? []);
+            $columns = $this->getValuesList((array) ($join['cols'] ?? []));
 
             if ($columns !== []) {
-                $this->selectColumns = array_values(array_unique(array_merge($this->selectColumns, $columns)));
+                $this->selectColumns = $this->getValuesList($this->unique($this->merge($this->selectColumns, $columns)));
             }
 
             $this->joins[] = [
                 'type' => (string) ($join['type'] ?? 'join'),
                 'table' => (string) ($join['table'] ?? ''),
-                'on' => array_values($effectiveConditions),
+                'on' => $this->getValuesList($effectiveConditions),
                 'cols' => $columns,
             ];
         }
@@ -317,7 +317,7 @@ class DataQuery extends Query
             $this->groupings[] = $orderingOption;
         }
 
-        return array_merge($this->groupings, $this->orderings);
+        return $this->merge($this->groupings, $this->orderings);
     }
 
     public function buildOrdering(array $orderingOptions): string
@@ -361,7 +361,7 @@ class DataQuery extends Query
                 continue;
             }
 
-            if ($this->isArray($setOperation) && count($setOperation) >= 2) {
+            if ($this->isArray($setOperation) && $this->countElements($setOperation) >= 2) {
                 $this->setOperations[] = [
                     'type' => (string) $setOperation[0],
                     'query' => $setOperation[1],
@@ -390,7 +390,7 @@ class DataQuery extends Query
                 continue;
             }
 
-            if ($this->isArray($clause) && count($clause) >= 2) {
+            if ($this->isArray($clause) && $this->countElements($clause) >= 2) {
                 $this->applyClauses[] = [
                     'alias' => (string) $clause[0],
                     'query' => $clause[1],
@@ -410,7 +410,7 @@ class DataQuery extends Query
 
     public function processReturning(array $columns): array
     {
-        $this->returningColumns = array_values(array_merge($this->returningColumns, $columns));
+        $this->returningColumns = $this->getValuesList($this->merge($this->returningColumns, $columns));
 
         return $this->returningColumns;
     }
@@ -631,9 +631,9 @@ class DataQuery extends Query
             return '';
         }
 
-        if ($this->isAssociativeArray($condition) && count($condition) === 1) {
-            $logic = (string) array_key_first($condition);
-            $nestedConditions = array_values($condition)[0];
+        if ($this->isAssociativeArray($condition) && $this->countElements($condition) === 1) {
+            $logic = (string) $this->keyFirst($condition);
+            $nestedConditions = $this->getValuesList($condition)[0];
 
             if (!$this->isArray($nestedConditions)) {
                 return '';
@@ -660,7 +660,7 @@ class DataQuery extends Query
             default => '(' . $this->compileConditionList($conditions, $context, 'AND') . ')',
         };
 
-        return str_replace(['( )', '()'], '', $compiled);
+        return $this->replaceText(['( )', '()'], '', $compiled);
     }
 
     /**
@@ -668,12 +668,12 @@ class DataQuery extends Query
      */
     private function compileAtomicCondition(array $condition, string $context): string
     {
-        $count = count($condition);
+        $count = $this->countElements($condition);
 
         if ($count === 2 && $this->isString($condition[0])) {
             $normalizedFirst = $this->sql->normalize((string) $condition[0]);
 
-            if (in_array($normalizedFirst, ['exists', 'notexists'], true)) {
+            if ($this->isInArray($normalizedFirst, ['exists', 'notexists'], true)) {
                 return $this->compileExistsCondition($normalizedFirst, $condition[1]);
             }
 
@@ -774,7 +774,7 @@ class DataQuery extends Query
             );
         }
 
-        $values = $this->isArray($value) ? array_values($value) : [$value];
+        $values = $this->isArray($value) ? $this->getValuesList($value) : [$value];
 
         if ($values === []) {
             return $negated ? '1 = 1' : '1 = 0';
@@ -916,7 +916,7 @@ class DataQuery extends Query
             };
         }
 
-        return array_values(array_filter($compiled, fn(string $fragment): bool => $fragment !== ''));
+        return $this->getValuesList($this->filter($compiled, fn(string $fragment): bool => $fragment !== ''));
     }
 
     private function compileGroupClause(): string
@@ -932,14 +932,14 @@ class DataQuery extends Query
 
             $segments[] = match ($type) {
                 'group' => $this->compileColumnList($grouping['columns'] ?? []),
-                'groupingSets' => 'GROUPING SETS (' . $this->implodeWith(', ', array_values($grouping['sets'] ?? [])) . ')',
+                'groupingSets' => 'GROUPING SETS (' . $this->implodeWith(', ', $this->getValuesList((array) ($grouping['sets'] ?? []))) . ')',
                 'cube' => 'CUBE (' . $this->compileColumnList($grouping['columns'] ?? []) . ')',
                 'rollup' => 'ROLLUP (' . $this->compileColumnList($grouping['columns'] ?? []) . ')',
                 default => '',
             };
         }
 
-        $segments = array_values(array_filter($segments, fn(string $segment): bool => $segment !== ''));
+        $segments = $this->getValuesList($this->filter($segments, fn(string $segment): bool => $segment !== ''));
 
         return $segments === [] ? '' : $this->sql->clause('groupBy') . ' ' . $this->implodeWith(', ', $segments);
     }
@@ -1040,7 +1040,7 @@ class DataQuery extends Query
 
     private function compileColumnList(array $columns): string
     {
-        $columns = $columns === [] ? ['*'] : array_values($columns);
+        $columns = $columns === [] ? ['*'] : $this->getValuesList($columns);
 
         return $this->implodeWith(
             ', ',
@@ -1052,7 +1052,7 @@ class DataQuery extends Query
     {
         return $this->implodeWith(
             ', ',
-            $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), array_values($identifiers))
+            $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), $this->getValuesList($identifiers))
         );
     }
 

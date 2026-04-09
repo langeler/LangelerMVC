@@ -14,6 +14,7 @@ use App\Exceptions\Presentation\PresenterException;
 
 use App\Utilities\Traits\{
 	ArrayTrait,         // Provides utility methods for array operations.
+	TypeCheckerTrait,   // Adds shared type checks for presenter state validation.
 	ErrorTrait,         // Provides framework-aligned exception wrapping.
 	ManipulationTrait,  // Adds support for data manipulation tasks.
 	MetricsTrait,       // Includes methods for measuring and analyzing data metrics.
@@ -39,7 +40,7 @@ use App\Utilities\Traits\{
  */
 abstract class Presenter implements PresenterInterface
 {
-	use ErrorTrait, ArrayTrait, ManipulationTrait, MetricsTrait, ConversionTrait;
+	use ErrorTrait, ArrayTrait, TypeCheckerTrait, ManipulationTrait, MetricsTrait, ConversionTrait;
 
 	/**
 	 * Constructor for initializing dependencies and raw data.
@@ -180,7 +181,7 @@ abstract class Presenter implements PresenterInterface
 
 		$current = $this->state !== [] ? $this->state : $this->prepare();
 
-		foreach (explode('.', $key) as $segment) {
+		foreach ($this->splitString('.', $key) as $segment) {
 			if (!$this->isArray($current) || !$this->keyExists($current, $segment)) {
 				return $default;
 			}

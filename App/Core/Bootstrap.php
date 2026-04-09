@@ -6,6 +6,10 @@ namespace App\Core;
 
 use Dotenv\Dotenv;
 use App\Providers\CoreProvider;
+use App\Utilities\Traits\{
+	ExistenceCheckerTrait,
+	ManipulationTrait
+};
 use RuntimeException;
 
 /**
@@ -17,6 +21,8 @@ use RuntimeException;
  */
 class Bootstrap
 {
+    use ExistenceCheckerTrait, ManipulationTrait;
+
     private readonly string $basePath;
     private readonly string $publicPath;
 
@@ -59,7 +65,7 @@ class Bootstrap
         ini_set('default_charset', 'UTF-8');
         date_default_timezone_set('UTC');
 
-        if ($this->isHttpContext() && function_exists('header_remove')) {
+        if ($this->isHttpContext() && $this->functionExists('header_remove')) {
             @header_remove('X-Powered-By');
         }
     }
@@ -94,7 +100,10 @@ class Bootstrap
     private function buildInstallerUrl(): string
     {
         $scriptDirectory = dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'));
-        $normalizedDirectory = trim(str_replace('\\', '/', $scriptDirectory), '/');
+        $normalizedDirectory = $this->trimString(
+            $this->replaceText('\\', '/', $scriptDirectory),
+            '/'
+        );
 
         return ($normalizedDirectory !== '' ? '/' . $normalizedDirectory : '') . '/install/index.php';
     }

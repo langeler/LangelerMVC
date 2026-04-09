@@ -6,12 +6,20 @@ namespace App\Abstracts\Database;
 
 use App\Contracts\Database\ModelInterface;
 use App\Exceptions\Database\ModelException;
+use App\Utilities\Traits\{
+	ArrayTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Base database entity with mass-assignment protection and dirty tracking.
  */
 abstract class Model implements ModelInterface
 {
+    use ArrayTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
     /**
      * @var array<string, mixed>
      */
@@ -76,7 +84,7 @@ abstract class Model implements ModelInterface
 
     public function setAttribute(string $key, mixed $value): void
     {
-        $key = trim($key);
+        $key = $this->trimString($key);
 
         if ($key === '') {
             throw new ModelException('Attribute names must be non-empty strings.');
@@ -92,7 +100,7 @@ abstract class Model implements ModelInterface
 
     public function hasAttribute(string $key): bool
     {
-        return array_key_exists($key, $this->attributes);
+        return $this->keyExists($this->attributes, $key);
     }
 
     public function usesTimestamps(): bool
@@ -141,7 +149,7 @@ abstract class Model implements ModelInterface
         $dirty = [];
 
         foreach ($this->attributes as $key => $value) {
-            if (!array_key_exists($key, $this->original) || $this->original[$key] !== $value) {
+            if (!$this->keyExists($this->original, $key) || $this->original[$key] !== $value) {
                 $dirty[$key] = $value;
             }
         }
@@ -155,7 +163,7 @@ abstract class Model implements ModelInterface
             return $this->getDirty() !== [];
         }
 
-        return array_key_exists($attribute, $this->getDirty());
+        return $this->keyExists($this->getDirty(), $attribute);
     }
 
     public function exists(): bool
@@ -225,21 +233,21 @@ abstract class Model implements ModelInterface
         }
 
         if ($this->fillable !== []) {
-            return in_array($attribute, $this->fillable, true);
+            return $this->isInArray($attribute, $this->fillable, true);
         }
 
         if ($this->guarded === ['*']) {
             return false;
         }
 
-        return !in_array($attribute, $this->guarded, true);
+        return !$this->isInArray($attribute, $this->guarded, true);
     }
 
     protected function resolveDefaultTableName(): string
     {
-        $segments = explode('\\', static::class);
-        $baseName = end($segments) ?: 'model';
-        $snakeCase = strtolower((string) preg_replace('/(?<!^)[A-Z]/', '_$0', $baseName));
+        $segments = $this->splitString('\\', static::class);
+        $baseName = $this->getLastValue($segments) ?: 'model';
+        $snakeCase = $this->toLower((string) $this->replaceByPattern('/(?<!^)[A-Z]/', '_$0', $baseName));
 
         return $snakeCase . 's';
     }

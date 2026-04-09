@@ -1,393 +1,446 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Abstracts\Database;
 
+use App\Providers\ExceptionProvider;
 use App\Utilities\Handlers\SQLHandler;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\{
-	EncodingTrait,
-	CheckerTrait,
-	ManipulationTrait,
-	ArrayTrait,
-	ErrorTrait,
-	TypeCheckerTrait
+    ArrayTrait,
+    ErrorTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
 };
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
- * Abstract Query Class
+ * Base query infrastructure for parameterized SQL builders.
  *
- * Provides a foundation for SQL query construction and execution.
- * Includes methods for processing identifiers, operators, columns, and values
- * while ensuring proper escaping and validation.
+ * The query layer is responsible for:
+ * - validating and quoting identifiers consistently
+ * - collecting parameter bindings instead of inlining values
+ * - keeping SQL keyword/operator lookup centralized through SQLHandler
+ * - providing a shared foundation for data and schema builders
  */
 abstract class Query
 {
-	use EncodingTrait,
-		CheckerTrait,
-		ManipulationTrait,
-		ArrayTrait,
-		ErrorTrait,
-		TypeCheckerTrait;
+    use ErrorTrait, TypeCheckerTrait;
+    use ArrayTrait, ManipulationTrait, PatternTrait {
+        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
+        ArrayTrait::pad insteadof ManipulationTrait;
+        ArrayTrait::reverse insteadof ManipulationTrait;
+        ArrayTrait::shuffle insteadof ManipulationTrait;
+        PatternTrait::split insteadof ManipulationTrait;
+        ManipulationTrait::join as protected implodeWith;
+        ManipulationTrait::trim as protected trimString;
+        ManipulationTrait::toLower as protected toLowerString;
+        ManipulationTrait::toUpper as protected toUpperString;
+        PatternTrait::match as protected matchPattern;
+    }
 
-	/**
-	 * Constructor for initializing the Query object.
-	 *
-	 * @param SQLHandler $sql Handler for SQL-related operations.
-	 * @param ErrorManager $errorManager Error manager for handling query-related errors.
-	 * @param string $table The database table associated with the query.
-	 * @param array $columns The columns involved in the query.
-	 * @param array $values The values used within the query.
-	 */
-	protected function __construct(
-		protected SQLHandler $sql,
-		protected ErrorManager $errorManager,
-		protected string $table = '',
-		protected array $columns = [],
-		protected array $values = []
-	) {}
+    /**
+     * @var list<mixed>
+     */
+    protected array $bindings = [];
 
-	// -------------------------------------------------------------------------
-	// CORE QUERY METHODS
-	// -------------------------------------------------------------------------
+    public function __construct(
+        ?SQLHandler $sql = null,
+        ?ErrorManager $errorManager = null,
+        protected string $table = '',
+        protected array $columns = [],
+        protected array $values = [],
+        protected string $driver = 'mysql'
+    ) {
+        $this->sql = $sql ?? new SQLHandler();
+        $this->errorManager = $errorManager ?? new ErrorManager(new ExceptionProvider());
+        $this->driver = $this->normalizeDriver($this->driver);
+    }
 
-	/**
-	 * Builds an SQL query string with optional comments.
-	 *
-	 * This method constructs an SQL query string by combining the query type with
-	 * the provided parameters. If a comment is provided, it is appended to the query.
-	 * Any errors encountered during query construction are handled via `wrapInTry`.
-	 *
-	 * @param string $queryType The type of SQL query (e.g., SELECT, INSERT, UPDATE).
-	 * @param array $parameters Query parameters such as columns, values, and conditions.
-	 * @param string|null $comment Optional SQL comment for clarity.
-	 * @return string The fully constructed SQL query string.
-	 */
-	public function build(string $queryType, array $parameters, ?string $comment = null): string
-	{
-		return $this->wrapInTry(fn() =>
-			$this->buildType($queryType, $parameters)
-			. ($this->isString($comment) && !$this->isEmpty($comment)
-				? ' /*' . $this->escapeHtml($comment) . '*/'
-				: '')
-		, 'Failed to build query string');
-	}
+    /**
+     * SQL vocabulary lookup.
+     */
+    protected SQLHandler $sql;
 
-	/**
-	 * Constructs an SQL query string based on the given type and parameters.
-	 *
-	 * This method generates an SQL statement by retrieving the corresponding
-	 * SQL keyword from `SQLHandler` and appending the provided parameters.
-	 *
-	 * @param string $queryType The SQL statement type (e.g., SELECT, INSERT).
-	 * @param array $parameters Query parameters to be appended to the statement.
-	 * @return string The generated SQL query string.
-	 */
-	public function buildType(string $queryType, array $parameters): string
-	{
-		return $this->sql->statement($queryType) . ' ' .
-			($this->count($parameters) > 0 ? $this->join(' ', $parameters) : '');
-	}
+    /**
+     * Error translation surface used by ErrorTrait.
+     */
+    protected ErrorManager $errorManager;
 
-	// -------------------------------------------------------------------------
-	// UTILITY METHODS (ESCAPING)
-	// -------------------------------------------------------------------------
+    public function build(string $queryType, array $parameters, ?string $comment = null): string
+    {
+        return $this->wrapInTry(function () use ($queryType, $parameters, $comment): string {
+            $sql = $this->buildType($queryType, $parameters);
 
-	/**
-	 * Escapes and wraps SQL identifiers such as table names and aliases.
-	 *
-	 * This method ensures that SQL identifiers are properly escaped to prevent
-	 * syntax errors or security vulnerabilities.
-	 *
-	 * @param array $parameters Identifiers to escape.
-	 * @return array Escaped identifiers, enclosed in double quotes.
-	 */
-	public function escapeIdentifiers(array $parameters): array
-	{
-		return $this->map(fn($p) => '"' . $this->escapeHtml($p) . '"', $parameters);
-	}
+            if ($comment === null || $this->trimString($comment) === '') {
+                return $sql;
+            }
 
-	/**
-	 * Escapes SQL operators to ensure valid syntax and prevent injection risks.
-	 *
-	 * This method retrieves the correct SQL operator from `SQLHandler` for safe use.
-	 *
-	 * @param array $parameters Operators to escape.
-	 * @return array Escaped operators.
-	 */
-	public function escapeOperators(array $parameters): array
-	{
-		return $this->map(fn($op) => $this->sql->operator($op), $parameters);
-	}
+            return $sql . ' /*' . $this->escapeSqlComment($comment) . '*/';
+        }, 'database');
+    }
 
-	/**
-	 * Escapes SQL column names to ensure proper query execution.
-	 *
-	 * Column names are enclosed in backticks (`) to comply with SQL syntax rules.
-	 *
-	 * @param array $parameters Column names to escape.
-	 * @return array Escaped column names.
-	 */
-	public function escapeColumns(array $parameters): array
-	{
-		return $this->map(fn($col) => '`' . $this->escapeHtml($col) . '`', $parameters);
-	}
+    public function buildType(string $queryType, array $parameters): string
+    {
+        $segments = $this->filter(
+            $parameters,
+            fn(mixed $segment): bool => $this->isString($segment) && $this->trimString($segment) !== ''
+        );
 
-	/**
-	 * Escapes SQL values while preserving data integrity.
-	 *
-	 * Strings are enclosed in single quotes ('), and null values are converted to `NULL`.
-	 * This method ensures safe query execution without unintended side effects.
-	 *
-	 * @param array $parameters Values to escape.
-	 * @return array Escaped values.
-	 */
-	public function escapeValues(array $parameters): array
-	{
-		return $this->map(fn($val) =>
-			$this->isNull($val)
-				? 'NULL'
-				: ($this->isString($val)
-					? "'" . $this->escapeHtml($val) . "'"
-					: (string)$val
-				),
-			$parameters
-		);
-	}
+        return $this->trimString(
+            $this->sql->statement($queryType)
+            . ($segments === [] ? '' : ' ' . $this->implodeWith(' ', $segments))
+        );
+    }
 
-	// -------------------------------------------------------------------------
-	// PARSING METHODS – using CheckerTrait, ManipulationTrait, and ArrayTrait
-	// -------------------------------------------------------------------------
+    public function setTable(string $table): void
+    {
+        $this->table = $table;
+    }
 
-	/**
-	 * Parses SQL identifiers by ensuring they are alphabetic and converting them to uppercase.
-	 *
-	 * This method filters out empty or whitespace-only values and ensures identifiers
-	 * are properly formatted.
-	 *
-	 * @param array $parameters List of identifiers to parse.
-	 * @return array Processed identifiers in uppercase.
-	 */
-	public function parseIdentifiers(array $parameters): array
-	{
-		return $this->map(
-			fn($id) => ($this->isString($id) && $this->isAlphabetic($id))
-				? $this->toUpper($id)
-				: $id,
-			$this->filterNonEmpty(
-				$this->filter($parameters, fn($x) => $this->isString($x) && !$this->isWhitespace($x))
-			)
-		);
-	}
+    public function getTable(): string
+    {
+        return $this->table;
+    }
 
-	/**
-	 * Parses SQL operators by ensuring they are alphanumeric and converting them to lowercase.
-	 *
-	 * This method removes spaces from operators and ensures they are correctly formatted.
-	 *
-	 * @param array $parameters List of operators to parse.
-	 * @return array Processed operators in lowercase.
-	 */
-	public function parseOperators(array $parameters): array
-	{
-		return $this->map(
-			fn($op) => $this->isString($op)
-				? $this->toLower($op)
-				: $op,
-			$this->filter($parameters, fn($o) => $this->isString($o) && $this->isAlphanumeric($this->replace([' '], [''], $o)))
-		);
-	}
+    public function setValues(array $values): void
+    {
+        $this->values = $values;
+    }
 
-	/**
-	 * Parses SQL column names by replacing underscores with spaces and capitalizing words.
-	 *
-	 * Numeric column names are ignored.
-	 *
-	 * @param array $parameters List of column names to parse.
-	 * @return array Processed column names.
-	 */
-	public function parseColumns(array $parameters): array
-	{
-		return $this->map(
-			fn($c) => $this->isString($c)
-				? $this->capitalizeWords($this->replace(['_'], [' '], $this->trim($c)))
-				: $c,
-			$this->filter($parameters, fn($col) => !($this->isString($col) && $this->isNumeric($col)))
-		);
-	}
+    public function getValues(): array
+    {
+        return $this->values;
+    }
 
-	/**
-	 * Parses SQL values by handling JSON decoding, base64 decoding, and stripping slashes.
-	 *
-	 * This method ensures values are properly formatted and decoded if necessary.
-	 *
-	 * @param array $parameters List of values to parse.
-	 * @return array Processed values.
-	 */
-	public function parseValues(array $parameters): array
-	{
-		return $this->map(
-			fn($v) => $this->isString($v)
-				? ($this->isJson($v)
-					? $this->fromJson($v)
-					: ($this->isAlphanumeric($this->replace(['=', '/'], ['', ''], $v))
-						? $this->base64DecodeString($v)
-						: $this->stripSlashesFromString($v)
-					)
-				)
-				: $v,
-			$parameters
-		);
-	}
+    public function setColumns(array $columns): void
+    {
+        $this->columns = $columns;
+    }
 
-	// -------------------------------------------------------------------------
-	// PROCESSING METHODS – chaining parsing then escaping inline
-	// -------------------------------------------------------------------------
+    public function getColumns(): array
+    {
+        return $this->columns;
+    }
 
-	/**
-	 * Processes SQL identifiers by parsing them and then escaping them.
-	 *
-	 * This method ensures identifiers are unique and formatted correctly before escaping.
-	 *
-	 * @param array $parameters List of identifiers to process.
-	 * @return array Escaped identifiers.
-	 */
-	public function processIdentifiers(array $parameters): array
-	{
-		return $this->escapeIdentifiers(
-			$this->differenceByKeys(
-				$this->parseIdentifiers($parameters),
-				$this->parseIdentifiers($this->keys($parameters)),
-				fn($k1, $k2) => strcasecmp((string)$k1, (string)$k2)
-			)
-		);
-	}
+    public function setDriver(string $driver): void
+    {
+        $this->driver = $this->normalizeDriver($driver);
+    }
 
-	/**
-	 * Processes SQL operators by parsing and then escaping them.
-	 *
-	 * This method ensures operators are formatted correctly before escaping.
-	 *
-	 * @param array $parameters List of operators to process.
-	 * @return array Escaped operators.
-	 */
-	public function processOperators(array $parameters): array
-	{
-		return $this->escapeOperators(
-			$this->mergeUnique($this->parseOperators($parameters))
-		);
-	}
+    public function getDriver(): string
+    {
+        return $this->driver;
+    }
 
-	/**
-	 * Processes SQL column names by parsing and then escaping them.
-	 *
-	 * Column names are converted to uppercase before escaping.
-	 *
-	 * @param array $parameters List of column names to process.
-	 * @return array Escaped column names.
-	 */
-	public function processColumns(array $parameters): array
-	{
-		return $this->escapeColumns(
-			$this->walk(
-				$this->parseColumns($parameters),
-				fn(&$val) => $this->isString($val) ? $val = $this->toUpper($val) : $val
-			) ?: []
-		);
-	}
+    /**
+     * @return list<mixed>
+     */
+    public function getBindings(): array
+    {
+        return $this->bindings;
+    }
 
-	/**
-	 * Processes SQL values by parsing and then escaping them.
-	 *
-	 * Values are split into an array format and reduced before escaping.
-	 *
-	 * @param array $parameters List of values to process.
-	 * @return array Escaped values.
-	 */
-	public function processValues(array $parameters): array
-	{
-		return $this->escapeValues(
-			$this->splitToArray(
-				$this->reduce(
-					$this->parseValues($parameters),
-					fn($carry, $item) => $carry.($this->isArray($item)
-						? $this->toJson($item)
-						: (string)$item
-					).'|',
-					''
-				),
-				1
-			)
-		);
-	}
+    /**
+     * @param list<mixed> $bindings
+     */
+    public function setBindings(array $bindings): void
+    {
+        $this->bindings = array_values($bindings);
+    }
 
-	// -------------------------------------------------------------------------
-	// PROPERTY SETTER METHODS
-	// -------------------------------------------------------------------------
+    public function clearBindings(): void
+    {
+        $this->bindings = [];
+    }
 
-	/**
-	 * Sets the table name for the query.
-	 *
-	 * @param string $table The name of the database table.
-	 * @return void
-	 */
-	public function setTable(string $table): void
-	{
-		$this->table = $table;
-	}
+    /**
+     * @return array<int, string>
+     */
+    public function escapeIdentifiers(array $parameters): array
+    {
+        return $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), $parameters);
+    }
 
-	/**
-	 * Sets the values for the query.
-	 *
-	 * @param array $values The values to be used in the query.
-	 * @return void
-	 */
-	public function setValues(array $values): void
-	{
-		$this->values = $values;
-	}
+    /**
+     * @return array<int, string>
+     */
+    public function escapeOperators(array $parameters): array
+    {
+        return $this->map(fn(string $operator): string => $this->sql->operator($operator), $parameters);
+    }
 
-	/**
-	 * Sets the columns for the query.
-	 *
-	 * @param array $columns The column names to be used in the query.
-	 * @return void
-	 */
-	public function setColumns(array $columns): void
-	{
-		$this->columns = $columns;
-	}
+    /**
+     * @return array<int, string>
+     */
+    public function escapeColumns(array $parameters): array
+    {
+        return $this->map(fn(string $column): string => $this->quoteColumnExpression($column), $parameters);
+    }
 
-	// -------------------------------------------------------------------------
-	// PROPERTY GETTER METHODS
-	// -------------------------------------------------------------------------
+    /**
+     * @return array<int, string>
+     */
+    public function escapeValues(array $parameters): array
+    {
+        return $this->map(fn(mixed $value): string => $this->quoteLiteral($value), $parameters);
+    }
 
-	/**
-	 * Retrieves the table name associated with the query.
-	 *
-	 * @return string The table name.
-	 */
-	public function getTable(): string
-	{
-		return $this->table;
-	}
+    /**
+     * @return array<int, string>
+     */
+    public function parseIdentifiers(array $parameters): array
+    {
+        return array_values(
+            $this->filter(
+                $this->map(
+                    fn(mixed $identifier): string => $this->trimString((string) $identifier),
+                    $parameters
+                ),
+                fn(string $identifier): bool => $identifier !== ''
+            )
+        );
+    }
 
-	/**
-	 * Retrieves the values associated with the query.
-	 *
-	 * @return array The query values.
-	 */
-	public function getValues(): array
-	{
-		return $this->values;
-	}
+    /**
+     * @return array<int, string>
+     */
+    public function parseOperators(array $parameters): array
+    {
+        return array_values(
+            $this->filter(
+                $this->map(
+                    fn(mixed $operator): string => $this->trimString((string) $operator),
+                    $parameters
+                ),
+                fn(string $operator): bool => $operator !== ''
+            )
+        );
+    }
 
-	/**
-	 * Retrieves the column names associated with the query.
-	 *
-	 * @return array The column names.
-	 */
-	public function getColumns(): array
-	{
-		return $this->columns;
-	}
+    /**
+     * @return array<int, string>
+     */
+    public function parseColumns(array $parameters): array
+    {
+        return array_values(
+            $this->filter(
+                $this->map(
+                    fn(mixed $column): string => $this->trimString((string) $column),
+                    $parameters
+                ),
+                fn(string $column): bool => $column !== ''
+            )
+        );
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    public function parseValues(array $parameters): array
+    {
+        return array_values($parameters);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function processIdentifiers(array $parameters): array
+    {
+        return $this->escapeIdentifiers($this->parseIdentifiers($parameters));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function processOperators(array $parameters): array
+    {
+        return $this->escapeOperators($this->parseOperators($parameters));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function processColumns(array $parameters): array
+    {
+        return $this->escapeColumns($this->parseColumns($parameters));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function processValues(array $parameters): array
+    {
+        return $this->escapeValues($this->parseValues($parameters));
+    }
+
+    protected function normalizeDriver(string $driver): string
+    {
+        $normalized = $this->toLowerString($this->trimString($driver));
+
+        return match ($normalized) {
+            'mariadb' => 'mysql',
+            '' => 'mysql',
+            default => $normalized,
+        };
+    }
+
+    protected function quoteIdentifier(string $identifier): string
+    {
+        $identifier = $this->trimString($identifier);
+
+        if ($identifier === '*') {
+            return '*';
+        }
+
+        $segments = explode('.', $identifier);
+
+        if ($segments === []) {
+            throw $this->errorManager->resolveException('database', 'SQL identifier cannot be empty.');
+        }
+
+        return $this->implodeWith('.', $this->map(
+            function (string $segment): string {
+                if ($segment === '*') {
+                    return '*';
+                }
+
+                if ($this->matchPattern('/^[A-Za-z_][A-Za-z0-9_]*$/', $segment) !== 1) {
+                    throw $this->errorManager->resolveException(
+                        'database',
+                        sprintf('Invalid SQL identifier segment [%s].', $segment)
+                    );
+                }
+
+                return $this->wrapIdentifierSegment($segment);
+            },
+            $segments
+        ));
+    }
+
+    protected function quoteColumnExpression(string $column): string
+    {
+        $column = $this->trimString($column);
+
+        if ($column === '') {
+            throw $this->errorManager->resolveException('database', 'Column expression cannot be empty.');
+        }
+
+        if ($column === '*' || $this->isSimpleIdentifier($column) || $this->isQualifiedIdentifier($column)) {
+            return $this->quoteIdentifier($column);
+        }
+
+        if (preg_match('/^(.+)\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/i', $column, $matches) === 1) {
+            return $this->quoteExpression($matches[1]) . ' AS ' . $this->quoteIdentifier($matches[2]);
+        }
+
+        return $this->quoteExpression($column);
+    }
+
+    protected function quoteExpression(string $expression): string
+    {
+        $expression = $this->trimString($expression);
+
+        if ($expression === '') {
+            throw $this->errorManager->resolveException('database', 'SQL expression cannot be empty.');
+        }
+
+        if ($this->isSimpleIdentifier($expression) || $this->isQualifiedIdentifier($expression) || $expression === '*') {
+            return $this->quoteIdentifier($expression);
+        }
+
+        return $expression;
+    }
+
+    protected function wrapIdentifierSegment(string $segment): string
+    {
+        return match ($this->driver) {
+            'pgsql', 'sqlite' => '"' . $segment . '"',
+            'sqlsrv' => '[' . $segment . ']',
+            default => '`' . $segment . '`',
+        };
+    }
+
+    protected function isSimpleIdentifier(string $value): bool
+    {
+        return $this->matchPattern('/^[A-Za-z_][A-Za-z0-9_]*$/', $value) === 1;
+    }
+
+    protected function isQualifiedIdentifier(string $value): bool
+    {
+        return $this->matchPattern('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*|\.\*)+$/', $value) === 1;
+    }
+
+    /**
+     * @param list<mixed> $bindings
+     */
+    protected function mergeBindings(array $bindings): void
+    {
+        array_push($this->bindings, ...$bindings);
+    }
+
+    protected function bindValue(mixed $value): string
+    {
+        $this->bindings[] = $value;
+
+        return '?';
+    }
+
+    protected function bindValues(array $values): string
+    {
+        if ($values === []) {
+            return '';
+        }
+
+        return $this->implodeWith(
+            ', ',
+            $this->map(fn(mixed $value): string => $this->bindValue($value), array_values($values))
+        );
+    }
+
+    protected function normalizeDirection(string $direction): string
+    {
+        $normalized = $this->toUpperString($this->trimString($direction));
+
+        return match ($normalized) {
+            'DESC' => 'DESC',
+            default => 'ASC',
+        };
+    }
+
+    protected function quoteLiteral(mixed $value): string
+    {
+        return match (true) {
+            $value === null => 'NULL',
+            $this->isBool($value) => $value ? '1' : '0',
+            $this->isInt($value), $this->isFloat($value) => (string) $value,
+            $this->isArray($value) => "'" . str_replace("'", "''", json_encode($value, JSON_THROW_ON_ERROR)) . "'",
+            default => "'" . str_replace("'", "''", (string) $value) . "'",
+        };
+    }
+
+    protected function getKeys(array $data): array
+    {
+        return array_keys($data);
+    }
+
+    protected function getValuesList(array $data): array
+    {
+        return array_values($data);
+    }
+
+    protected function isAssociativeArray(array $value): bool
+    {
+        if ($value === []) {
+            return false;
+        }
+
+        return array_keys($value) !== range(0, count($value) - 1);
+    }
+
+    private function escapeSqlComment(string $comment): string
+    {
+        return str_replace(['/*', '*/'], '', $comment);
+    }
 }

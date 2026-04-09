@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Traits\Query;
 
 trait SchemaQueryTrait
@@ -13,22 +15,22 @@ trait SchemaQueryTrait
 
     public function addColumn(string $table, string $column, string $definition): self
     {
-        return $this->chainSchema(fn() => $this->processColumn($table, $column, $definition));
+        return $this->chainSchema(fn() => $this->processColumn($table, $column, $definition, 'add'));
     }
 
     public function removeColumn(string $table, string $column): self
     {
-        return $this->chainSchema(fn() => $this->processColumn($table, $column));
+        return $this->chainSchema(fn() => $this->processColumn($table, $column, null, 'remove'));
     }
 
     public function renameColumn(string $table, string $oldName, string $newName): self
     {
-        return $this->chainSchema(fn() => $this->processColumn($table, $oldName, $newName));
+        return $this->chainSchema(fn() => $this->processColumn($table, $oldName, $newName, 'rename'));
     }
 
     public function modifyColumn(string $table, string $column, string $newDefinition): self
     {
-        return $this->chainSchema(fn() => $this->processColumn($table, $column, $newDefinition));
+        return $this->chainSchema(fn() => $this->processColumn($table, $column, $newDefinition, 'modify'));
     }
 
     public function createTable(string $table, array $columns, array $constraints = []): self
@@ -155,12 +157,14 @@ trait SchemaQueryTrait
 
     public function setDefault(string $table, string $column, mixed $defaultValue): self
     {
-        return $this->chainSchema(fn() => $this->processColumn($table, $column, (string) $defaultValue));
+        return $this->chainSchema(
+            fn() => $this->processColumn($table, $column, $this->compileDefaultValue($defaultValue), 'default')
+        );
     }
 
     public function dropDefault(string $table, string $column): self
     {
-        return $this->chainSchema(fn() => $this->processColumn($table, $column));
+        return $this->chainSchema(fn() => $this->processColumn($table, $column, null, 'dropDefault'));
     }
 
     public function createView(string $viewName, string $selectQuery): self

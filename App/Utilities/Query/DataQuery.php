@@ -1,446 +1,1104 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Query;
 
 use App\Abstracts\Database\Query;
 use App\Utilities\Traits\Query\DataQueryTrait;
 
 /**
- * DataQuery Class
+ * Parameterized SQL data query builder.
  *
- * Extends the base Query class and incorporates additional functionality
- * for handling data-related SQL queries.
+ * This builder is intentionally framework-level infrastructure:
+ * - fluent trait methods mutate internal state
+ * - SQL is compiled lazily
+ * - values are always emitted as bindings where appropriate
+ * - identifier quoting is driver-aware and shared through Query
  */
 class DataQuery extends Query
 {
-	use DataQueryTrait;
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING CRUD OPERATIONS
-	// ─────────────────────────────────────────────────────────────
+    use DataQueryTrait;
 
-	/**
-	 * Processes data for an INSERT operation.
-	 *
-	 * Extracts columns and values from the provided data array and applies the necessary
-	 * transformations to ensure they are properly formatted for SQL insertion.
-	 *
-	 * @param array $data The data to be inserted (associative array: column => value).
-	 * @return array Processed columns and values ready for an INSERT query.
-	 */
-	public function processInsert(array $data): array {
-		return $this->wrapInTry(fn() => [
-			'columns' => $this->processColumns($this->keys($data)),
-			'values'  => $this->processValues($this->values($data))
-		], 'Failed to process insert data.');
-	}
+    protected string $operation = 'select';
 
-	/**
-	 * Builds an SQL INSERT query string from the provided data.
-	 *
-	 * Constructs an INSERT INTO statement with dynamically processed column names
-	 * and values.
-	 *
-	 * @param array $data The data to be inserted.
-	 * @return string The constructed SQL INSERT query string.
-	 */
-	public function buildInsert(array $data): string {
-		return $this->wrapInTry(fn() =>
-			$this->sql->statement('insert').' '.
-			$this->sql->statement('into').' '.
-			$this->getTable().' ('.
-			$this->join(', ', $this->processColumns($this->keys($data))).') '.
-			$this->sql->clause('values').' ('.
-			$this->join(', ', $this->processValues($this->values($data))).')'
-		, 'Failed to build insert query.');
-	}
+    /**
+     * @var array<int, string>
+     */
+    protected array $selectColumns = ['*'];
 
-	/**
-	 * Processes columns for a SELECT query.
-	 *
-	 * Ensures that column names are properly formatted before being used in a SELECT statement.
-	 *
-	 * @param array $columns The columns to select.
-	 * @return array Processed column names.
-	 */
-	public function processSelect(array $columns): array {
-		return $this->wrapInTry(fn() => ['columns' => $this->processColumns($columns)], 'Failed to process select columns.');
-	}
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $insertData = [];
 
-	/**
-	 * Builds an SQL SELECT query string.
-	 *
-	 * Constructs a SELECT statement with the provided column names and table reference.
-	 *
-	 * @param array $columns The columns to select.
-	 * @return string The constructed SQL SELECT query.
-	 */
-	public function buildSelect(array $columns): string {
-		return $this->wrapInTry(fn() =>
-			$this->sql->statement('select').' '.
-			$this->join(', ', $this->processColumns($columns)).' '.
-			$this->sql->clause('from').' '.$this->getTable()
-		, 'Failed to build select query.');
-	}
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $updateData = [];
 
-	/**
-	 * Processes data for an UPDATE operation.
-	 *
-	 * Converts column-value pairs into SQL assignment expressions (`column = value`)
-	 * ensuring safe escaping and formatting.
-	 *
-	 * @param array $data The data to be updated (associative array: column => value).
-	 * @return array Processed update assignments.
-	 */
-	public function processUpdate(array $data): array {
-		return $this->wrapInTry(fn() => [
-			'assign' => $this->join(', ', $this->map(
-				fn($col) => $this->processColumns([$col])[0].'='.
-						   $this->processValues([$data[$col]])[0],
-				$this->keys($data)
-			))
-		], 'Failed to process update data.');
-	}
+    /**
+     * @var list<mixed>
+     */
+    protected array $whereConditions = [];
 
-	/**
-	 * Builds an SQL UPDATE query string.
-	 *
-	 * Constructs an UPDATE statement with dynamically processed column-value assignments.
-	 *
-	 * @param array $data The data to be updated.
-	 * @return string The constructed SQL UPDATE query.
-	 */
-	public function buildUpdate(array $data): string {
-		return $this->wrapInTry(fn() =>
-			$this->sql->statement('update').' '.
-			$this->getTable().' '.
-			$this->sql->clause('set').' '.
-			$this->join(', ', $this->map(
-				fn($col) => $this->processColumns([$col])[0].'='.
-						   $this->processValues([$data[$col]])[0],
-				$this->keys($data)
-			))
-		, 'Failed to build update query.');
-	}
+    /**
+     * @var list<mixed>
+     */
+    protected array $havingConditions = [];
 
-	/**
-	 * Processes data for a DELETE operation.
-	 *
-	 * Simply retrieves the table name since DELETE queries do not require additional parameters.
-	 *
-	 * @return array Processed delete information with the table reference.
-	 */
-	public function processDelete(): array {
-		return $this->wrapInTry(fn() => ['tbl' => $this->getTable()], 'Failed to process delete data.');
-	}
+    /**
+     * @var list<mixed>
+     */
+    protected array $pendingJoinConditions = [];
 
-	/**
-	 * Builds an SQL DELETE query string.
-	 *
-	 * Constructs a DELETE statement targeting the specified table.
-	 *
-	 * @return string The constructed SQL DELETE query.
-	 */
-	public function buildDelete(): string {
-		return $this->wrapInTry(fn() =>
-			$this->sql->statement('delete').' '.
-			$this->sql->clause('from').' '.$this->getTable()
-		, 'Failed to build delete query.');
-	}
+    /**
+     * @var list<array{type:string,table:string,on:list<mixed>,cols:array<int, string>}>
+     */
+    protected array $joins = [];
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING GENERAL CONDITIONS
-	// ─────────────────────────────────────────────────────────────
+    /**
+     * @var list<array<string, mixed>>
+     */
+    protected array $orderings = [];
 
-	/**
-	 * Processes general SQL conditions for WHERE clauses.
-	 *
-	 * This method iterates through the provided conditions, determining if they are
-	 * associative arrays (nested conditions), arrays containing column/operator/value triplets,
-	 * or simple string conditions. The conditions are formatted accordingly.
-	 *
-	 * @param array $conditions The conditions to process.
-	 * @return array Processed conditions formatted for SQL queries.
-	 */
-	public function processConditions(array $conditions): array {
-		return $this->wrapInTry(fn() =>
-			$this->map(fn($c) =>
-				($this->isArray($c) && $this->isAssoc($c))
-					? $this->join(' '.$this->sql->operator(key($c)).' ', $this->processConditions(current($c)))
-					: ($this->isArray($c) && $this->count($c) >= 3 && $this->isString($c[0])
-						? [$this->processColumns([$c[0]])[0],
-						   $this->processOperators([$c[1]])[0],
-						   $this->processValues([$c[2]])[0]]
-						: (string)$c
-					)
-			, $conditions)
-		, 'Failed to process conditions.');
-	}
+    /**
+     * @var list<array<string, mixed>>
+     */
+    protected array $groupings = [];
 
-	/**
-	 * Builds an SQL WHERE clause from the given conditions.
-	 *
-	 * Uses `processConditions()` to transform input conditions and constructs a
-	 * WHERE clause string using the `AND` operator by default.
-	 *
-	 * @param array $conditions The conditions for the WHERE clause.
-	 * @return string The constructed SQL WHERE clause.
-	 */
-	public function buildConditions(array $conditions): string {
-		return $this->wrapInTry(fn() =>
-			$this->isEmpty($conditions)
-				? ''
-				: $this->sql->clause('where').' '.
-				  $this->join(' '.$this->sql->operator('and').' ', $this->processConditions($conditions))
-		, 'Failed to build conditions.');
-	}
+    /**
+     * @var list<string>
+     */
+    protected array $locking = [];
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING SPECIALIZED CONDITIONS (Hierarchy, Recursive, Time-based)
-	// ─────────────────────────────────────────────────────────────
+    /**
+     * @var list<array{type:string,query:mixed}>
+     */
+    protected array $setOperations = [];
 
-	/**
-	 * Processes specialized conditions such as hierarchical, recursive, or time-based filters.
-	 *
-	 * Ensures that the provided conditions are properly formatted as an array.
-	 *
-	 * @param array $specialConditions The specialized conditions to process.
-	 * @return array Processed specialized conditions.
-	 */
-	public function processSpecialConditions(array $specialConditions): array {
-		return $this->wrapInTry(fn() => $this->isArray($specialConditions)
-			? $specialConditions
-			: [$specialConditions]
-		, 'Failed to process special conditions.');
-	}
+    /**
+     * @var list<array{alias:string,query:mixed}>
+     */
+    protected array $applyClauses = [];
 
-	/**
-	 * Builds an SQL query segment for specialized conditions.
-	 *
-	 * Processes special conditions and constructs a query segment prefixed with a comment.
-	 * The `AND` operator is used for combining conditions.
-	 *
-	 * @param array $specialConditions The specialized conditions for the query.
-	 * @return string The constructed SQL query segment.
-	 */
-	public function buildSpecialConditions(array $specialConditions): string {
-		return $this->wrapInTry(fn() =>
-			$this->isEmpty($specialConditions)
-				? ''
-				: ' /*special*/ '.$this->join(' '.$this->sql->operator('and').' ',
-					  $this->processSpecialConditions($specialConditions))
-		, 'Failed to build special conditions.');
-	}
+    /**
+     * @var list<array<string, mixed>>
+     */
+    protected array $specialConditions = [];
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING LOCKING AND CONCURRENCY
-	// ─────────────────────────────────────────────────────────────
+    /**
+     * @var list<string>
+     */
+    protected array $returningColumns = [];
 
-	/**
-	 * Processes SQL locking options.
-	 *
-	 * This method ensures that the provided locking options are properly formatted.
-	 *
-	 * @param array $lockingOptions The locking options to process.
-	 * @return array The processed locking options.
-	 */
-	public function processLocking(array $lockingOptions): array {
-		return $this->wrapInTry(fn() => $lockingOptions, 'Failed to process locking options.');
-	}
+    /**
+     * @var list<string>
+     */
+    protected array $distinctOnColumns = [];
 
-	/**
-	 * Builds an SQL locking clause.
-	 *
-	 * Constructs a query segment based on the provided locking options.
-	 *
-	 * @param array $lockingOptions The locking options to apply.
-	 * @return string The constructed locking clause.
-	 */
-	public function buildLocking(array $lockingOptions): string {
-		return $this->wrapInTry(fn() =>
-			$this->isEmpty($lockingOptions)
-				? ''
-				: $this->join(' ', $lockingOptions)
-		, 'Failed to build locking options.');
-	}
+    protected ?int $limitValue = null;
+    protected ?int $offsetValue = null;
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING JOIN OPERATIONS
-	// ─────────────────────────────────────────────────────────────
+    public function __construct(
+        ?\App\Utilities\Handlers\SQLHandler $sql = null,
+        ?\App\Utilities\Managers\System\ErrorManager $errorManager = null,
+        string $table = '',
+        array $columns = [],
+        array $values = [],
+        string $driver = 'mysql'
+    ) {
+        parent::__construct($sql, $errorManager, $table, $columns, $values, $driver);
 
-	/**
-	 * Processes SQL JOIN operations.
-	 *
-	 * Formats JOIN clauses by processing table names, join conditions, and selected columns.
-	 *
-	 * @param array $joins The join definitions (associative array: type, table, on, cols).
-	 * @return array Processed JOIN definitions.
-	 */
-	public function processJoins(array $joins): array {
-		return $this->wrapInTry(fn() =>
-			$this->map(fn($j) => [
-				'type'  => $j['type'],
-				'table' => $this->processIdentifiers([$j['table']])[0],
-				'on'    => $j['on'] ?? [],
-				'cols'  => $j['cols'] ?? []
-			], $joins)
-		, 'Failed to process joins.');
-	}
+        if ($columns !== []) {
+            $this->selectColumns = $columns;
+        }
+    }
 
-	/**
-	 * Builds SQL JOIN clauses.
-	 *
-	 * Constructs JOIN statements by processing table names, conditions, and columns.
-	 *
-	 * @param array $joins The join definitions to build into SQL clauses.
-	 * @return string The constructed JOIN SQL clauses.
-	 */
-	public function buildJoins(array $joins): string {
-		return $this->wrapInTry(fn() =>
-			$this->join(' ', $this->map(fn($j) =>
-				$this->sql->clause($j['type']).' '.$j['table'].
-				(!$this->isEmpty($j['on'])
-					? ' '.$this->buildConditions($j['on'])
-					: ''
-				).
-				(!$this->isEmpty($j['cols'])
-					? ' ('.$this->join(', ', $this->processColumns($j['cols'])).')'
-					: ''
-				)
-			, $this->processJoins($joins)))
-		, 'Failed to build joins.');
-	}
+    /**
+     * @return array{sql:string, bindings:list<mixed>}
+     */
+    public function toExecutable(): array
+    {
+        $sql = $this->toSql();
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING ORDERING & GROUPING
-	// ─────────────────────────────────────────────────────────────
+        return [
+            'sql' => $sql,
+            'bindings' => $this->getBindings(),
+        ];
+    }
 
-	/**
-	 * Processes ordering options for SQL queries.
-	 *
-	 * This method ensures that the ordering options are properly formatted.
-	 *
-	 * @param array $orderingOptions The ordering options to process.
-	 * @return array The processed ordering options.
-	 */
-	public function processOrdering(array $orderingOptions): array {
-		return $this->wrapInTry(fn() => $orderingOptions, 'Failed to process ordering options.');
-	}
+    public function toSql(): string
+    {
+        $this->clearBindings();
 
-	/**
-	 * Builds an SQL ORDER BY clause.
-	 *
-	 * Constructs an ORDER BY clause using the provided ordering options.
-	 *
-	 * @param array $orderingOptions The ordering options to apply.
-	 * @return string The constructed ORDER BY clause.
-	 */
-	public function buildOrdering(array $orderingOptions): string {
-		return $this->wrapInTry(fn() =>
-			$this->isEmpty($orderingOptions)
-				? ''
-				: $this->sql->clause('orderby').' '.
-				  $this->join(', ', $this->processOrdering($orderingOptions))
-		, 'Failed to build ordering.');
-	}
+        return match ($this->operation) {
+            'insert' => $this->compileInsertStatement(),
+            'update' => $this->compileUpdateStatement(),
+            'delete' => $this->compileDeleteStatement(),
+            default => $this->compileSelectStatement(),
+        };
+    }
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING PAGINATION
-	// ─────────────────────────────────────────────────────────────
+    public function processInsert(array $data): array
+    {
+        $this->operation = 'insert';
+        $this->insertData = $data;
+        $this->columns = $this->getKeys($data);
+        $this->values = $this->getValuesList($data);
 
-	/**
-	 * Processes pagination settings for SQL queries.
-	 *
-	 * Stores the provided limit and offset values in an array for later use.
-	 *
-	 * @param int $limit The maximum number of records to retrieve.
-	 * @param int $offset The number of records to skip before retrieving results.
-	 * @return array The processed pagination parameters.
-	 */
-	public function processPagination(int $limit, int $offset): array {
-		return $this->wrapInTry(fn() => ['limit' => $limit, 'offset' => $offset], 'Failed to process pagination.');
-	}
+        return [
+            'columns' => $this->processColumns($this->columns),
+            'values' => $this->values,
+        ];
+    }
 
-	/**
-	 * Builds an SQL LIMIT and OFFSET clause for pagination.
-	 *
-	 * Constructs pagination clauses based on the given limit and offset values.
-	 *
-	 * @param int $limit The maximum number of records to retrieve.
-	 * @param int $offset The number of records to skip.
-	 * @return string The constructed SQL pagination clause.
-	 */
-	public function buildPagination(int $limit, int $offset): string {
-		return $this->wrapInTry(fn() =>
-			($limit > 0 ? ' '.$this->sql->clause('limit').' '.$limit : '')
-			.($offset > 0 ? ' '.$this->sql->clause('offset').' '.$offset : '')
-		, 'Failed to build pagination.');
-	}
+    public function buildInsert(array $data): string
+    {
+        $this->processInsert($data);
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING SET OPERATIONS
-	// ─────────────────────────────────────────────────────────────
+        return $this->compileInsertStatement();
+    }
 
-	/**
-	 * Processes set operations such as UNION, INTERSECT, and EXCEPT.
-	 *
-	 * Ensures that the provided set operations are stored as an array.
-	 *
-	 * @param array $setOperations The set operations to process.
-	 * @return array The processed set operations.
-	 */
-	public function processSet(array $setOperations): array {
-		return $this->wrapInTry(fn() => $this->isArray($setOperations) ? $setOperations : [$setOperations], 'Failed to process set operations.');
-	}
+    public function processSelect(array $columns): array
+    {
+        $this->operation = 'select';
+        $this->selectColumns = $columns === [] ? ['*'] : $columns;
+        $this->columns = $this->selectColumns;
 
-	/**
-	 * Builds an SQL set operation clause.
-	 *
-	 * Constructs a query segment for set operations by processing each operation
-	 * and ensuring valid SQL syntax.
-	 *
-	 * @param array $setOperations The set operations to build (e.g., UNION, INTERSECT).
-	 * @return string The constructed set operation clause.
-	 */
-	public function buildSet(array $setOperations): string {
-		return $this->wrapInTry(fn() =>
-			$this->isEmpty($setOperations)
-				? ''
-				: $this->join(' ', $this->map(fn($op) =>
-					$this->sql->clause($this->isString($op) ? $op : 'union'),
-					$this->processSet($setOperations)
-				))
-		, 'Failed to build set operations.');
-	}
+        return ['columns' => $this->processColumns($this->selectColumns)];
+    }
 
-	// ─────────────────────────────────────────────────────────────
-	// PROCESSING & BUILDING APPLY CLAUSES
-	// ─────────────────────────────────────────────────────────────
+    public function buildSelect(array $columns): string
+    {
+        $this->processSelect($columns);
 
-	/**
-	 * Processes APPLY clauses used in SQL queries.
-	 *
-	 * Ensures that the provided APPLY clauses are properly formatted.
-	 *
-	 * @param array $apply The APPLY clauses to process.
-	 * @return array The processed APPLY clauses.
-	 */
-	public function processApplyClauses(array $apply): array {
-		return $this->wrapInTry(fn() => $apply, 'Failed to process apply clauses.');
-	}
+        return $this->compileSelectStatement();
+    }
 
-	/**
-	 * Builds an SQL APPLY clause.
-	 *
-	 * Constructs an APPLY clause by processing and joining the provided clauses.
-	 *
-	 * @param array $applyClauses The APPLY clauses to build.
-	 * @return string The constructed APPLY clause.
-	 */
-	public function buildApply(array $applyClauses): string {
-		return $this->wrapInTry(fn() =>
-			$this->isEmpty($applyClauses)
-				? ''
-				: $this->join(' ', $this->processApplyClauses($applyClauses))
-		, 'Failed to build apply clauses.');
-	}
+    public function processUpdate(array $data): array
+    {
+        $this->operation = 'update';
+        $this->updateData = $data;
+        $this->columns = $this->getKeys($data);
+        $this->values = $this->getValuesList($data);
+
+        return ['assignments' => $data];
+    }
+
+    public function buildUpdate(array $data): string
+    {
+        $this->processUpdate($data);
+
+        return $this->compileUpdateStatement();
+    }
+
+    public function processDelete(): array
+    {
+        $this->operation = 'delete';
+
+        return ['table' => $this->getTable()];
+    }
+
+    public function buildDelete(): string
+    {
+        $this->processDelete();
+
+        return $this->compileDeleteStatement();
+    }
+
+    public function processConditions(array $conditions, string $target = 'where'): array
+    {
+        return $this->wrapInTry(function () use ($conditions, $target): array {
+            $normalizedTarget = $this->toLowerString($this->trimString($target));
+
+            return match ($normalizedTarget) {
+                'having' => $this->havingConditions = array_merge($this->havingConditions, $conditions),
+                'on' => $this->pendingJoinConditions = array_merge($this->pendingJoinConditions, $conditions),
+                default => $this->whereConditions = array_merge($this->whereConditions, $conditions),
+            };
+        }, 'database');
+    }
+
+    public function buildConditions(array $conditions): string
+    {
+        return $this->wrapInTry(function () use ($conditions): string {
+            $compiled = $this->compileConditionList($conditions, 'where');
+
+            return $compiled === '' ? '' : $this->sql->clause('where') . ' ' . $compiled;
+        }, 'database');
+    }
+
+    public function processSpecialConditions(array $specialConditions): array
+    {
+        foreach ($specialConditions as $specialCondition) {
+            if (($specialCondition['type'] ?? null) === 'distinctOn') {
+                $this->distinctOnColumns = array_merge(
+                    $this->distinctOnColumns,
+                    array_values($specialCondition['columns'] ?? [])
+                );
+                continue;
+            }
+
+            $this->specialConditions[] = $specialCondition;
+        }
+
+        return $this->specialConditions;
+    }
+
+    public function buildSpecialConditions(array $specialConditions): string
+    {
+        $compiled = $this->compileSpecialConditions($specialConditions);
+
+        return $compiled === [] ? '' : $this->implodeWith(' ', $compiled);
+    }
+
+    public function processLocking(array $lockingOptions): array
+    {
+        $this->locking = array_merge(
+            $this->locking,
+            $this->map(fn(mixed $option): string => $this->trimString((string) $option), $lockingOptions)
+        );
+
+        return $this->locking;
+    }
+
+    public function buildLocking(array $lockingOptions): string
+    {
+        $processed = $this->processLocking($lockingOptions);
+
+        return $processed === [] ? '' : $this->implodeWith(' ', $processed);
+    }
+
+    public function processJoins(array $joins): array
+    {
+        foreach ($joins as $join) {
+            $effectiveConditions = $join['on'] ?? [];
+
+            if ($this->pendingJoinConditions !== []) {
+                $effectiveConditions = array_merge($this->pendingJoinConditions, $effectiveConditions);
+                $this->pendingJoinConditions = [];
+            }
+
+            $columns = array_values($join['cols'] ?? []);
+
+            if ($columns !== []) {
+                $this->selectColumns = array_values(array_unique(array_merge($this->selectColumns, $columns)));
+            }
+
+            $this->joins[] = [
+                'type' => (string) ($join['type'] ?? 'join'),
+                'table' => (string) ($join['table'] ?? ''),
+                'on' => array_values($effectiveConditions),
+                'cols' => $columns,
+            ];
+        }
+
+        return $this->joins;
+    }
+
+    public function buildJoins(array $joins): string
+    {
+        $processed = $this->processJoins($joins);
+
+        return $processed === [] ? '' : $this->compileJoinClause($processed);
+    }
+
+    public function processOrdering(array $orderingOptions): array
+    {
+        foreach ($orderingOptions as $orderingOption) {
+            $type = $orderingOption['type'] ?? 'order';
+
+            if ($type === 'order') {
+                $this->orderings[] = $orderingOption;
+                continue;
+            }
+
+            $this->groupings[] = $orderingOption;
+        }
+
+        return array_merge($this->groupings, $this->orderings);
+    }
+
+    public function buildOrdering(array $orderingOptions): string
+    {
+        $this->processOrdering($orderingOptions);
+
+        return $this->compileOrderClause();
+    }
+
+    public function processPagination(int $limit, int $offset): array
+    {
+        if ($limit > 0) {
+            $this->limitValue = $limit;
+        }
+
+        if ($offset > 0 || ($limit === 0 && $offset === 0 && $this->offsetValue !== null)) {
+            $this->offsetValue = $offset;
+        }
+
+        return [
+            'limit' => $this->limitValue,
+            'offset' => $this->offsetValue,
+        ];
+    }
+
+    public function buildPagination(int $limit, int $offset): string
+    {
+        $this->processPagination($limit, $offset);
+
+        return $this->compilePaginationClause();
+    }
+
+    public function processSet(array $setOperations): array
+    {
+        foreach ($setOperations as $setOperation) {
+            if ($this->isAssociativeArray($setOperation)) {
+                $this->setOperations[] = [
+                    'type' => (string) ($setOperation['type'] ?? 'union'),
+                    'query' => $setOperation['query'] ?? '',
+                ];
+                continue;
+            }
+
+            if ($this->isArray($setOperation) && count($setOperation) >= 2) {
+                $this->setOperations[] = [
+                    'type' => (string) $setOperation[0],
+                    'query' => $setOperation[1],
+                ];
+            }
+        }
+
+        return $this->setOperations;
+    }
+
+    public function buildSet(array $setOperations): string
+    {
+        $this->processSet($setOperations);
+
+        return $this->compileSetClause();
+    }
+
+    public function processApplyClauses(array $apply): array
+    {
+        foreach ($apply as $clause) {
+            if ($this->isAssociativeArray($clause)) {
+                $this->applyClauses[] = [
+                    'alias' => (string) ($clause['alias'] ?? ''),
+                    'query' => $clause['query'] ?? '',
+                ];
+                continue;
+            }
+
+            if ($this->isArray($clause) && count($clause) >= 2) {
+                $this->applyClauses[] = [
+                    'alias' => (string) $clause[0],
+                    'query' => $clause[1],
+                ];
+            }
+        }
+
+        return $this->applyClauses;
+    }
+
+    public function buildApply(array $applyClauses): string
+    {
+        $this->processApplyClauses($applyClauses);
+
+        return $this->compileWithClause();
+    }
+
+    public function processReturning(array $columns): array
+    {
+        $this->returningColumns = array_values(array_merge($this->returningColumns, $columns));
+
+        return $this->returningColumns;
+    }
+
+    private function compileSelectStatement(): string
+    {
+        $segments = [];
+        $with = $this->compileWithClause();
+
+        if ($with !== '') {
+            $segments[] = $with;
+        }
+
+        $selectPrefix = $this->sql->statement('select');
+
+        if ($this->distinctOnColumns !== []) {
+            $selectPrefix .= ' ' . $this->sql->clause('distinctOn')
+                . ' (' . $this->compileColumnList($this->distinctOnColumns) . ')';
+        }
+
+        $segments[] = $selectPrefix . ' ' . $this->compileColumnList($this->selectColumns);
+
+        if ($this->getTable() !== '') {
+            $segments[] = $this->sql->clause('from') . ' ' . $this->quoteIdentifier($this->getTable());
+        }
+
+        $joinClause = $this->compileJoinClause($this->joins);
+
+        if ($joinClause !== '') {
+            $segments[] = $joinClause;
+        }
+
+        $whereClause = $this->compileWhereClause();
+
+        if ($whereClause !== '') {
+            $segments[] = $whereClause;
+        }
+
+        $specialClause = $this->buildSpecialConditions($this->specialConditions);
+
+        if ($specialClause !== '') {
+            $segments[] = $specialClause;
+        }
+
+        $groupClause = $this->compileGroupClause();
+
+        if ($groupClause !== '') {
+            $segments[] = $groupClause;
+        }
+
+        $havingClause = $this->compileHavingClause();
+
+        if ($havingClause !== '') {
+            $segments[] = $havingClause;
+        }
+
+        $setClause = $this->compileSetClause();
+
+        if ($setClause !== '') {
+            $segments[] = $setClause;
+        }
+
+        $orderClause = $this->compileOrderClause();
+
+        if ($orderClause !== '') {
+            $segments[] = $orderClause;
+        }
+
+        $paginationClause = $this->compilePaginationClause();
+
+        if ($paginationClause !== '') {
+            $segments[] = $paginationClause;
+        }
+
+        $lockingClause = $this->locking === [] ? '' : $this->implodeWith(' ', $this->locking);
+
+        if ($lockingClause !== '') {
+            $segments[] = $lockingClause;
+        }
+
+        return $this->trimString($this->implodeWith(' ', $segments));
+    }
+
+    private function compileInsertStatement(): string
+    {
+        if ($this->getTable() === '') {
+            throw $this->errorManager->resolveException('database', 'Cannot build insert query without a table.');
+        }
+
+        if ($this->insertData === []) {
+            throw $this->errorManager->resolveException('database', 'Cannot build insert query without values.');
+        }
+
+        $columns = $this->getKeys($this->insertData);
+        $values = $this->getValuesList($this->insertData);
+        $segments = [
+            $this->sql->statement('insert'),
+            $this->sql->statement('into'),
+            $this->quoteIdentifier($this->getTable()),
+            '(' . $this->compileIdentifierList($columns) . ')',
+            $this->sql->clause('values'),
+            '(' . $this->bindValues($values) . ')',
+        ];
+
+        $returning = $this->compileReturningClause();
+
+        if ($returning !== '') {
+            $segments[] = $returning;
+        }
+
+        return $this->trimString($this->implodeWith(' ', $segments));
+    }
+
+    private function compileUpdateStatement(): string
+    {
+        if ($this->getTable() === '') {
+            throw $this->errorManager->resolveException('database', 'Cannot build update query without a table.');
+        }
+
+        if ($this->updateData === []) {
+            throw $this->errorManager->resolveException('database', 'Cannot build update query without assignments.');
+        }
+
+        $assignments = [];
+
+        foreach ($this->updateData as $column => $value) {
+            $assignments[] = $this->quoteIdentifier((string) $column) . ' = ' . $this->bindValue($value);
+        }
+
+        $segments = [
+            $this->sql->statement('update'),
+            $this->quoteIdentifier($this->getTable()),
+            $this->sql->clause('set'),
+            $this->implodeWith(', ', $assignments),
+        ];
+
+        $whereClause = $this->compileWhereClause();
+
+        if ($whereClause !== '') {
+            $segments[] = $whereClause;
+        }
+
+        $returning = $this->compileReturningClause();
+
+        if ($returning !== '') {
+            $segments[] = $returning;
+        }
+
+        return $this->trimString($this->implodeWith(' ', $segments));
+    }
+
+    private function compileDeleteStatement(): string
+    {
+        if ($this->getTable() === '') {
+            throw $this->errorManager->resolveException('database', 'Cannot build delete query without a table.');
+        }
+
+        $segments = [
+            $this->sql->statement('delete'),
+            $this->sql->clause('from'),
+            $this->quoteIdentifier($this->getTable()),
+        ];
+
+        $whereClause = $this->compileWhereClause();
+
+        if ($whereClause !== '') {
+            $segments[] = $whereClause;
+        }
+
+        $returning = $this->compileReturningClause();
+
+        if ($returning !== '') {
+            $segments[] = $returning;
+        }
+
+        return $this->trimString($this->implodeWith(' ', $segments));
+    }
+
+    private function compileWhereClause(): string
+    {
+        $compiled = $this->compileConditionList($this->whereConditions, 'where');
+
+        return $compiled === '' ? '' : $this->sql->clause('where') . ' ' . $compiled;
+    }
+
+    private function compileHavingClause(): string
+    {
+        $compiled = $this->compileConditionList($this->havingConditions, 'having');
+
+        return $compiled === '' ? '' : $this->sql->clause('having') . ' ' . $compiled;
+    }
+
+    /**
+     * @param list<mixed> $conditions
+     */
+    private function compileConditionList(array $conditions, string $context, string $joiner = 'AND'): string
+    {
+        $compiled = [];
+
+        foreach ($conditions as $condition) {
+            $fragment = $this->compileCondition($condition, $context);
+
+            if ($fragment !== '') {
+                $compiled[] = $fragment;
+            }
+        }
+
+        return $compiled === [] ? '' : $this->implodeWith(' ' . $joiner . ' ', $compiled);
+    }
+
+    private function compileCondition(mixed $condition, string $context): string
+    {
+        if ($this->isString($condition)) {
+            return $this->trimString($condition);
+        }
+
+        if (!$this->isArray($condition) || $condition === []) {
+            return '';
+        }
+
+        if ($this->isAssociativeArray($condition) && count($condition) === 1) {
+            $logic = (string) array_key_first($condition);
+            $nestedConditions = array_values($condition)[0];
+
+            if (!$this->isArray($nestedConditions)) {
+                return '';
+            }
+
+            return $this->compileLogicalCondition($logic, $nestedConditions, $context);
+        }
+
+        return $this->compileAtomicCondition($condition, $context);
+    }
+
+    /**
+     * @param list<mixed> $conditions
+     */
+    private function compileLogicalCondition(string $logic, array $conditions, string $context): string
+    {
+        $normalized = $this->sql->normalize($logic);
+        $compiled = match ($normalized) {
+            'not' => 'NOT (' . $this->compileConditionList($conditions, $context) . ')',
+            'or', 'any' => '(' . $this->compileConditionList($conditions, $context, 'OR') . ')',
+            'xor' => '(' . $this->compileConditionList($conditions, $context, 'XOR') . ')',
+            'andnot' => '(' . $this->compileConditionList($conditions, $context, 'AND NOT') . ')',
+            'ornot' => '(' . $this->compileConditionList($conditions, $context, 'OR NOT') . ')',
+            default => '(' . $this->compileConditionList($conditions, $context, 'AND') . ')',
+        };
+
+        return str_replace(['( )', '()'], '', $compiled);
+    }
+
+    /**
+     * @param list<mixed> $condition
+     */
+    private function compileAtomicCondition(array $condition, string $context): string
+    {
+        $count = count($condition);
+
+        if ($count === 2 && $this->isString($condition[0])) {
+            $normalizedFirst = $this->sql->normalize((string) $condition[0]);
+
+            if (in_array($normalizedFirst, ['exists', 'notexists'], true)) {
+                return $this->compileExistsCondition($normalizedFirst, $condition[1]);
+            }
+
+            return $this->compileUnaryCondition((string) $condition[0], (string) $condition[1]);
+        }
+
+        if ($count === 3 && $this->isString($condition[0]) && $this->isString($condition[1])) {
+            return $this->compileBinaryCondition((string) $condition[0], (string) $condition[1], $condition[2], $context);
+        }
+
+        if ($count >= 4 && $this->isString($condition[0]) && $this->isString($condition[1])) {
+            return $this->compileRangeCondition(
+                (string) $condition[0],
+                (string) $condition[1],
+                $condition[2],
+                $condition[3],
+                $context
+            );
+        }
+
+        return '';
+    }
+
+    private function compileUnaryCondition(string $column, string $operator): string
+    {
+        $left = $this->quoteExpression($column);
+        $normalized = $this->normalizeConditionOperator($operator);
+
+        return match ($normalized) {
+            'isnull' => $left . ' ' . $this->sql->operator('isNull'),
+            'isnotnull' => $left . ' ' . $this->sql->operator('isNotNull'),
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Unsupported unary query operator [%s].', $operator)
+            ),
+        };
+    }
+
+    private function compileBinaryCondition(string $column, string $operator, mixed $value, string $context): string
+    {
+        $left = $this->quoteExpression($column);
+        $normalized = $this->normalizeConditionOperator($operator);
+
+        return match ($normalized) {
+            'in' => $this->compileInCondition($left, $value, false),
+            'notin' => $this->compileInCondition($left, $value, true),
+            'like', 'notlike', 'ilike', 'regexp', 'notregexp', 'soundslike', 'similarto', 'notsimilarto',
+            'equal', 'notequal', 'notequalalt', 'greaterthan', 'greaterthanorequal', 'lessthan', 'lessthanorequal'
+                => $left . ' ' . $this->sql->operator($normalized) . ' ' . $this->compileOperand($value, $context),
+            'isdistinctfrom' => $this->compileDistinctCondition($left, $value, false),
+            'notdistinctfrom' => $this->compileDistinctCondition($left, $value, true),
+            'nullsafeequal' => $this->compileNullSafeEqualCondition($left, $value),
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Unsupported binary query operator [%s].', $operator)
+            ),
+        };
+    }
+
+    private function compileRangeCondition(
+        string $column,
+        string $operator,
+        mixed $start,
+        mixed $end,
+        string $context
+    ): string {
+        $left = $this->quoteExpression($column);
+        $normalized = $this->normalizeConditionOperator($operator);
+
+        return match ($normalized) {
+            'between', 'notbetween' => sprintf(
+                '%s %s %s AND %s',
+                $left,
+                $this->sql->operator($normalized),
+                $this->compileOperand($start, $context),
+                $this->compileOperand($end, $context)
+            ),
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Unsupported range query operator [%s].', $operator)
+            ),
+        };
+    }
+
+    private function compileExistsCondition(string $operator, mixed $query): string
+    {
+        return $this->sql->operator($operator) . ' (' . $this->compileSubquery($query) . ')';
+    }
+
+    private function compileInCondition(string $left, mixed $value, bool $negated): string
+    {
+        if ($value instanceof self || $this->isCallable($value) || $this->isString($value)) {
+            return sprintf(
+                '%s %s (%s)',
+                $left,
+                $this->sql->operator($negated ? 'notIn' : 'in'),
+                $this->compileSubquery($value)
+            );
+        }
+
+        $values = $this->isArray($value) ? array_values($value) : [$value];
+
+        if ($values === []) {
+            return $negated ? '1 = 1' : '1 = 0';
+        }
+
+        return sprintf(
+            '%s %s (%s)',
+            $left,
+            $this->sql->operator($negated ? 'notIn' : 'in'),
+            $this->bindValues($values)
+        );
+    }
+
+    private function compileNullSafeEqualCondition(string $left, mixed $value): string
+    {
+        if ($this->getDriver() === 'mysql') {
+            return $left . ' ' . $this->sql->operator('nullSafeEqual') . ' ' . $this->bindValue($value);
+        }
+
+        $first = $this->bindValue($value);
+        $second = $this->bindValue($value);
+
+        return sprintf(
+            '(%s = %s OR (%s IS NULL AND %s IS NULL))',
+            $left,
+            $first,
+            $left,
+            $second
+        );
+    }
+
+    private function compileDistinctCondition(string $left, mixed $value, bool $negated): string
+    {
+        $first = $this->bindValue($value);
+        $second = $this->bindValue($value);
+        $third = $this->bindValue($value);
+
+        if ($negated) {
+            return sprintf(
+                '(%s = %s OR (%s IS NULL AND %s IS NULL))',
+                $left,
+                $first,
+                $left,
+                $second
+            );
+        }
+
+        return sprintf(
+            '(%s <> %s OR (%s IS NULL AND %s IS NOT NULL) OR (%s IS NOT NULL AND %s IS NULL))',
+            $left,
+            $first,
+            $left,
+            $second,
+            $left,
+            $third
+        );
+    }
+
+    private function compileOperand(mixed $value, string $context): string
+    {
+        if ($this->isColumnOperand($value, $context)) {
+            return $this->quoteIdentifier($this->extractColumnOperand($value));
+        }
+
+        return $this->bindValue($value);
+    }
+
+    private function isColumnOperand(mixed $value, string $context): bool
+    {
+        if ($this->isArray($value) && isset($value['column']) && $this->isString($value['column'])) {
+            return true;
+        }
+
+        if ($this->isArray($value) && isset($value['identifier']) && $this->isString($value['identifier'])) {
+            return true;
+        }
+
+        return $context === 'join'
+            && $this->isString($value)
+            && ($this->isSimpleIdentifier($value) || $this->isQualifiedIdentifier($value));
+    }
+
+    private function extractColumnOperand(mixed $value): string
+    {
+        if ($this->isArray($value)) {
+            return (string) ($value['column'] ?? $value['identifier'] ?? '');
+        }
+
+        return (string) $value;
+    }
+
+    private function compileJoinClause(array $joins): string
+    {
+        $compiled = [];
+
+        foreach ($joins as $join) {
+            $segment = $this->sql->clause($join['type'])
+                . ' ' . $this->quoteIdentifier($join['table']);
+
+            $onClause = $this->compileConditionList($join['on'], 'join');
+
+            if ($onClause !== '') {
+                $segment .= ' ' . $this->sql->clause('on') . ' ' . $onClause;
+            }
+
+            $compiled[] = $segment;
+        }
+
+        return $compiled === [] ? '' : $this->implodeWith(' ', $compiled);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $specialConditions
+     * @return list<string>
+     */
+    private function compileSpecialConditions(array $specialConditions): array
+    {
+        $compiled = [];
+
+        foreach ($specialConditions as $specialCondition) {
+            $type = $this->sql->normalize((string) ($specialCondition['type'] ?? ''));
+            $column = $specialCondition['column'] ?? null;
+            $value = $specialCondition['value'] ?? null;
+
+            if ($type === '' || !$this->isString($column)) {
+                continue;
+            }
+
+            $left = $this->quoteExpression($column);
+
+            $compiled[] = match ($type) {
+                'connectby' => $this->sql->clause('connectBy') . ' ' . $left . ' = ' . $this->bindValue($value),
+                'startwith' => $this->sql->clause('startWith') . ' ' . $left . ' = ' . $this->bindValue($value),
+                'connectbyprior' => $this->sql->clause('connectBy') . ' PRIOR ' . $left . ' = ' . $this->bindValue($value),
+                'prior' => 'PRIOR ' . $left . ' = ' . $this->bindValue($value),
+                'withrecursive' => 'WITH RECURSIVE ' . $left . ' = ' . $this->bindValue($value),
+                'overlaps' => $left . ' ' . $this->sql->clause('overlaps') . ' ' . $this->bindValue($value),
+                default => '',
+            };
+        }
+
+        return array_values(array_filter($compiled, fn(string $fragment): bool => $fragment !== ''));
+    }
+
+    private function compileGroupClause(): string
+    {
+        if ($this->groupings === []) {
+            return '';
+        }
+
+        $segments = [];
+
+        foreach ($this->groupings as $grouping) {
+            $type = $grouping['type'] ?? 'group';
+
+            $segments[] = match ($type) {
+                'group' => $this->compileColumnList($grouping['columns'] ?? []),
+                'groupingSets' => 'GROUPING SETS (' . $this->implodeWith(', ', array_values($grouping['sets'] ?? [])) . ')',
+                'cube' => 'CUBE (' . $this->compileColumnList($grouping['columns'] ?? []) . ')',
+                'rollup' => 'ROLLUP (' . $this->compileColumnList($grouping['columns'] ?? []) . ')',
+                default => '',
+            };
+        }
+
+        $segments = array_values(array_filter($segments, fn(string $segment): bool => $segment !== ''));
+
+        return $segments === [] ? '' : $this->sql->clause('groupBy') . ' ' . $this->implodeWith(', ', $segments);
+    }
+
+    private function compileOrderClause(): string
+    {
+        if ($this->orderings === []) {
+            return '';
+        }
+
+        $segments = [];
+
+        foreach ($this->orderings as $ordering) {
+            $segments[] = $this->quoteExpression((string) $ordering['column']) . ' '
+                . $this->normalizeDirection((string) ($ordering['direction'] ?? 'ASC'));
+        }
+
+        return $segments === [] ? '' : $this->sql->clause('orderBy') . ' ' . $this->implodeWith(', ', $segments);
+    }
+
+    private function compilePaginationClause(): string
+    {
+        $limit = $this->limitValue;
+        $offset = $this->offsetValue ?? 0;
+
+        if ($limit === null && $offset === 0) {
+            return '';
+        }
+
+        if ($this->getDriver() === 'sqlsrv') {
+            $order = $this->compileOrderClause();
+            $segments = [];
+
+            if ($order === '') {
+                $segments[] = $this->sql->clause('orderBy') . ' (SELECT 1)';
+            }
+
+            $segments[] = 'OFFSET ' . max(0, $offset) . ' ROWS';
+
+            if ($limit !== null) {
+                $segments[] = 'FETCH NEXT ' . $limit . ' ROWS ONLY';
+            }
+
+            return $this->implodeWith(' ', $segments);
+        }
+
+        $segments = [];
+
+        if ($limit !== null) {
+            $segments[] = $this->sql->clause('limit') . ' ' . $limit;
+        }
+
+        if ($offset > 0) {
+            $segments[] = $this->sql->clause('offset') . ' ' . $offset;
+        }
+
+        return $this->implodeWith(' ', $segments);
+    }
+
+    private function compileSetClause(): string
+    {
+        if ($this->setOperations === []) {
+            return '';
+        }
+
+        $segments = [];
+
+        foreach ($this->setOperations as $setOperation) {
+            $segments[] = $this->sql->clause($setOperation['type'])
+                . ' (' . $this->compileSubquery($setOperation['query']) . ')';
+        }
+
+        return $this->implodeWith(' ', $segments);
+    }
+
+    private function compileWithClause(): string
+    {
+        if ($this->applyClauses === []) {
+            return '';
+        }
+
+        $segments = [];
+
+        foreach ($this->applyClauses as $clause) {
+            $segments[] = $this->quoteIdentifier($clause['alias'])
+                . ' AS (' . $this->compileSubquery($clause['query']) . ')';
+        }
+
+        return $segments === [] ? '' : $this->sql->clause('with') . ' ' . $this->implodeWith(', ', $segments);
+    }
+
+    private function compileReturningClause(): string
+    {
+        return $this->returningColumns === []
+            ? ''
+            : $this->sql->clause('returning') . ' ' . $this->compileColumnList($this->returningColumns);
+    }
+
+    private function compileColumnList(array $columns): string
+    {
+        $columns = $columns === [] ? ['*'] : array_values($columns);
+
+        return $this->implodeWith(
+            ', ',
+            $this->map(fn(string $column): string => $this->quoteColumnExpression($column), $columns)
+        );
+    }
+
+    private function compileIdentifierList(array $identifiers): string
+    {
+        return $this->implodeWith(
+            ', ',
+            $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), array_values($identifiers))
+        );
+    }
+
+    private function compileSubquery(mixed $query): string
+    {
+        if ($query instanceof self) {
+            $compiled = $query->toExecutable();
+            $this->mergeBindings($compiled['bindings']);
+
+            return $compiled['sql'];
+        }
+
+        if ($this->isCallable($query)) {
+            $builder = new self($this->sql, $this->errorManager, '', [], [], $this->getDriver());
+            $result = $query($builder);
+
+            if ($result instanceof self) {
+                $builder = $result;
+            }
+
+            $compiled = $builder->toExecutable();
+            $this->mergeBindings($compiled['bindings']);
+
+            return $compiled['sql'];
+        }
+
+        if ($this->isString($query) && $this->trimString($query) !== '') {
+            return $this->trimString($query);
+        }
+
+        throw $this->errorManager->resolveException('database', 'Invalid subquery provided to query builder.');
+    }
+
+    private function normalizeConditionOperator(string $operator): string
+    {
+        $trimmed = $this->trimString($operator);
+
+        return match ($trimmed) {
+            '=' => 'equal',
+            '!=' => 'notequal',
+            '<>' => 'notequalalt',
+            '>' => 'greaterthan',
+            '>=' => 'greaterthanorequal',
+            '<' => 'lessthan',
+            '<=' => 'lessthanorequal',
+            default => $this->sql->normalize($trimmed),
+        };
+    }
 }

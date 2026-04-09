@@ -1,9 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Handlers;
 
 use InvalidArgumentException;
 
+/**
+ * Central SQL vocabulary registry for the framework query layer.
+ *
+ * The handler deliberately normalizes camelCase, snake_case, kebab-case, and
+ * spaced aliases into the same lookup key so the builders can keep a readable
+ * API without duplicating keyword tables.
+ */
 class SQLHandler
 {
     /**
@@ -19,6 +28,7 @@ class SQLHandler
         'fetch' => 'FETCH FIRST',
         'filter' => 'FILTER',
         'from' => 'FROM',
+        'fulljoin' => 'FULL JOIN',
         'fullouterjoin' => 'FULL OUTER JOIN',
         'groupby' => 'GROUP BY',
         'having' => 'HAVING',
@@ -98,16 +108,23 @@ class SQLHandler
      */
     private array $operators = [
         'and' => 'AND',
+        'andnot' => 'AND NOT',
+        'any' => 'ANY',
         'as' => 'AS',
         'between' => 'BETWEEN',
         'divide' => '/',
         'equal' => '=',
-        'for each row' => 'FOR EACH ROW',
+        'exists' => 'EXISTS',
+        'foreachrow' => 'FOR EACH ROW',
         'greaterthan' => '>',
         'greaterthanorequal' => '>=',
+        'ilike' => 'ILIKE',
         'in' => 'IN',
         'is' => 'IS',
-        'is not' => 'IS NOT',
+        'isdistinctfrom' => 'IS DISTINCT FROM',
+        'isnot' => 'IS NOT',
+        'isnotnull' => 'IS NOT NULL',
+        'isnull' => 'IS NULL',
         'lessthan' => '<',
         'lessthanorequal' => '<=',
         'like' => 'LIKE',
@@ -115,13 +132,28 @@ class SQLHandler
         'modulus' => '%',
         'multiply' => '*',
         'not' => 'NOT',
+        'notbetween' => 'NOT BETWEEN',
+        'notdistinctfrom' => 'IS NOT DISTINCT FROM',
         'notequal' => '!=',
+        'notequalalt' => '<>',
+        'notexists' => 'NOT EXISTS',
+        'notin' => 'NOT IN',
+        'notlike' => 'NOT LIKE',
+        'notregexp' => 'NOT REGEXP',
+        'notsimilarto' => 'NOT SIMILAR TO',
+        'nullsafeequal' => '<=>',
         'on' => 'ON',
-        'on delete' => 'ON DELETE',
-        'on update' => 'ON UPDATE',
+        'ondelete' => 'ON DELETE',
+        'onupdate' => 'ON UPDATE',
         'or' => 'OR',
+        'ornot' => 'OR NOT',
+        'overlaps' => 'OVERLAPS',
         'plus' => '+',
+        'regexp' => 'REGEXP',
+        'similarto' => 'SIMILAR TO',
+        'soundslike' => 'SOUNDS LIKE',
         'to' => 'TO',
+        'xor' => 'XOR',
     ];
 
     /**
@@ -130,26 +162,27 @@ class SQLHandler
     private array $statements = [
         'add' => 'ADD',
         'alter' => 'ALTER',
+        'check' => 'CHECK',
         'column' => 'COLUMN',
         'constraint' => 'CONSTRAINT',
         'create' => 'CREATE',
         'database' => 'DATABASE',
         'delete' => 'DELETE',
         'drop' => 'DROP',
-        'drop default' => 'DROP DEFAULT',
-        'foreign key' => 'FOREIGN KEY',
+        'dropdefault' => 'DROP DEFAULT',
+        'foreignkey' => 'FOREIGN KEY',
         'function' => 'FUNCTION',
         'index' => 'INDEX',
         'insert' => 'INSERT',
         'into' => 'INTO',
         'modify' => 'MODIFY',
-        'primary key' => 'PRIMARY KEY',
+        'primarykey' => 'PRIMARY KEY',
         'procedure' => 'PROCEDURE',
         'references' => 'REFERENCES',
         'rename' => 'RENAME',
         'select' => 'SELECT',
         'sequence' => 'SEQUENCE',
-        'set default' => 'SET DEFAULT',
+        'setdefault' => 'SET DEFAULT',
         'table' => 'TABLE',
         'trigger' => 'TRIGGER',
         'truncate' => 'TRUNCATE',
@@ -179,12 +212,21 @@ class SQLHandler
         return $this->lookup($this->statements, $type, 'statement');
     }
 
+    public function normalize(?string $type): string
+    {
+        $value = trim((string) $type);
+        $value = preg_replace('/(?<!^)[A-Z]/', '_$0', $value) ?? $value;
+        $value = strtolower($value);
+
+        return preg_replace('/[^a-z0-9]+/', '', $value) ?? '';
+    }
+
     /**
      * @param array<string, string> $map
      */
     private function lookup(array $map, ?string $type, string $kind): string
     {
-        $normalized = strtolower(trim((string) $type));
+        $normalized = $this->normalize($type);
 
         return $map[$normalized]
             ?? throw new InvalidArgumentException("Invalid SQL {$kind} type: {$type}");

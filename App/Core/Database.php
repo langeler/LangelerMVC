@@ -6,8 +6,11 @@ namespace App\Core;
 
 use PDO;
 use PDOStatement;
+use App\Utilities\Handlers\SQLHandler;
 use App\Utilities\Traits\Filters\FiltrationTrait;
 use App\Utilities\Traits\Patterns\PatternTrait;
+use App\Utilities\Query\DataQuery;
+use App\Utilities\Query\SchemaQuery;
 use App\Utilities\Traits\{
 	ErrorTrait,
 	TypeCheckerTrait,
@@ -423,6 +426,36 @@ class Database
 	}
 
 	/**
+	 * Creates a data query builder aligned with the current connection driver.
+	 */
+	public function dataQuery(string $table = ''): DataQuery
+	{
+		return new DataQuery(
+			new SQLHandler(),
+			$this->errorManager,
+			$table,
+			[],
+			[],
+			$this->configuredDriver()
+		);
+	}
+
+	/**
+	 * Creates a schema query builder aligned with the current connection driver.
+	 */
+	public function schemaQuery(): SchemaQuery
+	{
+		return new SchemaQuery(
+			new SQLHandler(),
+			$this->errorManager,
+			'',
+			[],
+			[],
+			$this->configuredDriver()
+		);
+	}
+
+	/**
 	 * Truncates a database table after validating the identifier.
 	 *
 	 * @param string $table
@@ -537,10 +570,15 @@ class Database
 	private function quoteIdentifier(string $identifier, string $driver): string
 	{
 		return match ($driver) {
-			'mysql', 'sqlite' => '`' . $identifier . '`',
+			'pgsql', 'sqlite' => '"' . $identifier . '"',
 			'sqlsrv' => '[' . $identifier . ']',
-			default => '"' . $identifier . '"',
+			default => '`' . $identifier . '`',
 		};
+	}
+
+	private function configuredDriver(): string
+	{
+		return $this->toLowerString((string) ($this->config['CONNECTION'] ?? $this->config['DRIVER'] ?? 'mysql'));
 	}
 
 	/**

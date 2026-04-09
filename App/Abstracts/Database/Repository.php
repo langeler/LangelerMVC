@@ -62,30 +62,27 @@ abstract class Repository implements RepositoryInterface
 
     public function find(mixed $id): ?ModelInterface
     {
-        $primaryKey = $this->qualifyIdentifier($this->getPrimaryKey());
-        $row = $this->db->fetchOne(
-            sprintf(
-                'SELECT * FROM %s WHERE %s = ? LIMIT 1',
-                $this->qualifyIdentifier($this->getTable()),
-                $primaryKey
-            ),
-            [$id]
-        );
+        $query = $this->db
+            ->dataQuery($this->getTable())
+            ->select(['*'])
+            ->where($this->getPrimaryKey(), '=', $id)
+            ->limit(1)
+            ->toExecutable();
+
+        $row = $this->db->fetchOne($query['sql'], $query['bindings']);
 
         return $row !== null ? $this->mapRowToModel($row) : null;
     }
 
     public function all(): array
     {
-        return $this->hydrateMany(
-            $this->db->fetchAll(
-                sprintf(
-                    'SELECT * FROM %s ORDER BY %s ASC',
-                    $this->qualifyIdentifier($this->getTable()),
-                    $this->qualifyIdentifier($this->getPrimaryKey())
-                )
-            )
-        );
+        $query = $this->db
+            ->dataQuery($this->getTable())
+            ->select(['*'])
+            ->orderBy($this->getPrimaryKey())
+            ->toExecutable();
+
+        return $this->hydrateMany($this->db->fetchAll($query['sql'], $query['bindings']));
     }
 
     public function paginate(int $perPage = 15, int $page = 1): array
@@ -95,18 +92,21 @@ abstract class Repository implements RepositoryInterface
         }
 
         $offset = ($page - 1) * $perPage;
-        $table = $this->qualifyIdentifier($this->getTable());
-        $primaryKey = $this->qualifyIdentifier($this->getPrimaryKey());
-        $total = (int) $this->db->fetchColumn(sprintf('SELECT COUNT(*) FROM %s', $table));
-        $rows = $this->db->fetchAll(
-            sprintf(
-                'SELECT * FROM %s ORDER BY %s ASC LIMIT %d OFFSET %d',
-                $table,
-                $primaryKey,
-                $perPage,
-                $offset
-            )
-        );
+        $countQuery = $this->db
+            ->dataQuery($this->getTable())
+            ->select(['COUNT(*) AS aggregate'])
+            ->toExecutable();
+
+        $dataQuery = $this->db
+            ->dataQuery($this->getTable())
+            ->select(['*'])
+            ->orderBy($this->getPrimaryKey())
+            ->limit($perPage)
+            ->offset($offset)
+            ->toExecutable();
+
+        $total = (int) $this->db->fetchColumn($countQuery['sql'], $countQuery['bindings']);
+        $rows = $this->db->fetchAll($dataQuery['sql'], $dataQuery['bindings']);
 
         return [
             'data' => $this->hydrateMany($rows),
@@ -140,57 +140,45 @@ abstract class Repository implements RepositoryInterface
 
     public function delete(mixed $id): bool
     {
-        return $this->db->execute(
-            sprintf(
-                'DELETE FROM %s WHERE %s = ?',
-                $this->qualifyIdentifier($this->getTable()),
-                $this->qualifyIdentifier($this->getPrimaryKey())
-            ),
-            [$id]
-        ) > 0;
+        $query = $this->db
+            ->dataQuery($this->getTable())
+            ->delete($this->getTable())
+            ->where($this->getPrimaryKey(), '=', $id)
+            ->toExecutable();
+
+        return $this->db->execute($query['sql'], $query['bindings']) > 0;
     }
 
     public function findBy(array $criteria): array
     {
-        [$where, $params] = $this->compileCriteria($criteria);
-        $query = sprintf(
-            'SELECT * FROM %s%s ORDER BY %s ASC',
-            $this->qualifyIdentifier($this->getTable()),
-            $where,
-            $this->qualifyIdentifier($this->getPrimaryKey())
-        );
+        $query = $this->applyCriteriaToQuery(
+            $this->db->dataQuery($this->getTable())->select(['*']),
+            $criteria
+        )->orderBy($this->getPrimaryKey())->toExecutable();
 
-        return $this->hydrateMany($this->db->fetchAll($query, $params));
+        return $this->hydrateMany($this->db->fetchAll($query['sql'], $query['bindings']));
     }
 
     public function findOneBy(array $criteria): ?ModelInterface
     {
-        [$where, $params] = $this->compileCriteria($criteria);
-        $row = $this->db->fetchOne(
-            sprintf(
-                'SELECT * FROM %s%s ORDER BY %s ASC LIMIT 1',
-                $this->qualifyIdentifier($this->getTable()),
-                $where,
-                $this->qualifyIdentifier($this->getPrimaryKey())
-            ),
-            $params
-        );
+        $query = $this->applyCriteriaToQuery(
+            $this->db->dataQuery($this->getTable())->select(['*']),
+            $criteria
+        )->orderBy($this->getPrimaryKey())->limit(1)->toExecutable();
+
+        $row = $this->db->fetchOne($query['sql'], $query['bindings']);
 
         return $row !== null ? $this->mapRowToModel($row) : null;
     }
 
     public function count(array $criteria): int
     {
-        [$where, $params] = $this->compileCriteria($criteria);
+        $query = $this->applyCriteriaToQuery(
+            $this->db->dataQuery($this->getTable())->select(['COUNT(*) AS aggregate']),
+            $criteria
+        )->toExecutable();
 
-        return (int) $this->db->fetchColumn(
-            sprintf(
-                'SELECT COUNT(*) FROM %s%s',
-                $this->qualifyIdentifier($this->getTable()),
-                $where
-            ),
-            $params
-        );
+        return (int) $this->db->fetchColumn($query['sql'], $query['bindings']);
     }
 
     public function save(ModelInterface $model): ModelInterface
@@ -236,18 +224,12 @@ abstract class Repository implements RepositoryInterface
             throw new RepositoryException('Cannot create a model without any persistable attributes.');
         }
 
-        [$columns, $params] = $this->extractColumnsAndParams($attributes);
-        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        $query = $this->db
+            ->dataQuery($this->getTable())
+            ->insert($this->getTable(), $attributes)
+            ->toExecutable();
 
-        $this->db->execute(
-            sprintf(
-                'INSERT INTO %s (%s) VALUES (%s)',
-                $this->qualifyIdentifier($this->getTable()),
-                implode(', ', $this->map([$this, 'qualifyIdentifier'], $columns)),
-                $placeholders
-            ),
-            $params
-        );
+        $this->db->execute($query['sql'], $query['bindings']);
 
         $primaryKey = $this->getPrimaryKey();
 
@@ -299,26 +281,13 @@ abstract class Repository implements RepositoryInterface
             $dirty[$updatedAtColumn] = $timestamp;
         }
 
-        [$columns, $params] = $this->extractColumnsAndParams($dirty);
-        $assignments = implode(
-            ', ',
-            $this->map(
-                fn(string $column): string => $this->qualifyIdentifier($column) . ' = ?',
-                $columns
-            )
-        );
+        $query = $this->db
+            ->dataQuery($this->getTable())
+            ->update($this->getTable(), $dirty)
+            ->where($primaryKey, '=', $key)
+            ->toExecutable();
 
-        $params[] = $key;
-
-        $updated = $this->db->execute(
-            sprintf(
-                'UPDATE %s SET %s WHERE %s = ?',
-                $this->qualifyIdentifier($this->getTable()),
-                $assignments,
-                $this->qualifyIdentifier($primaryKey)
-            ),
-            $params
-        );
+        $updated = $this->db->execute($query['sql'], $query['bindings']);
 
         if ($updated === 0 && $this->find($key) === null) {
             throw new RepositoryException(
@@ -335,6 +304,47 @@ abstract class Repository implements RepositoryInterface
         $model->syncOriginal();
 
         return $model;
+    }
+
+    protected function applyCriteriaToQuery(\App\Utilities\Query\DataQuery $query, array $criteria): \App\Utilities\Query\DataQuery
+    {
+        foreach ($criteria as $column => $value) {
+            $name = (string) $column;
+
+            if ($value === null) {
+                $query->whereNull($name);
+                continue;
+            }
+
+            if ($this->isArray($value) && $this->isAssociative($value)) {
+                foreach ($value as $operator => $operand) {
+                    $normalized = $this->toLowerString($this->trimString((string) $operator));
+
+                    match ($normalized) {
+                        'is' => $operand === null
+                            ? $query->whereNull($name)
+                            : $query->where($name, '=', $operand),
+                        'is not' => $operand === null
+                            ? $query->whereNotNull($name)
+                            : $query->where($name, '!=', $operand),
+                        'in' => $query->in($name, (array) $operand),
+                        'not in' => $query->notIn($name, (array) $operand),
+                        default => $query->where($name, (string) $operator, $operand),
+                    };
+                }
+
+                continue;
+            }
+
+            if ($this->isArray($value)) {
+                $query->in($name, $value);
+                continue;
+            }
+
+            $query->where($name, '=', $value);
+        }
+
+        return $query;
     }
 
     /**

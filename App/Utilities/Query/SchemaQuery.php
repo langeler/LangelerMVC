@@ -1,498 +1,599 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Query;
 
 use App\Abstracts\Database\Query;
 use App\Utilities\Traits\Query\SchemaQueryTrait;
 
 /**
- * SchemaQuery Class
+ * Driver-aware schema statement builder.
  *
- * Extends the base Query class and includes additional functionality
- * for handling schema-related SQL operations such as table and column modifications.
+ * SchemaQuery intentionally models DDL as a sequence of explicit statements
+ * rather than pretending every action can be merged into one vendor-neutral
+ * mega-query. That keeps the builder predictable and much easier to maintain.
  */
 class SchemaQuery extends Query
 {
     use SchemaQueryTrait;
 
-    // ========================================================================
-    // COLUMN OPERATIONS
-    // ========================================================================
-
     /**
-     * Processes a column operation such as adding, removing, renaming, or modifying a column.
-     *
-     * Escapes the table and column identifiers and prepares the column definition
-     * based on the requested operation.
-     *
-     * @param string $table The name of the table where the operation will be performed.
-     * @param string $column The column name.
-     * @param string|null $definition The column definition (e.g., data type, constraints).
-     * @param string|null $operation The type of column operation (default: 'add').
-     * @return array Processed column operation data.
+     * @var list<array{kind:string,payload:array<string, mixed>}>
      */
-    public function processColumn(string $table, string $column, ?string $definition = null, ?string $operation = 'add'): array {
-        return $this->wrapInTry(fn() => [
-            'operation'  => $operation,
-            'table'      => $this->escapeIdentifiers([$table])[0],
-            'column'     => $this->escapeColumns([$column])[0],
-            'definition' => $definition ? trim($definition) : null,
-        ], 'Failed to process column operation');
+    protected array $operations = [];
+
+    public function __construct(
+        ?\App\Utilities\Handlers\SQLHandler $sql = null,
+        ?\App\Utilities\Managers\System\ErrorManager $errorManager = null,
+        string $table = '',
+        array $columns = [],
+        array $values = [],
+        string $driver = 'mysql'
+    ) {
+        parent::__construct($sql, $errorManager, $table, $columns, $values, $driver);
     }
 
     /**
-     * Builds an SQL column operation query.
-     *
-     * Constructs a query string for altering a table by adding, removing, renaming, modifying,
-     * or changing the default value of a column.
-     *
-     * @param array $colOp The column operation data.
-     * @return string The constructed SQL query for the column operation.
-     * @throws \InvalidArgumentException If an invalid column operation is provided.
+     * @return list<string>
      */
-    public function buildColumn(array $colOp): string {
-        return $this->wrapInTry(fn() =>
-            match($colOp['operation']) {
-                'add'         => $this->sql->clause('alter').' '.
-                                 $this->sql->statement('table').' '.$colOp['table'].' '.
-                                 $this->sql->statement('add').' '.
-                                 $this->sql->statement('column').' '.$colOp['column'].' '.
-                                 $colOp['definition'],
-                'remove'      => $this->sql->clause('alter').' '.
-                                 $this->sql->statement('table').' '.$colOp['table'].' '.
-                                 $this->sql->statement('drop').' '.
-                                 $this->sql->statement('column').' '.$colOp['column'],
-                'rename'      => $this->sql->clause('alter').' '.
-                                 $this->sql->statement('table').' '.$colOp['table'].' '.
-                                 $this->sql->statement('rename').' '.
-                                 $this->sql->statement('column').' '.$colOp['column'].' '.
-                                 $this->sql->operator('to').' '.
-                                 $this->escapeColumns([$colOp['definition']])[0],
-                'modify'      => $this->sql->clause('alter').' '.
-                                 $this->sql->statement('table').' '.$colOp['table'].' '.
-                                 $this->sql->statement('modify').' '.
-                                 $this->sql->statement('column').' '.$colOp['column'].' '.
-                                 $colOp['definition'],
-                'default'     => $this->sql->clause('alter').' '.
-                                 $this->sql->statement('table').' '.$colOp['table'].' '.
-                                 $this->sql->statement('alter').' '.
-                                 $this->sql->statement('column').' '.$colOp['column'].' '.
-                                 $this->sql->statement('set default').' '.
-                                 $colOp['definition'],
-                'dropDefault' => $this->sql->clause('alter').' '.
-                                 $this->sql->statement('table').' '.$colOp['table'].' '.
-                                 $this->sql->statement('alter').' '.
-                                 $this->sql->statement('column').' '.$colOp['column'].' '.
-                                 $this->sql->statement('drop default'),
-                default       => throw new \InvalidArgumentException("Invalid column operation: ".$colOp['operation']),
-            }
-        , 'Failed to build column operation');
+    public function toStatements(): array
+    {
+        return $this->map(
+            fn(array $operation): string => $this->buildOperation($operation['kind'], $operation['payload']),
+            $this->operations
+        );
     }
 
-    // ========================================================================
-    // TABLE OPERATIONS
-    // ========================================================================
-
-    /**
-     * Processes a table operation such as creating, renaming, truncating, dropping, or altering a table.
-     *
-     * Escapes the table name and prepares additional details for the operation.
-     *
-     * @param string $action The table operation to perform (e.g., create, rename, drop).
-     * @param string $table The table name.
-     * @param mixed $extra Additional table-related data (e.g., columns for creation, new name for renaming).
-     * @param array $constraints Any constraints to be applied to the table.
-     * @return array Processed table operation data.
-     */
-    public function processTable(string $action, string $table, $extra = null, array $constraints = []): array {
-        return $this->wrapInTry(fn() => [
-            'action'      => $action,
-            'table'       => $this->escapeIdentifiers([$table])[0],
-            'extra'       => $extra,
-            'constraints' => $constraints,
-        ], 'Failed to process table operation');
+    public function toSql(): string
+    {
+        return $this->implodeWith(";\n", $this->toStatements());
     }
 
-    /**
-     * Builds an SQL table operation query.
-     *
-     * Constructs a query string for table operations such as creation, renaming, truncation, and deletion.
-     *
-     * @param array $tableOp The table operation data.
-     * @return string The constructed SQL query for the table operation.
-     * @throws \InvalidArgumentException If an invalid table operation is provided.
-     */
-    public function buildTable(array $tableOp): string {
-        return $this->wrapInTry(fn() =>
-            match($tableOp['action']) {
-                'create'  => $this->sql->statement('create').' '.
-                            $this->sql->statement('table').' '.$tableOp['table'].' ('.
-                            $this->join(', ', $tableOp['extra']).
-                            (!$this->isEmpty($tableOp['constraints']) ? ', '.$this->join(', ', $tableOp['constraints']) : '').')',
-                'rename'  => $this->sql->clause('alter').' '.
-                            $this->sql->statement('table').' '.$tableOp['table'].' '.
-                            $this->sql->statement('rename').' '.
-                            $this->sql->operator('to').' '.
-                            $this->escapeIdentifiers([$tableOp['extra']])[0],
-                'truncate'=> $this->sql->clause('truncate').' '.
-                            $this->sql->statement('table').' '.$tableOp['table'],
-                'drop'    => $this->sql->clause('drop').' '.
-                            $this->sql->statement('table').' '.$tableOp['table'],
-                'alter'   => $this->sql->clause('alter').' '.
-                            $this->sql->statement('table').' '.$tableOp['table'].' '.
-                            $this->join(' ', $tableOp['extra']),
-                default   => throw new \InvalidArgumentException("Invalid table operation: ".$tableOp['action']),
-            }
-        , 'Failed to build table operation');
+    public function processColumn(
+        string $table,
+        string $column,
+        ?string $definition = null,
+        ?string $operation = 'add'
+    ): array {
+        $payload = [
+            'operation' => (string) $operation,
+            'table' => $table,
+            'column' => $column,
+            'definition' => $definition,
+        ];
+
+        $this->pushOperation('column', $payload);
+
+        return $payload;
     }
 
-    // ========================================================================
-    // STRUCTURE OPERATIONS (Indexes, Constraints, Keys)
-    // ========================================================================
+    public function buildColumn(array $colOp): string
+    {
+        $table = $this->quoteIdentifier((string) $colOp['table']);
+        $column = $this->quoteIdentifier((string) $colOp['column']);
+        $definition = $colOp['definition'] !== null ? $this->trimString((string) $colOp['definition']) : null;
 
-    /**
-     * Processes a structure operation such as creating, dropping, or renaming an index, constraint, or key.
-     *
-     * This method ensures that the provided table name is properly escaped and the structure operation details
-     * are stored in an array for further processing.
-     *
-     * @param string $structureType The type of structure (index, constraint, unique, foreignKey, primaryKey).
-     * @param string $action The operation to perform (create, drop, rename).
-     * @param string $table The name of the table on which the operation is performed.
-     * @param mixed ...$params Additional parameters required for the specific operation.
-     * @return array Processed structure operation data.
-     */
-    public function processStructure(string $structureType, string $action, string $table, ...$params): array {
-        return $this->wrapInTry(fn() => [
-            'structure' => $structureType,
-            'action'    => $action,
-            'table'     => $this->escapeIdentifiers([$table])[0],
-            'params'    => $params,
-        ], 'Failed to process structure operation');
+        return match ($this->sql->normalize((string) $colOp['operation'])) {
+            'add' => sprintf(
+                '%s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->statement('add') . ' ' . $this->sql->statement('column'),
+                $column . ' ' . $definition
+            ),
+            'remove' => sprintf(
+                '%s %s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->statement('drop'),
+                $this->sql->statement('column'),
+                $column
+            ),
+            'rename' => sprintf(
+                '%s %s %s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->statement('rename'),
+                $this->sql->statement('column'),
+                $column,
+                $this->sql->operator('to') . ' ' . $this->quoteIdentifier((string) $definition)
+            ),
+            'modify' => sprintf(
+                '%s %s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->statement('modify') . ' ' . $this->sql->statement('column'),
+                $column,
+                (string) $definition
+            ),
+            'default' => sprintf(
+                '%s %s %s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->clause('alter') . ' ' . $this->sql->statement('column'),
+                $column,
+                $this->sql->statement('setDefault'),
+                (string) $definition
+            ),
+            'dropdefault' => sprintf(
+                '%s %s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->clause('alter') . ' ' . $this->sql->statement('column'),
+                $column,
+                $this->sql->statement('dropDefault')
+            ),
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Invalid schema column operation [%s].', $colOp['operation'])
+            ),
+        };
     }
 
-    /**
-     * Builds an SQL query for a structure operation.
-     *
-     * Constructs a query string for creating, dropping, or renaming indexes, constraints, or keys.
-     *
-     * @param array $structOp The structure operation data.
-     * @return string The constructed SQL query for the structure operation.
-     * @throws \InvalidArgumentException If an invalid structure type or action is provided.
-     */
-    public function buildStructure(array $structOp): string {
-        return $this->wrapInTry(fn() =>
-            match($structOp['structure']) {
-                'index' => match($structOp['action']) {
-                    'create' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('add').' '.
-                                $this->sql->statement('index').' '.$structOp['params'][0].' ('.
-                                $this->join(', ', $structOp['params'][1]).')'
-                                .(!$this->isEmpty($structOp['params'][2]) ? ' '.$structOp['params'][2] : ''),
-                    'drop'   => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('drop').' '.
-                                $this->sql->statement('index').' '.$structOp['params'][0],
-                    'rename' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('rename').' '.
-                                $this->sql->statement('index').' '.$structOp['params'][0].' '.
-                                $this->sql->operator('to').' '.$structOp['params'][1],
-                    default  => throw new \InvalidArgumentException("Invalid index action: ".$structOp['action']),
-                },
-                'constraint' => match($structOp['action']) {
-                    'create' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('add').' '.
-                                $this->sql->statement('constraint').' '.$structOp['params'][0].' '.
-                                $this->join(' ', $structOp['params'][1]),
-                    'drop'   => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('drop').' '.
-                                $this->sql->statement('constraint').' '.$structOp['params'][0],
-                    'rename' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('rename').' '.
-                                $this->sql->statement('constraint').' '.$structOp['params'][0].' '.
-                                $this->sql->operator('to').' '.$structOp['params'][1],
-                    default  => throw new \InvalidArgumentException("Invalid constraint action: ".$structOp['action']),
-                },
-                'unique' => match($structOp['action']) {
-                    'create' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('add').' '.
-                                $this->sql->statement('unique').' ('.
-                                $this->join(', ', $structOp['params'][0]).')',
-                    'drop'   => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('drop').' '.
-                                $this->sql->statement('index').' '.$structOp['params'][0],
-                    default  => throw new \InvalidArgumentException("Invalid unique action: ".$structOp['action']),
-                },
-                'foreignKey' => match($structOp['action']) {
-                    'create' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('add').' '.
-                                $this->sql->statement('foreign key').' ('.$structOp['params'][0].') '.
-                                $this->sql->statement('references').' '.
-                                $structOp['params'][1].'('.$structOp['params'][2].') '.
-                                $this->sql->operator('on delete').' '.$structOp['params'][3].' '.
-                                $this->sql->operator('on update').' '.$structOp['params'][4],
-                    'drop'   => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('drop').' '.
-                                $this->sql->statement('foreign key').' '.$structOp['params'][0],
-                    default  => throw new \InvalidArgumentException("Invalid foreign key action: ".$structOp['action']),
-                },
-                'primaryKey' => match($structOp['action']) {
-                    'create' => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('add').' '.
-                                $this->sql->statement('primary key').' ('.
-                                $this->join(', ', $structOp['params'][0]).')',
-                    'drop'   => $this->sql->clause('alter').' '.
-                                $this->sql->statement('table').' '.$structOp['table'].' '.
-                                $this->sql->statement('drop').' '.
-                                $this->sql->statement('primary key'),
-                    default  => throw new \InvalidArgumentException("Invalid primary key action: ".$structOp['action']),
-                },
-                default => throw new \InvalidArgumentException("Invalid structure type: ".$structOp['structure']),
-            }
-        , 'Failed to build structure operation');
-    }
-
-    // ========================================================================
-    // VIEW OPERATIONS
-    // ========================================================================
-
-    /**
-     * Processes a view operation such as creating, dropping, or altering a view.
-     *
-     * Escapes the view name and prepares the SELECT query for creation or alteration.
-     *
-     * @param string $action The operation to perform (create, drop, alter).
-     * @param string $viewName The name of the view.
-     * @param string|null $selectQuery The SELECT query used to create or alter the view.
-     * @return array Processed view operation data.
-     */
-    public function processView(string $action, string $viewName, ?string $selectQuery = null): array {
-        return $this->wrapInTry(fn() => [
+    public function processTable(string $action, string $table, mixed $extra = null, array $constraints = []): array
+    {
+        $payload = [
             'action' => $action,
-            'view'   => $this->escapeIdentifiers([$viewName])[0],
-            'query'  => $selectQuery,
-        ], 'Failed to process view operation');
+            'table' => $table,
+            'extra' => $extra,
+            'constraints' => $constraints,
+        ];
+
+        $this->pushOperation('table', $payload);
+
+        return $payload;
     }
 
-    /**
-     * Builds an SQL query for a view operation.
-     *
-     * Constructs a query string for creating, dropping, or altering views.
-     *
-     * @param array $viewOp The view operation data.
-     * @return string The constructed SQL query for the view operation.
-     * @throws \InvalidArgumentException If an invalid view action is provided.
-     */
-    public function buildView(array $viewOp): string {
-        return $this->wrapInTry(fn() =>
-            match($viewOp['action']) {
-                'create' => $this->sql->statement('create').' '.$this->sql->statement('view').' '.
-                            $viewOp['view'].' '.$this->sql->operator('as').' '.$viewOp['query'],
-                'drop'   => $this->sql->statement('drop').' '.$this->sql->statement('view').' '.
-                            $viewOp['view'],
-                'alter'  => $this->sql->clause('alter').' '.$this->sql->statement('view').' '.
-                            $viewOp['view'].' '.$this->sql->operator('as').' '.$viewOp['query'],
-                default  => throw new \InvalidArgumentException("Invalid view action: ".$viewOp['action']),
-            }
-        , 'Failed to build view operation');
+    public function buildTable(array $tableOp): string
+    {
+        $table = $this->quoteIdentifier((string) $tableOp['table']);
+        $action = $this->sql->normalize((string) $tableOp['action']);
+        $extra = $tableOp['extra'];
+        $constraints = array_values($tableOp['constraints'] ?? []);
+
+        return match ($action) {
+            'create' => sprintf(
+                '%s %s %s (%s)',
+                $this->sql->statement('create'),
+                $this->sql->statement('table'),
+                $table,
+                $this->implodeWith(', ', array_merge(array_values((array) $extra), $constraints))
+            ),
+            'rename' => sprintf(
+                '%s %s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->sql->statement('rename'),
+                $this->sql->operator('to') . ' ' . $this->quoteIdentifier((string) $extra)
+            ),
+            'truncate' => sprintf(
+                '%s %s %s',
+                $this->sql->clause('truncate'),
+                $this->sql->statement('table'),
+                $table
+            ),
+            'drop' => sprintf(
+                '%s %s %s',
+                $this->sql->clause('drop'),
+                $this->sql->statement('table'),
+                $table
+            ),
+            'alter' => sprintf(
+                '%s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('table'),
+                $table,
+                $this->implodeWith(' ', array_values((array) $extra))
+            ),
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Invalid schema table action [%s].', $tableOp['action'])
+            ),
+        };
     }
 
-    // ========================================================================
-    // TRIGGER OPERATIONS
-    // ========================================================================
+    public function processStructure(string $structureType, string $action, string $table, ...$params): array
+    {
+        $payload = [
+            'structure' => $structureType,
+            'action' => $action,
+            'table' => $table,
+            'params' => $params,
+        ];
 
-    /**
-     * Processes a trigger operation such as creating, dropping, or altering a trigger.
-     *
-     * Escapes the trigger and table names and stores additional parameters required
-     * for the trigger definition.
-     *
-     * @param string $action The operation to perform (create, drop, alter).
-     * @param string $triggerName The name of the trigger.
-     * @param string|null $table The table associated with the trigger.
-     * @param string|null $timing The timing of the trigger (BEFORE, AFTER, INSTEAD OF).
-     * @param string|null $event The event that activates the trigger (INSERT, UPDATE, DELETE).
-     * @param string|null $statement The SQL statement executed by the trigger.
-     * @return array Processed trigger operation data.
-     */
-    public function processTrigger(string $action, string $triggerName, ?string $table = null, ?string $timing = null, ?string $event = null, ?string $statement = null): array {
-        return $this->wrapInTry(fn() => [
-            'action'    => $action,
-            'trigger'   => $this->escapeIdentifiers([$triggerName])[0],
-            'table'     => $table ? $this->escapeIdentifiers([$table])[0] : null,
-            'timing'    => $timing,
-            'event'     => $event,
+        $this->pushOperation('structure', $payload);
+
+        return $payload;
+    }
+
+    public function buildStructure(array $structOp): string
+    {
+        $table = $this->quoteIdentifier((string) $structOp['table']);
+        $structure = $this->sql->normalize((string) $structOp['structure']);
+        $action = $this->sql->normalize((string) $structOp['action']);
+        $params = $structOp['params'] ?? [];
+
+        return match ($structure) {
+            'index' => match ($action) {
+                'create' => sprintf(
+                    '%s %s %s %s %s %s (%s)%s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('add'),
+                    $this->sql->statement('index'),
+                    $this->quoteIdentifier((string) ($params[0] ?? '')),
+                    $this->compileIdentifierArray((array) ($params[1] ?? [])),
+                    $this->trimString((string) ($params[2] ?? '')) !== ''
+                        ? ' ' . $this->trimString((string) $params[2])
+                        : ''
+                ),
+                'drop' => sprintf(
+                    '%s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('drop'),
+                    $this->sql->statement('index'),
+                    $this->quoteIdentifier((string) ($params[0] ?? ''))
+                ),
+                'rename' => sprintf(
+                    '%s %s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('rename'),
+                    $this->sql->statement('index'),
+                    $this->quoteIdentifier((string) ($params[0] ?? '')),
+                    $this->sql->operator('to') . ' ' . $this->quoteIdentifier((string) ($params[1] ?? ''))
+                ),
+                default => throw $this->errorManager->resolveException('database', 'Invalid schema index action.'),
+            },
+            'constraint' => match ($action) {
+                'create' => sprintf(
+                    '%s %s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('add'),
+                    $this->sql->statement('constraint'),
+                    $this->quoteIdentifier((string) ($params[0] ?? '')),
+                    $this->implodeWith(' ', array_values((array) ($params[1] ?? [])))
+                ),
+                'drop' => sprintf(
+                    '%s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('drop'),
+                    $this->sql->statement('constraint'),
+                    $this->quoteIdentifier((string) ($params[0] ?? ''))
+                ),
+                'rename' => sprintf(
+                    '%s %s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('rename'),
+                    $this->sql->statement('constraint'),
+                    $this->quoteIdentifier((string) ($params[0] ?? '')),
+                    $this->sql->operator('to') . ' ' . $this->quoteIdentifier((string) ($params[1] ?? ''))
+                ),
+                default => throw $this->errorManager->resolveException('database', 'Invalid schema constraint action.'),
+            },
+            'unique' => match ($action) {
+                'create' => sprintf(
+                    '%s %s %s %s %s (%s)',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('add'),
+                    $this->sql->statement('unique'),
+                    $this->compileIdentifierArray((array) ($params[0] ?? []))
+                ),
+                'drop' => sprintf(
+                    '%s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('drop'),
+                    $this->sql->statement('constraint'),
+                    $this->quoteIdentifier((string) ($params[0] ?? ''))
+                ),
+                default => throw $this->errorManager->resolveException('database', 'Invalid schema unique action.'),
+            },
+            'check' => match ($action) {
+                'create' => sprintf(
+                    '%s %s %s %s %s %s CHECK (%s)',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('add'),
+                    $this->sql->statement('constraint'),
+                    $this->quoteIdentifier((string) ($params[0] ?? '')),
+                    $this->trimString((string) ($params[1] ?? ''))
+                ),
+                'drop' => sprintf(
+                    '%s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('drop'),
+                    $this->sql->statement('constraint'),
+                    $this->quoteIdentifier((string) ($params[0] ?? ''))
+                ),
+                default => throw $this->errorManager->resolveException('database', 'Invalid schema check action.'),
+            },
+            'foreignkey' => match ($action) {
+                'create' => sprintf(
+                    '%s %s %s %s %s (%s) %s %s(%s) %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('add'),
+                    $this->sql->statement('foreignKey'),
+                    $this->quoteIdentifier((string) ($params[0] ?? '')),
+                    $this->sql->statement('references'),
+                    $this->quoteIdentifier((string) ($params[1] ?? '')),
+                    $this->quoteIdentifier((string) ($params[2] ?? '')),
+                    $this->sql->operator('onDelete'),
+                    strtoupper((string) ($params[3] ?? 'RESTRICT')),
+                    $this->sql->operator('onUpdate'),
+                    strtoupper((string) ($params[4] ?? 'RESTRICT'))
+                ),
+                'drop' => sprintf(
+                    '%s %s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('drop'),
+                    $this->sql->statement('foreignKey'),
+                    $this->quoteIdentifier((string) ($params[0] ?? ''))
+                ),
+                default => throw $this->errorManager->resolveException('database', 'Invalid schema foreign key action.'),
+            },
+            'primarykey' => match ($action) {
+                'create' => sprintf(
+                    '%s %s %s %s %s (%s)',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('add'),
+                    $this->sql->statement('primaryKey'),
+                    $this->compileIdentifierArray((array) ($params[0] ?? []))
+                ),
+                'drop' => sprintf(
+                    '%s %s %s %s %s',
+                    $this->sql->clause('alter'),
+                    $this->sql->statement('table'),
+                    $table,
+                    $this->sql->statement('drop'),
+                    $this->sql->statement('primaryKey')
+                ),
+                default => throw $this->errorManager->resolveException('database', 'Invalid schema primary key action.'),
+            },
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Invalid schema structure type [%s].', $structOp['structure'])
+            ),
+        };
+    }
+
+    public function processView(string $action, string $viewName, ?string $selectQuery = null): array
+    {
+        $payload = [
+            'action' => $action,
+            'view' => $viewName,
+            'query' => $selectQuery,
+        ];
+
+        $this->pushOperation('view', $payload);
+
+        return $payload;
+    }
+
+    public function buildView(array $viewOp): string
+    {
+        $view = $this->quoteIdentifier((string) $viewOp['view']);
+        $query = $this->trimString((string) ($viewOp['query'] ?? ''));
+
+        return match ($this->sql->normalize((string) $viewOp['action'])) {
+            'create' => sprintf('%s %s %s %s %s', $this->sql->statement('create'), $this->sql->statement('view'), $view, $this->sql->operator('as'), $query),
+            'drop' => sprintf('%s %s %s', $this->sql->statement('drop'), $this->sql->statement('view'), $view),
+            'alter' => sprintf('%s %s %s %s %s', $this->sql->clause('alter'), $this->sql->statement('view'), $view, $this->sql->operator('as'), $query),
+            default => throw $this->errorManager->resolveException('database', 'Invalid schema view action.'),
+        };
+    }
+
+    public function processTrigger(
+        string $action,
+        string $triggerName,
+        ?string $table = null,
+        ?string $timing = null,
+        ?string $event = null,
+        ?string $statement = null
+    ): array {
+        $payload = [
+            'action' => $action,
+            'trigger' => $triggerName,
+            'table' => $table,
+            'timing' => $timing,
+            'event' => $event,
             'statement' => $statement,
-        ], 'Failed to process trigger operation');
+        ];
+
+        $this->pushOperation('trigger', $payload);
+
+        return $payload;
     }
 
-    /**
-     * Builds an SQL query for a trigger operation.
-     *
-     * Constructs a query string for creating, dropping, or altering triggers.
-     *
-     * @param array $triggerOp The trigger operation data.
-     * @return string The constructed SQL query for the trigger operation.
-     * @throws \InvalidArgumentException If an invalid trigger action is provided.
-     */
-    public function buildTrigger(array $triggerOp): string {
-        return $this->wrapInTry(fn() =>
-            match($triggerOp['action']) {
-                'create' => $this->sql->statement('create').' '.$this->sql->statement('trigger').' '.
-                            $triggerOp['trigger'].' '.$triggerOp['timing'].' '.$triggerOp['event'].' '.
-                            $this->sql->operator('on').' '.$triggerOp['table'].' '.
-                            $this->sql->operator('for each row').' '.$triggerOp['statement'],
-                'drop'   => $this->sql->statement('drop').' '.$this->sql->statement('trigger').' '.
-                            $triggerOp['trigger'],
-                'alter'  => $this->sql->clause('alter').' '.$this->sql->statement('trigger').' '.
-                            $triggerOp['trigger'].' '.$this->sql->operator('on').' '.$triggerOp['table'].' '.
-                            $triggerOp['statement'],
-                default  => throw new \InvalidArgumentException("Invalid trigger action: ".$triggerOp['action']),
-            }
-        , 'Failed to build trigger operation');
+    public function buildTrigger(array $triggerOp): string
+    {
+        $trigger = $this->quoteIdentifier((string) $triggerOp['trigger']);
+
+        return match ($this->sql->normalize((string) $triggerOp['action'])) {
+            'create' => sprintf(
+                '%s %s %s %s %s %s %s %s %s',
+                $this->sql->statement('create'),
+                $this->sql->statement('trigger'),
+                $trigger,
+                strtoupper((string) ($triggerOp['timing'] ?? '')),
+                strtoupper((string) ($triggerOp['event'] ?? '')),
+                $this->sql->operator('on'),
+                $this->quoteIdentifier((string) ($triggerOp['table'] ?? '')),
+                $this->sql->operator('forEachRow'),
+                $this->trimString((string) ($triggerOp['statement'] ?? ''))
+            ),
+            'drop' => sprintf('%s %s %s', $this->sql->statement('drop'), $this->sql->statement('trigger'), $trigger),
+            'alter' => sprintf(
+                '%s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('trigger'),
+                $trigger,
+                $this->trimString((string) ($triggerOp['statement'] ?? ''))
+            ),
+            default => throw $this->errorManager->resolveException('database', 'Invalid schema trigger action.'),
+        };
     }
 
-    // ========================================================================
-    // DATABASE OPERATIONS
-    // ========================================================================
+    public function processDatabase(string $action, string $database, array $options = []): array
+    {
+        $payload = [
+            'action' => $action,
+            'database' => $database,
+            'options' => $options,
+        ];
 
-    /**
-     * Processes a database operation such as creating, dropping, or altering a database.
-     *
-     * Ensures that the database name is properly escaped and stores any additional options.
-     *
-     * @param string $action The operation to perform (create, drop, alter).
-     * @param string $database The name of the database.
-     * @param array $options Additional options for altering the database.
-     * @return array Processed database operation data.
-     */
-    public function processDatabase(string $action, string $database, array $options = []): array {
-        return $this->wrapInTry(fn() => [
-            'action'   => $action,
-            'database' => $this->escapeIdentifiers([$database])[0],
-            'options'  => $options,
-        ], 'Failed to process database operation');
+        $this->pushOperation('database', $payload);
+
+        return $payload;
     }
 
-    /**
-     * Builds an SQL query for a database operation.
-     *
-     * Constructs a query string for creating, dropping, or altering a database.
-     *
-     * @param array $dbOp The database operation data.
-     * @return string The constructed SQL query for the database operation.
-     * @throws \InvalidArgumentException If an invalid database action is provided.
-     */
-    public function buildDatabase(array $dbOp): string {
-        return $this->wrapInTry(fn() =>
-            match($dbOp['action']) {
-                'create' => $this->sql->statement('create').' '.$this->sql->statement('database').' '.
-                            $dbOp['database'],
-                'drop'   => $this->sql->statement('drop').' '.$this->sql->statement('database').' '.
-                            $dbOp['database'],
-                'alter'  => $this->sql->clause('alter').' '.$this->sql->statement('database').' '.
-                            $dbOp['database'].' '.$this->join(' ', $dbOp['options']),
-                default  => throw new \InvalidArgumentException("Invalid database action: ".$dbOp['action']),
-            }
-        , 'Failed to build database operation');
+    public function buildDatabase(array $dbOp): string
+    {
+        $database = $this->quoteIdentifier((string) $dbOp['database']);
+
+        return match ($this->sql->normalize((string) $dbOp['action'])) {
+            'create' => sprintf('%s %s %s', $this->sql->statement('create'), $this->sql->statement('database'), $database),
+            'drop' => sprintf('%s %s %s', $this->sql->statement('drop'), $this->sql->statement('database'), $database),
+            'alter' => sprintf(
+                '%s %s %s %s',
+                $this->sql->clause('alter'),
+                $this->sql->statement('database'),
+                $database,
+                $this->implodeWith(' ', array_values((array) ($dbOp['options'] ?? [])))
+            ),
+            default => throw $this->errorManager->resolveException('database', 'Invalid schema database action.'),
+        };
     }
 
-    // ========================================================================
-    // ROUTINE OPERATIONS (Procedures & Functions)
-    // ========================================================================
-
-    /**
-     * Processes a routine operation such as creating or dropping a stored procedure or function.
-     *
-     * Escapes the routine name and stores the definition if provided.
-     *
-     * @param string $action The operation to perform (create, drop).
-     * @param string $routineType The type of routine (procedure or function).
-     * @param string $routineName The name of the routine.
-     * @param string|null $definition The SQL definition of the routine.
-     * @return array Processed routine operation data.
-     */
-    public function processRoutine(string $action, string $routineType, string $routineName, ?string $definition = null): array {
-        return $this->wrapInTry(fn() => [
-            'action'      => $action,
+    public function processRoutine(string $action, string $routineType, string $routineName, ?string $definition = null): array
+    {
+        $payload = [
+            'action' => $action,
             'routineType' => $routineType,
-            'name'        => $this->escapeIdentifiers([$routineName])[0],
-            'definition'  => $definition,
-        ], 'Failed to process routine operation');
+            'name' => $routineName,
+            'definition' => $definition,
+        ];
+
+        $this->pushOperation('routine', $payload);
+
+        return $payload;
     }
 
-    /**
-     * Builds an SQL query for a routine operation.
-     *
-     * Constructs a query string for creating or dropping a stored procedure or function.
-     *
-     * @param array $routineOp The routine operation data.
-     * @return string The constructed SQL query for the routine operation.
-     * @throws \InvalidArgumentException If an invalid routine action is provided.
-     */
-    public function buildRoutine(array $routineOp): string {
-        return $this->wrapInTry(fn() =>
-            match($routineOp['action']) {
-                'create' => $this->sql->statement('create').' '.$routineOp['routineType'].' '.
-                            $routineOp['name'].' '.$this->sql->operator('as').' '.$routineOp['definition'],
-                'drop'   => $this->sql->statement('drop').' '.$routineOp['routineType'].' '.
-                            $routineOp['name'],
-                default  => throw new \InvalidArgumentException("Invalid routine action: ".$routineOp['action']),
-            }
-        , 'Failed to build routine operation');
+    public function buildRoutine(array $routineOp): string
+    {
+        $name = $this->quoteIdentifier((string) $routineOp['name']);
+        $type = strtoupper((string) $routineOp['routineType']);
+
+        return match ($this->sql->normalize((string) $routineOp['action'])) {
+            'create' => sprintf(
+                '%s %s %s %s %s',
+                $this->sql->statement('create'),
+                $type,
+                $name,
+                $this->sql->operator('as'),
+                $this->trimString((string) ($routineOp['definition'] ?? ''))
+            ),
+            'drop' => sprintf('%s %s %s', $this->sql->statement('drop'), $type, $name),
+            default => throw $this->errorManager->resolveException('database', 'Invalid schema routine action.'),
+        };
     }
 
-    // ========================================================================
-    // SEQUENCE OPERATIONS
-    // ========================================================================
+    public function processSequence(string $action, string $sequenceName, array $options = []): array
+    {
+        $payload = [
+            'action' => $action,
+            'sequence' => $sequenceName,
+            'options' => $options,
+        ];
 
-    /**
-     * Processes a sequence operation such as creating or dropping a sequence.
-     *
-     * Escapes the sequence name and stores additional options if provided.
-     *
-     * @param string $action The operation to perform (create, drop).
-     * @param string $sequenceName The name of the sequence.
-     * @param array $options Additional options for creating or modifying the sequence.
-     * @return array Processed sequence operation data.
-     */
-    public function processSequence(string $action, string $sequenceName, array $options = []): array {
-        return $this->wrapInTry(fn() => [
-            'action'   => $action,
-            'sequence' => $this->escapeIdentifiers([$sequenceName])[0],
-            'options'  => $options,
-        ], 'Failed to process sequence operation');
+        $this->pushOperation('sequence', $payload);
+
+        return $payload;
     }
 
-    /**
-     * Builds an SQL query for a sequence operation.
-     *
-     * Constructs a query string for creating or dropping a sequence.
-     *
-     * @param array $seqOp The sequence operation data.
-     * @return string The constructed SQL query for the sequence operation.
-     * @throws \InvalidArgumentException If an invalid sequence action is provided.
-     */
-    public function buildSequence(array $seqOp): string {
-        return $this->wrapInTry(fn() =>
-            match($seqOp['action']) {
-                'create' => $this->sql->statement('create').' '.$this->sql->statement('sequence').' '.
-                            $seqOp['sequence'].
-                            ($this->isEmpty($seqOp['options']) ? '' : ' '.$this->join(' ', $seqOp['options'])),
-                'drop'   => $this->sql->statement('drop').' '.$this->sql->statement('sequence').' '.
-                            $seqOp['sequence'],
-                default  => throw new \InvalidArgumentException("Invalid sequence action: ".$seqOp['action']),
-            }
-        , 'Failed to build sequence operation');
+    public function buildSequence(array $seqOp): string
+    {
+        $sequence = $this->quoteIdentifier((string) $seqOp['sequence']);
+
+        return match ($this->sql->normalize((string) $seqOp['action'])) {
+            'create' => sprintf(
+                '%s %s %s%s',
+                $this->sql->statement('create'),
+                $this->sql->statement('sequence'),
+                $sequence,
+                ($seqOp['options'] ?? []) === [] ? '' : ' ' . $this->implodeWith(' ', array_values((array) $seqOp['options']))
+            ),
+            'drop' => sprintf('%s %s %s', $this->sql->statement('drop'), $this->sql->statement('sequence'), $sequence),
+            default => throw $this->errorManager->resolveException('database', 'Invalid schema sequence action.'),
+        };
+    }
+
+    protected function compileDefaultValue(mixed $value): string
+    {
+        return $this->quoteLiteral($value);
+    }
+
+    private function pushOperation(string $kind, array $payload): void
+    {
+        $this->operations[] = [
+            'kind' => $kind,
+            'payload' => $payload,
+        ];
+    }
+
+    private function buildOperation(string $kind, array $payload): string
+    {
+        return match ($kind) {
+            'column' => $this->buildColumn($payload),
+            'table' => $this->buildTable($payload),
+            'structure' => $this->buildStructure($payload),
+            'view' => $this->buildView($payload),
+            'trigger' => $this->buildTrigger($payload),
+            'database' => $this->buildDatabase($payload),
+            'routine' => $this->buildRoutine($payload),
+            'sequence' => $this->buildSequence($payload),
+            default => throw $this->errorManager->resolveException(
+                'database',
+                sprintf('Invalid schema operation kind [%s].', $kind)
+            ),
+        };
+    }
+
+    private function compileIdentifierArray(array $identifiers): string
+    {
+        return $this->implodeWith(
+            ', ',
+            $this->map(fn(string $identifier): string => $this->quoteIdentifier($identifier), array_values($identifiers))
+        );
     }
 }

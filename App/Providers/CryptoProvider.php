@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\Data\CryptoInterface;
 use App\Core\Container;
 use App\Drivers\Cryptography\{
     SodiumCrypto,
@@ -79,22 +80,50 @@ class CryptoProvider extends Container
      * Retrieves the appropriate crypto driver based on the provided configuration.
      *
      * @param array $cryptoSettings Configuration array specifying the crypto driver.
-     * @return object The resolved crypto driver instance.
+     * @return CryptoInterface The resolved crypto driver instance.
      * @throws ContainerException If the specified crypto driver is invalid or unsupported.
      */
-    public function getCryptoDriver(array $cryptoSettings): object
+    public function getCryptoDriver(array $cryptoSettings): CryptoInterface
     {
         return $this->wrapInTry(
-            function () use ($cryptoSettings): object {
-                $driver = $this->toLower($this->trimString((string) ($this->replaceByPattern('/\s+#.*$/', '', (string) ($cryptoSettings['DRIVER'] ?? '')) ?? '')));
-
-                return $this->getInstance(
+            function () use ($cryptoSettings): CryptoInterface {
+                $driver = $this->normalizeDriverAlias((string) ($cryptoSettings['DRIVER'] ?? ''));
+                $instance = $this->getInstance(
                     $this->cryptoMap[$driver
                         ?: throw new ContainerException("Crypto driver alias is missing or invalid.")]
                     ?? throw new ContainerException("Unsupported crypto driver alias: {$driver}")
                 );
+
+                if (!$instance instanceof CryptoInterface) {
+                    throw new ContainerException("Resolved crypto driver [$driver] does not implement the crypto contract.");
+                }
+
+                if (!$instance->supports('extension')) {
+                    throw new ContainerException("Crypto driver [$driver] is not supported by this PHP runtime.");
+                }
+
+                return $instance;
             },
             new ContainerException("Error retrieving crypto driver.")
+        );
+    }
+
+    /**
+     * Lists the supported driver aliases known to the framework.
+     *
+     * @return array<string>
+     */
+    public function getSupportedDrivers(): array
+    {
+        return $this->getKeys($this->cryptoMap);
+    }
+
+    private function normalizeDriverAlias(string $driver): string
+    {
+        return $this->toLower(
+            $this->trimString(
+                (string) ($this->replaceByPattern('/\s+#.*$/', '', $driver) ?? $driver)
+            )
         );
     }
 }

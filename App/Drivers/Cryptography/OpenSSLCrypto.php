@@ -4,19 +4,20 @@ namespace App\Drivers\Cryptography;
 
 use App\Abstracts\Data\Crypto;
 use App\Contracts\Data\CryptoInterface;
+use App\Exceptions\Data\CryptoException;
 use App\Utilities\Traits\{
 	EncodingTrait,
 	ManipulationTrait,
 	TypeCheckerTrait
 };
 use App\Utilities\Traits\Patterns\PatternTrait;
-use RuntimeException as CryptoException;
 
 class OpenSSLCrypto extends Crypto implements CryptoInterface
 {
 	use EncodingTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
 
 	protected readonly array $config;
+	protected readonly array $capabilities;
 
 	public function __construct()
 	{
@@ -172,7 +173,19 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 			'sni' => [
 				'tlsextServerName' => $const('OPENSSL_TLSEXT_SERVER_NAME', ''),
 			]
-		];
+			];
+
+		$this->capabilities = $this->buildCapabilities();
+	}
+
+	public function driverName(): string
+	{
+		return 'openssl';
+	}
+
+	public function capabilities(): array
+	{
+		return $this->capabilities;
 	}
 
 	public function Encryptor(string $type): callable
@@ -184,14 +197,17 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				?string $key = null,
 				?string $iv = null,
 				?int $options = null
-				) => openssl_encrypt(
-					$data,
-					$this->resolveCipherMethod($cipher),
-					$key ?? $this->config['keys']['defaultKey']
-						?? throw new CryptoException("Encryption key is required."),
-					$options ?? $this->config['options']['rawData'],
-				$iv ?? $this->RandomGenerator('generateRandomIv')($cipher)
-			) ?: throw new CryptoException("Symmetric encryption failed."),
+				) => $this->rejectFalseWithRuntimeMessage(
+					openssl_encrypt(
+						$data,
+						$this->resolveCipherMethod($cipher),
+						$key ?? $this->config['keys']['defaultKey']
+							?? throw new CryptoException("Encryption key is required."),
+						$options ?? $this->config['options']['rawData'],
+						$iv ?? $this->RandomGenerator('generateRandomIv')($cipher)
+					),
+					'Symmetric encryption failed.'
+				),
 
 			'asymmetric' => fn(
 				string $data,
@@ -230,14 +246,17 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				?string $key = null,
 				?string $iv = null,
 				?int $options = null
-				) => openssl_decrypt(
-					$data,
-					$this->resolveCipherMethod($cipher),
-					$key ?? $this->config['keys']['defaultKey']
-						?? throw new CryptoException("Decryption key is required."),
-					$options ?? $this->config['options']['rawData'],
-				$iv ?? throw new CryptoException("IV is required for symmetric decryption.")
-			) ?: throw new CryptoException("Symmetric decryption failed."),
+				) => $this->rejectFalseWithRuntimeMessage(
+					openssl_decrypt(
+						$data,
+						$this->resolveCipherMethod($cipher),
+						$key ?? $this->config['keys']['defaultKey']
+							?? throw new CryptoException("Decryption key is required."),
+						$options ?? $this->config['options']['rawData'],
+						$iv ?? throw new CryptoException("IV is required for symmetric decryption.")
+					),
+					'Symmetric decryption failed.'
+				),
 
 			'asymmetric' => fn(
 				string $data,
@@ -287,9 +306,12 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 					),
 
 			'secureRandomBytes' => fn(?int $overrideLength = null) => [
-				'bytes' => openssl_random_pseudo_bytes(
-					$overrideLength ?? $length ?? $this->config['random']['defaultPseudoRandomLength'] ?? 32,
-					$isStrong
+				'bytes' => $this->rejectFalseWithRuntimeMessage(
+					openssl_random_pseudo_bytes(
+						$overrideLength ?? $length ?? $this->config['random']['defaultPseudoRandomLength'] ?? 32,
+						$isStrong
+					),
+					'Pseudo-random byte generation failed.'
 				),
 				'isStrong' => $isStrong,
 			],
@@ -318,11 +340,14 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 			),
 
 			'hashDigest' => fn(string $data, ?string $algo = null) =>
-				openssl_digest(
-					$data,
-					$this->config['algorithms'][$algo ?? $this->config['defaultAlgo']]
-						?? throw new CryptoException("Invalid algorithm specified for digest.")
-				) ?: throw new CryptoException("Digest computation failed."),
+				$this->rejectFalseWithRuntimeMessage(
+					openssl_digest(
+						$data,
+						$this->config['algorithms'][$algo ?? $this->config['defaultAlgo']]
+							?? throw new CryptoException("Invalid algorithm specified for digest.")
+					),
+					'Digest computation failed.'
+				),
 
 			'listHashMethods' => fn() =>
 				openssl_get_md_methods()
@@ -336,19 +361,22 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 	{
 		return match ($action) {
 			'import' => fn(string $type, string $key, ?string $passphrase = null) => match ($type) {
-				'private' => openssl_pkey_get_private($key, $passphrase)
-					?: throw new CryptoException("Private key import failed."),
-				'public' => openssl_pkey_get_public($key)
-					?: throw new CryptoException("Public key import failed."),
+				'private' => $this->rejectFalseWithRuntimeMessage(
+					openssl_pkey_get_private($key, $passphrase),
+					'Private key import failed.'
+				),
+				'public' => $this->rejectFalseWithRuntimeMessage(
+					openssl_pkey_get_public($key),
+					'Public key import failed.'
+				),
 				default => throw new CryptoException("Unsupported key import type: {$type}."),
 			},
 
 			'export' => fn(string $type, $key, ?string $passphrase = null) => match ($type) {
 				'private' => openssl_pkey_export($key, $output, $passphrase)
 					? $output
-					: throw new CryptoException("Private key export failed."),
-				'public' => openssl_pkey_get_details($key)['key']
-					?? throw new CryptoException("Public key export failed."),
+					: throw new CryptoException($this->openSslFailureMessage('Private key export failed.')),
+				'public' => $this->exportPublicKey($key),
 				default => throw new CryptoException("Unsupported key export type: {$type}."),
 			},
 
@@ -357,14 +385,20 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 					?: throw new CryptoException("Key export to file failed."),
 
 			'generate' => fn(?string $type = null, ?int $bits = null, ?string $curve = null) => match ($type ?? 'rsa') {
-				'rsa' => openssl_pkey_new([
-					'private_key_type' => $this->config['keyTypes']['rsa'],
-					'private_key_bits' => $bits ?? $this->config['keys']['defaultBits'] ?? 2048,
-				]),
-				'ec' => openssl_pkey_new([
-					'private_key_type' => $this->config['keyTypes']['ec'],
-					'curve_name' => $curve ?? $this->config['keys']['defaultCurve'] ?? 'prime256v1',
-				]),
+				'rsa' => $this->rejectFalseWithRuntimeMessage(
+					openssl_pkey_new([
+						'private_key_type' => $this->config['keyTypes']['rsa'],
+						'private_key_bits' => $bits ?? $this->config['keys']['defaultBits'] ?? 2048,
+					]),
+					'RSA key generation failed.'
+				),
+				'ec' => $this->rejectFalseWithRuntimeMessage(
+					openssl_pkey_new([
+						'private_key_type' => $this->config['keyTypes']['ec'],
+						'curve_name' => $curve ?? $this->config['keys']['defaultCurve'] ?? 'prime256v1',
+					]),
+					'EC key generation failed.'
+				),
 				default => throw new CryptoException("Unsupported key type: {$type}."),
 			},
 
@@ -383,7 +417,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 
 	public function KeyExchanger(string $type): callable
 	{
-		return $this->KeyHandler($type);
+		return $this->KeyExchangeHandler($type);
 	}
 
 	public function CertificateHandler(string $action): callable
@@ -402,35 +436,40 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				openssl_x509_export_to_file($certificate, $filePath)
 					?: throw new CryptoException("Certificate export to file failed."),
 
-			'verifyPrivateKey' => fn($certificate, $privateKey) =>
-				openssl_x509_check_private_key($certificate, $privateKey)
-					?: throw new CryptoException("Private key verification failed."),
+				'verifyPrivateKey' => fn($certificate, $privateKey) =>
+					openssl_x509_check_private_key($certificate, $privateKey),
 
-			'checkPurpose' => fn(
-				$certificate,
-				int|string $purpose,
-				?array $caInfo = null,
-				?array $untrustedCerts = null
-			) => openssl_x509_checkpurpose(
-				$certificate,
-					$this->isInt($purpose)
-						? $purpose
-						: ($this->config['x509'][$purpose]
-						?? throw new CryptoException("Unsupported certificate purpose: {$purpose}.")),
-				$caInfo,
-				$untrustedCerts
-			) ?: throw new CryptoException("Certificate purpose check failed."),
+				'checkPurpose' => fn(
+					$certificate,
+					int|string $purpose,
+					?array $caInfo = null,
+					?array $untrustedCerts = null
+				) => $this->normalizeVerificationResult(
+					openssl_x509_checkpurpose(
+						$certificate,
+						$this->isInt($purpose)
+							? $purpose
+							: ($this->config['x509'][$purpose]
+							?? throw new CryptoException("Unsupported certificate purpose: {$purpose}.")),
+						$caInfo,
+						$untrustedCerts
+					),
+					$this->openSslFailureMessage("Certificate purpose check failed.")
+				),
 
-			'fingerprint' => fn(
-				$certificate,
-				?string $algo = null,
-				?bool $binary = true
-			) => openssl_x509_fingerprint(
-				$certificate,
-				$this->config['algorithms'][$algo ?? $this->config['defaultAlgo']]
-					?? throw new CryptoException("Invalid algorithm for fingerprint."),
-				$binary
-			) ?: throw new CryptoException("Certificate fingerprint calculation failed."),
+				'fingerprint' => fn(
+					$certificate,
+					?string $algo = null,
+					?bool $binary = true
+				) => $this->rejectFalseWithRuntimeMessage(
+					openssl_x509_fingerprint(
+						$certificate,
+						$this->config['algorithms'][$algo ?? $this->config['defaultAlgo']]
+							?? throw new CryptoException("Invalid algorithm for fingerprint."),
+						$binary
+					),
+					'Certificate fingerprint calculation failed.'
+				),
 
 				'convertPemToDer' => fn(string $pem) =>
 					$this->base64DecodeString(
@@ -468,30 +507,43 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 					?? throw new CryptoException("Invalid algorithm for signing.")
 			) ? $signature : throw new CryptoException("Signing failed."),
 
-			'pkcs7Sign' => fn(
-				string $data,
-				$certs,
-				$privateKey,
-				?int $flags = null
-			) => openssl_pkcs7_sign(
-				$data,
-				$certs,
-				$privateKey,
-				null,
-				$this->config['pkcs7']['binary'] | ($flags ?? 0)
-			) ?: throw new CryptoException("PKCS7 signing failed."),
+				'pkcs7Sign' => fn(
+					string $inputFile,
+					string $outputFile,
+					$certificate,
+					$privateKey,
+					?array $headers = null,
+					?int $flags = null,
+					?string $untrustedCertificatesFile = null
+				) => openssl_pkcs7_sign(
+					$inputFile,
+					$outputFile,
+					$certificate,
+					$privateKey,
+					$headers ?? [],
+					$this->config['pkcs7']['binary'] | ($flags ?? 0),
+					$untrustedCertificatesFile
+				) ? $outputFile : throw new CryptoException($this->openSslFailureMessage("PKCS7 signing failed.")),
 
-			'cmsSign' => fn(
-				string $data,
-				$privateKey,
-				$certs,
-				?int $flags = null
-			) => openssl_cms_sign(
-				$data,
-				$privateKey,
-				$certs,
-				$this->config['cms']['binary'] | ($flags ?? 0)
-			) ?: throw new CryptoException("CMS signing failed."),
+				'cmsSign' => fn(
+					string $inputFile,
+					string $outputFile,
+					$certificate,
+					$privateKey,
+					?array $headers = null,
+					?int $flags = null,
+					?int $encoding = null,
+					?string $untrustedCertificatesFile = null
+				) => openssl_cms_sign(
+					$inputFile,
+					$outputFile,
+					$certificate,
+					$privateKey,
+					$headers ?? [],
+					$this->config['cms']['binary'] | ($flags ?? 0),
+					$encoding ?? $this->config['options']['encodingSmime'],
+					$untrustedCertificatesFile
+				) ? $outputFile : throw new CryptoException($this->openSslFailureMessage("CMS signing failed.")),
 
 			'spkiSign' => fn($privateKey, $challenge) =>
 				openssl_spki_new($privateKey, $challenge)
@@ -517,201 +569,328 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 					?? throw new CryptoException("Invalid algorithm for verification.")
 			) === 1,
 
-			'x509' => fn($cert, $publicKey) =>
-				openssl_x509_verify($cert, $publicKey)
-					?: throw new CryptoException("Certificate verification failed."),
-
-			'pkcs7Verify' => fn(
-				string $data,
-				$certs,
-				?int $flags = null
-			) => openssl_pkcs7_verify(
-				$data,
-				$flags ?? $this->config['pkcs7']['defaultFlags'],
-				null,
-				$certs
-			) ?: throw new CryptoException("PKCS7 verification failed."),
-
-			'cmsVerify' => fn(
-				string $data,
-				$certs,
-				?int $flags = null
-			) => openssl_cms_verify(
-				$data,
-				$flags ?? $this->config['cms']['defaultFlags'],
-				$certs
-			) ?: throw new CryptoException("CMS verification failed."),
-
-			'spkiVerify' => fn(string $spki) =>
-				openssl_spki_verify($spki)
-					?: throw new CryptoException("SPKI verification failed."),
-
-			default => throw new CryptoException("Unsupported verification type: {$type}."),
-		};
-	}
-
-	public function KeyExchangeHandler(string $action): callable
-	{
-		return match ($action) {
-			'deriveSharedKey' => fn($peerPublicKey, $privateKey) =>
-				openssl_pkey_derive(
-					$peerPublicKey,
-					$privateKey
-				) ?: throw new CryptoException("Key derivation failed."),
-
-			'computeDhSharedSecret' => fn($publicKey, $privateKey) =>
-				openssl_dh_compute_key(
-					$publicKey,
-					$privateKey
-				) ?: throw new CryptoException("Failed to compute DH shared secret."),
-
-			default => throw new CryptoException("Unsupported key exchange action: {$action}."),
-		};
-	}
-
-	public function CipherHandler(string $action): callable
-	{
-		return match ($action) {
-				'getIvLength' => fn(string $cipher) =>
-					openssl_cipher_iv_length(
-						$this->resolveCipherMethod($cipher)
+				'x509' => fn($cert, $publicKey) =>
+					$this->normalizeVerificationResult(
+						openssl_x509_verify($cert, $publicKey),
+						$this->openSslFailureMessage("Certificate verification failed.")
 					),
 
-				'getKeyLength' => fn(string $cipher) =>
-					openssl_cipher_key_length(
-						$this->resolveCipherMethod($cipher)
+				'pkcs7Verify' => fn(
+					string $inputFile,
+					?int $flags = null,
+					?string $signersCertificatesFile = null,
+					?array $caInfo = null,
+					?string $untrustedCertificatesFile = null,
+					?string $content = null,
+					?string $outputFile = null
+				) => $this->normalizeVerificationResult(
+					openssl_pkcs7_verify(
+						$inputFile,
+						$flags ?? $this->config['pkcs7']['defaultFlags'],
+						$signersCertificatesFile,
+						$caInfo,
+						$untrustedCertificatesFile,
+						$content,
+						$outputFile
 					),
+					$this->openSslFailureMessage("PKCS7 verification failed.")
+				),
 
-			'listCiphers' => fn() =>
-				openssl_get_cipher_methods(),
+				'cmsVerify' => fn(
+					string $inputFile,
+					?int $flags = null,
+					?string $certificates = null,
+					?array $caInfo = null,
+					?string $untrustedCertificatesFile = null,
+					?string $content = null,
+					?string $pk7 = null,
+					?string $sigfile = null,
+					?int $encoding = null
+				) => $this->normalizeVerificationResult(
+					openssl_cms_verify(
+						$inputFile,
+						$flags ?? $this->config['cms']['defaultFlags'],
+						$certificates,
+						$caInfo,
+						$untrustedCertificatesFile,
+						$content,
+						$pk7,
+						$sigfile,
+						$encoding ?? $this->config['options']['encodingSmime']
+					),
+					$this->openSslFailureMessage("CMS verification failed.")
+				),
 
-			'seal' => fn(string $data, array $publicKeys) =>
-				openssl_seal(
-					$data,
-					$sealed,
-					$envKeys,
-					$publicKeys
-				) ? ['sealed' => $sealed, 'envKeys' => $envKeys]
-					: throw new CryptoException("Seal encryption failed."),
+				'spkiVerify' => fn(string $spki) =>
+					(bool) openssl_spki_verify($spki),
 
-			'open' => fn(string $sealedData, $privateKey, string $envKey) =>
-				openssl_open(
-					$sealedData,
-					$output,
-					$envKey,
-					$privateKey
-				) ? $output : throw new CryptoException("Seal decryption failed."),
+				default => throw new CryptoException("Unsupported verification type: {$type}."),
+			};
+		}
 
-			default => throw new CryptoException("Unsupported cipher action: {$action}."),
-		};
-	}
+		public function KeyExchangeHandler(string $action): callable
+		{
+			return match ($action) {
+					'deriveSharedKey' => function ($peerPublicKey, $privateKey): string {
+						$this->requireFunction('openssl_pkey_derive', 'openssl key derivation');
 
-	public function MemoryHandler(string $action): callable
-	{
-		return match ($action) {
-			'clearSensitiveData' => fn(string &$data) =>
-				$data = $this->repeatString("\0", $this->length($data)),
+						return $this->rejectFalseWithRuntimeMessage(
+							openssl_pkey_derive(
+								$peerPublicKey,
+								$privateKey
+							),
+							'Key derivation failed.'
+						);
+					},
 
-			'compareSecurely' => fn(string $a, string $b) =>
-				hash_equals($a, $b),
+					'computeDhSharedSecret' => function ($publicKey, $privateKey): string {
+						$this->requireFunction('openssl_dh_compute_key', 'openssl Diffie-Hellman key computation');
 
-			default => throw new CryptoException("Unsupported memory action: {$action}."),
-		};
-	}
+						return $this->rejectFalseWithRuntimeMessage(
+							openssl_dh_compute_key(
+								$publicKey,
+								$privateKey
+							),
+							'Failed to compute DH shared secret.'
+						);
+					},
 
-	public function DataConverter(string $type): callable
-	{
-		return match ($type) {
-				'bin2base64' => fn(string $data) =>
-					$this->base64EncodeString($data),
+				default => throw new CryptoException("Unsupported key exchange action: {$action}."),
+			};
+		}
 
-				'base642bin' => fn(string $data) =>
-					$this->base64DecodeString($data, true)
-						?: throw new CryptoException("Invalid Base64 encoded string."),
+		public function CipherHandler(string $action): callable
+		{
+			return match ($action) {
+					'getIvLength' => fn(string $cipher) =>
+						openssl_cipher_iv_length(
+							$this->resolveCipherMethod($cipher)
+						),
 
-			'bin2hex' => fn(string $data) =>
-				bin2hex($data),
+						'getKeyLength' => function (string $cipher): int {
+							$this->requireFunction('openssl_cipher_key_length', 'openssl cipher key length');
 
-			'hex2bin' => fn(string $data) =>
-				hex2bin($data)
-					?: throw new CryptoException("Invalid hexadecimal string."),
+							return openssl_cipher_key_length(
+								$this->resolveCipherMethod($cipher)
+							);
+						},
 
-			default => throw new CryptoException("Unsupported conversion type: {$type}."),
-		};
-	}
+				'listCiphers' => fn() =>
+					openssl_get_cipher_methods(),
 
-	public function PKIHandler(string $type): callable
-	{
-		return match ($type) {
-			'pkcs7Read' => fn(string $pkcs7File, &$certificates) =>
-				openssl_pkcs7_read($pkcs7File, $certificates)
-					? $certificates
-					: throw new CryptoException("Failed to read PKCS7 file: {$pkcs7File}."),
-
-			'cmsRead' => fn(string $cmsFile, &$certificates) =>
-				openssl_cms_read($cmsFile, $certificates)
-					? $certificates
-					: throw new CryptoException("Failed to read CMS file: {$cmsFile}."),
-
-			'pkcs12Export' => fn($certificate, $privateKey, string $password, array $args = []) =>
-				openssl_pkcs12_export($certificate, $output, $privateKey, $password, $args)
-					? $output
-					: throw new CryptoException("PKCS#12 export failed."),
-
-			'pkcs12ExportToFile' => fn($certificate, $privateKey, string $password, string $filePath, array $args = []) =>
-				openssl_pkcs12_export_to_file($certificate, $filePath, $privateKey, $password, $args)
-					?: throw new CryptoException("PKCS#12 export to file failed for path: {$filePath}."),
-
-			'pkcs12Read' => fn(string $pkcs12, string $password) =>
-				openssl_pkcs12_read($pkcs12, $certificates, $password)
-					? $certificates
-					: throw new CryptoException("Failed to read PKCS#12 data."),
-
-			'pkcs7Encrypt' => fn($data, array $certs, ?int $flags = null) =>
-				openssl_pkcs7_encrypt(
-					$data,
-					$certs,
-					$this->config['pkcs7']['binary'] | ($flags ?? 0)
-				) ?: throw new CryptoException("PKCS7 encryption failed."),
-
-			'pkcs7Decrypt' => fn($data, $privateKey, $cert) =>
-				openssl_pkcs7_decrypt($data, $privateKey, $cert)
-					?: throw new CryptoException("PKCS7 decryption failed."),
-
-				'cmsEncrypt' => fn($data, $certs, string $cipher, ?int $flags = null) =>
-					openssl_cms_encrypt(
+				'seal' => fn(string $data, array $publicKeys) =>
+					openssl_seal(
 						$data,
-						$certs,
-						$this->resolveCipherMethod($cipher),
-						$flags ?? 0
-					) ?: throw new CryptoException("CMS encryption failed."),
+						$sealed,
+						$envKeys,
+						$publicKeys
+					) ? ['sealed' => $sealed, 'envKeys' => $envKeys]
+						: throw new CryptoException("Seal encryption failed."),
 
-			'cmsDecrypt' => fn($data, $privateKey, $certificate, ?int $flags = null) =>
-				openssl_cms_decrypt($data, $privateKey, $certificate, $flags ?? 0)
-					?: throw new CryptoException("CMS decryption failed."),
+				'open' => fn(string $sealedData, $privateKey, string $envKey) =>
+					openssl_open(
+						$sealedData,
+						$output,
+						$envKey,
+						$privateKey
+					) ? $output : throw new CryptoException("Seal decryption failed."),
 
-			'pkcs7Verify' => fn($data, array $certs, ?int $flags = null) =>
-				openssl_pkcs7_verify($data, $flags ?? 0, null, $certs)
-					?: throw new CryptoException("PKCS7 verification failed."),
+				default => throw new CryptoException("Unsupported cipher action: {$action}."),
+			};
+		}
 
-			'cmsVerify' => fn($data, array $certs, ?int $flags = null) =>
-				openssl_cms_verify($data, $flags ?? 0, $certs)
-					?: throw new CryptoException("CMS verification failed."),
+		public function MemoryHandler(string $action): callable
+		{
+			return match ($action) {
+				'clearSensitiveData' => fn(string &$data) =>
+					$data = $this->repeatString("\0", $this->length($data)),
 
-			default => throw new CryptoException("Unsupported PKI action: {$type}."),
-		};
-	}
+				'compareSecurely' => fn(string $a, string $b) =>
+					hash_equals($a, $b),
+
+				default => throw new CryptoException("Unsupported memory action: {$action}."),
+			};
+		}
+
+		public function DataConverter(string $type): callable
+		{
+			return match ($type) {
+					'bin2base64' => fn(string $data) =>
+						$this->base64EncodeString($data),
+
+					'base642bin' => fn(string $data) =>
+						$this->rejectFalse(
+							$this->base64DecodeString($data, true),
+							"Invalid Base64 encoded string."
+						),
+
+				'bin2hex' => fn(string $data) =>
+					bin2hex($data),
+
+					'hex2bin' => fn(string $data) =>
+						$this->rejectFalse(
+							hex2bin($data),
+							"Invalid hexadecimal string."
+						),
+
+				default => throw new CryptoException("Unsupported conversion type: {$type}."),
+			};
+		}
+
+		public function PKIHandler(string $type): callable
+		{
+			return match ($type) {
+				'pkcs7Read' => fn(string $pkcs7File, &$certificates) =>
+					openssl_pkcs7_read($pkcs7File, $certificates)
+						? $certificates
+						: throw new CryptoException("Failed to read PKCS7 file: {$pkcs7File}."),
+
+				'cmsRead' => fn(string $cmsFile, &$certificates) =>
+					openssl_cms_read($cmsFile, $certificates)
+						? $certificates
+						: throw new CryptoException("Failed to read CMS file: {$cmsFile}."),
+
+				'pkcs12Export' => fn($certificate, $privateKey, string $password, array $args = []) =>
+					openssl_pkcs12_export($certificate, $output, $privateKey, $password, $args)
+						? $output
+						: throw new CryptoException("PKCS#12 export failed."),
+
+				'pkcs12ExportToFile' => fn($certificate, $privateKey, string $password, string $filePath, array $args = []) =>
+					openssl_pkcs12_export_to_file($certificate, $filePath, $privateKey, $password, $args)
+						?: throw new CryptoException("PKCS#12 export to file failed for path: {$filePath}."),
+
+				'pkcs12Read' => fn(string $pkcs12, string $password) =>
+					openssl_pkcs12_read($pkcs12, $certificates, $password)
+						? $certificates
+						: throw new CryptoException("Failed to read PKCS#12 data."),
+
+				'pkcs7Encrypt' => function (
+					string $inputFile,
+					string $outputFile,
+					$certificate,
+					?array $headers = null,
+					?int $flags = null,
+					?int $cipherAlgorithm = null
+				): string {
+					$arguments = [
+						$inputFile,
+						$outputFile,
+						$certificate,
+						$headers ?? [],
+						$flags ?? 0,
+					];
+
+					if ($cipherAlgorithm !== null) {
+						$arguments[] = $cipherAlgorithm;
+					}
+
+					$success = openssl_pkcs7_encrypt(...$arguments);
+
+					if (!$success) {
+						throw new CryptoException($this->openSslFailureMessage("PKCS7 encryption failed."));
+					}
+
+					return $outputFile;
+				},
+
+				'pkcs7Decrypt' => fn(string $inputFile, string $outputFile, $certificate, $privateKey = null) =>
+					openssl_pkcs7_decrypt($inputFile, $outputFile, $certificate, $privateKey)
+						? $outputFile
+						: throw new CryptoException($this->openSslFailureMessage("PKCS7 decryption failed.")),
+
+				'cmsEncrypt' => fn(
+					string $inputFile,
+					string $outputFile,
+					$certificate,
+					?array $headers = null,
+					?int $flags = null,
+					?int $encoding = null,
+					?int $cipherAlgorithm = null
+				) => openssl_cms_encrypt(
+					$inputFile,
+					$outputFile,
+					$certificate,
+					$headers ?? [],
+					$flags ?? 0,
+					$encoding ?? $this->config['options']['encodingSmime'],
+					$cipherAlgorithm
+				) ? $outputFile : throw new CryptoException($this->openSslFailureMessage("CMS encryption failed.")),
+
+				'cmsDecrypt' => fn(
+					string $inputFile,
+					string $outputFile,
+					$certificate,
+					$privateKey = null,
+					?int $encoding = null
+				) => openssl_cms_decrypt(
+					$inputFile,
+					$outputFile,
+					$certificate,
+					$privateKey,
+					$encoding ?? $this->config['options']['encodingSmime']
+				) ? $outputFile : throw new CryptoException($this->openSslFailureMessage("CMS decryption failed.")),
+
+				'pkcs7Verify' => fn(
+					string $inputFile,
+					?int $flags = null,
+					?string $signersCertificatesFile = null,
+					?array $caInfo = null,
+					?string $untrustedCertificatesFile = null,
+					?string $content = null,
+					?string $outputFile = null
+				) => $this->normalizeVerificationResult(
+					openssl_pkcs7_verify(
+						$inputFile,
+						$flags ?? 0,
+						$signersCertificatesFile,
+						$caInfo,
+						$untrustedCertificatesFile,
+						$content,
+						$outputFile
+					),
+					$this->openSslFailureMessage("PKCS7 verification failed.")
+				),
+
+				'cmsVerify' => fn(
+					string $inputFile,
+					?int $flags = null,
+					?string $certificates = null,
+					?array $caInfo = null,
+					?string $untrustedCertificatesFile = null,
+					?string $content = null,
+					?string $pk7 = null,
+					?string $sigfile = null,
+					?int $encoding = null
+				) => $this->normalizeVerificationResult(
+					openssl_cms_verify(
+						$inputFile,
+						$flags ?? 0,
+						$certificates,
+						$caInfo,
+						$untrustedCertificatesFile,
+						$content,
+						$pk7,
+						$sigfile,
+						$encoding ?? $this->config['options']['encodingSmime']
+					),
+					$this->openSslFailureMessage("CMS verification failed.")
+				),
+
+				default => throw new CryptoException("Unsupported PKI action: {$type}."),
+			};
+		}
 
 	public function SystemHandler(string $action): callable
 	{
 		return match ($action) {
-			'getCertLocations' => fn() =>
-				openssl_get_cert_locations()
-					?: throw new CryptoException("Failed to retrieve certificate locations."),
+				'getCertLocations' => fn() =>
+					$this->rejectFalseWithRuntimeMessage(
+						openssl_get_cert_locations(),
+						'Failed to retrieve certificate locations.'
+					),
 
-			'getErrorString' => fn() =>
-				openssl_error_string()
-					?: throw new CryptoException("No OpenSSL error string available."),
+				'getErrorString' => fn() =>
+					openssl_error_string() ?: '',
 
 				default => throw new CryptoException("Unsupported system action: {$action}."),
 			};
@@ -723,5 +902,108 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 
 		return $this->config['ciphers'][$normalized]
 			?? throw new CryptoException("Invalid cipher type: {$cipher}.");
+	}
+
+	private function buildCapabilities(): array
+	{
+		return [
+			'extension' => extension_loaded('openssl'),
+			'encrypt' => [
+				'symmetric' => true,
+				'asymmetric' => true,
+				'privateencrypt' => true,
+			],
+			'decrypt' => [
+				'symmetric' => true,
+				'asymmetric' => true,
+				'publicdecrypt' => true,
+			],
+			'random' => [
+				'default' => true,
+				'passwordsalt' => true,
+				'key' => true,
+				'generaterandomiv' => true,
+				'securerandombytes' => true,
+			],
+			'hash' => [
+				'pbkdf2' => true,
+				'hashdigest' => true,
+				'listhashmethods' => true,
+			],
+			'keys' => [
+				'import' => true,
+				'export' => true,
+				'exporttofile' => true,
+				'generate' => true,
+				'getcurvenames' => true,
+				'free' => true,
+			],
+			'keyexchange' => [
+				'derivesharedkey' => $this->functionExists('openssl_pkey_derive'),
+				'computedhsharedsecret' => $this->functionExists('openssl_dh_compute_key'),
+			],
+			'cipher' => [
+				'getivlength' => true,
+				'getkeylength' => $this->functionExists('openssl_cipher_key_length'),
+				'listciphers' => true,
+				'seal' => true,
+				'open' => true,
+			],
+			'sign' => [
+				'signdata' => true,
+				'pkcs7sign' => $this->functionExists('openssl_pkcs7_sign'),
+				'cmssign' => $this->functionExists('openssl_cms_sign'),
+				'spkisign' => $this->functionExists('openssl_spki_new'),
+			],
+			'verify' => [
+				'verifysignature' => true,
+				'x509' => $this->functionExists('openssl_x509_verify'),
+				'pkcs7verify' => $this->functionExists('openssl_pkcs7_verify'),
+				'cmsverify' => $this->functionExists('openssl_cms_verify'),
+				'spkiverify' => $this->functionExists('openssl_spki_verify'),
+			],
+			'certificate' => [
+				'parse' => $this->functionExists('openssl_x509_parse'),
+				'export' => $this->functionExists('openssl_x509_export'),
+				'exporttofile' => $this->functionExists('openssl_x509_export_to_file'),
+				'verifyprivatekey' => $this->functionExists('openssl_x509_check_private_key'),
+				'checkpurpose' => $this->functionExists('openssl_x509_checkpurpose'),
+				'fingerprint' => $this->functionExists('openssl_x509_fingerprint'),
+			],
+			'ciphers' => array_fill_keys($this->getKeys($this->config['ciphers']), true),
+			'system' => [
+				'getcertlocations' => $this->functionExists('openssl_get_cert_locations'),
+				'geterrorstring' => $this->functionExists('openssl_error_string'),
+			],
+		];
+	}
+
+	private function exportPublicKey(mixed $key): string
+	{
+		$details = openssl_pkey_get_details($key);
+
+		if (!$this->isArray($details) || !$this->keyExists($details, 'key')) {
+			throw new CryptoException($this->openSslFailureMessage('Public key export failed.'));
+		}
+
+		return (string) $details['key'];
+	}
+
+	private function rejectFalseWithRuntimeMessage(mixed $result, string $message): mixed
+	{
+		return $this->rejectFalse($result, $this->openSslFailureMessage($message));
+	}
+
+	private function openSslFailureMessage(string $message): string
+	{
+		$error = $this->functionExists('openssl_error_string')
+			? openssl_error_string()
+			: null;
+
+		if ($this->isString($error) && $this->trimString($error) !== '') {
+			return $message . ' ' . $error;
+		}
+
+		return $message;
 	}
 }

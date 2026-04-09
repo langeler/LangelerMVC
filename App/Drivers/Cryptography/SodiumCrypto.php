@@ -4,11 +4,12 @@ namespace App\Drivers\Cryptography;
 
 use App\Abstracts\Data\Crypto;
 use App\Contracts\Data\CryptoInterface;
-use RuntimeException as CryptoException;
+use App\Exceptions\Data\CryptoException;
 
 class SodiumCrypto extends Crypto implements CryptoInterface
 {
 	protected readonly array $config;
+	protected readonly array $capabilities;
 
 	public function __construct()
 	{
@@ -161,7 +162,19 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 				'xchacha20KeyBytes' => SODIUM_CRYPTO_STREAM_XCHACHA20_KEYBYTES,
 				'xchacha20NonceBytes' => SODIUM_CRYPTO_STREAM_XCHACHA20_NONCEBYTES,
 			],
-		];
+			];
+
+		$this->capabilities = $this->buildCapabilities();
+	}
+
+	public function driverName(): string
+	{
+		return 'sodium';
+	}
+
+	public function capabilities(): array
+	{
+		return $this->capabilities;
 	}
 
 	public function DataConverter(string $type): callable
@@ -334,15 +347,19 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 				$memlimit ?? $this->config['pwHash']['memlimitInteractive']
 			),
 
-			'scrypt' => fn(
+			'scrypt' => function (
 				string $password,
 				?int $opslimit = null,
 				?int $memlimit = null
-			) => sodium_crypto_pwhash_scryptsalsa208sha256_str(
-				$password,
-				$opslimit ?? $this->config['pwHashScryptsalsa208sha256']['opslimitInteractive'],
-				$memlimit ?? $this->config['pwHashScryptsalsa208sha256']['memlimitInteractive']
-			),
+			): string {
+				$this->requireFunction('sodium_crypto_pwhash_scryptsalsa208sha256_str', 'sodium scrypt password hashing');
+
+				return sodium_crypto_pwhash_scryptsalsa208sha256_str(
+					$password,
+					$opslimit ?? $this->config['pwHashScryptsalsa208sha256']['opslimitInteractive'],
+					$memlimit ?? $this->config['pwHashScryptsalsa208sha256']['memlimitInteractive']
+				);
+			},
 
 			default => throw new CryptoException("Unsupported password hash type: {$type}."),
 		};
@@ -352,8 +369,7 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 	{
 		return match ($action) {
 			'verify' => fn(string $hash, string $password) =>
-				sodium_crypto_pwhash_str_verify($hash, $password)
-				?: throw new CryptoException("Password verification failed."),
+				sodium_crypto_pwhash_str_verify($hash, $password),
 
 			'rehash' => fn(
 				string $hash,
@@ -365,11 +381,14 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 				$memlimit ?? $this->config['pwHash']['memlimitInteractive']
 			),
 
-			'scryptVerify' => fn(string $hash, string $password) =>
-				sodium_crypto_pwhash_scryptsalsa208sha256_str_verify(
+			'scryptVerify' => function (string $hash, string $password): bool {
+				$this->requireFunction('sodium_crypto_pwhash_scryptsalsa208sha256_str_verify', 'sodium scrypt password verification');
+
+				return sodium_crypto_pwhash_scryptsalsa208sha256_str_verify(
 					$hash,
 					$password
-				) ?: throw new CryptoException("Scrypt password verification failed."),
+				);
+			},
 
 			default => throw new CryptoException("Unsupported password verifier action: {$action}."),
 		};
@@ -511,8 +530,11 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 			'sign' => fn() =>
 				sodium_crypto_sign_keypair(),
 
-			'aes256gcm' => fn() =>
-				sodium_crypto_aead_aes256gcm_keygen(),
+				'aes256gcm' => function (): string {
+					$this->ensureAeadAvailability('aes256gcm');
+
+					return sodium_crypto_aead_aes256gcm_keygen();
+				},
 
 			'chacha20poly1305' => fn() =>
 				sodium_crypto_aead_chacha20poly1305_keygen(),
@@ -523,11 +545,17 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 			'xchacha20poly1305' => fn() =>
 				sodium_crypto_aead_xchacha20poly1305_ietf_keygen(),
 
-			'aegis128l' => fn() =>
-				sodium_crypto_aead_aegis128l_keygen(),
+				'aegis128l' => function (): string {
+					$this->ensureAeadAvailability('aegis128l');
 
-			'aegis256' => fn() =>
-				sodium_crypto_aead_aegis256_keygen(),
+					return sodium_crypto_aead_aegis128l_keygen();
+				},
+
+				'aegis256' => function (): string {
+					$this->ensureAeadAvailability('aegis256');
+
+					return sodium_crypto_aead_aegis256_keygen();
+				},
 
 			'stream' => fn() =>
 				sodium_crypto_stream_keygen(),
@@ -576,18 +604,24 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 		return match ($type) {
 			// Secret Key Decryption
 			'secretBox' => fn(string $ciphertext, string $nonce, string $key) =>
-				sodium_crypto_secretbox_open($ciphertext, $nonce, $key)
-				?: throw new CryptoException("Failed to decrypt with SecretBox."),
+				$this->rejectFalse(
+					sodium_crypto_secretbox_open($ciphertext, $nonce, $key),
+					"Failed to decrypt with SecretBox."
+				),
 
 			// Public Key Decryption (Box)
 			'box' => fn(string $ciphertext, string $nonce, string $keypair) =>
-				sodium_crypto_box_open($ciphertext, $nonce, $keypair)
-				?: throw new CryptoException("Failed to decrypt with Box."),
+				$this->rejectFalse(
+					sodium_crypto_box_open($ciphertext, $nonce, $keypair),
+					"Failed to decrypt with Box."
+				),
 
 			// Public Key Sealing Open
 			'seal' => fn(string $ciphertext, string $keypair) =>
-				sodium_crypto_box_seal_open($ciphertext, $keypair)
-				?: throw new CryptoException("Failed to open sealed box."),
+				$this->rejectFalse(
+					sodium_crypto_box_seal_open($ciphertext, $keypair),
+					"Failed to open sealed box."
+				),
 
 			// AEAD Decryption
 			'aead' => fn(
@@ -596,52 +630,17 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 				string $nonce,
 				string $key,
 				string $cipher = 'aes256gcm'
-			) => match ($cipher) {
-				'aes256gcm' => sodium_crypto_aead_aes256gcm_decrypt(
-					$ciphertext,
-					$aad,
-					$nonce,
-					$key
-				),
-				'chacha20poly1305' => sodium_crypto_aead_chacha20poly1305_decrypt(
-					$ciphertext,
-					$aad,
-					$nonce,
-					$key
-				),
-				'xchacha20poly1305' => sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(
-					$ciphertext,
-					$aad,
-					$nonce,
-					$key
-				),
-				'aegis128l' => sodium_crypto_aead_aegis128l_decrypt(
-					$ciphertext,
-					$aad,
-					$nonce,
-					$key
-				),
-				'aegis256' => sodium_crypto_aead_aegis256_decrypt(
-					$ciphertext,
-					$aad,
-					$nonce,
-					$key
-				),
-				default => throw new CryptoException("Unsupported AEAD cipher type: {$cipher}."),
-			},
+			) => $this->decryptAead($ciphertext, $aad, $nonce, $key, $cipher),
 
 			// Stream Decryption
 			'streamXor' => fn(string $ciphertext, string $nonce, string $key) =>
-				sodium_crypto_stream_xor($ciphertext, $nonce, $key)
-				?: throw new CryptoException("Failed to decrypt stream data."),
+				sodium_crypto_stream_xor($ciphertext, $nonce, $key),
 
 			'xchacha20StreamXor' => fn(string $ciphertext, string $nonce, string $key) =>
-				sodium_crypto_stream_xchacha20_xor($ciphertext, $nonce, $key)
-				?: throw new CryptoException("Failed to decrypt XChaCha20 stream data."),
+				sodium_crypto_stream_xchacha20_xor($ciphertext, $nonce, $key),
 
 			'xchacha20StreamXorIc' => fn(string $ciphertext, string $nonce, string $key, int $counter) =>
-				sodium_crypto_stream_xchacha20_xor_ic($ciphertext, $nonce, $key, $counter)
-				?: throw new CryptoException("Failed to decrypt XChaCha20 stream data with counter."),
+				sodium_crypto_stream_xchacha20_xor_ic($ciphertext, $nonce, $key, $counter),
 
 			default => throw new CryptoException("Unsupported decryption type: {$type}."),
 		};
@@ -669,39 +668,7 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 				string $nonce,
 				string $key,
 				string $cipher = 'aes256gcm'
-			) => match ($cipher) {
-				'aes256gcm' => sodium_crypto_aead_aes256gcm_encrypt(
-					$message,
-					$aad,
-					$nonce,
-					$key
-				),
-				'chacha20poly1305' => sodium_crypto_aead_chacha20poly1305_encrypt(
-					$message,
-					$aad,
-					$nonce,
-					$key
-				),
-				'xchacha20poly1305' => sodium_crypto_aead_xchacha20poly1305_ietf_encrypt(
-					$message,
-					$aad,
-					$nonce,
-					$key
-				),
-				'aegis128l' => sodium_crypto_aead_aegis128l_encrypt(
-					$message,
-					$aad,
-					$nonce,
-					$key
-				),
-				'aegis256' => sodium_crypto_aead_aegis256_encrypt(
-					$message,
-					$aad,
-					$nonce,
-					$key
-				),
-				default => throw new CryptoException("Unsupported AEAD cipher type: {$cipher}."),
-			},
+			) => $this->encryptAead($message, $aad, $nonce, $key, $cipher),
 
 			// Stream Encryption
 			'stream' => fn(int $length, string $nonce, string $key) =>
@@ -723,8 +690,211 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 	// ---- Key Derivation ----
 	public function KeyDerivation(): callable
 	{
-		return fn(string $key, int $subKeyId, string $context) =>
-			sodium_crypto_kdf_derive_from_key($subKeyId, $context, $key);
+		return function (int $subKeyLength, int $subKeyId, string $context, string $key): string {
+			$this->requireFunction('sodium_crypto_kdf_derive_from_key', 'sodium key derivation');
+
+			if (
+				$subKeyLength < ($this->config['kdf']['bytesMin'] ?? 16)
+				|| $subKeyLength > ($this->config['kdf']['bytesMax'] ?? 64)
+			) {
+				throw new CryptoException('Requested subkey length is outside the supported Sodium KDF range.');
+			}
+
+			if ($this->length($context) !== ($this->config['kdf']['contextBytes'] ?? 8)) {
+				throw new CryptoException('Sodium KDF context must be exactly 8 bytes.');
+			}
+
+			return sodium_crypto_kdf_derive_from_key($subKeyLength, $subKeyId, $context, $key);
+		};
+	}
+
+	private function buildCapabilities(): array
+	{
+		return [
+			'extension' => extension_loaded('sodium'),
+			'encrypt' => [
+				'secretbox' => true,
+				'box' => true,
+				'seal' => true,
+				'aead' => [
+					'aes256gcm' => $this->isAeadAvailable('aes256gcm'),
+					'chacha20poly1305' => $this->isAeadAvailable('chacha20poly1305'),
+					'xchacha20poly1305' => $this->isAeadAvailable('xchacha20poly1305'),
+					'aegis128l' => $this->isAeadAvailable('aegis128l'),
+					'aegis256' => $this->isAeadAvailable('aegis256'),
+				],
+				'stream' => true,
+				'streamxor' => true,
+				'xchacha20streamxor' => true,
+				'xchacha20streamxoric' => true,
+			],
+			'decrypt' => [
+				'secretbox' => true,
+				'box' => true,
+				'seal' => true,
+				'aead' => [
+					'aes256gcm' => $this->isAeadAvailable('aes256gcm'),
+					'chacha20poly1305' => $this->isAeadAvailable('chacha20poly1305'),
+					'xchacha20poly1305' => $this->isAeadAvailable('xchacha20poly1305'),
+					'aegis128l' => $this->isAeadAvailable('aegis128l'),
+					'aegis256' => $this->isAeadAvailable('aegis256'),
+				],
+				'streamxor' => true,
+				'xchacha20streamxor' => true,
+				'xchacha20streamxoric' => true,
+			],
+			'password' => [
+				'argon2i' => true,
+				'argon2id' => true,
+				'scrypt' => $this->functionExists('sodium_crypto_pwhash_scryptsalsa208sha256_str'),
+				'verify' => true,
+				'rehash' => true,
+			],
+			'keyexchange' => [
+				'client' => true,
+				'server' => true,
+			],
+			'keyderivation' => $this->functionExists('sodium_crypto_kdf_derive_from_key'),
+			'keygeneration' => [
+				'aes256gcm' => $this->isAeadAvailable('aes256gcm'),
+				'aegis128l' => $this->isAeadAvailable('aegis128l'),
+				'aegis256' => $this->isAeadAvailable('aegis256'),
+				'chacha20poly1305' => $this->isAeadAvailable('chacha20poly1305'),
+				'xchacha20poly1305' => $this->isAeadAvailable('xchacha20poly1305'),
+				'secretbox' => true,
+				'auth' => true,
+				'generichash' => true,
+				'shorthash' => true,
+				'keyexchange' => true,
+				'sign' => true,
+				'stream' => true,
+				'xchacha20' => true,
+				'secretstream' => true,
+				'kdf' => true,
+			],
+		];
+	}
+
+	private function encryptAead(string $message, string $aad, string $nonce, string $key, string $cipher): string
+	{
+		return match ($this->normalizeAeadCipher($cipher)) {
+			'aes256gcm' => $this->encryptAes256Gcm($message, $aad, $nonce, $key),
+			'chacha20poly1305' => sodium_crypto_aead_chacha20poly1305_encrypt($message, $aad, $nonce, $key),
+			'xchacha20poly1305' => sodium_crypto_aead_xchacha20poly1305_ietf_encrypt($message, $aad, $nonce, $key),
+			'aegis128l' => $this->encryptAegis128L($message, $aad, $nonce, $key),
+			'aegis256' => $this->encryptAegis256($message, $aad, $nonce, $key),
+			default => throw new CryptoException("Unsupported AEAD cipher type: {$cipher}."),
+		};
+	}
+
+	private function decryptAead(string $ciphertext, string $aad, string $nonce, string $key, string $cipher): string
+	{
+		return match ($this->normalizeAeadCipher($cipher)) {
+			'aes256gcm' => $this->rejectFalse(
+				$this->decryptAes256Gcm($ciphertext, $aad, $nonce, $key),
+				"Failed to decrypt with AES-256-GCM."
+			),
+			'chacha20poly1305' => $this->rejectFalse(
+				sodium_crypto_aead_chacha20poly1305_decrypt($ciphertext, $aad, $nonce, $key),
+				"Failed to decrypt with ChaCha20-Poly1305."
+			),
+			'xchacha20poly1305' => $this->rejectFalse(
+				sodium_crypto_aead_xchacha20poly1305_ietf_decrypt($ciphertext, $aad, $nonce, $key),
+				"Failed to decrypt with XChaCha20-Poly1305."
+			),
+			'aegis128l' => $this->rejectFalse(
+				$this->decryptAegis128L($ciphertext, $aad, $nonce, $key),
+				"Failed to decrypt with AEGIS-128L."
+			),
+			'aegis256' => $this->rejectFalse(
+				$this->decryptAegis256($ciphertext, $aad, $nonce, $key),
+				"Failed to decrypt with AEGIS-256."
+			),
+			default => throw new CryptoException("Unsupported AEAD cipher type: {$cipher}."),
+		};
+	}
+
+	private function encryptAes256Gcm(string $message, string $aad, string $nonce, string $key): string
+	{
+		$this->ensureAeadAvailability('aes256gcm');
+
+		return sodium_crypto_aead_aes256gcm_encrypt($message, $aad, $nonce, $key);
+	}
+
+	private function decryptAes256Gcm(string $ciphertext, string $aad, string $nonce, string $key): string|false
+	{
+		$this->ensureAeadAvailability('aes256gcm');
+
+		return sodium_crypto_aead_aes256gcm_decrypt($ciphertext, $aad, $nonce, $key);
+	}
+
+	private function encryptAegis128L(string $message, string $aad, string $nonce, string $key): string
+	{
+		$this->ensureAeadAvailability('aegis128l');
+
+		return sodium_crypto_aead_aegis128l_encrypt($message, $aad, $nonce, $key);
+	}
+
+	private function decryptAegis128L(string $ciphertext, string $aad, string $nonce, string $key): string|false
+	{
+		$this->ensureAeadAvailability('aegis128l');
+
+		return sodium_crypto_aead_aegis128l_decrypt($ciphertext, $aad, $nonce, $key);
+	}
+
+	private function encryptAegis256(string $message, string $aad, string $nonce, string $key): string
+	{
+		$this->ensureAeadAvailability('aegis256');
+
+		return sodium_crypto_aead_aegis256_encrypt($message, $aad, $nonce, $key);
+	}
+
+	private function decryptAegis256(string $ciphertext, string $aad, string $nonce, string $key): string|false
+	{
+		$this->ensureAeadAvailability('aegis256');
+
+		return sodium_crypto_aead_aegis256_decrypt($ciphertext, $aad, $nonce, $key);
+	}
+
+	private function ensureAeadAvailability(string $cipher): void
+	{
+		if ($this->isAeadAvailable($cipher)) {
+			return;
+		}
+
+		throw new CryptoException("Sodium AEAD cipher is unavailable on this runtime: {$cipher}.");
+	}
+
+	private function isAeadAvailable(string $cipher): bool
+	{
+		return match ($this->normalizeAeadCipher($cipher)) {
+			'aes256gcm' => $this->functionExists('sodium_crypto_aead_aes256gcm_encrypt')
+				&& $this->functionExists('sodium_crypto_aead_aes256gcm_decrypt')
+				&& (
+					!$this->functionExists('sodium_crypto_aead_aes256gcm_is_available')
+					|| sodium_crypto_aead_aes256gcm_is_available()
+				),
+			'chacha20poly1305' => $this->functionExists('sodium_crypto_aead_chacha20poly1305_encrypt')
+				&& $this->functionExists('sodium_crypto_aead_chacha20poly1305_decrypt'),
+			'xchacha20poly1305' => $this->functionExists('sodium_crypto_aead_xchacha20poly1305_ietf_encrypt')
+				&& $this->functionExists('sodium_crypto_aead_xchacha20poly1305_ietf_decrypt'),
+			'aegis128l' => $this->functionExists('sodium_crypto_aead_aegis128l_encrypt')
+				&& $this->functionExists('sodium_crypto_aead_aegis128l_decrypt'),
+			'aegis256' => $this->functionExists('sodium_crypto_aead_aegis256_encrypt')
+				&& $this->functionExists('sodium_crypto_aead_aegis256_decrypt'),
+			default => false,
+		};
+	}
+
+	private function normalizeAeadCipher(string $cipher): string
+	{
+		$normalized = $this->toLower((string) ($this->replaceByPattern('/[^a-z0-9]/i', '', $cipher) ?? $cipher));
+
+		return match ($normalized) {
+			'chacha20poly1305ietf' => 'chacha20poly1305',
+			'xchacha20poly1305ietf' => 'xchacha20poly1305',
+			default => $normalized,
+		};
 	}
 
 	private static function defineMissingConstants(): void

@@ -3,6 +3,14 @@
 namespace App\Abstracts\Data;
 
 use App\Exceptions\Data\CryptoException;
+use App\Utilities\Traits\{
+    ArrayTrait,
+    CheckerTrait,
+    ExistenceCheckerTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Abstract class defining the core cryptographic operations.
@@ -13,6 +21,35 @@ use App\Exceptions\Data\CryptoException;
  */
 abstract class Crypto
 {
+    use ArrayTrait, CheckerTrait, ExistenceCheckerTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
+    /**
+     * Returns the normalized runtime driver name.
+     */
+    abstract public function driverName(): string;
+
+    /**
+     * Returns the runtime capability map for the driver.
+     *
+     * @return array<string, mixed>
+     */
+    abstract public function capabilities(): array;
+
+    /**
+     * Checks whether the driver supports a capability or feature path.
+     */
+    public function supports(string $feature): bool
+    {
+        $resolved = $this->resolveCapability($feature);
+
+        return match (true) {
+            $this->isBool($resolved) => $resolved,
+            $this->isArray($resolved) => !$this->isEmpty($resolved),
+            $this->isString($resolved) => $resolved !== '',
+            default => $resolved !== null,
+        };
+    }
+
     /**
      * Handles data conversions such as base64 encoding, hex conversions, etc.
      * 
@@ -90,4 +127,76 @@ abstract class Crypto
      * @throws CryptoException If the key exchange type is unsupported.
      */
     abstract public function KeyExchanger(string $type): callable;
+
+    /**
+     * Resolves a dotted capability path from the driver capability map.
+     */
+    protected function resolveCapability(string $feature): mixed
+    {
+        $normalizedFeature = $this->normalizeFeatureName($feature);
+
+        if ($normalizedFeature === '') {
+            return null;
+        }
+
+        $value = $this->capabilities();
+
+        foreach (($this->splitString('.', $normalizedFeature) ?: []) as $segment) {
+            if (!$this->isArray($value) || !$this->keyExists($value, $segment)) {
+                return null;
+            }
+
+            $value = $value[$segment];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Normalizes a feature name for consistent capability lookups.
+     */
+    protected function normalizeFeatureName(string $feature): string
+    {
+        $normalized = $this->toLower($this->trimString($feature));
+
+        return (string) ($this->replaceByPattern('/[^a-z0-9.]+/', '', $normalized) ?? $normalized);
+    }
+
+    /**
+     * Throws a framework-native crypto exception when a runtime dependency is unavailable.
+     */
+    protected function requireFunction(string $functionName, ?string $feature = null): string
+    {
+        if ($this->functionExists($functionName)) {
+            return $functionName;
+        }
+
+        $label = $feature ?? $functionName;
+
+        throw new CryptoException("Crypto runtime function is unavailable: {$label}.");
+    }
+
+    /**
+     * Rejects explicit false results while allowing empty strings and zero values.
+     */
+    protected function rejectFalse(mixed $result, string $message): mixed
+    {
+        if ($result === false) {
+            throw new CryptoException($message);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Normalizes OpenSSL-style verification results into booleans.
+     */
+    protected function normalizeVerificationResult(bool|int $result, string $message): bool
+    {
+        if ($result === false || $result === -1) {
+            throw new CryptoException($message);
+        }
+
+        return $result === true || $result === 1;
+    }
 }

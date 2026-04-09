@@ -9,6 +9,7 @@ use App\Exceptions\{
     RouteNotFoundException,
     RouterException,
     Data\CacheException,
+    Data\CryptoException,
     Data\FinderException,
     Data\SanitizationException,
     Data\ValidationException,
@@ -129,6 +130,7 @@ class ExceptionProvider extends Container
 
             // Data-related exceptions
             'cache'              => CacheException::class,
+            'crypto'             => CryptoException::class,
             'finder'             => FinderException::class,
             'sanitization'       => SanitizationException::class,
             'validation'         => ValidationException::class,

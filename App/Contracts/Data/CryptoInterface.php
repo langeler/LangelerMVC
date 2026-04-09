@@ -12,6 +12,23 @@ namespace App\Contracts\Data;
 interface CryptoInterface
 {
     /**
+     * Returns the normalized runtime driver name.
+     */
+    public function driverName(): string;
+
+    /**
+     * Returns the runtime capability map for the driver.
+     *
+     * @return array<string, mixed>
+     */
+    public function capabilities(): array;
+
+    /**
+     * Checks whether the driver supports a capability or feature path.
+     */
+    public function supports(string $feature): bool;
+
+    /**
      * Perform data conversions such as base64 encoding, hex conversions, etc.
      * 
      * @param string $type The type of data conversion to perform.

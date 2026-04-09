@@ -82,7 +82,11 @@ abstract class Cache
     protected function encryptData(string $raw): string
     {
         return $this->wrapInTry(function () use ($raw) {
-            return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
+            if (!$this->cryptoManager->isEnabled()) {
+                return $raw;
+            }
+
+            return match ($this->cryptoManager->getDriverName()) {
                 'openssl' => $this->encryptWithOpenSsl($raw),
                 'sodium' => $this->encryptWithSodium($raw),
                 default => $this->throwCacheException('Unsupported encryption type.'),
@@ -93,7 +97,11 @@ abstract class Cache
     protected function decryptData(string $cipher): string
     {
         return $this->wrapInTry(function () use ($cipher) {
-            return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
+            if (!$this->cryptoManager->isEnabled()) {
+                return $cipher;
+            }
+
+            return match ($this->cryptoManager->getDriverName()) {
                 'openssl' => $this->decryptWithOpenSsl($cipher),
                 'sodium' => $this->decryptWithSodium($cipher),
                 default => $this->throwCacheException('Unsupported decryption type.'),
@@ -103,13 +111,10 @@ abstract class Cache
 
     protected function initEncryptionKey(): string
     {
-        return $this->wrapInTry(function () {
-            return match ($this->settings['encryption']['TYPE'] ?? 'openssl') {
-                'openssl' => $this->base64DecodeString($this->settings['encryption']['KEY'] ?? '', true) ?: '',
-                'sodium' => $this->base64DecodeString($this->settings['encryption']['SODIUM'] ?? '', true) ?: '',
-                default => $this->throwCacheException('Invalid encryption key type.'),
-            };
-        }, 'cache');
+        return $this->wrapInTry(
+            fn() => $this->cryptoManager->resolveConfiguredKey(),
+            'cache'
+        );
     }
 
     protected function isExpired(int $timestamp, int $ttl): bool
@@ -251,14 +256,15 @@ abstract class Cache
 
     private function encryptWithOpenSsl(string $raw): string
     {
+        $cipherMethod = $this->cryptoManager->resolveConfiguredCipher('openssl');
         $iv = $this->cryptoManager->generateRandom(
             'generateRandomIv',
-            $this->settings['encryption']['CIPHER'] ?? 'aes256gcm'
+            $cipherMethod
         );
         $cipher = $this->cryptoManager->encrypt(
             'symmetric',
             $raw,
-            $this->settings['encryption']['CIPHER'] ?? 'aes256gcm',
+            $cipherMethod,
             $this->encryptionKey,
             $iv
         );
@@ -277,6 +283,7 @@ abstract class Cache
 
     private function decryptWithOpenSsl(string $cipher): string
     {
+        $cipherMethod = $this->cryptoManager->resolveConfiguredCipher('openssl');
         $ivLen = $this->ivLenOpenssl();
         $iv = $this->substring($cipher, 0, $ivLen);
         $encryptedPart = $this->substring($cipher, $ivLen);
@@ -284,7 +291,7 @@ abstract class Cache
         return $this->cryptoManager->decrypt(
             'symmetric',
             $encryptedPart,
-            $this->settings['encryption']['CIPHER'] ?? 'aes256gcm',
+            $cipherMethod,
             $this->encryptionKey,
             $iv
         );
@@ -302,8 +309,8 @@ abstract class Cache
     private function ivLenOpenssl(): int
     {
         return $this->wrapInTry(
-            fn() => $this->cryptoManager->cryptoDriver->CipherHandler('getIvLength')(
-                $this->settings['encryption']['CIPHER'] ?? 'aes256gcm'
+            fn() => $this->cryptoManager->ivLength(
+                $this->cryptoManager->resolveConfiguredCipher('openssl')
             ),
             'cache'
         );
@@ -311,7 +318,7 @@ abstract class Cache
 
     private function nonceLenSodium(): int
     {
-        return 24;
+        return $this->cryptoManager->nonceLength('secretBox');
     }
 
     private function throwCacheException(string $message): never

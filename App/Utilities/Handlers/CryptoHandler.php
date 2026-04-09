@@ -2,6 +2,7 @@
 
 namespace App\Utilities\Handlers;
 
+use App\Exceptions\Data\CryptoException;
 use App\Utilities\Traits\ManipulationTrait;
 
 /**
@@ -26,7 +27,7 @@ class CryptoHandler
 	public function sodiumEncrypt(string $plaintext, string $key): string
 	{
 		if ($this->length($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
-			throw new \Exception("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
+			throw new CryptoException("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
 		}
 
 		$nonce = $this->generateNonce();  // Generate a 24-byte nonce
@@ -44,7 +45,7 @@ class CryptoHandler
 	public function sodiumDecrypt(string $ciphertext, string $key): string
 	{
 		if ($this->length($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
-			throw new \SodiumException("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
+			throw new CryptoException("Key must be exactly " . SODIUM_CRYPTO_SECRETBOX_KEYBYTES . " bytes.");
 		}
 
 		$nonce = $this->substring($ciphertext, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);  // Extract the nonce from the ciphertext
@@ -52,7 +53,7 @@ class CryptoHandler
 		$plaintext = sodium_crypto_secretbox_open($ciphertext, $nonce, $key);
 
 		if ($plaintext === false) {
-			throw new \SodiumException("Decryption failed. Invalid key or corrupted data.");
+			throw new CryptoException("Decryption failed. Invalid key or corrupted data.");
 		}
 
 		return $plaintext;
@@ -205,7 +206,13 @@ class CryptoHandler
 	 */
 	public function getIvLength(string $cipherMethod): int
 	{
-		return openssl_cipher_iv_length($cipherMethod);
+		$length = openssl_cipher_iv_length($cipherMethod);
+
+		if ($length === false) {
+			throw new CryptoException("Unable to determine IV length for cipher: {$cipherMethod}.");
+		}
+
+		return $length;
 	}
 
 	/**
@@ -315,7 +322,13 @@ class CryptoHandler
 	 */
 	public function generatePseudoRandomBytes(int $length, ?bool &$cryptoStrong = null): string
 	{
-		return openssl_random_pseudo_bytes($length, $cryptoStrong);
+		$bytes = openssl_random_pseudo_bytes($length, $cryptoStrong);
+
+		if ($bytes === false) {
+			throw new CryptoException("OpenSSL pseudo-random byte generation failed.");
+		}
+
+		return $bytes;
 	}
 
 	// Hashing Methods
@@ -330,7 +343,13 @@ class CryptoHandler
 	 */
 	public function hashData(string $algo, string $data, bool $rawOutput = false): string
 	{
-		return hash($algo, $data, $rawOutput);
+		$hash = hash($algo, $data, $rawOutput);
+
+		if ($hash === false) {
+			throw new CryptoException("Unable to hash data with algorithm: {$algo}.");
+		}
+
+		return $hash;
 	}
 
 	/**
@@ -343,7 +362,13 @@ class CryptoHandler
 	 */
 	public function hashFile(string $algo, string $filename, bool $rawOutput = false): string
 	{
-		return hash_file($algo, $filename, $rawOutput);
+		$hash = hash_file($algo, $filename, $rawOutput);
+
+		if ($hash === false) {
+			throw new CryptoException("Unable to hash file with algorithm: {$algo}.");
+		}
+
+		return $hash;
 	}
 
 	/**

@@ -1,73 +1,120 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Drivers\Caching;
 
 use App\Abstracts\Data\Cache;
-use App\Exceptions\Data\CacheException;
+use App\Utilities\Handlers\DataHandler;
+use App\Utilities\Managers\Data\CryptoManager;
+use App\Utilities\Managers\DateTimeManager;
+use App\Utilities\Managers\FileManager;
+use App\Utilities\Managers\SettingsManager;
+use App\Utilities\Managers\System\ErrorManager;
 use Memcached;
 
 class MemCache extends Cache
 {
-	protected Memcached $memcached;
+    private ?Memcached $memcached = null;
 
-	public function __construct(Memcached $memcached)
-	{
-		$this->memcached = $memcached;
-		parent::__construct();
-	}
+    public function __construct(
+        FileManager $fileManager,
+        DataHandler $dataHandler,
+        CryptoManager $cryptoManager,
+        DateTimeManager $dateTimeManager,
+        SettingsManager $settingsManager,
+        ErrorManager $errorManager,
+        ?Memcached $memcached = null
+    ) {
+        $this->memcached = $memcached;
 
-	public function set(string $key, mixed $data, ?int $ttl = null): bool
-	{
-		return $this->wrapInTry(function () use ($key, $data, $ttl) {
-			$ttl = $ttl ?? (int)$this->settings['cache']['TTL'];
-				$result = $this->memcached->set($key, $this->toJson([
-					'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
-					'ttl' => $ttl,
-					'data' => $this->base64EncodeString(
-						$this->compressData(
-							$this->encryptData(
-								$this->serializeData($data)
-							)
-						)
-					)
-				], JSON_THROW_ON_ERROR), $ttl);
+        parent::__construct(
+            $fileManager,
+            $dataHandler,
+            $cryptoManager,
+            $dateTimeManager,
+            $settingsManager,
+            $errorManager
+        );
+    }
 
-			if (!$result) {
-				throw new CacheException("Failed to set cache data for key: $key");
-			}
+    public function driverName(): string
+    {
+        return 'memcache';
+    }
 
-			$this->dataStructureHandler->enqueue($this->cacheQueue, $key);
-			$this->evictIfNeeded();
-			return true;
-		});
-	}
+    /**
+     * @return array<string, mixed>
+     */
+    public function capabilities(): array
+    {
+        return [
+            'extension' => class_exists(Memcached::class),
+            'persistent' => true,
+            'shared_store' => true,
+            'prefix_scoped_clear' => true,
+            'compression' => true,
+            'encryption' => true,
+            'pruning' => true,
+        ];
+    }
 
-	public function get(string $key): mixed
-	{
-		return $this->wrapInTry(function () use ($key) {
-			$result = $this->memcached->get($key);
-			if ($result === false) {
-				return null;
-			}
+    protected function putRaw(string $storageKey, string $payload, ?int $ttl = null): bool
+    {
+        return $this->client()->set($storageKey, $payload, $ttl ?? 0);
+    }
 
-				$cacheData = $this->fromJson($result, true, 512, JSON_THROW_ON_ERROR);
-					return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
-						$this->decryptData(
-							$this->decompressData(
-								$this->base64DecodeString((string) ($cacheData['data'] ?? ''), true) ?: ''
-							)
-						)
-					);
-			});
-		}
+    protected function getRaw(string $storageKey): ?string
+    {
+        $result = $this->client()->get($storageKey);
+        $code = $this->client()->getResultCode();
 
-	public function delete(string $key): bool
-	{
-		return $this->wrapInTry(fn() => $this->memcached->delete($key));
-	}
+        if ($result === false && $code !== Memcached::RES_SUCCESS) {
+            return $code === Memcached::RES_NOTFOUND
+                ? null
+                : $this->throwCacheException('Failed to read from the Memcached cache store.');
+        }
 
-	public function clear(): bool
-	{
-		return $this->wrapInTry(fn() => $this->memcached->flush());
-	}
+        return $result === false ? null : (string) $result;
+    }
+
+    protected function deleteRaw(string $storageKey): bool
+    {
+        $deleted = $this->client()->delete($storageKey);
+        $code = $this->client()->getResultCode();
+
+        return $deleted || $code === Memcached::RES_NOTFOUND;
+    }
+
+    private function client(): Memcached
+    {
+        if ($this->memcached instanceof Memcached) {
+            return $this->memcached;
+        }
+
+        if (!$this->supports('extension')) {
+            $this->throwCacheException('Memcached cache driver is unavailable on this PHP runtime.');
+        }
+
+        $client = new Memcached();
+        $host = $this->cleanStringSetting('MEMCACHE_HOST', $this->cleanStringSetting('MEMCACHED_HOST', '127.0.0.1'));
+        $port = $this->toInt($this->cacheSetting('MEMCACHE_PORT', $this->cacheSetting('MEMCACHED_PORT', 11211)));
+        $weight = $this->toInt($this->cacheSetting('MEMCACHE_WEIGHT', $this->cacheSetting('MEMCACHED', 0)));
+
+        if ($client->getServerList() === [] && !$client->addServer($host, $port, $weight > 0 ? $weight : 0)) {
+            $this->throwCacheException("Unable to add the Memcached cache server {$host}:{$port}.");
+        }
+
+        return $this->memcached = $client;
+    }
+
+    private function cleanStringSetting(string $key, string $default): string
+    {
+        $value = $this->cacheSetting($key, $default);
+        $stringValue = $this->isString($value) ? $value : (string) $value;
+        $withoutComment = (string) ($this->replaceByPattern('/\s+#.*$/', '', $stringValue) ?? $stringValue);
+        $normalized = $this->trimString($withoutComment);
+
+        return $normalized !== '' ? $normalized : $default;
+    }
 }

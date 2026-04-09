@@ -47,7 +47,7 @@ The framework runtime layer:
 
 Low-level adapters for pluggable infrastructure concerns:
 
-- `Caching/`: concrete cache drivers
+- `Caching/`: concrete cache drivers (`ArrayCache`, `FileCache`, `DatabaseCache`, `RedisCache`, `MemCache`)
 - `Cryptography/`: concrete crypto drivers
 - `Session/`: scaffolded for future session driver adapters
 

@@ -1,83 +1,171 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Drivers\Caching;
 
 use App\Abstracts\Data\Cache;
 use App\Core\Database;
-use App\Exceptions\Data\CacheException;
+use App\Utilities\Handlers\DataHandler;
+use App\Utilities\Managers\Data\CryptoManager;
+use App\Utilities\Managers\DateTimeManager;
+use App\Utilities\Managers\FileManager;
+use App\Utilities\Managers\SettingsManager;
+use App\Utilities\Managers\System\ErrorManager;
 
 class DatabaseCache extends Cache
 {
-	protected Database $database;
+    public function __construct(
+        private readonly Database $database,
+        FileManager $fileManager,
+        DataHandler $dataHandler,
+        CryptoManager $cryptoManager,
+        DateTimeManager $dateTimeManager,
+        SettingsManager $settingsManager,
+        ErrorManager $errorManager
+    ) {
+        parent::__construct(
+            $fileManager,
+            $dataHandler,
+            $cryptoManager,
+            $dateTimeManager,
+            $settingsManager,
+            $errorManager
+        );
+    }
 
-	public function __construct(Database $database)
-	{
-		$this->database = $database;
-		parent::__construct();
-	}
+    public function driverName(): string
+    {
+        return 'database';
+    }
 
-	public function set(string $key, mixed $data, ?int $ttl = null): bool
-	{
-		return $this->wrapInTry(function () use ($key, $data, $ttl) {
-			$ttl = $ttl ?? (int)$this->settings['cache']['TTL'];
-			$cacheData = [
-				'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
-				'ttl' => $ttl,
-					'data' => $this->base64EncodeString(
-						$this->compressData(
-							$this->encryptData(
-								$this->serializeData($data)
-						)
-					)
-				),
-			];
+    /**
+     * @return array<string, mixed>
+     */
+    public function capabilities(): array
+    {
+        return [
+            'extension' => true,
+            'persistent' => true,
+            'shared_store' => true,
+            'prefix_scoped_clear' => true,
+            'compression' => true,
+            'encryption' => true,
+            'pruning' => true,
+            'query_builder' => true,
+        ];
+    }
 
-			$this->delete($key);
-			$result = $this->database->query(
-				'INSERT INTO cache (cache_key, cache_data, timestamp, ttl) VALUES (?, ?, ?, ?)',
-					[$key, $this->toJson($cacheData, JSON_THROW_ON_ERROR), $cacheData['timestamp'], $ttl]
-			);
+    protected function putRaw(string $storageKey, string $payload, ?int $ttl = null): bool
+    {
+        $table = $this->cacheTable();
+        $timestamp = $this->extractTimestamp($payload);
 
-			if ($result === false) {
-				throw new CacheException("Failed to insert cache data for key: $key");
-			}
+        $this->database->beginTransaction();
 
-			$this->dataStructureHandler->enqueue($this->cacheQueue, $key);
-			$this->evictIfNeeded();
-			return true;
-		});
-	}
+        try {
+            $delete = $this->database
+                ->dataQuery($table)
+                ->delete($table)
+                ->where('cache_key', '=', $storageKey)
+                ->toExecutable();
 
-	public function get(string $key): mixed
-	{
-		return $this->wrapInTry(function () use ($key) {
-			$result = $this->database->fetchOne(
-				'SELECT cache_data, timestamp, ttl FROM cache WHERE cache_key = ?',
-				[$key]
-			);
+            $this->database->execute($delete['sql'], $delete['bindings']);
 
-			if (!$result) {
-				return null;
-			}
+            $insert = $this->database
+                ->dataQuery($table)
+                ->insert($table, [
+                    'cache_key' => $storageKey,
+                    'cache_data' => $payload,
+                    'timestamp' => $timestamp,
+                    'ttl' => $ttl ?? 0,
+                ])
+                ->toExecutable();
 
-				$cacheData = $this->fromJson($result['cache_data'], true, 512, JSON_THROW_ON_ERROR);
-					return $this->isExpired($cacheData['timestamp'], $cacheData['ttl']) ? null : $this->unserializeData(
-						$this->decryptData(
-							$this->decompressData(
-								$this->base64DecodeString((string) ($cacheData['data'] ?? ''), true) ?: ''
-							)
-						)
-					);
-			});
-		}
+            $this->database->execute($insert['sql'], $insert['bindings']);
+            $this->database->commit();
 
-	public function delete(string $key): bool
-	{
-		return $this->wrapInTry(fn() => $this->database->query('DELETE FROM cache WHERE cache_key = ?', [$key]) !== false);
-	}
+            return true;
+        } catch (\Throwable $exception) {
+            $this->database->rollBack();
+            throw $exception;
+        }
+    }
 
-	public function clear(): bool
-	{
-		return $this->wrapInTry(fn() => $this->database->query('DELETE FROM cache') !== false);
-	}
+    protected function getRaw(string $storageKey): ?string
+    {
+        $table = $this->cacheTable();
+        $select = $this->database
+            ->dataQuery($table)
+            ->select(['cache_data'])
+            ->where('cache_key', '=', $storageKey)
+            ->limit(1)
+            ->toExecutable();
+
+        $record = $this->database->fetchOne($select['sql'], $select['bindings']);
+
+        if (!$this->isArray($record) || !$this->keyExists($record, 'cache_data')) {
+            return null;
+        }
+
+        return (string) $record['cache_data'];
+    }
+
+    protected function deleteRaw(string $storageKey): bool
+    {
+        $table = $this->cacheTable();
+        $delete = $this->database
+            ->dataQuery($table)
+            ->delete($table)
+            ->where('cache_key', '=', $storageKey)
+            ->toExecutable();
+
+        $this->database->execute($delete['sql'], $delete['bindings']);
+
+        return true;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    protected function discoverStoredEntries(): array
+    {
+        $table = $this->cacheTable();
+        $select = $this->database
+            ->dataQuery($table)
+            ->select(['cache_key', 'timestamp'])
+            ->toExecutable();
+
+        $records = $this->database->fetchAll($select['sql'], $select['bindings']);
+        $entries = [];
+
+        foreach ($records as $record) {
+            if (!$this->isArray($record)) {
+                continue;
+            }
+
+            $storageKey = (string) ($record['cache_key'] ?? '');
+
+            if ($storageKey === '') {
+                continue;
+            }
+
+            $entries[$storageKey] = $this->toInt($record['timestamp'] ?? 0);
+        }
+
+        return $entries;
+    }
+
+    private function extractTimestamp(string $payload): int
+    {
+        try {
+            $record = $this->dataHandler->jsonDecode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            return $this->dateTimeManager->getCurrentTimestamp();
+        }
+
+        return $this->isArray($record)
+            ? $this->toInt($record['timestamp'] ?? $this->dateTimeManager->getCurrentTimestamp())
+            : $this->dateTimeManager->getCurrentTimestamp();
+    }
 }

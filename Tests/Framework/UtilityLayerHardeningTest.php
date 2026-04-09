@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Framework;
 
+use App\Contracts\Data\CacheDriverInterface;
 use App\Core\Database;
 use App\Drivers\Cryptography\OpenSSLCrypto;
 use App\Drivers\Cryptography\SodiumCrypto;
@@ -126,7 +127,22 @@ class UtilityLayerHardeningTest extends TestCase
         $overrideSettings = ['DRIVER' => 'redis', 'TTL' => 120];
         $seenSettings = [];
 
-        $fileDriver = new class {
+        $fileDriver = new class implements CacheDriverInterface {
+            public function driverName(): string
+            {
+                return 'file';
+            }
+
+            public function capabilities(): array
+            {
+                return ['extension' => true];
+            }
+
+            public function supports(string $feature): bool
+            {
+                return $feature === 'extension';
+            }
+
             public function set(string $key, mixed $data, ?int $ttl = null): bool
             {
                 return true;
@@ -146,9 +162,29 @@ class UtilityLayerHardeningTest extends TestCase
             {
                 return true;
             }
+
+            public function has(string $key): bool
+            {
+                return true;
+            }
         };
 
-        $redisDriver = new class {
+        $redisDriver = new class implements CacheDriverInterface {
+            public function driverName(): string
+            {
+                return 'redis';
+            }
+
+            public function capabilities(): array
+            {
+                return ['extension' => true];
+            }
+
+            public function supports(string $feature): bool
+            {
+                return $feature === 'extension';
+            }
+
             public function set(string $key, mixed $data, ?int $ttl = null): bool
             {
                 return true;
@@ -165,6 +201,11 @@ class UtilityLayerHardeningTest extends TestCase
             }
 
             public function clear(): bool
+            {
+                return true;
+            }
+
+            public function has(string $key): bool
             {
                 return true;
             }
@@ -186,7 +227,7 @@ class UtilityLayerHardeningTest extends TestCase
         $cacheProvider
             ->expects($this->exactly(2))
             ->method('getCacheDriver')
-            ->willReturnCallback(function (array $settings) use (&$seenSettings, $fileDriver, $redisDriver): object {
+            ->willReturnCallback(function (array $settings) use (&$seenSettings, $fileDriver, $redisDriver): CacheDriverInterface {
                 $seenSettings[] = $settings;
 
                 return count($seenSettings) === 1 ? $fileDriver : $redisDriver;
@@ -195,8 +236,14 @@ class UtilityLayerHardeningTest extends TestCase
         $manager = new CacheManager($cacheProvider, $settingsManager);
         $manager->updateCacheDriver($overrideSettings);
 
-        self::assertSame($initialSettings, $seenSettings[0]);
-        self::assertSame(array_merge($initialSettings, $overrideSettings), $seenSettings[1]);
+        self::assertSame('file', $seenSettings[0]['DRIVER']);
+        self::assertSame(60, $seenSettings[0]['TTL']);
+        self::assertSame('langelermvc_cache', $seenSettings[0]['PREFIX']);
+        self::assertTrue($seenSettings[0]['ENABLED']);
+        self::assertSame('redis', $seenSettings[1]['DRIVER']);
+        self::assertSame(120, $seenSettings[1]['TTL']);
+        self::assertSame('langelermvc_cache', $seenSettings[1]['PREFIX']);
+        self::assertTrue($seenSettings[1]['ENABLED']);
         self::assertSame('redis', $manager->get('example'));
     }
 

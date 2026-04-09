@@ -1,97 +1,132 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Drivers\Caching;
 
 use App\Abstracts\Data\Cache;
-use App\Exceptions\Data\CacheException;
-use Throwable;
+use App\Utilities\Finders\FileFinder;
+use App\Utilities\Handlers\DataHandler;
+use App\Utilities\Managers\Data\CryptoManager;
+use App\Utilities\Managers\DateTimeManager;
+use App\Utilities\Managers\FileManager;
+use App\Utilities\Managers\SettingsManager;
+use App\Utilities\Managers\System\ErrorManager;
+use SplFileInfo;
 
 class FileCache extends Cache
 {
-	public function set(string $key, mixed $data, ?int $ttl = null): bool
-	{
-		return $this->runCacheOperation(function () use ($key, $data, $ttl) {
-			$cachePath = $this->getCacheFilePath($key);
-				$cacheData = $this->toJson([
-					'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
-					'ttl' => $ttl ?? (int)$this->settings['cache']['TTL'],
-					'data' => $this->base64EncodeString(
-						$this->compressData($this->encryptData($this->serializeData($data)))
-					),
-				], JSON_THROW_ON_ERROR);
+    public function __construct(
+        private readonly FileFinder $fileFinder,
+        FileManager $fileManager,
+        DataHandler $dataHandler,
+        CryptoManager $cryptoManager,
+        DateTimeManager $dateTimeManager,
+        SettingsManager $settingsManager,
+        ErrorManager $errorManager
+    ) {
+        parent::__construct(
+            $fileManager,
+            $dataHandler,
+            $cryptoManager,
+            $dateTimeManager,
+            $settingsManager,
+            $errorManager
+        );
+    }
 
-			if ($this->fileManager->writeContents($cachePath, $cacheData) === false) {
-				throw new CacheException("Failed to write cache data for key: $key");
-			}
+    public function driverName(): string
+    {
+        return 'file';
+    }
 
-			$this->postSetActions($key);
-			return true;
-		});
-	}
+    /**
+     * @return array<string, mixed>
+     */
+    public function capabilities(): array
+    {
+        return [
+            'extension' => true,
+            'persistent' => true,
+            'shared_store' => false,
+            'prefix_scoped_clear' => true,
+            'filesystem' => true,
+            'compression' => true,
+            'encryption' => true,
+            'pruning' => true,
+        ];
+    }
 
-	private function postSetActions(string $key): void
-	{
-		$this->dataStructureHandler->enqueue($this->cacheQueue, $key);
-		$this->evictIfNeeded();
-	}
+    protected function usesFilesystem(): bool
+    {
+        return true;
+    }
 
-	public function get(string $key): mixed
-	{
-		return $this->runCacheOperation(function () use ($key) {
-			$cachePath = $this->getCacheFilePath($key);
+    protected function putRaw(string $storageKey, string $payload, ?int $ttl = null): bool
+    {
+        return $this->fileManager->writeContents($this->pathForStorageKey($storageKey), $payload) !== false;
+    }
 
-			if (!$this->fileManager->fileExists($cachePath)) {
-				return null;
-			}
+    protected function getRaw(string $storageKey): ?string
+    {
+        $path = $this->pathForStorageKey($storageKey);
 
-				$cacheData = $this->fromJson((string) $this->fileManager->readContents($cachePath), true, 512, JSON_THROW_ON_ERROR);
-			return $cacheData ? $this->validateAndReturnData($cacheData, $key) : null;
-		});
-	}
+        return $this->fileManager->fileExists($path)
+            ? $this->fileManager->readContents($path)
+            : null;
+    }
 
-	private function validateAndReturnData(array $cacheData, string $key): mixed
-	{
-		if ($this->isExpired($cacheData['timestamp'], $cacheData['ttl'])) {
-			$this->delete($key);
-			return null;
-		}
+    protected function deleteRaw(string $storageKey): bool
+    {
+        $path = $this->pathForStorageKey($storageKey);
 
-			return $this->unserializeData(
-				$this->decryptData(
-					$this->decompressData(
-							$this->base64DecodeString((string) ($cacheData['data'] ?? ''), true) ?: ''
-						)
-					)
-				);
-		}
+        return !$this->fileManager->fileExists($path) || $this->fileManager->deleteFile($path);
+    }
 
-	public function delete(string $key): bool
-	{
-		return $this->fileManager->deleteFile($this->getCacheFilePath($key));
-	}
+    /**
+     * @return array<string, int>
+     */
+    protected function discoverStoredEntries(): array
+    {
+        $entries = [];
 
-	public function clear(): bool
-	{
-		return $this->runCacheOperation(function () {
-			foreach ($this->fileFinder->find(['extension' => 'cache'], $this->cacheDir) as $file) {
-				$this->fileManager->deleteFile($file->getPathname());
-			}
-			$this->cacheQueue = $this->dataStructureHandler->createQueue();
-			return true;
-		});
-	}
+        foreach ($this->fileFinder->find(['extension' => 'cache'], $this->cacheDir) as $fileInfo) {
+            if (!$fileInfo instanceof SplFileInfo || !$fileInfo->isFile()) {
+                continue;
+            }
 
-	private function getCacheFilePath(string $key): string
-	{
-		return $this->cacheDir . DIRECTORY_SEPARATOR . $this->sanitizer->sanitizeString($key) . '.cache';
-	}
+            $payload = $this->fileManager->readContents($fileInfo->getPathname());
 
-	private function runCacheOperation(callable $callback): mixed
-	{
-		try {
-			return $callback();
-		} catch (Throwable $e) {
-			throw new CacheException("Cache operation failed: " . $e->getMessage(), 0, $e);
-		}
-	}
+            if (!$this->isString($payload) || $payload === '') {
+                continue;
+            }
+
+            try {
+                $record = $this->dataHandler->jsonDecode($payload, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if (!$this->isArray($record)) {
+                continue;
+            }
+
+            $storageKey = (string) ($record['key'] ?? '');
+
+            if ($storageKey === '') {
+                continue;
+            }
+
+            $entries[$storageKey] = $this->toInt($record['timestamp'] ?? 0);
+        }
+
+        return $entries;
+    }
+
+    private function pathForStorageKey(string $storageKey): string
+    {
+        return $this->fileManager->normalizePath(
+            $this->cacheDir . DIRECTORY_SEPARATOR . hash('sha256', $storageKey) . '.cache'
+        );
+    }
 }

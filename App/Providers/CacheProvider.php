@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Contracts\Data\CacheDriverInterface;
 use App\Core\Container;
 use App\Drivers\Caching\{
+    ArrayCache,
     DatabaseCache,
     FileCache,
     MemCache,
@@ -16,46 +18,35 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 /**
  * CacheProvider Class
  *
- * This class extends the `Container` to provide cache-related services.
- * It dynamically maps cache drivers and supports resolution based on application configuration.
+ * Framework-level resolver for cache drivers. The provider owns alias mapping,
+ * lazy registration, runtime support checks, and normalization of driver names
+ * so the rest of the backend can depend on the cache contract instead of
+ * backend-specific wiring.
  */
 class CacheProvider extends Container
 {
     use ManipulationTrait, PatternTrait;
 
     /**
-     * A mapping of cache driver aliases to their fully qualified class names.
-     *
-     * @var array<string, string> Map of cache driver aliases.
+     * @var array<string, string>
      */
     protected readonly array $cacheMap;
+
     private bool $servicesRegistered = false;
 
-    /**
-     * Constructor for CacheProvider.
-     *
-     * Initializes the cache map.
-     */
     public function __construct()
     {
         parent::__construct();
 
         $this->cacheMap = [
+            'array' => ArrayCache::class,
             'database' => DatabaseCache::class,
-            'file'     => FileCache::class,
+            'file' => FileCache::class,
             'memcache' => MemCache::class,
-            'redis'    => RedisCache::class,
+            'redis' => RedisCache::class,
         ];
     }
 
-    /**
-     * Registers the cache services in the container.
-     *
-     * Maps cache drivers to aliases and registers them as lazy singletons.
-     *
-     * @return void
-     * @throws ContainerException If an error occurs during registration.
-     */
     public function registerServices(): void
     {
         if ($this->servicesRegistered) {
@@ -65,7 +56,7 @@ class CacheProvider extends Container
         $this->wrapInTry(
             function (): void {
                 if (!$this->isArray($this->cacheMap) || $this->isEmpty($this->cacheMap)) {
-                    throw new ContainerException("The cache map must be a non-empty array of aliases.");
+                    throw new ContainerException('The cache map must be a non-empty array of aliases.');
                 }
 
                 foreach ($this->cacheMap as $alias => $class) {
@@ -75,31 +66,54 @@ class CacheProvider extends Container
 
                 $this->servicesRegistered = true;
             },
-            new ContainerException("Error registering cache services.")
+            new ContainerException('Error registering cache services.')
+        );
+    }
+
+    public function getCacheDriver(array $cacheSettings): CacheDriverInterface
+    {
+        return $this->wrapInTry(
+            function () use ($cacheSettings): CacheDriverInterface {
+                $driver = $this->normalizeDriverAlias((string) ($cacheSettings['DRIVER'] ?? ''));
+                $instance = $this->getInstance(
+                    $this->cacheMap[$driver
+                        ?: throw new ContainerException('Cache driver alias is missing or invalid.')]
+                    ?? throw new ContainerException("Unsupported cache driver alias: {$driver}")
+                );
+
+                if (!$instance instanceof CacheDriverInterface) {
+                    throw new ContainerException("Resolved cache driver [{$driver}] does not implement the cache contract.");
+                }
+
+                if (!$instance->supports('extension')) {
+                    throw new ContainerException("Cache driver [{$driver}] is not supported by this PHP runtime.");
+                }
+
+                return $instance;
+            },
+            new ContainerException('Error retrieving cache driver.')
         );
     }
 
     /**
-     * Retrieves the appropriate cache driver based on the provided configuration.
-     *
-     * @param array $cacheSettings Configuration array specifying the cache driver.
-     * @return object The resolved cache driver instance.
-     * @throws ContainerException If the specified cache driver is invalid or unsupported.
+     * @return array<string>
      */
-    public function getCacheDriver(array $cacheSettings): object
+    public function getSupportedDrivers(): array
     {
-        return $this->wrapInTry(
-            function () use ($cacheSettings): object {
-                $driver = $this->toLower($this->trimString((string) ($this->replaceByPattern('/\s+#.*$/', '', (string) ($cacheSettings['DRIVER'] ?? '')) ?? '')));
-                $driver = $driver === 'memcached' ? 'memcache' : $driver;
+        return $this->getKeys($this->cacheMap);
+    }
 
-                return $this->getInstance(
-                    $this->cacheMap[$driver
-                        ?: throw new ContainerException("Cache driver alias is missing or invalid.")]
-                    ?? throw new ContainerException("Unsupported cache driver alias: {$driver}")
-                );
-            },
-            new ContainerException("Error retrieving cache driver.")
+    private function normalizeDriverAlias(string $driver): string
+    {
+        $normalized = $this->toLower(
+            $this->trimString(
+                (string) ($this->replaceByPattern('/\s+#.*$/', '', $driver) ?? $driver)
+            )
         );
+
+        return match ($normalized) {
+            'memcached' => 'memcache',
+            default => $normalized,
+        };
     }
 }

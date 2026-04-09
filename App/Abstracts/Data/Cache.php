@@ -4,235 +4,371 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Data;
 
-use App\Utilities\Finders\DirectoryFinder;
-use App\Utilities\Finders\FileFinder;
+use App\Contracts\Data\CacheDriverInterface;
 use App\Utilities\Handlers\DataHandler;
-use App\Utilities\Handlers\DataStructureHandler;
-use App\Utilities\Managers\CompressionManager;
 use App\Utilities\Managers\Data\CryptoManager;
 use App\Utilities\Managers\DateTimeManager;
 use App\Utilities\Managers\FileManager;
 use App\Utilities\Managers\SettingsManager;
 use App\Utilities\Managers\System\ErrorManager;
-use App\Utilities\Sanitation\GeneralSanitizer;
-use App\Utilities\Sanitation\PatternSanitizer;
-use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\ApplicationPathTrait;
+use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
 use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\EncodingTrait;
 use App\Utilities\Traits\ErrorTrait;
-use App\Utilities\Traits\LoopTrait;
+use App\Utilities\Traits\ExistenceCheckerTrait;
 use App\Utilities\Traits\ManipulationTrait;
-use App\Utilities\Traits\MetricsTrait;
-use App\Utilities\Validation\PatternValidator;
+use App\Utilities\Traits\TypeCheckerTrait;
+use App\Utilities\Traits\Patterns\PatternTrait;
 
-abstract class Cache
+abstract class Cache implements CacheDriverInterface
 {
-    use ErrorTrait,
-        ApplicationPathTrait,
-        ConversionTrait,
-        EncodingTrait,
-        MetricsTrait,
-        LoopTrait,
-        ManipulationTrait,
-        ArrayTrait,
-        CheckerTrait;
+    use ErrorTrait;
+    use ApplicationPathTrait;
+    use ArrayTrait;
+    use CheckerTrait;
+    use ConversionTrait;
+    use EncodingTrait;
+    use ExistenceCheckerTrait;
+    use ManipulationTrait;
+    use PatternTrait {
+        PatternTrait::match as private matchPattern;
+    }
+    use TypeCheckerTrait;
 
-    protected string $encryptionKey = '';
     protected array $settings = [];
-    protected array $cacheData = ['timestamp' => null, 'ttl' => null, 'data' => null];
-    protected string $cacheDir;
-    protected mixed $cacheQueue;
+    protected string $cacheDir = '';
+    protected ?string $encryptionKey = null;
 
     public function __construct(
         protected FileManager $fileManager,
-        protected CompressionManager $compressionManager,
         protected DataHandler $dataHandler,
         protected CryptoManager $cryptoManager,
-        protected DataStructureHandler $dataStructureHandler,
         protected DateTimeManager $dateTimeManager,
         protected SettingsManager $settingsManager,
-        protected DirectoryFinder $directoryFinder,
-        protected FileFinder $fileFinder,
-        protected GeneralSanitizer $sanitizer,
-        protected ErrorManager $errorManager,
-        protected ?PatternSanitizer $patternSanitizer = null,
-        protected ?PatternValidator $patternValidator = null
+        protected ErrorManager $errorManager
     ) {
-        $this->wrapInTry(function () {
+        $this->wrapInTry(function (): void {
             $this->settings = [
                 'cache' => $this->settingsManager->getAllSettings('CACHE'),
                 'encryption' => $this->settingsManager->getAllSettings('ENCRYPTION'),
             ];
-            $this->encryptionKey = $this->initEncryptionKey();
-            $this->cacheQueue = $this->dataStructureHandler->createQueue();
-            $this->cacheDir = $this->locateCacheDirectory();
+
+            if ($this->usesFilesystem()) {
+                $this->cacheDir = $this->locateCacheDirectory();
+            }
         }, 'cache');
     }
 
-    abstract public function set(string $key, mixed $data, ?int $ttl = null): bool;
+    abstract public function driverName(): string;
 
-    abstract public function get(string $key): mixed;
+    /**
+     * @return array<string, mixed>
+     */
+    abstract public function capabilities(): array;
 
-    abstract public function delete(string $key): bool;
+    abstract protected function putRaw(string $storageKey, string $payload, ?int $ttl = null): bool;
 
-    abstract public function clear(): bool;
+    abstract protected function getRaw(string $storageKey): ?string;
 
-    protected function encryptData(string $raw): string
+    abstract protected function deleteRaw(string $storageKey): bool;
+
+    /**
+     * Discover known storage keys and their timestamps when the driver can do so
+     * without relying on the internal index entry.
+     *
+     * @return array<string, int>
+     */
+    protected function discoverStoredEntries(): array
     {
-        return $this->wrapInTry(function () use ($raw) {
-            if (!$this->cryptoManager->isEnabled()) {
-                return $raw;
+        return [];
+    }
+
+    public function supports(string $feature): bool
+    {
+        $resolved = $this->resolveCapability($feature);
+
+        return match (true) {
+            $this->isBool($resolved) => $resolved,
+            $this->isArray($resolved) => !$this->isEmpty($resolved),
+            $this->isString($resolved) => $resolved !== '',
+            default => $resolved !== null,
+        };
+    }
+
+    public function set(string $key, mixed $data, ?int $ttl = null): bool
+    {
+        if (!$this->isCacheEnabled()) {
+            return true;
+        }
+
+        return $this->wrapInTry(function () use ($key, $data, $ttl): bool {
+            $normalizedKey = $this->normalizeKey($key);
+            $storageKey = $this->storageKey($normalizedKey);
+            $effectiveTtl = $this->normalizeTtl($ttl);
+            $payload = $this->encodeCachePayload($data, $effectiveTtl, $storageKey);
+
+            if (!$this->putRaw($storageKey, $payload, $effectiveTtl)) {
+                $this->throwCacheException("Failed to write cache entry for key: {$key}");
             }
 
-            return match ($this->cryptoManager->getDriverName()) {
-                'openssl' => $this->encryptWithOpenSsl($raw),
-                'sodium' => $this->encryptWithSodium($raw),
-                default => $this->throwCacheException('Unsupported encryption type.'),
-            };
+            $this->trackStoredKey(
+                $storageKey,
+                $this->extractPayloadTimestamp($payload) ?? $this->dateTimeManager->getCurrentTimestamp()
+            );
+            $this->pruneIfNeeded();
+
+            return true;
         }, 'cache');
     }
 
-    protected function decryptData(string $cipher): string
+    public function get(string $key): mixed
     {
-        return $this->wrapInTry(function () use ($cipher) {
-            if (!$this->cryptoManager->isEnabled()) {
-                return $cipher;
+        if (!$this->isCacheEnabled()) {
+            return null;
+        }
+
+        return $this->wrapInTry(function () use ($key): mixed {
+            $normalizedKey = $this->normalizeKey($key);
+            $storageKey = $this->storageKey($normalizedKey);
+            $payload = $this->getRaw($storageKey);
+
+            if (!$this->isString($payload) || $payload === '') {
+                $this->untrackStoredKey($storageKey);
+
+                return null;
             }
 
-            return match ($this->cryptoManager->getDriverName()) {
-                'openssl' => $this->decryptWithOpenSsl($cipher),
-                'sodium' => $this->decryptWithSodium($cipher),
-                default => $this->throwCacheException('Unsupported decryption type.'),
-            };
+            try {
+                $timestamp = $this->extractPayloadTimestamp($payload);
+
+                if ($timestamp !== null) {
+                    $this->trackStoredKey($storageKey, $timestamp);
+                }
+
+                return $this->decodeCachePayload(
+                    $payload,
+                    $storageKey,
+                    fn(string $expiredKey): bool => $this->purgeStorageKey($expiredKey)
+                );
+            } catch (\Throwable) {
+                $this->purgeStorageKey($storageKey);
+
+                return null;
+            }
         }, 'cache');
     }
 
-    protected function initEncryptionKey(): string
+    public function has(string $key): bool
     {
+        return $this->get($key) !== null;
+    }
+
+    public function delete(string $key): bool
+    {
+        if (!$this->isCacheEnabled()) {
+            return true;
+        }
+
         return $this->wrapInTry(
-            fn() => $this->cryptoManager->resolveConfiguredKey(),
+            fn(): bool => $this->purgeStorageKey($this->storageKey($this->normalizeKey($key))),
             'cache'
         );
     }
 
-    protected function isExpired(int $timestamp, int $ttl): bool
+    public function clear(): bool
     {
-        return $this->wrapInTry(
-            fn() => $this->dateTimeManager->getCurrentTimestamp() > ($timestamp + $ttl),
-            'cache'
+        if (!$this->isCacheEnabled()) {
+            return true;
+        }
+
+        return $this->wrapInTry(function (): bool {
+            $success = true;
+
+            foreach ($this->getKeys($this->storedEntries()) as $storageKey) {
+                $resolvedKey = (string) $storageKey;
+
+                if ($this->isReservedStorageKey($resolvedKey)) {
+                    continue;
+                }
+
+                $success = $this->deleteRaw($resolvedKey) && $success;
+            }
+
+            $this->deleteRaw($this->indexStorageKey());
+
+            return $success;
+        }, 'cache');
+    }
+
+    protected function usesFilesystem(): bool
+    {
+        return false;
+    }
+
+    protected function isCacheEnabled(): bool
+    {
+        return $this->normalizeBoolSetting($this->cacheSetting('ENABLED', true), true);
+    }
+
+    protected function shouldEncrypt(): bool
+    {
+        return $this->normalizeBoolSetting($this->cacheSetting('ENCRYPT', false), false)
+            && $this->cryptoManager->isEnabled();
+    }
+
+    protected function shouldCompress(): bool
+    {
+        return $this->normalizeBoolSetting($this->cacheSetting('COMPRESSION', true), true);
+    }
+
+    protected function defaultTtl(): int
+    {
+        $ttl = $this->toInt($this->cacheSetting('TTL', 3600));
+
+        return $ttl > 0 ? $ttl : 0;
+    }
+
+    protected function maxItems(): int
+    {
+        $configured = $this->cacheSetting(
+            'MAX_ITEMS',
+            $this->cacheSetting('MEMCACHED', 0)
         );
+
+        $value = $this->toInt($configured);
+
+        return $value > 0 ? $value : 0;
+    }
+
+    protected function cacheTable(): string
+    {
+        $table = $this->cleanSettingString(
+            $this->cacheSetting(
+                'TABLE',
+                $this->cacheSetting('DATABASE_TABLE', 'cache')
+            )
+        );
+
+        if ($table === '' || $this->matchPattern('/^[A-Za-z_][A-Za-z0-9_]*$/', $table) !== 1) {
+            $this->throwCacheException("Invalid cache table name: {$table}");
+        }
+
+        return $table;
+    }
+
+    protected function cachePrefix(): string
+    {
+        $prefix = $this->cleanSettingString($this->cacheSetting('PREFIX', 'langelermvc_cache'));
+        $normalized = (string) ($this->replaceByPattern('/[^A-Za-z0-9_.:-]+/', '_', $prefix) ?? $prefix);
+        $normalized = $this->trimString($normalized, '._:- ');
+
+        return $normalized !== '' ? $normalized : 'langelermvc_cache';
+    }
+
+    protected function cacheSetting(string $key, mixed $default = null): mixed
+    {
+        return $this->keyExists($this->settings['cache'] ?? [], $key)
+            ? $this->settings['cache'][$key]
+            : $default;
     }
 
     protected function locateCacheDirectory(): string
     {
-        return $this->wrapInTry(function () {
-            $directories = $this->directoryFinder->find(['name' => 'Cache']);
-            $cacheDirectory = !$this->isEmpty($directories)
-                ? $this->keyFirst($directories)
-                : null;
+        return $this->wrapInTry(function (): string {
+            $candidates = $this->unique([
+                $this->cleanSettingString($this->cacheSetting('FILE', '')),
+                $this->frameworkStoragePath('Cache'),
+                $this->trimRight(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'LangelerMVC' . DIRECTORY_SEPARATOR . 'Cache',
+            ]);
 
-            if ($this->isString($cacheDirectory) && $this->isDirectory($cacheDirectory)) {
-                return $cacheDirectory;
-            }
+            foreach ($candidates as $candidate) {
+                if (!$this->isString($candidate) || $candidate === '') {
+                    continue;
+                }
 
-            $fallback = $this->settings['cache']['FILE'] ?? 'cache';
-
-            if ($this->patternSanitizer && $this->patternValidator) {
-                $cleaned = $this->patternSanitizer->sanitizePathUnix((string) $fallback) ?? (string) $fallback;
-                $validated = $this->patternValidator->validatePathUnix($cleaned)
-                    ? $cleaned
-                    : (string) $fallback;
+                $normalized = $this->fileManager->normalizePath($candidate);
 
                 if (
-                    $this->fileManager->isDirectory($validated)
-                    || $this->fileManager->createDirectory($validated, 0777, true)
+                    $normalized !== ''
+                    && (
+                        $this->fileManager->isDirectory($normalized)
+                        || $this->fileManager->createDirectory($normalized, 0777, true)
+                    )
                 ) {
-                    return $validated;
+                    return $normalized;
                 }
-            }
-
-            $localFallback = $this->frameworkStoragePath('Cache');
-
-            if (
-                $this->fileManager->isDirectory($localFallback)
-                || $this->fileManager->createDirectory($localFallback, 0777, true)
-            ) {
-                return $localFallback;
-            }
-
-            $tempFallback = $this->trimRight(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/LangelerMVC/Cache';
-
-            if (
-                $this->fileManager->isDirectory($tempFallback)
-                || $this->fileManager->createDirectory($tempFallback, 0777, true)
-            ) {
-                return $tempFallback;
-            }
-
-            if (
-                $this->fileManager->isDirectory((string) $fallback)
-                || $this->fileManager->createDirectory((string) $fallback, 0777, true)
-            ) {
-                return (string) $fallback;
             }
 
             $this->throwCacheException('Unable to locate or create a writable cache directory.');
         }, 'cache');
     }
 
-    protected function evictIfNeeded(): void
+    protected function encodeCachePayload(mixed $data, ?int $ttl = null, ?string $storageKey = null): string
     {
-        $this->wrapInTry(function () {
-            $limit = $this->settings['cache']['MEMCACHED'] ?? 100;
+        return $this->wrapInTry(function () use ($data, $ttl, $storageKey): string {
+            $serialized = $this->serializeCacheValue($data);
 
-            while ($this->dataStructureHandler->count($this->cacheQueue) > $limit) {
-                $this->delete($this->dataStructureHandler->dequeue($this->cacheQueue));
+            if ($this->shouldCompress()) {
+                $serialized = $this->compressData($serialized);
             }
+
+            if ($this->shouldEncrypt()) {
+                $serialized = $this->encryptData($serialized);
+            }
+
+            return $this->dataHandler->jsonEncode([
+                'key' => $storageKey,
+                'timestamp' => $this->dateTimeManager->getCurrentTimestamp(),
+                'ttl' => $this->normalizeTtl($ttl),
+                'serialization' => $this->serializer(),
+                'compressed' => $this->shouldCompress(),
+                'encrypted' => $this->shouldEncrypt(),
+                'data' => $this->base64EncodeString($serialized),
+            ], JSON_THROW_ON_ERROR);
         }, 'cache');
     }
 
-    protected function saveCacheData(string $key, string $payload): bool
+    protected function decodeCachePayload(string $payload, string $key, ?callable $expireCallback = null): mixed
     {
-        return $this->wrapInTry(
-            fn() => $this->fileManager->writeContents(
-                $this->joinStrings('/', [$this->cacheDir, "{$key}.cache"]),
-                $payload
-            ) !== false,
-            'cache'
-        );
+        return $this->wrapInTry(function () use ($payload, $key, $expireCallback): mixed {
+            $record = $this->decodePayloadRecord($payload, $key);
+            $timestamp = $this->toInt($record['timestamp'] ?? 0);
+            $ttl = $this->normalizeTtl($record['ttl'] ?? $this->defaultTtl());
+
+            if ($this->isExpired($timestamp, $ttl)) {
+                if ($this->isCallable($expireCallback)) {
+                    $expireCallback($key);
+                }
+
+                return null;
+            }
+
+            $decoded = $this->decodePayloadData(
+                (string) ($record['data'] ?? ''),
+                $key,
+                $this->normalizeBoolSetting($record['encrypted'] ?? $this->shouldEncrypt(), $this->shouldEncrypt()),
+                $this->normalizeBoolSetting($record['compressed'] ?? $this->shouldCompress(), $this->shouldCompress())
+            );
+            $serializer = $this->normalizeSerializer((string) ($record['serialization'] ?? $this->serializer()));
+
+            return $this->unserializeCacheValue($decoded, $serializer);
+        }, 'cache');
     }
 
-    protected function loadCacheData(string $key): ?string
+    protected function isExpired(int $timestamp, int $ttl): bool
     {
-        return $this->wrapInTry(
-            fn() => $this->fileManager->readContents(
-                $this->joinStrings('/', [$this->cacheDir, "{$key}.cache"])
-            ),
-            'cache'
-        );
-    }
+        if ($ttl <= 0) {
+            return false;
+        }
 
-    protected function deleteCacheData(string $key): bool
-    {
-        return $this->wrapInTry(
-            fn() => $this->fileManager->deleteFile(
-                $this->joinStrings('/', [$this->cacheDir, "{$key}.cache"])
-            ),
-            'cache'
-        );
+        return $this->dateTimeManager->getCurrentTimestamp() > ($timestamp + $ttl);
     }
 
     protected function compressData(string $data): string
     {
-        return $this->wrapInTry(function () use ($data) {
-            $compressionEnabled = $this->toLower((string) ($this->settings['cache']['COMPRESSION'] ?? 'false')) === 'true';
-
-            if (!$compressionEnabled || !$this->functionExists('gzcompress')) {
-                return $data;
-            }
-
+        return $this->wrapInTry(function () use ($data): string {
             $compressed = gzcompress($data);
 
             return $compressed === false ? $data : $compressed;
@@ -241,50 +377,323 @@ abstract class Cache
 
     protected function decompressData(string $data): string
     {
-        return $this->wrapInTry(function () use ($data) {
-            $compressionEnabled = $this->toLower((string) ($this->settings['cache']['COMPRESSION'] ?? 'false')) === 'true';
-
-            if (!$compressionEnabled || !$this->functionExists('gzuncompress')) {
-                return $data;
-            }
-
+        return $this->wrapInTry(function () use ($data): string {
             $decompressed = @gzuncompress($data);
 
             return $decompressed === false ? $data : $decompressed;
         }, 'cache');
     }
 
-    private function encryptWithOpenSsl(string $raw): string
+    protected function encryptData(string $raw): string
+    {
+        return $this->wrapInTry(function () use ($raw): string {
+            $encryptionKey = $this->resolveEncryptionKey();
+
+            return match ($this->cryptoManager->getDriverName()) {
+                'openssl' => $this->encryptWithOpenSsl($raw, $encryptionKey),
+                'sodium' => $this->encryptWithSodium($raw, $encryptionKey),
+                default => $this->throwCacheException('Unsupported encryption driver for cache.'),
+            };
+        }, 'cache');
+    }
+
+    protected function decryptData(string $cipher): string
+    {
+        return $this->wrapInTry(function () use ($cipher): string {
+            $encryptionKey = $this->resolveEncryptionKey();
+
+            return match ($this->cryptoManager->getDriverName()) {
+                'openssl' => $this->decryptWithOpenSsl($cipher, $encryptionKey),
+                'sodium' => $this->decryptWithSodium($cipher, $encryptionKey),
+                default => $this->throwCacheException('Unsupported decryption driver for cache.'),
+            };
+        }, 'cache');
+    }
+
+    protected function serializeCacheValue(mixed $data): string
+    {
+        return match ($this->serializer()) {
+            'php' => $this->dataHandler->serializeData($data),
+            'json' => $this->dataHandler->jsonEncode($data, JSON_THROW_ON_ERROR),
+            'igbinary' => $this->serializeWithIgbinary($data),
+            default => $this->throwCacheException('Unsupported cache serialization strategy.'),
+        };
+    }
+
+    protected function unserializeCacheValue(string $payload, string $serializer): mixed
+    {
+        return match ($serializer) {
+            'php' => $this->dataHandler->unserializeData($payload, true),
+            'json' => $this->dataHandler->jsonDecode($payload, true, 512, JSON_THROW_ON_ERROR),
+            'igbinary' => $this->unserializeWithIgbinary($payload),
+            default => $this->throwCacheException('Unsupported cache serialization strategy.'),
+        };
+    }
+
+    protected function serializer(): string
+    {
+        return $this->normalizeSerializer((string) $this->cacheSetting('SERIALIZATION', 'php'));
+    }
+
+    protected function throwCacheException(string $message): never
+    {
+        $this->errorManager->logErrorMessage($message, __FILE__, __LINE__, 'userError', 'cache');
+
+        throw $this->errorManager->resolveException('cache', $message);
+    }
+
+    protected function resolveEncryptionKey(): string
+    {
+        if ($this->encryptionKey !== null && $this->encryptionKey !== '') {
+            return $this->encryptionKey;
+        }
+
+        $resolved = $this->wrapInTry(
+            fn(): string => $this->cryptoManager->resolveConfiguredKey(),
+            'cache'
+        );
+
+        if ($resolved === '') {
+            $this->throwCacheException('Cache encryption is enabled, but no encryption key is configured.');
+        }
+
+        return $this->encryptionKey = $resolved;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    protected function storedEntries(): array
+    {
+        $indexed = $this->readIndexEntries();
+
+        return $indexed !== []
+            ? $indexed
+            : $this->discoverStoredEntries();
+    }
+
+    protected function trackStoredKey(string $storageKey, int $timestamp): void
+    {
+        if ($this->isReservedStorageKey($storageKey)) {
+            return;
+        }
+
+        $entries = $this->readIndexEntries();
+        $entries[$storageKey] = $timestamp;
+        $this->writeIndexEntries($entries);
+    }
+
+    protected function untrackStoredKey(string $storageKey): void
+    {
+        if ($this->isReservedStorageKey($storageKey)) {
+            return;
+        }
+
+        $entries = $this->readIndexEntries();
+
+        if (!$this->keyExists($entries, $storageKey)) {
+            return;
+        }
+
+        unset($entries[$storageKey]);
+        $this->writeIndexEntries($entries);
+    }
+
+    protected function storageKey(string $key): string
+    {
+        return $this->cachePrefix() . ':' . hash('sha256', $this->cachePrefix() . '|' . $key);
+    }
+
+    protected function normalizeKey(string $key): string
+    {
+        $normalized = $this->trimString($key);
+
+        if ($normalized === '') {
+            $this->throwCacheException('Cache key must be a non-empty string.');
+        }
+
+        if ($this->matchPattern('/[\x00-\x1F\x7F]/', $normalized) === 1) {
+            $this->throwCacheException("Cache key contains invalid control characters: {$key}");
+        }
+
+        return $normalized;
+    }
+
+    protected function purgeStorageKey(string $storageKey): bool
+    {
+        $deleted = $this->deleteRaw($storageKey);
+        $this->untrackStoredKey($storageKey);
+
+        return $deleted;
+    }
+
+    private function encodeIndexPayload(array $entries): string
+    {
+        return $this->dataHandler->jsonEncode([
+            'version' => 1,
+            'entries' => $entries,
+        ], JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function readIndexEntries(): array
+    {
+        $payload = $this->getRaw($this->indexStorageKey());
+
+        if (!$this->isString($payload) || $payload === '') {
+            return [];
+        }
+
+        try {
+            $decoded = $this->dataHandler->jsonDecode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        if (!$this->isArray($decoded) || !$this->isArray($decoded['entries'] ?? null)) {
+            return [];
+        }
+
+        $entries = [];
+
+        foreach ($decoded['entries'] as $storageKey => $timestamp) {
+            if (!$this->isString($storageKey) || $storageKey === '' || $this->isReservedStorageKey($storageKey)) {
+                continue;
+            }
+
+            $entries[$storageKey] = $this->toInt($timestamp);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @param array<string, int> $entries
+     */
+    private function writeIndexEntries(array $entries): void
+    {
+        if ($entries === []) {
+            $this->deleteRaw($this->indexStorageKey());
+
+            return;
+        }
+
+        if (!$this->putRaw($this->indexStorageKey(), $this->encodeIndexPayload($entries), 0)) {
+            $this->throwCacheException('Failed to update the cache index.');
+        }
+    }
+
+    private function pruneIfNeeded(): void
+    {
+        $limit = $this->maxItems();
+
+        if ($limit <= 0) {
+            return;
+        }
+
+        $entries = $this->storedEntries();
+
+        if ($this->countElements($entries) <= $limit) {
+            return;
+        }
+
+        asort($entries);
+        $overflow = $this->countElements($entries) - $limit;
+
+        foreach ($this->slice($this->getKeys($entries), 0, $overflow) as $storageKey) {
+            if ($this->isString($storageKey) && !$this->isReservedStorageKey($storageKey)) {
+                $this->purgeStorageKey($storageKey);
+            }
+        }
+    }
+
+    private function decodePayloadRecord(string $payload, string $key): array
+    {
+        $record = $this->dataHandler->jsonDecode($payload, true, 512, JSON_THROW_ON_ERROR);
+
+        if (!$this->isArray($record)) {
+            $this->throwCacheException("Invalid cache payload for key: {$key}");
+        }
+
+        return $record;
+    }
+
+    private function decodePayloadData(string $encoded, string $key, bool $isEncrypted, bool $isCompressed): string
+    {
+        $decoded = $this->base64DecodeString($encoded, true);
+
+        if ($decoded === false) {
+            $this->throwCacheException("Invalid base64 cache payload for key: {$key}");
+        }
+
+        if ($isEncrypted) {
+            $decoded = $this->decryptData($decoded);
+        }
+
+        if ($isCompressed) {
+            $decoded = $this->decompressData($decoded);
+        }
+
+        return $decoded;
+    }
+
+    private function extractPayloadTimestamp(string $payload): ?int
+    {
+        try {
+            $decoded = $this->dataHandler->jsonDecode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$this->isArray($decoded)) {
+            return null;
+        }
+
+        return $this->keyExists($decoded, 'timestamp')
+            ? $this->toInt($decoded['timestamp'])
+            : null;
+    }
+
+    private function indexStorageKey(): string
+    {
+        return $this->cachePrefix() . ':__index__';
+    }
+
+    private function isReservedStorageKey(string $storageKey): bool
+    {
+        return $storageKey === $this->indexStorageKey();
+    }
+
+    private function encryptWithOpenSsl(string $raw, string $encryptionKey): string
     {
         $cipherMethod = $this->cryptoManager->resolveConfiguredCipher('openssl');
-        $iv = $this->cryptoManager->generateRandom(
-            'generateRandomIv',
-            $cipherMethod
-        );
+        $iv = $this->cryptoManager->generateRandom('generateRandomIv', $cipherMethod);
         $cipher = $this->cryptoManager->encrypt(
             'symmetric',
             $raw,
             $cipherMethod,
-            $this->encryptionKey,
+            $encryptionKey,
             $iv
         );
 
         return $iv . $cipher;
     }
 
-    private function encryptWithSodium(string $raw): string
+    private function encryptWithSodium(string $raw, string $encryptionKey): string
     {
-        $nonceSize = $this->nonceLenSodium();
+        $nonceSize = $this->cryptoManager->nonceLength('secretBox');
         $nonce = $this->cryptoManager->generateRandom('custom', $nonceSize);
-        $cipher = $this->cryptoManager->encrypt('secretBox', $raw, $nonce, $this->encryptionKey);
+        $cipher = $this->cryptoManager->encrypt('secretBox', $raw, $nonce, $encryptionKey);
 
         return $nonce . $cipher;
     }
 
-    private function decryptWithOpenSsl(string $cipher): string
+    private function decryptWithOpenSsl(string $cipher, string $encryptionKey): string
     {
         $cipherMethod = $this->cryptoManager->resolveConfiguredCipher('openssl');
-        $ivLen = $this->ivLenOpenssl();
+        $ivLen = $this->cryptoManager->ivLength($cipherMethod);
         $iv = $this->substring($cipher, 0, $ivLen);
         $encryptedPart = $this->substring($cipher, $ivLen);
 
@@ -292,39 +701,110 @@ abstract class Cache
             'symmetric',
             $encryptedPart,
             $cipherMethod,
-            $this->encryptionKey,
+            $encryptionKey,
             $iv
         );
     }
 
-    private function decryptWithSodium(string $cipher): string
+    private function decryptWithSodium(string $cipher, string $encryptionKey): string
     {
-        $nonceSize = $this->nonceLenSodium();
+        $nonceSize = $this->cryptoManager->nonceLength('secretBox');
         $nonce = $this->substring($cipher, 0, $nonceSize);
         $encryptedPart = $this->substring($cipher, $nonceSize);
 
-        return $this->cryptoManager->decrypt('secretBox', $encryptedPart, $nonce, $this->encryptionKey);
+        return $this->cryptoManager->decrypt('secretBox', $encryptedPart, $nonce, $encryptionKey);
     }
 
-    private function ivLenOpenssl(): int
+    private function normalizeBoolSetting(mixed $value, bool $default): bool
     {
-        return $this->wrapInTry(
-            fn() => $this->cryptoManager->ivLength(
-                $this->cryptoManager->resolveConfiguredCipher('openssl')
-            ),
-            'cache'
-        );
+        if ($this->isBool($value)) {
+            return $value;
+        }
+
+        if ($this->isInt($value) || $this->isFloat($value)) {
+            return (int) $value !== 0;
+        }
+
+        if (!$this->isString($value)) {
+            return $default;
+        }
+
+        return match ($this->toLower($this->cleanSettingString($value))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off', '' => false,
+            default => $default,
+        };
     }
 
-    private function nonceLenSodium(): int
+    private function normalizeTtl(mixed $ttl): int
     {
-        return $this->cryptoManager->nonceLength('secretBox');
+        if ($ttl === null || $ttl === '') {
+            return $this->defaultTtl();
+        }
+
+        $normalized = $this->toInt($ttl);
+
+        return $normalized > 0 ? $normalized : 0;
     }
 
-    private function throwCacheException(string $message): never
+    private function normalizeSerializer(string $serializer): string
     {
-        $this->errorManager->logErrorMessage($message, __FILE__, __LINE__, 'userError', 'cache');
+        return match ($this->toLower($this->cleanSettingString($serializer))) {
+            '', 'php' => 'php',
+            'json' => 'json',
+            'igbinary' => 'igbinary',
+            default => $this->cleanSettingString($serializer),
+        };
+    }
 
-        throw $this->errorManager->resolveException('cache', $message);
+    private function cleanSettingString(mixed $value): string
+    {
+        if (!$this->isString($value) && !$this->isInt($value) && !$this->isFloat($value) && !$this->isBool($value)) {
+            return '';
+        }
+
+        $stringValue = (string) $value;
+        $withoutComment = (string) ($this->replaceByPattern('/\s+#.*$/', '', $stringValue) ?? $stringValue);
+
+        return $this->trimString($withoutComment);
+    }
+
+    private function serializeWithIgbinary(mixed $data): string
+    {
+        if (!$this->functionExists('igbinary_serialize')) {
+            $this->throwCacheException('igbinary serialization is unavailable on this runtime.');
+        }
+
+        return igbinary_serialize($data);
+    }
+
+    private function unserializeWithIgbinary(string $payload): mixed
+    {
+        if (!$this->functionExists('igbinary_unserialize')) {
+            $this->throwCacheException('igbinary unserialization is unavailable on this runtime.');
+        }
+
+        return igbinary_unserialize($payload);
+    }
+
+    private function resolveCapability(string $feature): mixed
+    {
+        $normalized = $this->toLower($this->trimString($feature));
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        $value = $this->capabilities();
+
+        foreach ($this->splitString('.', $normalized) as $segment) {
+            if (!$this->isArray($value) || !$this->keyExists($value, $segment)) {
+                return null;
+            }
+
+            $value = $value[$segment];
+        }
+
+        return $value;
     }
 }

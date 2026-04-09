@@ -1,247 +1,297 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Managers\Data;
 
-use Throwable;
-use App\Providers\CacheProvider;                  // Provides caching services and manages cache storage.
-use App\Utilities\Managers\SettingsManager;       // Handles configuration settings for the application.
-
-use App\Exceptions\Data\CacheException;           // Exception class for cache-related errors.
-
+use App\Contracts\Data\CacheDriverInterface;
+use App\Exceptions\Data\CacheException;
+use App\Providers\CacheProvider;
+use App\Utilities\Managers\SettingsManager;
 use App\Utilities\Traits\{
-	ErrorTrait,
-	TypeCheckerTrait, // Offers utilities for validating and checking data types.
-	ArrayTrait        // Provides utility methods for array operations.
+    ArrayTrait,
+    ConversionTrait,
+    ErrorTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
 };
+use App\Utilities\Traits\Patterns\PatternTrait;
 
-/**
- * Class CacheManager
- *
- * Manages caching operations by leveraging configurable cache drivers.
- * Provides methods for CRUD operations on cache and manages cache settings.
- */
 class CacheManager
 {
-	use ErrorTrait {
-		ErrorTrait::wrapInTry as private wrapWithErrorTrait;
-	}
-	use TypeCheckerTrait;
-	use ArrayTrait;
+    use ArrayTrait, ConversionTrait, ErrorTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
 
-	/**
-	 * @var array The cache settings.
-	 */
-	protected array $cacheSettings = [];
+    public array $cacheSettings;
+    public CacheDriverInterface $cacheDriver;
 
-	/**
-	 * Constructor to initialize dependencies and properties.
-	 *
-	 * @param CacheProvider $cacheProvider The cache provider instance.
-	 * @param SettingsManager $settingsManager The settings manager instance.
-	 * @param object $cacheDriver The cache driver instance.
-	 */
-	public function __construct(
-		protected CacheProvider $cacheProvider,
-		protected SettingsManager $settingsManager,
-		protected ?object $cacheDriver = null
-	) {
-		$this->wrapInTry(fn() => $this->cacheProvider->registerServices(), "Failed to register cache services.");
-		$this->wrapInTry(fn() => $this->initializeCacheDriver(), "Failed to initialize cache driver.");
-	}
+    public function __construct(
+        protected CacheProvider $cacheProvider,
+        protected SettingsManager $settingsManager,
+        ?CacheDriverInterface $cacheDriver = null
+    ) {
+        $this->cacheProvider->registerServices();
+        $this->cacheSettings = $this->normalizeCacheSettings(
+            $this->settingsManager->getAllSettings('CACHE')
+        );
+        $this->cacheDriver = $cacheDriver ?? $this->resolveCacheDriver();
+    }
 
-	/**
-	 * Initialize the cache driver based on configuration.
-	 *
-	 * @throws CacheException If unable to initialize cache driver.
-	 */
-	protected function initializeCacheDriver(): void
-	{
-		$this->wrapInTry(
-			fn() => $this->loadCacheDriver($this->cacheSettings),
-			"Failed to initialize cache driver."
-		);
-	}
+    public function put(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        return $this->cacheDriver->set($this->normalizeKey($key), $value, $ttl);
+    }
 
-	/**
-	 * Load and validate the cache driver and settings.
-	 *
-	 * @throws CacheException If driver initialization fails.
-	 */
-	protected function loadCacheDriver(array $settings = []): void
-	{
-		$this->cacheSettings = $settings !== []
-			? $settings
-			: $this->settingsManager->getAllSettings('CACHE');
+    public function set(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        return $this->put($key, $value, $ttl);
+    }
 
-		$this->cacheDriver = $this->cacheProvider->getCacheDriver($this->cacheSettings)
-			?? throw new CacheException("No valid cache driver configured.");
-	}
+    public function forever(string $key, mixed $value): bool
+    {
+        return $this->put($key, $value, 0);
+    }
 
-	/**
-	 * Set a cache entry with an optional TTL.
-	 *
-	 * @param string $key The cache key.
-	 * @param mixed $data The data to cache.
-	 * @param int|null $ttl The time-to-live in seconds (optional).
-	 * @return bool True if the operation succeeded, false otherwise.
-	 */
-	public function set(string $key, mixed $data, ?int $ttl = null): bool
-	{
-		return $this->wrapInTry(
-			fn() => $this->cacheDriver->set(
-				$this->validateKey($key),
-				$data,
-				$ttl ?? $this->cacheSettings['TTL'] ?? 3600
-			),
-			"Error setting cache for key: $key"
-		);
-	}
+    public function add(string $key, mixed $value, ?int $ttl = null): bool
+    {
+        return $this->has($key)
+            ? false
+            : $this->put($key, $value, $ttl);
+    }
 
-	/**
-	 * Retrieve a cache entry by key.
-	 *
-	 * @param string $key The cache key.
-	 * @return mixed The cached data.
-	 */
-	public function get(string $key): mixed
-	{
-		return $this->wrapInTry(
-			fn() => $this->cacheDriver->get($this->validateKey($key)),
-			"Error retrieving cache for key: $key"
-		);
-	}
+    public function get(string $key, mixed $default = null): mixed
+    {
+        $value = $this->cacheDriver->get($this->normalizeKey($key));
 
-	/**
-	 * Delete a cache entry by key.
-	 *
-	 * @param string $key The cache key.
-	 * @return bool True if the operation succeeded, false otherwise.
-	 */
-	public function delete(string $key): bool
-	{
-		return $this->wrapInTry(
-			fn() => $this->cacheDriver->delete($this->validateKey($key)),
-			"Error deleting cache for key: $key"
-		);
-	}
+        if ($value !== null) {
+            return $value;
+        }
 
-	/**
-	 * Clear all cache entries.
-	 *
-	 * @return bool True if the operation succeeded, false otherwise.
-	 */
-	public function clear(): bool
-	{
-		return $this->wrapInTry(
-			fn() => $this->cacheDriver->clear(),
-			"Error clearing cache."
-		);
-	}
+        return $this->isCallable($default)
+            ? $default()
+            : $default;
+    }
 
-	/**
-	 * Set multiple cache entries.
-	 *
-	 * @param array $items The key-value pairs to set in the cache.
-	 * @param int|null $ttl The time-to-live in seconds (optional).
-	 * @return bool True if all operations succeeded, false otherwise.
-	 */
-	public function setMultiple(array $items, ?int $ttl = null): bool
-	{
-		return $this->wrapInTry(
-			fn() => $this->all(
-				$items,
-				fn($value, $key) => $this->set($this->validateKey($key), $value, $ttl)
-			),
-			"Error setting multiple cache entries."
-		);
-	}
+    public function pull(string $key, mixed $default = null): mixed
+    {
+        $normalizedKey = $this->normalizeKey($key);
+        $value = $this->cacheDriver->get($normalizedKey);
 
-	/**
-	 * Retrieve multiple cache entries by keys.
-	 *
-	 * @param array $keys The cache keys to retrieve.
-	 * @return array The key-value pairs of the retrieved cache data.
-	 */
-	public function getMultiple(array $keys): array
-	{
-		return $this->wrapInTry(
-			fn() => $this->reduce(
-				$keys,
-				fn($carry, $key) => $this->merge($carry, [$key => $this->get($this->validateKey($key))]),
-				[]
-			),
-			"Error retrieving multiple cache entries."
-		);
-	}
+        if ($value === null) {
+            return $this->isCallable($default)
+                ? $default()
+                : $default;
+        }
 
-	/**
-	 * Delete multiple cache entries by keys.
-	 *
-	 * @param array $keys The cache keys to delete.
-	 * @return bool True if all operations succeeded, false otherwise.
-	 */
-	public function deleteMultiple(array $keys): bool
-	{
-		return $this->wrapInTry(
-			fn() => $this->all($keys, fn($key) => $this->delete($this->validateKey($key))),
-			"Error deleting multiple cache entries."
-		);
-	}
+        $this->cacheDriver->delete($normalizedKey);
 
-	/**
-	 * Update the cache driver based on new or updated settings.
-	 *
-	 * @param array $newSettings The new settings to apply.
-	 */
-	public function updateCacheDriver(array $newSettings = []): void
-	{
-		$this->wrapInTry(
-			fn() => $this->reloadCacheDriver($newSettings),
-			"Error updating cache driver."
-		);
-	}
+        return $value;
+    }
 
-	/**
-	 * Reload cache driver with new settings.
-	 *
-	 * @param array $newSettings The new settings to apply.
-	 */
-	protected function reloadCacheDriver(array $newSettings): void
-	{
-		$this->cacheSettings = $this->merge($this->cacheSettings, $newSettings);
-		$this->loadCacheDriver($this->cacheSettings);
-	}
+    public function remember(string $key, callable $resolver, ?int $ttl = null): mixed
+    {
+        $normalizedKey = $this->normalizeKey($key);
+        $cached = $this->cacheDriver->get($normalizedKey);
 
-	/**
-	 * Validate cache key.
-	 *
-	 * @param string $key The cache key to validate.
-	 * @return string The validated key.
-	 * @throws CacheException If the key is invalid.
-	 */
-	protected function validateKey(string $key): string
-	{
-		return $this->wrapInTry(
-			fn() => $this->isString($key) && !$this->isEmpty($key)
-				? $key
-				: throw new CacheException("Invalid cache key: $key"),
-			"Error validating cache key: $key"
-		);
-	}
+        if ($cached !== null) {
+            return $cached;
+        }
 
-	/**
-	 * Wrapper for consistent error handling.
-	 *
-	 * @param callable $callback The callback to execute.
-	 * @param string $errorMessage The error message to use in the exception.
-	 * @return mixed The result of the callback.
-	 * @throws CacheException
-	 */
-	protected function wrapInTry(callable $callback, string $errorMessage): mixed
-	{
-		return $this->wrapWithErrorTrait(
-			$callback,
-			fn(Throwable $e) => new CacheException($errorMessage, 0, $e)
-		);
-	}
+        $value = $resolver();
+        $this->cacheDriver->set($normalizedKey, $value, $ttl);
+
+        return $value;
+    }
+
+    public function rememberForever(string $key, callable $resolver): mixed
+    {
+        return $this->remember($key, $resolver, 0);
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->cacheDriver->has($this->normalizeKey($key));
+    }
+
+    public function missing(string $key): bool
+    {
+        return !$this->has($key);
+    }
+
+    public function forget(string $key): bool
+    {
+        return $this->cacheDriver->delete($this->normalizeKey($key));
+    }
+
+    public function delete(string $key): bool
+    {
+        return $this->forget($key);
+    }
+
+    public function clear(): bool
+    {
+        return $this->cacheDriver->clear();
+    }
+
+    public function flush(): bool
+    {
+        return $this->clear();
+    }
+
+    public function putMultiple(array $items, ?int $ttl = null): bool
+    {
+        return $this->all(
+            $items,
+            fn(mixed $value, mixed $key): bool => $this->put((string) $key, $value, $ttl)
+        );
+    }
+
+    public function setMultiple(array $items, ?int $ttl = null): bool
+    {
+        return $this->putMultiple($items, $ttl);
+    }
+
+    public function getMultiple(array $keys, mixed $default = null): array
+    {
+        $values = [];
+
+        foreach ($keys as $key) {
+            $values[(string) $key] = $this->get((string) $key, $default);
+        }
+
+        return $values;
+    }
+
+    public function deleteMultiple(array $keys): bool
+    {
+        return $this->all(
+            $keys,
+            fn(mixed $key): bool => $this->forget((string) $key)
+        );
+    }
+
+    public function many(array $keys, mixed $default = null): array
+    {
+        return $this->getMultiple($keys, $default);
+    }
+
+    public function updateCacheDriver(array $newSettings = []): self
+    {
+        $this->cacheSettings = $this->normalizeCacheSettings($this->merge($this->cacheSettings, $newSettings));
+        $this->cacheDriver = $this->cacheProvider->getCacheDriver($this->cacheSettings);
+
+        return $this;
+    }
+
+    public function getDriver(): CacheDriverInterface
+    {
+        return $this->cacheDriver;
+    }
+
+    public function getDriverName(): string
+    {
+        return $this->cacheDriver->driverName();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function capabilities(): array
+    {
+        return $this->cacheDriver->capabilities();
+    }
+
+    public function supports(string $feature): bool
+    {
+        return $this->cacheDriver->supports($feature);
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->normalizeBoolean($this->cacheSettings['ENABLED'] ?? true, true);
+    }
+
+    public function defaultTtl(): int
+    {
+        $ttl = $this->toInt($this->cacheSettings['TTL'] ?? 3600);
+
+        return $ttl > 0 ? $ttl : 0;
+    }
+
+    public function prefix(): string
+    {
+        $prefix = $this->normalizeStringSetting($this->cacheSettings['PREFIX'] ?? 'langelermvc_cache');
+
+        return $prefix !== '' ? $prefix : 'langelermvc_cache';
+    }
+
+    private function resolveCacheDriver(): CacheDriverInterface
+    {
+        return $this->cacheProvider->getCacheDriver($this->cacheSettings);
+    }
+
+    private function normalizeCacheSettings(array $settings): array
+    {
+        $driver = $this->normalizeStringSetting((string) ($settings['DRIVER'] ?? 'file'));
+        $driver = match ($this->toLower($driver)) {
+            'memcached' => 'memcache',
+            default => $this->toLower($driver),
+        };
+
+        $settings['DRIVER'] = $driver;
+        $settings['TTL'] = $this->toInt($settings['TTL'] ?? 3600);
+        $settings['PREFIX'] = $this->normalizeStringSetting($settings['PREFIX'] ?? 'langelermvc_cache');
+        $settings['ENABLED'] = $this->normalizeBoolean($settings['ENABLED'] ?? true, true);
+        $settings['COMPRESSION'] = $this->normalizeBoolean($settings['COMPRESSION'] ?? true, true);
+        $settings['ENCRYPT'] = $this->normalizeBoolean($settings['ENCRYPT'] ?? false, false);
+
+        return $settings;
+    }
+
+    private function normalizeKey(string $key): string
+    {
+        $normalized = $this->trimString($key);
+
+        if ($normalized === '') {
+            throw new CacheException('Cache key must be a non-empty string.');
+        }
+
+        if ($this->match('/[\x00-\x1F\x7F]/', $normalized) === 1) {
+            throw new CacheException("Cache key contains invalid control characters: {$key}");
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeBoolean(mixed $value, bool $default): bool
+    {
+        if ($this->isBool($value)) {
+            return $value;
+        }
+
+        if ($this->isInt($value) || $this->isFloat($value)) {
+            return (int) $value !== 0;
+        }
+
+        if (!$this->isString($value)) {
+            return $default;
+        }
+
+        return match ($this->toLower($this->normalizeStringSetting($value))) {
+            '1', 'true', 'yes', 'on' => true,
+            '0', 'false', 'no', 'off', '' => false,
+            default => $default,
+        };
+    }
+
+    private function normalizeStringSetting(mixed $value): string
+    {
+        if (!$this->isString($value) && !$this->isInt($value) && !$this->isFloat($value) && !$this->isBool($value)) {
+            return '';
+        }
+
+        $stringValue = (string) $value;
+        $withoutComment = (string) ($this->replaceByPattern('/\s+#.*$/', '', $stringValue) ?? $stringValue);
+
+        return $this->trimString($withoutComment);
+    }
 }

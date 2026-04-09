@@ -33,7 +33,7 @@ trait IteratorTrait
 	 */
 	private readonly array $iteratorSettings;
 
-	public function __construct()
+	public function initializeIteratorTrait(): void
 	{
 		$this->iteratorSettings = [
 			// Configuration for AppendIterator

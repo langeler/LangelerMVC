@@ -22,12 +22,6 @@ abstract class Repository implements RepositoryInterface
 {
     use TypeCheckerTrait;
     use ArrayTrait, ManipulationTrait, PatternTrait {
-        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-        ArrayTrait::pad insteadof ManipulationTrait;
-        ArrayTrait::reverse insteadof ManipulationTrait;
-        ArrayTrait::shuffle insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::trim as private trimString;
         ManipulationTrait::toLower as private toLowerString;
         ManipulationTrait::toUpper as private toUpperString;
         PatternTrait::match as private matchPattern;

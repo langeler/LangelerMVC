@@ -24,7 +24,7 @@ trait RecursiveIteratorTrait
 	 */
 	private readonly array $recursiveIteratorSettings;
 
-	public function __construct()
+	public function initializeRecursiveIteratorTrait(): void
 	{
 		$this->recursiveIteratorSettings = [
 			// Configuration for RecursiveArrayIterator

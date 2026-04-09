@@ -100,6 +100,26 @@ use App\Utilities\Traits\{
 {
 	use RuleTrait, ValidationTrait;
 
+	public function __construct()
+	{
+		$this->initializeValidationFilters();
+	}
+
+	public function validateFloat(string $input, array $flags = []): bool
+	{
+		return $this->validateFloatWithFilter($input, $flags);
+	}
+
+	public function validateInt(string $input, array $flags = []): bool
+	{
+		return $this->validateIntWithFilter($input, $flags);
+	}
+
+	public function validateUrl(string $input, array $flags = []): bool
+	{
+		return $this->validateUrlWithFilter($input, $flags);
+	}
+
 	/**
 	 * Validates the provided data using pre-configured validation methods, flags, and rules.
 	 *

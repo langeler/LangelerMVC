@@ -37,20 +37,7 @@ abstract class Cache
         LoopTrait,
         ManipulationTrait,
         ArrayTrait,
-        CheckerTrait {
-        ErrorTrait::isNumeric insteadof CheckerTrait;
-        ManipulationTrait::repeat insteadof LoopTrait;
-        ManipulationTrait::pad insteadof ArrayTrait;
-        ManipulationTrait::replace insteadof ArrayTrait;
-        ManipulationTrait::reverse insteadof ArrayTrait;
-        ManipulationTrait::shuffle insteadof ArrayTrait;
-        CheckerTrait::isNumeric as isStringNumeric;
-        LoopTrait::repeat as loopRepeat;
-        ArrayTrait::pad as arrayPad;
-        ArrayTrait::replace as arrayReplace;
-        ArrayTrait::reverse as arrayReverse;
-        ArrayTrait::shuffle as arrayShuffle;
-    }
+        CheckerTrait;
 
     protected string $encryptionKey = '';
     protected array $settings = [];
@@ -205,7 +192,7 @@ abstract class Cache
     {
         return $this->wrapInTry(
             fn() => $this->fileManager->writeContents(
-                $this->join('/', [$this->cacheDir, "{$key}.cache"]),
+                $this->joinStrings('/', [$this->cacheDir, "{$key}.cache"]),
                 $payload
             ) !== false,
             'cache'
@@ -216,7 +203,7 @@ abstract class Cache
     {
         return $this->wrapInTry(
             fn() => $this->fileManager->readContents(
-                $this->join('/', [$this->cacheDir, "{$key}.cache"])
+                $this->joinStrings('/', [$this->cacheDir, "{$key}.cache"])
             ),
             'cache'
         );
@@ -226,7 +213,7 @@ abstract class Cache
     {
         return $this->wrapInTry(
             fn() => $this->fileManager->deleteFile(
-                $this->join('/', [$this->cacheDir, "{$key}.cache"])
+                $this->joinStrings('/', [$this->cacheDir, "{$key}.cache"])
             ),
             'cache'
         );

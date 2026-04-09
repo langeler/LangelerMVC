@@ -21,7 +21,7 @@ trait SanitationFilterTrait
 	/**
 	 * Constructor to initialize filters and flags.
 	 */
-	public function __construct()
+	public function initializeSanitationFilters(): void
 	{
 		$this->filters = [
 			'encoded' => FILTER_SANITIZE_ENCODED,            // URL-encodes a string
@@ -87,7 +87,7 @@ trait SanitationFilterTrait
 	 * @param string $input The input to sanitize.
 	 * @return string The sanitized input.
 	 */
-	public function sanitizeUrl(string $input): string
+	public function sanitizeUrlWithFilter(string $input): string
 	{
 		return $this->var($input, $this->filters['url']);
 	}
@@ -111,7 +111,7 @@ trait SanitationFilterTrait
 	 * @param array $flags Optional array of flag keys to apply.
 	 * @return string The sanitized input.
 	 */
-	public function sanitizeFloat(string $input, array $flags = []): string
+	public function sanitizeFloatWithFilter(string $input, array $flags = []): string
 	{
 		return $this->var($input, $this->filters['float'], $this->getFilterOptions('float', $flags));
 	}

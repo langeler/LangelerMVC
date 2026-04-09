@@ -30,12 +30,6 @@ class Database
 {
 	use ErrorTrait, TypeCheckerTrait, FiltrationTrait;
 	use ArrayTrait, ManipulationTrait, PatternTrait {
-		ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-		ArrayTrait::pad insteadof ManipulationTrait;
-		ArrayTrait::reverse insteadof ManipulationTrait;
-		ArrayTrait::shuffle insteadof ManipulationTrait;
-		PatternTrait::split insteadof ManipulationTrait;
-		ManipulationTrait::trim as private trimString;
 		ManipulationTrait::toLower as private toLowerString;
 		PatternTrait::match as private matchPattern;
 	}
@@ -201,7 +195,7 @@ class Database
 		$this->errorManager->logError('Attempting failover connection.', 'userWarning');
 
 		return $this->wrapInTry(
-			fn(): PDO => $this->createPdo($this->replace($this->config, $this->config['FAILOVER'])),
+			fn(): PDO => $this->createPdo($this->replaceElements($this->config, $this->config['FAILOVER'])),
 			'database'
 		);
 	}

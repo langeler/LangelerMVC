@@ -26,7 +26,7 @@ trait SanitationPatternTrait
 	 *
 	 * Patterns cover common use cases such as names, phone numbers, file paths, URLs, numeric formats, and more.
 	 */
-	public function __construct()
+	public function initializeSanitationPatterns(): void
 	{
 		$this->patterns = [
 			// **Name and ID Patterns**
@@ -79,7 +79,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeName(string $input): ?string
 	{
-		return $this->replace($this->patterns['name'], '', $input);
+		return $this->replaceByPattern($this->patterns['name'], '', $input);
 	}
 
 	/**
@@ -90,7 +90,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeSsn(string $input): ?string
 	{
-		return $this->replace($this->patterns['ssn'], '', $input);
+		return $this->replaceByPattern($this->patterns['ssn'], '', $input);
 	}
 
 	/**
@@ -101,7 +101,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizePhoneUs(string $input): ?string
 	{
-		return $this->replace($this->patterns['phoneUs'], '', $input);
+		return $this->replaceByPattern($this->patterns['phoneUs'], '', $input);
 	}
 
 	/**
@@ -112,7 +112,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizePhoneIntl(string $input): ?string
 	{
-		return $this->replace($this->patterns['phoneIntl'], '', $input);
+		return $this->replaceByPattern($this->patterns['phoneIntl'], '', $input);
 	}
 
 	/**
@@ -123,7 +123,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeZipUs(string $input): ?string
 	{
-		return $this->replace($this->patterns['zipUs'], '', $input);
+		return $this->replaceByPattern($this->patterns['zipUs'], '', $input);
 	}
 
 	/**
@@ -134,7 +134,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeZipUk(string $input): ?string
 	{
-		return $this->replace($this->patterns['zipUk'], '', $input);
+		return $this->replaceByPattern($this->patterns['zipUk'], '', $input);
 	}
 
 	/**
@@ -145,7 +145,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeHex(string $input): ?string
 	{
-		return $this->replace($this->patterns['hex'], '', $input);
+		return $this->replaceByPattern($this->patterns['hex'], '', $input);
 	}
 
 	/**
@@ -156,7 +156,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeBinary(string $input): ?string
 	{
-		return $this->replace($this->patterns['binary'], '', $input);
+		return $this->replaceByPattern($this->patterns['binary'], '', $input);
 	}
 
 	/**
@@ -167,7 +167,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeOctal(string $input): ?string
 	{
-		return $this->replace($this->patterns['octal'], '', $input);
+		return $this->replaceByPattern($this->patterns['octal'], '', $input);
 	}
 
 	/**
@@ -178,7 +178,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeCreditCard(string $input): ?string
 	{
-		return $this->replace($this->patterns['creditCard'], '', $input);
+		return $this->replaceByPattern($this->patterns['creditCard'], '', $input);
 	}
 
 	/**
@@ -189,7 +189,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeIsbn(string $input): ?string
 	{
-		return $this->replace($this->patterns['isbn'], '', $input);
+		return $this->replaceByPattern($this->patterns['isbn'], '', $input);
 	}
 
 	/**
@@ -200,7 +200,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeCurrencyUsd(string $input): ?string
 	{
-		return $this->replace($this->patterns['currencyUsd'], '', $input);
+		return $this->replaceByPattern($this->patterns['currencyUsd'], '', $input);
 	}
 
 	/**
@@ -211,7 +211,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeFileName(string $input): ?string
 	{
-		return $this->replace($this->patterns['fileName'], '', $input);
+		return $this->replaceByPattern($this->patterns['fileName'], '', $input);
 	}
 
 	/**
@@ -222,7 +222,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeDirectory(string $input): ?string
 	{
-		return $this->replace($this->patterns['directory'], '', $input);
+		return $this->replaceByPattern($this->patterns['directory'], '', $input);
 	}
 
 	/**
@@ -233,7 +233,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizePathUnix(string $input): ?string
 	{
-		return $this->replace($this->patterns['pathUnix'], '', $input);
+		return $this->replaceByPattern($this->patterns['pathUnix'], '', $input);
 	}
 
 	/**
@@ -244,7 +244,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeFileExt(string $input): ?string
 	{
-		return $this->replace($this->patterns['fileExt'], '', $input);
+		return $this->replaceByPattern($this->patterns['fileExt'], '', $input);
 	}
 
 	/**
@@ -255,7 +255,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeSlug(string $input): ?string
 	{
-		return $this->replace($this->patterns['slug'], '', $input);
+		return $this->replaceByPattern($this->patterns['slug'], '', $input);
 	}
 
 	/**
@@ -264,9 +264,9 @@ trait SanitationPatternTrait
 	 * @param string $input The input string to sanitize.
 	 * @return string|null The sanitized string.
 	 */
-	public function sanitizeUrl(string $input): ?string
+	public function sanitizeUrlByPattern(string $input): ?string
 	{
-		return $this->replace($this->patterns['url'], '', $input);
+		return $this->replaceByPattern($this->patterns['url'], '', $input);
 	}
 
 	/**
@@ -277,7 +277,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeIpv4(string $input): ?string
 	{
-		return $this->replace($this->patterns['ipv4'], '', $input);
+		return $this->replaceByPattern($this->patterns['ipv4'], '', $input);
 	}
 
 	/**
@@ -288,7 +288,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeIpv6(string $input): ?string
 	{
-		return $this->replace($this->patterns['ipv6'], '', $input);
+		return $this->replaceByPattern($this->patterns['ipv6'], '', $input);
 	}
 
 	/**
@@ -299,7 +299,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeIntPos(string $input): ?string
 	{
-		return $this->replace($this->patterns['intPos'], '', $input);
+		return $this->replaceByPattern($this->patterns['intPos'], '', $input);
 	}
 
 	/**
@@ -308,9 +308,9 @@ trait SanitationPatternTrait
 	 * @param string $input The input string to sanitize.
 	 * @return string|null The sanitized string.
 	 */
-	public function sanitizeFloat(string $input): ?string
+	public function sanitizeFloatByPattern(string $input): ?string
 	{
-		return $this->replace($this->patterns['float'], '', $input);
+		return $this->replaceByPattern($this->patterns['float'], '', $input);
 	}
 
 	/**
@@ -321,7 +321,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizePercent(string $input): ?string
 	{
-		return $this->replace($this->patterns['percent'], '', $input);
+		return $this->replaceByPattern($this->patterns['percent'], '', $input);
 	}
 
 	/**
@@ -332,7 +332,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeAlpha(string $input): ?string
 	{
-		return $this->replace($this->patterns['alpha'], '', $input);
+		return $this->replaceByPattern($this->patterns['alpha'], '', $input);
 	}
 
 	/**
@@ -343,7 +343,7 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeAlphaNum(string $input): ?string
 	{
-		return $this->replace($this->patterns['alphaNum'], '', $input);
+		return $this->replaceByPattern($this->patterns['alphaNum'], '', $input);
 	}
 
 	/**
@@ -354,6 +354,6 @@ trait SanitationPatternTrait
 	 */
 	public function sanitizeHashtag(string $input): ?string
 	{
-		return $this->replace($this->patterns['hashtag'], '', $input);
+		return $this->replaceByPattern($this->patterns['hashtag'], '', $input);
 	}
 }

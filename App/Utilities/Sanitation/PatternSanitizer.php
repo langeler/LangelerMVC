@@ -118,6 +118,21 @@ class PatternSanitizer extends Sanitizer implements SanitizerInterface
 {
 	use RuleTrait, SanitationPatternTrait;
 
+	public function __construct()
+	{
+		$this->initializeSanitationPatterns();
+	}
+
+	public function sanitizeUrl(string $input): ?string
+	{
+		return $this->sanitizeUrlByPattern($input);
+	}
+
+	public function sanitizeFloat(string $input): ?string
+	{
+		return $this->sanitizeFloatByPattern($input);
+	}
+
 	/**
 	 * Cleans the provided data using pre-configured sanitization methods and rules.
 	 *

@@ -39,7 +39,7 @@ trait CheckerTrait
 	 * @param string $input The input string to check.
 	 * @return bool True if the string contains only digits, false otherwise.
 	 */
-	public function isNumeric(string $input): bool
+	public function isDigitString(string $input): bool
 	{
 		return ctype_digit($input);
 	}

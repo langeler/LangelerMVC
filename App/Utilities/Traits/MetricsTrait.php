@@ -41,7 +41,7 @@ trait MetricsTrait
 	 * @param string $str2 The second string.
 	 * @return bool True if the strings sound similar, false otherwise.
 	 */
-	public function soundsLike(string $str1, string $str2): bool
+	public function hasSoundexMatch(string $str1, string $str2): bool
 	{
 		return soundex($str1) === soundex($str2);
 	}

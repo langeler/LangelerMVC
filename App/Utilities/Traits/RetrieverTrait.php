@@ -28,7 +28,7 @@ trait RetrieverTrait
 	 * @param object|string $class The class name or object instance.
 	 * @return array               An array of method names declared in the class.
 	 */
-	public function getClassMethods(object|string $class): array
+	public function listClassMethods(object|string $class): array
 	{
 		return get_class_methods($class);
 	}

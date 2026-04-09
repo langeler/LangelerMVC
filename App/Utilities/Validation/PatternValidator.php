@@ -135,6 +135,26 @@ class PatternValidator extends Validator implements ValidatorInterface
 {
 	use RuleTrait, ValidationPatternTrait;
 
+	public function __construct()
+	{
+		$this->initializeValidationPatterns();
+	}
+
+	public function validateFloat(string $input): bool
+	{
+		return $this->validateFloatByPattern($input);
+	}
+
+	public function validateInt(string $input): bool
+	{
+		return $this->validateIntByPattern($input);
+	}
+
+	public function validateUrl(string $input): bool
+	{
+		return $this->validateUrlByPattern($input);
+	}
+
 	/**
 	 * Validates the provided data using pre-configured validation methods and rules.
 	 *

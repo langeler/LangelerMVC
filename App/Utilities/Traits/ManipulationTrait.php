@@ -18,7 +18,7 @@ trait ManipulationTrait
 	 * @param string $string The string to split.
 	 * @return array The split string as an array.
 	 */
-	public function split(string $delimiter, string $string): array
+	public function splitString(string $delimiter, string $string): array
 	{
 		return explode($delimiter, $string);
 	}
@@ -30,7 +30,7 @@ trait ManipulationTrait
 	 * @param array $pieces The array of pieces to join.
 	 * @return string The joined string.
 	 */
-	public function join(string $glue, array $pieces): string
+	public function joinStrings(string $glue, array $pieces): string
 	{
 		return implode($glue, $pieces);
 	}
@@ -46,7 +46,7 @@ trait ManipulationTrait
 	 * @param int $padType The padding type (default is STR_PAD_RIGHT).
 	 * @return string The padded string.
 	 */
-	public function pad(string $input, int $length, string $padStr = ' ', int $padType = STR_PAD_RIGHT): string
+	public function padString(string $input, int $length, string $padStr = ' ', int $padType = STR_PAD_RIGHT): string
 	{
 		return str_pad($input, $length, $padStr, $padType);
 	}
@@ -62,7 +62,7 @@ trait ManipulationTrait
 	 * @param int|null $count (Optional) If provided, this will be filled with the number of replacements made.
 	 * @return string|array The resulting string or array with replacements.
 	 */
-	public function replace(string|array $search, string|array $replace, string|array $subject, ?int &$count = null): string|array
+	public function replaceText(string|array $search, string|array $replace, string|array $subject, ?int &$count = null): string|array
 	{
 		return str_replace($search, $replace, $subject, $count);
 	}
@@ -211,7 +211,7 @@ trait ManipulationTrait
 	 * @param string $characters The characters to trim (default is whitespace).
 	 * @return string The trimmed string.
 	 */
-	public function trim(string $string, string $characters = " \t\n\r\0\x0B"): string
+	public function trimString(string $string, string $characters = " \t\n\r\0\x0B"): string
 	{
 		return trim($string, $characters);
 	}
@@ -248,7 +248,7 @@ trait ManipulationTrait
 	 * @param string $string The string to reverse.
 	 * @return string The reversed string.
 	 */
-	public function reverse(string $string): string
+	public function reverseString(string $string): string
 	{
 		return strrev($string);
 	}
@@ -260,7 +260,7 @@ trait ManipulationTrait
 	 * @param int $multiplier The number of times to repeat the string.
 	 * @return string The repeated string.
 	 */
-	public function repeat(string $input, int $multiplier): string
+	public function repeatString(string $input, int $multiplier): string
 	{
 		return str_repeat($input, $multiplier);
 	}
@@ -273,7 +273,7 @@ trait ManipulationTrait
 	 * @param string $string The string to shuffle.
 	 * @return string The shuffled string.
 	 */
-	public function shuffle(string $string): string
+	public function shuffleString(string $string): string
 	{
 		return str_shuffle($string);
 	}

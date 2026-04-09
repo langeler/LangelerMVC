@@ -32,13 +32,8 @@ use App\Utilities\Traits\Iterator\{
  */
 class IteratorManager
 {
-    use IteratorTrait {
-        IteratorTrait::__construct as iteratorTraitConstruct;
-    }
-
-    use RecursiveIteratorTrait {
-        RecursiveIteratorTrait::__construct as recursiveIteratorTraitConstruct;
-    }
+    use IteratorTrait;
+    use RecursiveIteratorTrait;
 
     /**
      * @var Iterator|null $iterator The current iterator being managed.
@@ -53,8 +48,8 @@ class IteratorManager
      */
     public function __construct()
     {
-        $this->iteratorTraitConstruct();
-        $this->recursiveIteratorTraitConstruct();
+        $this->initializeIteratorTrait();
+        $this->initializeRecursiveIteratorTrait();
     }
 
     /**

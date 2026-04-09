@@ -32,7 +32,7 @@ trait ValidationFilterTrait
 	/**
 	 * Constructor to initialize validation filters and flags.
 	 */
-	public function __construct()
+	public function initializeValidationFilters(): void
 	{
 		$this->filters = [
 			'boolean' => FILTER_VALIDATE_BOOLEAN,        // Validates boolean values
@@ -88,7 +88,7 @@ trait ValidationFilterTrait
 	 * @param array $flags Optional flags to use.
 	 * @return bool True if valid, false otherwise.
 	 */
-	public function validateFloat(string $input, array $flags = []): bool
+	public function validateFloatWithFilter(string $input, array $flags = []): bool
 	{
 		return $this->var($input, $this->filters['float'], $this->getFilterOptions($flags)) !== false;
 	}
@@ -100,7 +100,7 @@ trait ValidationFilterTrait
 	 * @param array $flags Optional flags to use.
 	 * @return bool True if valid, false otherwise.
 	 */
-	public function validateInt(string $input, array $flags = []): bool
+	public function validateIntWithFilter(string $input, array $flags = []): bool
 	{
 		return $this->var($input, $this->filters['int'], $this->getFilterOptions($flags)) !== false;
 	}
@@ -147,7 +147,7 @@ trait ValidationFilterTrait
 	 * @param array $flags Optional flags to use.
 	 * @return bool True if valid, false otherwise.
 	 */
-	public function validateUrl(string $input, array $flags = []): bool
+	public function validateUrlWithFilter(string $input, array $flags = []): bool
 	{
 		return $this->var($input, $this->filters['url'], $this->getFilterOptions($flags)) !== false;
 	}

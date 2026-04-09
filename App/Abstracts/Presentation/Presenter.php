@@ -39,20 +39,7 @@ use App\Utilities\Traits\{
  */
 abstract class Presenter implements PresenterInterface
 {
-	use ErrorTrait,
-		ArrayTrait,
-		ManipulationTrait,
-		MetricsTrait,
-		ConversionTrait {
-		ManipulationTrait::pad insteadof ArrayTrait;
-		ManipulationTrait::replace insteadof ArrayTrait;
-		ManipulationTrait::reverse insteadof ArrayTrait;
-		ManipulationTrait::shuffle insteadof ArrayTrait;
-		ArrayTrait::pad as arrayPad;
-		ArrayTrait::replace as arrayReplace;
-		ArrayTrait::reverse as arrayReverse;
-		ArrayTrait::shuffle as arrayShuffle;
-	}
+	use ErrorTrait, ArrayTrait, ManipulationTrait, MetricsTrait, ConversionTrait;
 
 	/**
 	 * Constructor for initializing dependencies and raw data.

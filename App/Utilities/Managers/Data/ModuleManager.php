@@ -87,7 +87,7 @@ class ModuleManager
 
 		return $this->getKeys(
 			$this->files->find(
-				$this->replace(['extension' => 'php'], $filter),
+				$this->replaceElements(['extension' => 'php'], $filter),
 				$targetPath,
 				$sort
 			)
@@ -272,7 +272,7 @@ class ModuleManager
 
 		return $this->getKeys(
 			$this->files->find(
-				$this->replace(['extension' => 'php'], $filter),
+				$this->replaceElements(['extension' => 'php'], $filter),
 				$targetPath,
 				$sort
 			)

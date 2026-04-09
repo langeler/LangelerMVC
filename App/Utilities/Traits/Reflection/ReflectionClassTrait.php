@@ -195,7 +195,7 @@ trait ReflectionClassTrait
 	 * @param int|null $filter Optional filter to limit methods by visibility.
 	 * @return array The methods of the class.
 	 */
-	public function getClassMethods(ReflectionClass $reflectionClass, ?int $filter = null): array
+	public function getReflectedClassMethods(ReflectionClass $reflectionClass, ?int $filter = null): array
 	{
 		return $reflectionClass->getMethods($filter);
 	}

@@ -294,7 +294,7 @@ trait DataQueryTrait
         return $this->chainCondition([$column, 'notRegexp', $pattern]);
     }
 
-    public function soundsLike(string $column, string $pattern): self
+    public function whereSoundsLike(string $column, string $pattern): self
     {
         return $this->chainCondition([$column, 'soundsLike', $pattern]);
     }

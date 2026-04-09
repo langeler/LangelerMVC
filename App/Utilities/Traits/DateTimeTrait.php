@@ -16,7 +16,7 @@ trait DateTimeTrait
 	 */
 	public readonly array $traitConstants;
 
-	public function __construct()
+	public function initializeDateTimeTrait(): void
 	{
 		$this->traitConstants = [
 			'sunFunctions' => [

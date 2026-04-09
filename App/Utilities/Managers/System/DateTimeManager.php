@@ -21,9 +21,7 @@ use App\Utilities\Traits\{
  */
 class DateTimeManager
 {
-	use DateTimeTrait {
-		DateTimeTrait::__construct as private initializeDateTimeTrait;
-	}
+	use DateTimeTrait;
 	use ErrorTrait {
 		ErrorTrait::wrapInTry as private wrapWithErrorTrait;
 	}

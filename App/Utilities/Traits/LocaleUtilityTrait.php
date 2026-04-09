@@ -15,7 +15,7 @@ trait LocaleUtilityTrait
 	 * @param string $locale The locale to set (e.g., 'en_US.UTF-8').
 	 * @return string The current locale setting.
 	 */
-	public function setLocale(string $locale): string
+	public function applyLocale(string $locale): string
 	{
 		return setlocale(LC_ALL, $locale);
 	}

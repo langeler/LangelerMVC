@@ -23,14 +23,8 @@ class Config
 {
     use ErrorTrait, TypeCheckerTrait;
     use ArrayTrait, ManipulationTrait, PatternTrait {
-        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-        ArrayTrait::pad insteadof ManipulationTrait;
-        ArrayTrait::reverse insteadof ManipulationTrait;
-        ArrayTrait::shuffle insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::trim as private trimString;
         ManipulationTrait::toLower as private toLowerString;
-        PatternTrait::replace as private patternReplace;
+        PatternTrait::replaceByPattern as private patternReplace;
     }
 
     /**

@@ -32,21 +32,12 @@ use App\Utilities\Validation\{
 class SettingsManager
 {
     use ArrayTrait, ErrorTrait, ManipulationTrait, PatternTrait {
-        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-        ArrayTrait::pad insteadof ManipulationTrait;
-        ArrayTrait::reverse insteadof ManipulationTrait;
-        ArrayTrait::shuffle insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::trim as private trimString;
         ManipulationTrait::toLower as private toLowerString;
         ManipulationTrait::toUpper as private toUpperString;
         ManipulationTrait::substring as private substringString;
-        PatternTrait::replace as private patternReplace;
+        PatternTrait::replaceByPattern as private patternReplace;
     }
-    use CheckerTrait, TypeCheckerTrait {
-        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
-        CheckerTrait::isNumeric as isStringNumeric;
-    }
+    use CheckerTrait, TypeCheckerTrait;
 
     /**
      * Validated path to the Config directory.
@@ -373,7 +364,7 @@ class SettingsManager
         $envFile = dirname($this->folder) . '/.env';
 
         if ($this->fileManager->fileExists($envFile)) {
-            $variables = $this->replace($variables, $this->parseEnvFile($envFile));
+            $variables = $this->replaceElements($variables, $this->parseEnvFile($envFile));
         }
 
         foreach ([getenv(), $_ENV, $_SERVER] as $source) {
@@ -407,7 +398,7 @@ class SettingsManager
 
         $variables = [];
 
-        foreach (($this->split('/\R/', $contents) ?: []) as $line) {
+        foreach (($this->splitByPattern('/\R/', $contents) ?: []) as $line) {
             $line = $this->trimString($line);
 
             if ($line === '' || $this->substringString($line, 0, 1) === '#' || !$this->contains($line, '=')) {

@@ -49,7 +49,7 @@ trait PatternTrait
 	 * @param int|null $count If specified, this variable will be filled with the number of replacements done.
 	 * @return string|array|null Returns the resulting string or array if matches are found, or null on error.
 	 */
-	public function replace(string|array $pattern, string|array $replacement, string|array $subject, int $limit = -1, ?int &$count = null): string|array|null
+	public function replaceByPattern(string|array $pattern, string|array $replacement, string|array $subject, int $limit = -1, ?int &$count = null): string|array|null
 	{
 		return preg_replace($pattern, $replacement, $subject, $limit, $count);
 	}
@@ -78,7 +78,7 @@ trait PatternTrait
 	 * @param int $flags Optional flags to modify the behavior.
 	 * @return array|false Returns an array of substrings if the match is successful, or false on failure.
 	 */
-	public function split(string $pattern, string $subject, int $limit = -1, int $flags = 0): array|false
+	public function splitByPattern(string $pattern, string $subject, int $limit = -1, int $flags = 0): array|false
 	{
 		return preg_split($pattern, $subject, $limit, $flags);
 	}

@@ -22,8 +22,8 @@ use App\Utilities\Traits\{
 abstract class Sanitizer
 {
     use ArrayTrait {
-        replace as private;
-        replace as protected arrayReplace;
+        replaceElements as private;
+        replaceElements as protected arrayReplace;
     }
     use TypeCheckerTrait, ExistenceCheckerTrait;
 

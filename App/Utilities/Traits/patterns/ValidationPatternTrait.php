@@ -27,7 +27,7 @@ trait ValidationPatternTrait
 	 * The patterns include formats for names, social security numbers, phone numbers, file paths, numeric formats,
 	 * network-related data (e.g., IP addresses, URLs), and more.
 	 */
-	public function __construct()
+	public function initializeValidationPatterns(): void
 	{
 		$this->patterns = [
 			// **Name and ID Patterns**
@@ -348,7 +348,7 @@ trait ValidationPatternTrait
 	 * @param string $input The input string to validate.
 	 * @return bool True if valid, false otherwise.
 	 */
-	public function validateUrl(string $input): bool
+	public function validateUrlByPattern(string $input): bool
 	{
 		return $this->match($this->patterns['url'], $input) === 1;
 	}
@@ -436,7 +436,7 @@ trait ValidationPatternTrait
 	 * @param string $input The input string to validate.
 	 * @return bool True if valid, false otherwise.
 	 */
-	public function validateInt(string $input): bool
+	public function validateIntByPattern(string $input): bool
 	{
 		return $this->match($this->patterns['int'], $input) === 1;
 	}
@@ -469,7 +469,7 @@ trait ValidationPatternTrait
 	 * @param string $input The input string to validate.
 	 * @return bool True if valid, false otherwise.
 	 */
-	public function validateFloat(string $input): bool
+	public function validateFloatByPattern(string $input): bool
 	{
 		return $this->match($this->patterns['float'], $input) === 1;
 	}

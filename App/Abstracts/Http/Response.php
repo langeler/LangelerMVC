@@ -39,21 +39,8 @@ use App\Utilities\Traits\Patterns\PatternTrait;
  */
 abstract class Response implements ResponseInterface
 {
-	use ErrorTrait,
-		ArrayTrait,
-		ManipulationTrait,
-		EncodingTrait,
-		ConversionTrait,
-		PatternTrait {
-		ManipulationTrait::pad insteadof ArrayTrait;
-		ManipulationTrait::replace insteadof ArrayTrait, PatternTrait;
-		ManipulationTrait::reverse insteadof ArrayTrait;
-		ManipulationTrait::shuffle insteadof ArrayTrait;
-		PatternTrait::split insteadof ManipulationTrait;
-		ArrayTrait::pad as arrayPad;
-		ArrayTrait::replace as arrayReplace;
-		ArrayTrait::reverse as arrayReverse;
-		ArrayTrait::shuffle as arrayShuffle;
+	use ErrorTrait, ArrayTrait, ManipulationTrait, EncodingTrait, ConversionTrait, PatternTrait {
+		ArrayTrait::replaceElements as private arrayReplace;
 		PatternTrait::match as private matchPattern;
 	}
 
@@ -132,13 +119,13 @@ abstract class Response implements ResponseInterface
 	 */
 	public function addHeader(string $key, string $value): void
 	{
-		$normalizedKey = $this->trim($key);
+		$normalizedKey = $this->trimString($key);
 
 		if ($this->toLower($normalizedKey) === 'content-type') {
 			$this->contentTypeExplicitlySet = true;
 		}
 
-		$this->headers[$normalizedKey] = $this->trim($value);
+		$this->headers[$normalizedKey] = $this->trimString($value);
 	}
 
 	/**
@@ -232,7 +219,7 @@ abstract class Response implements ResponseInterface
 		$normalized = [];
 
 		foreach ($this->headers as $key => $value) {
-			$normalized[$this->toLower((string) $key)] = $this->trim((string) $value);
+			$normalized[$this->toLower((string) $key)] = $this->trimString((string) $value);
 		}
 
 		return $normalized;

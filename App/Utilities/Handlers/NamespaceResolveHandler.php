@@ -30,10 +30,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 class NamespaceResolveHandler
 {
     use ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait, ManipulationTrait, PatternTrait {
-        PatternTrait::replace insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::trim as private trimString;
-        PatternTrait::replace as private patternReplace;
+        PatternTrait::replaceByPattern as private patternReplace;
     }
 
     public function __construct(

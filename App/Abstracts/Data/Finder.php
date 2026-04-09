@@ -316,7 +316,7 @@ abstract class Finder
                         $this->iteratorManager->RecursiveRegexIterator(
                             $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
                             is_array($criteria['pattern'])
-                                ? (string) $this->current($criteria['pattern'])
+                                ? (string) $this->getCurrentValue($criteria['pattern'])
                                 : (string) $criteria['pattern']
                         )
                     ),
@@ -502,7 +502,7 @@ abstract class Finder
                 $pattern = $this->isEmpty($criteria['pattern'] ?? [])
                     ? '/.*/'
                     : (is_array($criteria['pattern'])
-                        ? (string) $this->current($criteria['pattern'])
+                        ? (string) $this->getCurrentValue($criteria['pattern'])
                         : (string) $criteria['pattern']);
 
                 $results = $this->iteratorManager->toArray(

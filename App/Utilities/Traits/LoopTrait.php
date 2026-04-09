@@ -32,7 +32,7 @@ trait LoopTrait
 	 * @param callable $callback The callback to execute for each iteration.
 	 * @return void
 	 */
-	public function count(int $start, int $end, callable $callback): void
+	public function iterateRange(int $start, int $end, callable $callback): void
 	{
 		for ($i = $start; $i < $end; $i++) {
 			$callback($i);
@@ -78,7 +78,7 @@ trait LoopTrait
 	 * @param callable $callback The callback to execute for each iteration.
 	 * @return void
 	 */
-	public function repeat(int $times, callable $callback): void
+	public function repeatLoop(int $times, callable $callback): void
 	{
 		for ($i = 0; $i < $times; $i++) {
 			$callback($i);

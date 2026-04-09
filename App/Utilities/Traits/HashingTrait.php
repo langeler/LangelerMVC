@@ -17,7 +17,7 @@ trait HashingTrait
 	 * @param string $algorithm  The hashing algorithm (default: 'sha256').
 	 * @return string            The hashed string.
 	 */
-	public function hash(string $data, string $algorithm = 'sha256'): string
+	public function hashString(string $data, string $algorithm = 'sha256'): string
 	{
 		return hash($algorithm, $data);
 	}

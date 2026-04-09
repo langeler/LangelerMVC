@@ -173,6 +173,13 @@ class ReflectionManager
 			];
 		}
 
+		public function getClassMethods(object|string $class, ?int $filter = null): array
+		{
+			$reflectionClass = $class instanceof ReflectionClass ? $class : $this->createClass($class);
+
+			return $this->getReflectedClassMethods($reflectionClass, $filter);
+		}
+
 	/**
 	 * Instantiate a class with constructor injection, resolving default properties inline.
 	 *

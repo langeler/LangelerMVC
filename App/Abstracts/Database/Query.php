@@ -28,13 +28,7 @@ abstract class Query
 {
     use ErrorTrait, TypeCheckerTrait;
     use ArrayTrait, ManipulationTrait, PatternTrait {
-        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-        ArrayTrait::pad insteadof ManipulationTrait;
-        ArrayTrait::reverse insteadof ManipulationTrait;
-        ArrayTrait::shuffle insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::join as protected implodeWith;
-        ManipulationTrait::trim as protected trimString;
+        ManipulationTrait::joinStrings as protected implodeWith;
         ManipulationTrait::toLower as protected toLowerString;
         ManipulationTrait::toUpper as protected toUpperString;
         PatternTrait::match as protected matchPattern;
@@ -90,7 +84,7 @@ abstract class Query
 
         return $this->trimString(
             $this->sql->statement($queryType)
-            . ($segments === [] ? '' : ' ' . $this->implodeWith(' ', $segments))
+            . ($segments === [] ? '' : ' ' . $this->joinStrings(' ', $segments))
         );
     }
 
@@ -300,7 +294,7 @@ abstract class Query
             throw $this->errorManager->resolveException('database', 'SQL identifier cannot be empty.');
         }
 
-        return $this->implodeWith('.', $this->map(
+        return $this->joinStrings('.', $this->map(
             function (string $segment): string {
                 if ($segment === '*') {
                     return '*';
@@ -393,7 +387,7 @@ abstract class Query
             return '';
         }
 
-        return $this->implodeWith(
+        return $this->joinStrings(
             ', ',
             $this->map(fn(mixed $value): string => $this->bindValue($value), array_values($values))
         );

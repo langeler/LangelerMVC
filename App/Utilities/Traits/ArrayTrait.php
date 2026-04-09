@@ -242,7 +242,7 @@ trait ArrayTrait
 	 * @param array $array The input array.
 	 * @return mixed|null The current array element or null if empty.
 	 */
-	public function current(array $array): mixed
+	public function getCurrentValue(array $array): mixed
 	{
 		return current($array);
 	}
@@ -253,7 +253,7 @@ trait ArrayTrait
 	 * @param array &$array The input array.
 	 * @return mixed|null The last element or null if empty.
 	 */
-	public function end(array &$array): mixed
+	public function getLastValue(array &$array): mixed
 	{
 		return end($array);
 	}
@@ -264,7 +264,7 @@ trait ArrayTrait
 	 * @param array $array The input array.
 	 * @return int|string|null The key of the current element or null if empty.
 	 */
-	public function key(array $array): int|string|null
+	public function getCurrentKey(array $array): int|string|null
 	{
 		return key($array);
 	}
@@ -275,7 +275,7 @@ trait ArrayTrait
 	 * @param array &$array The input array.
 	 * @return mixed|null The next array element or null if end of array.
 	 */
-	public function next(array &$array): mixed
+	public function getNextValue(array &$array): mixed
 	{
 		return next($array);
 	}
@@ -286,18 +286,7 @@ trait ArrayTrait
 	 * @param array $array The input array.
 	 * @return mixed|null The current array element or null if empty.
 	 */
-	public function pos(array $array): mixed
-	{
-		return pos($array);
-	}
-
-	/**
-	 * Rewind the internal pointer and return the previous element.
-	 *
-	 * @param array &$array The input array.
-	 * @return mixed|null The previous array element or null if at the start.
-	 */
-	public function prev(array &$array): mixed
+	public function getPreviousValue(array &$array): mixed
 	{
 		return prev($array);
 	}
@@ -308,7 +297,7 @@ trait ArrayTrait
 	 * @param array &$array The input array.
 	 * @return mixed|null The first element or null if empty.
 	 */
-	public function reset(array &$array): mixed
+	public function getFirstValue(array &$array): mixed
 	{
 		return reset($array);
 	}
@@ -366,7 +355,7 @@ trait ArrayTrait
 	 * @param int $flags Extraction flags (default: EXTR_OVERWRITE).
 	 * @return int Number of variables successfully imported.
 	 */
-	public function extract(array &$array, int $flags = EXTR_OVERWRITE): int
+	public function extractVariables(array &$array, int $flags = EXTR_OVERWRITE): int
 	{
 		return extract($array, $flags);
 	}
@@ -572,7 +561,7 @@ trait ArrayTrait
 	 * @param mixed $value The value to pad with.
 	 * @return array The padded or truncated array.
 	 */
-	public function pad(array $array, int $size, mixed $value): array
+	public function padArray(array $array, int $size, mixed $value): array
 	{
 		return array_pad($array, $size, $value);
 	}
@@ -582,7 +571,7 @@ trait ArrayTrait
 	 * @param array ...$arrays The arrays to replace.
 	 * @return array The resulting array.
 	 */
-	public function replace(array ...$arrays): array
+	public function replaceElements(array ...$arrays): array
 	{
 		return array_replace(...$arrays);
 	}
@@ -656,7 +645,7 @@ trait ArrayTrait
 	 * @param array &$array The input array.
 	 * @return bool True on success, false on failure.
 	 */
-	public function natcasesort(array &$array): bool
+	public function sortNaturalCaseInsensitive(array &$array): bool
 	{
 		return natcasesort($array);
 	}
@@ -667,7 +656,7 @@ trait ArrayTrait
 	 * @param array &$array The input array.
 	 * @return bool True on success, false on failure.
 	 */
-	public function natsort(array &$array): bool
+	public function sortNatural(array &$array): bool
 	{
 		return natsort($array);
 	}
@@ -679,7 +668,7 @@ trait ArrayTrait
 	 * @param int $mode Count mode (default: COUNT_NORMAL).
 	 * @return int The size of the array.
 	 */
-	public function sizeOf(array $array, int $mode = COUNT_NORMAL): int
+	public function countElements(array $array, int $mode = COUNT_NORMAL): int
 	{
 		return sizeof($array, $mode);
 	}
@@ -691,7 +680,7 @@ trait ArrayTrait
 	 * @param int $num The number of random keys to select (default: 1).
 	 * @return mixed The selected key(s).
 	 */
-	public function rand(array $array, int $num = 1): mixed
+	public function randomKeys(array $array, int $num = 1): mixed
 	{
 		return array_rand($array, $num);
 	}
@@ -703,7 +692,7 @@ trait ArrayTrait
 	 * @param bool $preserveKeys Whether to preserve keys (default: false).
 	 * @return array The reversed array.
 	 */
-	public function reverse(array $array, bool $preserveKeys = false): array
+	public function reverseArray(array $array, bool $preserveKeys = false): array
 	{
 		return array_reverse($array, $preserveKeys);
 	}
@@ -865,17 +854,6 @@ trait ArrayTrait
 	}
 
 	/**
-	 * Alias for replacing elements from passed arrays into the first array.
-	 *
-	 * @param array ...$arrays The arrays to replace.
-	 * @return array The resulting array.
-	 */
-	public function replaceElements(array ...$arrays): array
-	{
-		return $this->replace(...$arrays);
-	}
-
-	/**
 	 * Filters an array by preserving only non-empty values.
 	 *
 	 * @param array $array The input array.
@@ -923,7 +901,7 @@ trait ArrayTrait
 	 * @param array $array The input array.
 	 * @return array The shuffled array.
 	 */
-	public function shuffle(array $array): array
+	public function shuffleArray(array $array): array
 	{
 		$keys = array_keys($array);
 		shuffle($keys);

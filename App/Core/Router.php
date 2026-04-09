@@ -31,19 +31,10 @@ use App\Utilities\Validation\PatternValidator;
  */
 class Router
 {
-    use ErrorTrait, TypeCheckerTrait, ExistenceCheckerTrait, CheckerTrait, EncodingTrait, ConversionTrait {
-        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
-        CheckerTrait::isNumeric as isStringNumeric;
-    }
+    use ErrorTrait, TypeCheckerTrait, ExistenceCheckerTrait, CheckerTrait, EncodingTrait, ConversionTrait;
     use ArrayTrait, ManipulationTrait, PatternTrait {
-        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-        ArrayTrait::pad insteadof ManipulationTrait;
-        ArrayTrait::reverse insteadof ManipulationTrait;
-        ArrayTrait::shuffle insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::replace as private stringReplace;
-        PatternTrait::replace as private patternReplace;
-        ManipulationTrait::trim as private trimString;
+        ManipulationTrait::replaceText as private stringReplace;
+        PatternTrait::replaceByPattern as private patternReplace;
         ManipulationTrait::trimRight as private trimRightString;
         ManipulationTrait::toLower as private toLowerString;
         ManipulationTrait::toUpper as private toUpperString;
@@ -405,7 +396,7 @@ class Router
     {
         if (isset($definition['routes']) || isset($definition['namedRoutes']) || $this->keyExists($definition, 'fallbackRoute')) {
             $this->routes = $this->replaceRecursive($this->routes, $definition['routes'] ?? []);
-            $this->namedRoutes = $this->replace($this->namedRoutes, $definition['namedRoutes'] ?? []);
+            $this->namedRoutes = $this->replaceElements($this->namedRoutes, $definition['namedRoutes'] ?? []);
             $this->fallbackRoute = $definition['fallbackRoute'] ?? $this->fallbackRoute;
             return;
         }

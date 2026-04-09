@@ -32,19 +32,10 @@ class Session
 {
     use ApplicationPathTrait;
     use ArrayTrait, ManipulationTrait, PatternTrait {
-        ArrayTrait::pad insteadof ManipulationTrait;
-        ArrayTrait::replace insteadof ManipulationTrait, PatternTrait;
-        ArrayTrait::reverse insteadof ManipulationTrait;
-        ArrayTrait::shuffle insteadof ManipulationTrait;
-        PatternTrait::split insteadof ManipulationTrait;
-        ManipulationTrait::trim as private trimString;
         ManipulationTrait::toLower as private toLowerString;
         PatternTrait::match as private matchPattern;
     }
-    use ErrorTrait, TypeCheckerTrait, CheckerTrait, FiltrationTrait {
-        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
-        CheckerTrait::isNumeric as isStringNumeric;
-    }
+    use ErrorTrait, TypeCheckerTrait, CheckerTrait, FiltrationTrait;
 
     private SessionHandler $handler;
     private bool $started = false;

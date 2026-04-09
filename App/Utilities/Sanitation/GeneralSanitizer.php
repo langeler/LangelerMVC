@@ -127,6 +127,21 @@ use App\Utilities\Traits\{
 
 	use SanitationTrait, RulesTrait;
 
+	public function __construct()
+	{
+		$this->initializeSanitationFilters();
+	}
+
+	public function sanitizeUrl(string $input): string
+	{
+		return $this->sanitizeUrlWithFilter($input);
+	}
+
+	public function sanitizeFloat(string $input, array $flags = []): string
+	{
+		return $this->sanitizeFloatWithFilter($input, $flags);
+	}
+
 	/**
 	 * Cleans the provided data using pre-configured sanitization methods and rules.
 	 *

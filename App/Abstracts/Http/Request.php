@@ -45,11 +45,6 @@ use App\Utilities\Traits\{
 abstract class Request implements RequestInterface
 {
 	use ArrayTrait, ManipulationTrait {
-		ArrayTrait::pad insteadof ManipulationTrait;
-		ArrayTrait::replace insteadof ManipulationTrait;
-		ArrayTrait::reverse insteadof ManipulationTrait;
-		ArrayTrait::shuffle insteadof ManipulationTrait;
-		ManipulationTrait::trim as private trimString;
 		ManipulationTrait::toLower as private toLowerString;
 	}
 	use ErrorTrait, TypeCheckerTrait;

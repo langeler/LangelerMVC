@@ -27,10 +27,7 @@ use Stringable;
  */
 class App
 {
-    use ErrorTrait, TypeCheckerTrait, ExistenceCheckerTrait, CheckerTrait, ManipulationTrait, ConversionTrait, FiltrationTrait {
-        TypeCheckerTrait::isNumeric insteadof CheckerTrait;
-        CheckerTrait::isNumeric as isStringNumeric;
-    }
+    use ErrorTrait, TypeCheckerTrait, ExistenceCheckerTrait, CheckerTrait, ManipulationTrait, ConversionTrait, FiltrationTrait;
 
     private bool $booted = false;
     private bool $maintenanceMode = false;
@@ -248,7 +245,7 @@ class App
             return $method;
         }
 
-        $normalizedOverride = $this->toUpper($this->trim($override));
+        $normalizedOverride = $this->toUpper($this->trimString($override));
         $supportedOverrides = ['PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
         return $this->isInArray($normalizedOverride, $supportedOverrides, true)
@@ -283,7 +280,7 @@ class App
 
     private function normalizeTimezone(mixed $value): string
     {
-        $timezone = $this->isScalar($value) ? $this->trim((string) $value) : 'UTC';
+        $timezone = $this->isScalar($value) ? $this->trimString((string) $value) : 'UTC';
 
         return $this->isInArray($timezone, timezone_identifiers_list(), true) ? $timezone : 'UTC';
     }

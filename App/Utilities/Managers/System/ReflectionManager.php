@@ -212,9 +212,26 @@ class ReflectionManager
 	 */
 	public function getPublicPropertiesWithValues(string $class): array
 	{
+		$reflectionClass = $this->createClass($class);
+		$instance = $reflectionClass->isAbstract() ? null : $this->newClassInstanceWithoutConstructor($reflectionClass);
+		$defaults = $this->getClassDefaultProperties($reflectionClass);
+
 		return array_reduce(
-			$this->getClassProperties($this->createClass($class), ReflectionProperty::IS_PUBLIC),
-			fn($carry, $property) => $carry + [$this->getPropertyName($property) => $this->getPropertyValue($property, $class)],
+			$this->getClassProperties($reflectionClass, ReflectionProperty::IS_PUBLIC),
+			function (array $carry, ReflectionProperty $property) use ($instance, $defaults): array {
+				$name = $this->getPropertyName($property);
+
+				if ($property->isStatic()) {
+					$value = $this->getPropertyValue($property);
+				} elseif ($instance !== null && $this->isPropertyInitialized($property, $instance)) {
+					$value = $this->getPropertyValue($property, $instance);
+				} else {
+					$value = $defaults[$name] ?? null;
+				}
+
+				$carry[$name] = $value;
+				return $carry;
+			},
 			[]
 		);
 	}
@@ -229,13 +246,12 @@ class ReflectionManager
 	{
 		return array_map(
 			fn($method) => [
-				'name' => $this->getMethodName($method),
-				'visibility' => match ($this->getMethodModifiers($method)) {
-					ReflectionMethod::IS_PUBLIC => 'public',
-					ReflectionMethod::IS_PROTECTED => 'protected',
-					ReflectionMethod::IS_PRIVATE => 'private',
-					default => 'unknown'
-				},
+				'name' => $method->getName(),
+				'visibility' => $this->isMethodPublic($method)
+					? 'public'
+					: ($this->isMethodProtected($method)
+						? 'protected'
+						: ($this->isMethodPrivate($method) ? 'private' : 'unknown')),
 			],
 			$this->getClassMethods($this->createClass($class))
 		);

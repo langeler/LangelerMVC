@@ -25,6 +25,7 @@ class CacheProvider extends Container
      * @var array<string, string> Map of cache driver aliases.
      */
     protected readonly array $cacheMap;
+    private bool $servicesRegistered = false;
 
     /**
      * Constructor for CacheProvider.
@@ -53,6 +54,10 @@ class CacheProvider extends Container
      */
     public function registerServices(): void
     {
+        if ($this->servicesRegistered) {
+            return;
+        }
+
         $this->wrapInTry(
             function (): void {
                 if (!$this->isArray($this->cacheMap) || $this->isEmpty($this->cacheMap)) {
@@ -63,6 +68,8 @@ class CacheProvider extends Container
                     $this->registerAlias($alias, $class);
                     $this->registerLazy($class, fn() => $this->registerInstance($class));
                 }
+
+                $this->servicesRegistered = true;
             },
             new ContainerException("Error registering cache services.")
         );

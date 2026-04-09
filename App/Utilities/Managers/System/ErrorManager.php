@@ -127,7 +127,12 @@ class ErrorManager
         ?string $extraHeaders = null
     ): bool {
         return $this->isString($message) && $this->keyExists($this->errorLevels, $key)
-            ? error_log($message, $this->errorLevels[$key], $destination, $extraHeaders)
+            ? error_log(
+                $message,
+                $extraHeaders !== null ? 1 : ($destination !== null ? 3 : 0),
+                $destination,
+                $extraHeaders
+            )
             : throw $this->resolveException('invalidArgument', "Invalid error message or error level key: $key");
     }
 

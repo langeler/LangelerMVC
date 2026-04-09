@@ -22,7 +22,9 @@ use App\Utilities\Traits\{
  */
 class CacheManager
 {
-	use ErrorTrait;
+	use ErrorTrait {
+		ErrorTrait::wrapInTry as private wrapWithErrorTrait;
+	}
 	use TypeCheckerTrait;
 	use ArrayTrait;
 
@@ -55,7 +57,7 @@ class CacheManager
 	protected function initializeCacheDriver(): void
 	{
 		$this->wrapInTry(
-			fn() => $this->loadCacheDriver(),
+			fn() => $this->loadCacheDriver($this->cacheSettings),
 			"Failed to initialize cache driver."
 		);
 	}
@@ -65,9 +67,12 @@ class CacheManager
 	 *
 	 * @throws CacheException If driver initialization fails.
 	 */
-	protected function loadCacheDriver(): void
+	protected function loadCacheDriver(array $settings = []): void
 	{
-		$this->cacheSettings = $this->settingsManager->getAllSettings('CACHE');
+		$this->cacheSettings = $settings !== []
+			? $settings
+			: $this->settingsManager->getAllSettings('CACHE');
+
 		$this->cacheDriver = $this->cacheProvider->getCacheDriver($this->cacheSettings)
 			?? throw new CacheException("No valid cache driver configured.");
 	}
@@ -204,7 +209,7 @@ class CacheManager
 	protected function reloadCacheDriver(array $newSettings): void
 	{
 		$this->cacheSettings = $this->merge($this->cacheSettings, $newSettings);
-		$this->initializeCacheDriver();
+		$this->loadCacheDriver($this->cacheSettings);
 	}
 
 	/**
@@ -234,10 +239,9 @@ class CacheManager
 	 */
 	protected function wrapInTry(callable $callback, string $errorMessage): mixed
 	{
-		try {
-			return $callback();
-		} catch (Throwable $e) {
-			throw new CacheException($errorMessage, 0, $e);
-		}
+		return $this->wrapWithErrorTrait(
+			$callback,
+			fn(Throwable $e) => new CacheException($errorMessage, 0, $e)
+		);
 	}
 }

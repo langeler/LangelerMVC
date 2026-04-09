@@ -8,7 +8,10 @@ use DateTimeInterface;
 use DateTimeZone;
 use DateInterval;
 use DatePeriod;
-use App\Utilities\Traits\DateTimeTrait;
+use App\Utilities\Traits\{
+    DateTimeTrait,
+    ErrorTrait
+};
 
 /**
  * DateTimeManager provides utilities for managing PHP DateTime-related classes.
@@ -18,7 +21,12 @@ use App\Utilities\Traits\DateTimeTrait;
  */
 class DateTimeManager
 {
-	use DateTimeTrait; // Integrates utility methods for direct PHP native date/time functions.
+	use DateTimeTrait {
+		DateTimeTrait::__construct as private initializeDateTimeTrait;
+	}
+	use ErrorTrait {
+		ErrorTrait::wrapInTry as private wrapWithErrorTrait;
+	}
 
 	/**
 	 * Read-only property containing all constants from imported classes.
@@ -31,6 +39,8 @@ class DateTimeManager
 
 	public function __construct()
 	{
+		$this->initializeDateTimeTrait();
+
 		$this->classConstants = [
 			'datetime' => [
 				'atom'              => DateTime::ATOM,               // Atom format: "Y-m-d\TH:i:sP"
@@ -92,12 +102,10 @@ class DateTimeManager
 	 */
 	public function wrapInTry(callable $callback, ...$args)
 	{
-		try {
-			return $callback(...$args);
-		} catch (\Exception $e) {
-			// Log or handle errors here if needed
-			throw new \Exception("An error occurred: " . $e->getMessage());
-		}
+		return $this->wrapWithErrorTrait(
+			fn() => $callback(...$args),
+			\Exception::class
+		);
 	}
 
 	// ------------------------------------------------------------------
@@ -189,7 +197,7 @@ class DateTimeManager
 	 */
 	public static function setState(array $array): DateTime
 	{
-		return self::wrapInTry(fn() => DateTime::__set_state($array));
+		return DateTime::__set_state($array);
 	}
 
 	/**

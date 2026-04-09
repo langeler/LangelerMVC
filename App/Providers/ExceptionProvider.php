@@ -66,8 +66,8 @@ use ValueError;
  *
  * Features:
  * - Dynamic mapping of exception aliases to their fully qualified class names.
- * - Singleton registration of exception instances.
- * - Efficient resolution of exceptions by alias or class name.
+ * - Alias registration for container-level lookup where useful.
+ * - Fresh exception instantiation for each resolution request.
  *
  * @package App\Providers
  */
@@ -79,6 +79,7 @@ class ExceptionProvider extends Container
      * @var array<string, string>
      */
     protected readonly array $exceptionMap;
+    private bool $servicesRegistered = false;
 
     /**
      * Constructor for ExceptionProvider.
@@ -159,13 +160,17 @@ class ExceptionProvider extends Container
     /**
      * Registers the exception services in the application's service container.
      *
-     * Maps exception aliases to their respective class names and registers them as singletons.
+     * Maps exception aliases to their respective class names.
      *
      * @return void
      * @throws ContainerException If an error occurs during service registration.
      */
     public function registerServices(): void
     {
+        if ($this->servicesRegistered) {
+            return;
+        }
+
         $this->wrapInTry(
             function (): void {
                 if (!$this->isArray($this->exceptionMap) || $this->isEmpty($this->exceptionMap)) {
@@ -174,8 +179,9 @@ class ExceptionProvider extends Container
 
                 foreach ($this->exceptionMap as $alias => $class) {
                     $this->registerAlias($alias, $class);
-                    $this->registerSingleton($class);
                 }
+
+                $this->servicesRegistered = true;
             },
             new ContainerException("Error registering exception services.")
         );
@@ -185,7 +191,7 @@ class ExceptionProvider extends Container
      * Resolves an exception class or alias and returns an instance.
      *
      * @param string $exceptionAlias The alias or class name of the exception.
-     * @return object The resolved exception instance (singleton).
+     * @return object The resolved exception instance.
      * @throws ContainerException If the specified exception is unsupported or on resolution failure.
      */
     public function getException(

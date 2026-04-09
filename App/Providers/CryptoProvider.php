@@ -23,6 +23,7 @@ class CryptoProvider extends Container
      * @var array<string, string>
      */
     protected readonly array $cryptoMap;
+    private bool $servicesRegistered = false;
 
     /**
      * Constructor for CryptoProvider.
@@ -49,6 +50,10 @@ class CryptoProvider extends Container
      */
     public function registerServices(): void
     {
+        if ($this->servicesRegistered) {
+            return;
+        }
+
         $this->wrapInTry(
             function (): void {
                 if (!$this->isArray($this->cryptoMap) || $this->isEmpty($this->cryptoMap)) {
@@ -59,6 +64,8 @@ class CryptoProvider extends Container
                     $this->registerAlias($alias, $class);
                     $this->registerLazy($class, fn() => $this->registerInstance($class));
                 }
+
+                $this->servicesRegistered = true;
             },
             new ContainerException("Error registering cryptographic services.")
         );
@@ -74,10 +81,15 @@ class CryptoProvider extends Container
     public function getCryptoDriver(array $cryptoSettings): object
     {
         return $this->wrapInTry(
-            fn() => $this->getInstance(
-                $this->cryptoMap[$cryptoSettings['DRIVER']
-                    ?? throw new ContainerException("Crypto driver alias is missing or invalid.")]
-            ),
+            function () use ($cryptoSettings): object {
+                $driver = strtolower(trim((string) preg_replace('/\s+#.*$/', '', (string) ($cryptoSettings['DRIVER'] ?? ''))));
+
+                return $this->getInstance(
+                    $this->cryptoMap[$driver
+                        ?: throw new ContainerException("Crypto driver alias is missing or invalid.")]
+                    ?? throw new ContainerException("Unsupported crypto driver alias: {$driver}")
+                );
+            },
             new ContainerException("Error retrieving crypto driver.")
         );
     }

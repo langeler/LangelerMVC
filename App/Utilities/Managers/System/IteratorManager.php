@@ -179,15 +179,19 @@ class IteratorManager
     public function createIterator(string $iteratorName, array $settings = [], ...$args): Iterator
     {
         try {
+            $iterator = null;
+
             if (method_exists($this, $iteratorName)) {
-                return $settings === []
+                $iterator = $settings === []
                     ? $this->{$iteratorName}(...$args)
                     : $this->{$iteratorName}(...array_merge($args, [$settings]));
+            } else {
+                $iteratorClass = $this->resolve($iteratorName);
+                $iterator = new $iteratorClass(...$args);
             }
 
-            $iteratorClass = $this->resolve($iteratorName);
-
-            return new $iteratorClass(...$args);
+            $this->iterator = $iterator;
+            return $iterator;
         } catch (Throwable $e) {
             throw new IteratorException("Error creating {$iteratorName}: " . $e->getMessage(), 0, $e);
         }
@@ -218,7 +222,7 @@ class IteratorManager
      */
     public function previous(): void
     {
-        if (method_exists($this->iterator, 'previous')) {
+        if ($this->iterator !== null && method_exists($this->iterator, 'previous')) {
             $this->iterator->previous();
         } else {
             throw new IteratorException("Previous operation not supported by this iterator.");

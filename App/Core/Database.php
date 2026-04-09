@@ -434,7 +434,17 @@ class Database
 			throw $this->errorManager->resolveException('invalidArgument', 'Invalid or empty table name provided.');
 		}
 
-		$this->execute('TRUNCATE TABLE `' . $table . '`');
+		$this->ensureConnection();
+
+		$driver = $this->toLowerString((string) $this->getAttribute('driverName'));
+		$identifier = $this->quoteIdentifier($table, $driver);
+
+		if ($driver === 'sqlite') {
+			$this->execute('DELETE FROM ' . $identifier);
+			return;
+		}
+
+		$this->execute('TRUNCATE TABLE ' . $identifier);
 	}
 
 	/**
@@ -522,6 +532,15 @@ class Database
 				}]
 			);
 		}
+	}
+
+	private function quoteIdentifier(string $identifier, string $driver): string
+	{
+		return match ($driver) {
+			'mysql', 'sqlite' => '`' . $identifier . '`',
+			'sqlsrv' => '[' . $identifier . ']',
+			default => '"' . $identifier . '"',
+		};
 	}
 
 	/**

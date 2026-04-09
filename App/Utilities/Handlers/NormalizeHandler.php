@@ -3,6 +3,7 @@
 namespace App\Utilities\Handlers;
 
 use Normalizer;
+use App\Utilities\Traits\ErrorTrait;
 
 /**
  * NormalizeHandler provides utilities for managing string normalization using PHP's Normalizer class.
@@ -10,15 +11,24 @@ use Normalizer;
  */
 class NormalizeHandler
 {
+    use ErrorTrait;
+
+    /**
+     * Normalization-related constants exposed by the handler.
+     *
+     * @var array<string, int>
+     */
+    protected readonly array $classConstants;
+
     /**
      * Constructs the handler and initializes the constants property.
      *
      * @param array $classConstants Placeholder for normalization-related constants.
      */
     public function __construct(
-        protected readonly array $classConstants = [] // Placeholder for constants
+        array $classConstants = []
     ) {
-        $this->classConstants = [
+        $this->classConstants = $classConstants !== [] ? $classConstants : [
             'formD'    => Normalizer::FORM_D,     // Canonical decomposition.
             'nfd'      => Normalizer::NFD,       // Alias for FORM_D.
             'formKD'   => Normalizer::FORM_KD,   // Compatibility decomposition.
@@ -30,21 +40,6 @@ class NormalizeHandler
             'formKCCF' => Normalizer::FORM_KC_CF, // Compatibility composition for identifiers.
             'nfkcCF'   => Normalizer::NFKC_CF,   // Alias for FORM_KC_CF.
         ];
-    }
-
-    /**
-     * Wraps callable execution in a try-catch block for consistent error handling.
-     *
-     * @param callable $callback The function to execute.
-     * @return mixed The result of the callable.
-     */
-    private function wrapInTry(callable $callback): mixed
-    {
-        try {
-            return $callback();
-        } catch (\Throwable $e) {
-            throw new \Exception("An error occurred: " . $e->getMessage());
-        }
     }
 
     // ------------------------------------------------------------------

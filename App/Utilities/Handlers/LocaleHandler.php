@@ -3,6 +3,7 @@
 namespace App\Utilities\Handlers;
 
 use Locale;
+use App\Utilities\Traits\ErrorTrait;
 
 /**
  * LocaleHandler provides utilities for managing locale information using PHP's Locale class.
@@ -10,15 +11,24 @@ use Locale;
  */
 class LocaleHandler
 {
+    use ErrorTrait;
+
+    /**
+     * Locale-related constants exposed by the handler.
+     *
+     * @var array<string, string|null>
+     */
+    protected readonly array $classConstants;
+
     /**
      * Constructs the handler and initializes the constants property.
      *
      * @param array $classConstants Placeholder for locale-related constants.
      */
     public function __construct(
-        protected readonly array $classConstants = [] // Placeholder for constants
+        array $classConstants = []
     ) {
-        $this->classConstants = [
+        $this->classConstants = $classConstants !== [] ? $classConstants : [
             // Locale Constants
             'actualLocale' => Locale::ACTUAL_LOCALE, // The actual locale used.
             'validLocale' => Locale::VALID_LOCALE, // The valid locale detected.
@@ -33,21 +43,6 @@ class LocaleHandler
             'grandfatheredLangTag' => Locale::GRANDFATHERED_LANG_TAG, // Grandfathered language tag.
             'privateTag' => Locale::PRIVATE_TAG, // Private use tag constant.
         ];
-    }
-
-    /**
-     * Wraps callable execution in a try-catch block for consistent error handling.
-     *
-     * @param callable $callback The function to execute.
-     * @return mixed The result of the callable.
-     */
-    private function wrapInTry(callable $callback): mixed
-    {
-        try {
-            return $callback();
-        } catch (\Throwable $e) {
-            throw new \Exception("An error occurred: " . $e->getMessage());
-        }
     }
 
     // ------------------------------------------------------------------

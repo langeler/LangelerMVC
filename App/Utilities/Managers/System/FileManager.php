@@ -102,17 +102,44 @@ class FileManager
 				return false;
 			}
 
-			$file = $this->getFileObject($filename, 'w');
+			$tempFile = tempnam($directory, 'langeler-write-');
+
+			if (!is_string($tempFile)) {
+				return false;
+			}
+
+			$file = $this->getFileObject($tempFile, 'w');
 
 			if (!$file || !$file->flock(LOCK_EX)) {
+				if (is_file($tempFile)) {
+					unlink($tempFile);
+				}
+
 				return false;
 			}
 
 			try {
-				return $file->fwrite($data);
+				$bytes = $file->fwrite($data);
 			} finally {
 				$file->flock(LOCK_UN);
 			}
+
+			if ($bytes === false) {
+				unlink($tempFile);
+				return false;
+			}
+
+			$file = null;
+
+			if (!$this->replaceFile($tempFile, $filename, true)) {
+				if (is_file($tempFile)) {
+					unlink($tempFile);
+				}
+
+				return false;
+			}
+
+			return $bytes;
 		} catch (Throwable) {
 			return false;
 		}
@@ -149,11 +176,7 @@ class FileManager
 				return move_uploaded_file($source, $target);
 			}
 
-			if (@rename($source, $target)) {
-				return true;
-			}
-
-			return @copy($source, $target) && @unlink($source);
+			return $this->replaceFile($source, $target, true);
 		} catch (Throwable) {
 			return false;
 		}
@@ -230,6 +253,19 @@ class FileManager
 		}
 
 		return $normalized;
+	}
+
+	private function replaceFile(string $source, string $target, bool $deleteSource = false): bool
+	{
+		if (rename($source, $target)) {
+			return true;
+		}
+
+		if (!copy($source, $target)) {
+			return false;
+		}
+
+		return !$deleteSource || unlink($source);
 	}
 
 	// Additional SplFileInfo Methods

@@ -7,6 +7,9 @@ namespace App\Utilities\Traits;
  */
 trait DateTimeTrait
 {
+	private const SUN_RETURN_TIMESTAMP = 0;
+	private const SUN_RETURN_STRING = 1;
+	private const SUN_RETURN_DOUBLE = 2;
 
 	/**
 	 * Read-only property containing all constants grouped by type.
@@ -17,9 +20,9 @@ trait DateTimeTrait
 	{
 		$this->traitConstants = [
 			'sunFunctions' => [
-				'timestamp' => SUNFUNCS_RET_TIMESTAMP, // Returns time as a Unix timestamp.
-				'string'    => SUNFUNCS_RET_STRING,    // Returns time in "hours:minutes" format (e.g., "08:02").
-				'double'    => SUNFUNCS_RET_DOUBLE,    // Returns time as a floating-point number (e.g., 8.75).
+				'timestamp' => self::SUN_RETURN_TIMESTAMP, // Returns time as a Unix timestamp.
+				'string'    => self::SUN_RETURN_STRING,    // Returns time in "hours:minutes" format (e.g., "08:02").
+				'double'    => self::SUN_RETURN_DOUBLE,    // Returns time as a floating-point number (e.g., 8.75).
 			],
 			'dateFormats' => [
 				'atom'              => DATE_ATOM,               // Atom format: "Y-m-d\TH:i:sP" (e.g., "2005-08-15T15:52:01+00:00").
@@ -131,7 +134,7 @@ trait DateTimeTrait
 	 * @param int $returnFormat
 	 * @return string|int|float
 	 */
-	public function getSunrise(float $latitude, float $longitude, int $timestamp, int $returnFormat = SUNFUNCS_RET_STRING): string|int|float
+	public function getSunrise(float $latitude, float $longitude, int $timestamp, int $returnFormat = self::SUN_RETURN_STRING): string|int|float
 	{
 		return date_sunrise($timestamp, $returnFormat, $latitude, $longitude);
 	}
@@ -145,7 +148,7 @@ trait DateTimeTrait
 	 * @param int $returnFormat
 	 * @return string|int|float
 	 */
-	public function getSunset(float $latitude, float $longitude, int $timestamp, int $returnFormat = SUNFUNCS_RET_STRING): string|int|float
+	public function getSunset(float $latitude, float $longitude, int $timestamp, int $returnFormat = self::SUN_RETURN_STRING): string|int|float
 	{
 		return date_sunset($timestamp, $returnFormat, $latitude, $longitude);
 	}

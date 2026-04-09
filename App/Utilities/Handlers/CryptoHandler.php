@@ -321,12 +321,12 @@ class CryptoHandler
 	 *
 	 * @param string $algo The hashing algorithm.
 	 * @param string $data The data to hash.
-	 * @param array $options Additional options for the hash function.
+	 * @param bool $rawOutput Whether to return raw binary output.
 	 * @return string The hashed data.
 	 */
-	public function hashData(string $algo, string $data, array $options = []): string
+	public function hashData(string $algo, string $data, bool $rawOutput = false): string
 	{
-		return hash($algo, $data, $options);
+		return hash($algo, $data, $rawOutput);
 	}
 
 	/**
@@ -334,12 +334,12 @@ class CryptoHandler
 	 *
 	 * @param string $algo The hashing algorithm.
 	 * @param string $filename The path to the file.
-	 * @param array $options Additional options for the hash function.
+	 * @param bool $rawOutput Whether to return raw binary output.
 	 * @return string The file's hashed data.
 	 */
-	public function hashFile(string $algo, string $filename, array $options = []): string
+	public function hashFile(string $algo, string $filename, bool $rawOutput = false): string
 	{
-		return hash_file($algo, $filename, $options);
+		return hash_file($algo, $filename, $rawOutput);
 	}
 
 	/**

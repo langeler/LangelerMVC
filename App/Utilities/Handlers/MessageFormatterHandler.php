@@ -2,6 +2,7 @@
 
 namespace App\Utilities\Handlers;
 
+use App\Utilities\Traits\ErrorTrait;
 use MessageFormatter;
 
 /**
@@ -10,6 +11,8 @@ use MessageFormatter;
  */
 class MessageFormatterHandler
 {
+    use ErrorTrait;
+
     /**
      * Constructs the handler.
      *
@@ -22,21 +25,6 @@ class MessageFormatterHandler
         protected string $pattern,
         protected ?MessageFormatter $formatter = null
     ) {}
-
-    /**
-     * Wraps callable execution in a try-catch block for consistent error handling.
-     *
-     * @param callable $callback The function to execute.
-     * @return mixed The result of the callable.
-     */
-    private function wrapInTry(callable $callback): mixed
-    {
-        try {
-            return $callback();
-        } catch (\Throwable $e) {
-            throw new \Exception("An error occurred: {$e->getMessage()}", 0, $e);
-        }
-    }
 
     /**
      * Initializes a new MessageFormatter instance.
@@ -58,7 +46,7 @@ class MessageFormatterHandler
      */
     public function format(array $values): string|false
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->format($values));
+        return $this->wrapInTry(fn() => $this->getFormatter()->format($values));
     }
 
     /**
@@ -68,7 +56,7 @@ class MessageFormatterHandler
      */
     public function getErrorCode(): int
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->getErrorCode());
+        return $this->wrapInTry(fn() => $this->getFormatter()->getErrorCode());
     }
 
     /**
@@ -78,7 +66,7 @@ class MessageFormatterHandler
      */
     public function getErrorMessage(): string
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->getErrorMessage());
+        return $this->wrapInTry(fn() => $this->getFormatter()->getErrorMessage());
     }
 
     /**
@@ -88,7 +76,7 @@ class MessageFormatterHandler
      */
     public function getLocale(): string
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->getLocale());
+        return $this->wrapInTry(fn() => $this->getFormatter()->getLocale());
     }
 
     /**
@@ -98,7 +86,7 @@ class MessageFormatterHandler
      */
     public function getPattern(): string|false
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->getPattern());
+        return $this->wrapInTry(fn() => $this->getFormatter()->getPattern());
     }
 
     /**
@@ -109,7 +97,7 @@ class MessageFormatterHandler
      */
     public function parse(string $message): array|false
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->parse($message));
+        return $this->wrapInTry(fn() => $this->getFormatter()->parse($message));
     }
 
     /**
@@ -120,6 +108,21 @@ class MessageFormatterHandler
      */
     public function setPattern(string $pattern): bool
     {
-        return $this->wrapInTry(fn() => $this->initialize($this->locale, $this->pattern)->setPattern($pattern));
+        return $this->wrapInTry(function () use ($pattern): bool {
+            $formatter = $this->getFormatter();
+            $result = $formatter->setPattern($pattern);
+
+            if ($result) {
+                $this->pattern = $pattern;
+                $this->formatter = $formatter;
+            }
+
+            return $result;
+        });
+    }
+
+    private function getFormatter(): MessageFormatter
+    {
+        return $this->formatter ??= $this->initialize($this->locale, $this->pattern);
     }
 }

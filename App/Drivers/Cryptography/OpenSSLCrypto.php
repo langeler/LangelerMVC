@@ -47,6 +47,23 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				'blake2b512' => 'blake2b512',
 				'blake2s256' => 'blake2s256',
 			],
+			'defaultAlgo' => 'sha256',
+			'random' => [
+				'defaultLength' => 32,
+				'defaultPseudoRandomLength' => 32,
+			],
+			'keys' => [
+				'defaultKey' => null,
+				'defaultLength' => 32,
+				'defaultBits' => 2048,
+				'defaultCurve' => 'prime256v1',
+			],
+			'pwHash' => [
+				'defaultAlgo' => 'sha256',
+				'iterations' => 100000,
+				'keyLength' => 32,
+				'saltBytes' => 16,
+			],
 			'keyTypes' => [
 				'rsa' => $const('OPENSSL_KEYTYPE_RSA'),
 				'dsa' => $const('OPENSSL_KEYTYPE_DSA'),
@@ -75,6 +92,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				'envelope' => $const('PKCS7_ENVELOPE', 0),
 				'signedEnvelope' => $const('PKCS7_SIGNED_ENVELOPE', 0),
 				'noOldMimeType' => $const('PKCS7_NOOLDMIMETYPE', 0),
+				'defaultFlags' => 0,
 			],
 			'cms' => [
 				'text' => $const('OPENSSL_CMS_TEXT', 0),
@@ -86,6 +104,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				'detached' => $const('OPENSSL_CMS_DETACHED', 0),
 				'noSigs' => $const('OPENSSL_CMS_NOSIGS', 0),
 				'oldMimeType' => $const('OPENSSL_CMS_OLDMIMETYPE', 0),
+				'defaultFlags' => 0,
 			],
 			'ssl' => [
 				'tlsv1' => $const('OPENSSL_TLSV1', 0),
@@ -345,9 +364,10 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				openssl_get_curve_names()
 					?: throw new CryptoException("Failed to retrieve curve names."),
 
-			'free' => fn($key) =>
-				openssl_pkey_free($key)
-					?: throw new CryptoException("Failed to free key resource."),
+			'free' => function ($key): bool {
+				openssl_pkey_free($key);
+				return true;
+			},
 
 			default => throw new CryptoException("Unsupported key handler action: {$action}."),
 		};
@@ -380,13 +400,15 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 
 			'checkPurpose' => fn(
 				$certificate,
-				int $purpose,
+				int|string $purpose,
 				?array $caInfo = null,
 				?array $untrustedCerts = null
 			) => openssl_x509_checkpurpose(
 				$certificate,
-				$this->config['x509']['purpose' . ucfirst($purpose)]
-					?? throw new CryptoException("Unsupported certificate purpose: {$purpose}."),
+				is_int($purpose)
+					? $purpose
+					: ($this->config['x509'][$purpose]
+						?? throw new CryptoException("Unsupported certificate purpose: {$purpose}.")),
 				$caInfo,
 				$untrustedCerts
 			) ?: throw new CryptoException("Certificate purpose check failed."),
@@ -410,9 +432,10 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 			'convertDerToPem' => fn(string $der, string $label = 'CERTIFICATE') =>
 				"-----BEGIN {$label}-----\n" . chunk_split(base64_encode($der), 64, "\n") . "-----END {$label}-----\n",
 
-			'free' => fn($certificate) =>
-				openssl_x509_free($certificate)
-					?: throw new CryptoException("Failed to free certificate resource."),
+			'free' => function ($certificate): bool {
+				openssl_x509_free($certificate);
+				return true;
+			},
 
 			default => throw new CryptoException("Unsupported certificate action: {$action}."),
 		};

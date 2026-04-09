@@ -13,6 +13,7 @@ use Normalizer;
 use Transliterator;
 use Locale;
 use NumberFormatter;
+use RuntimeException;
 
 /**
  * Class DataHandler
@@ -42,7 +43,11 @@ class DataHandler
 	 */
 	public function jsonEncode($value, int $options = 0, int $depth = 512): string
 	{
-		return json_encode($value, $options, $depth);
+		try {
+			return json_encode($value, $options | JSON_THROW_ON_ERROR, $depth);
+		} catch (\JsonException $exception) {
+			throw new RuntimeException('Failed to encode JSON payload.', 0, $exception);
+		}
 	}
 
 	/**
@@ -56,7 +61,11 @@ class DataHandler
 	 */
 	public function jsonDecode(string $json, bool $assoc = false, int $depth = 512, int $options = 0)
 	{
-		return json_decode($json, $assoc, $depth, $options);
+		try {
+			return json_decode($json, $assoc, $depth, $options | JSON_THROW_ON_ERROR);
+		} catch (\JsonException $exception) {
+			throw new RuntimeException('Failed to decode JSON payload.', 0, $exception);
+		}
 	}
 
 	/**
@@ -87,7 +96,11 @@ class DataHandler
 	 */
 	public function encodeJsonSerializable(JsonSerializable $object): string
 	{
-		return json_encode($object);
+		try {
+			return json_encode($object, JSON_THROW_ON_ERROR);
+		} catch (\JsonException $exception) {
+			throw new RuntimeException('Failed to encode JsonSerializable payload.', 0, $exception);
+		}
 	}
 
 	// Serialization Methods
@@ -109,9 +122,9 @@ class DataHandler
 	 * @param string $data Serialized string.
 	 * @return mixed Unserialized data.
 	 */
-	public function unserializeData(string $data)
+	public function unserializeData(string $data, array|bool $allowedClasses = true): mixed
 	{
-		return unserialize($data);
+		return unserialize($data, ['allowed_classes' => $allowedClasses]);
 	}
 
 	// XML Methods

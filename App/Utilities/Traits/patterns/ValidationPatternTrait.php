@@ -2,6 +2,7 @@
 
 namespace App\Utilities\Traits\Patterns;
 
+use App\Utilities\Traits\Filters\FiltrationTrait;
 use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
@@ -12,7 +13,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
  */
 trait ValidationPatternTrait
 {
-	use PatternTrait;
+	use PatternTrait, FiltrationTrait;
 
 	/**
 	 * Regular expression patterns for validating different input data types.
@@ -350,7 +351,7 @@ trait ValidationPatternTrait
 	 */
 	public function validateUrlByPattern(string $input): bool
 	{
-		return $this->match($this->patterns['url'], $input) === 1;
+		return $this->var($input, FILTER_VALIDATE_URL) !== false;
 	}
 
 	/**
@@ -361,7 +362,8 @@ trait ValidationPatternTrait
 	 */
 	public function validateUrlPort(string $input): bool
 	{
-		return $this->match($this->patterns['urlPort'], $input) === 1;
+		return $this->match($this->patterns['urlPort'], $input) === 1
+			&& $this->var($input, FILTER_VALIDATE_URL) !== false;
 	}
 
 	/**
@@ -372,7 +374,7 @@ trait ValidationPatternTrait
 	 */
 	public function validateIpv4(string $input): bool
 	{
-		return $this->match($this->patterns['ipv4'], $input) === 1;
+		return $this->var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
 	}
 
 	/**
@@ -383,7 +385,7 @@ trait ValidationPatternTrait
 	 */
 	public function validateIpv6(string $input): bool
 	{
-		return $this->match($this->patterns['ipv6'], $input) === 1;
+		return $this->var($input, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
 	}
 
 	/**

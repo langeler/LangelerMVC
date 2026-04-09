@@ -2,15 +2,24 @@
 
 namespace App\Utilities\Traits\Rules;
 
+use App\Utilities\Traits\{
+	ArrayTrait,
+	CheckerTrait,
+	ConversionTrait,
+	EncodingTrait,
+	ManipulationTrait,
+	TypeCheckerTrait
+};
+
 /**
  * Trait RulesTrait
  *
  * Provides utility methods for validating input values against common rules.
- * These rules can be used to validate strings, numbers, and arrays, ensuring
- * that the input meets specified criteria.
  */
 trait RuleTrait
 {
+	use ArrayTrait, CheckerTrait, ConversionTrait, EncodingTrait, ManipulationTrait, TypeCheckerTrait;
+
 	/**
 	 * Ensure a value is not null.
 	 *
@@ -19,7 +28,7 @@ trait RuleTrait
 	 */
 	public function ruleRequire(mixed $input): bool
 	{
-		return isset($input);
+		return !$this->isNull($input);
 	}
 
 	/**
@@ -92,7 +101,7 @@ trait RuleTrait
 	 */
 	public function ruleMinLength(string $input, int $min): bool
 	{
-		return mb_strlen($input) >= $min;
+		return $this->getStringLength($input) >= $min;
 	}
 
 	/**
@@ -104,7 +113,7 @@ trait RuleTrait
 	 */
 	public function ruleMaxLength(string $input, int $max): bool
 	{
-		return mb_strlen($input) <= $max;
+		return $this->getStringLength($input) <= $max;
 	}
 
 	/**
@@ -117,7 +126,9 @@ trait RuleTrait
 	 */
 	public function ruleLengthBetween(string $input, int $min, int $max): bool
 	{
-		return mb_strlen($input) >= $min && mb_strlen($input) <= $max;
+		$length = $this->getStringLength($input);
+
+		return $length >= $min && $length <= $max;
 	}
 
 	/**
@@ -129,7 +140,7 @@ trait RuleTrait
 	 */
 	public function ruleInArray(mixed $input, array $array): bool
 	{
-		return in_array($input, $array, true);
+		return $this->isInArray($input, $array, true);
 	}
 
 	/**
@@ -141,7 +152,7 @@ trait RuleTrait
 	 */
 	public function ruleNotInArray(mixed $input, array $array): bool
 	{
-		return !in_array($input, $array, true);
+		return !$this->isInArray($input, $array, true);
 	}
 
 	/**
@@ -152,7 +163,7 @@ trait RuleTrait
 	 */
 	public function ruleIsInt(mixed $input): bool
 	{
-		return is_int($input);
+		return $this->isInt($input);
 	}
 
 	/**
@@ -163,7 +174,7 @@ trait RuleTrait
 	 */
 	public function ruleIsFloat(mixed $input): bool
 	{
-		return is_float($input);
+		return $this->isFloat($input);
 	}
 
 	/**
@@ -174,7 +185,7 @@ trait RuleTrait
 	 */
 	public function ruleIsString(mixed $input): bool
 	{
-		return is_string($input);
+		return $this->isString($input);
 	}
 
 	/**
@@ -185,7 +196,7 @@ trait RuleTrait
 	 */
 	public function ruleIsBoolean(mixed $input): bool
 	{
-		return is_bool($input);
+		return $this->isBool($input);
 	}
 
 	/**
@@ -196,7 +207,7 @@ trait RuleTrait
 	 */
 	public function ruleIsAssociativeArray(array $input): bool
 	{
-		return array_keys($input) !== range(0, count($input) - 1);
+		return !$this->isList($input);
 	}
 
 	/**
@@ -207,7 +218,17 @@ trait RuleTrait
 	 */
 	public function ruleArrayUnique(array $input): bool
 	{
-		return count($input) === count(array_unique($input));
+		$seen = [];
+
+		foreach ($input as $value) {
+			if ($this->isInArray($value, $seen, true)) {
+				return false;
+			}
+
+			$seen[] = $value;
+		}
+
+		return true;
 	}
 
 	/**
@@ -230,7 +251,7 @@ trait RuleTrait
 	 */
 	public function ruleNotEmpty(string $input): bool
 	{
-		return trim($input) !== '';
+		return $this->trimString($input) !== '';
 	}
 
 	/**
@@ -243,7 +264,13 @@ trait RuleTrait
 	 */
 	public function ruleStep(float|int $input, float|int $step, float|int $base = 0): bool
 	{
-		return fmod($input - $base, $step) === 0.0;
+		if ($step == 0.0) {
+			return false;
+		}
+
+		$steps = ($input - $base) / $step;
+
+		return abs($steps - round($steps)) < 1e-9;
 	}
 
 	/**
@@ -256,7 +283,9 @@ trait RuleTrait
 	 */
 	public function ruleArraySize(array $input, int $min, int $max): bool
 	{
-		return count($input) >= $min && count($input) <= $max;
+		$count = $this->countElements($input);
+
+		return $count >= $min && $count <= $max;
 	}
 
 	/**
@@ -268,10 +297,51 @@ trait RuleTrait
 	 */
 	public function ruleSequential(array $numbers, bool $allowGaps = false): bool
 	{
-		sort($numbers);
-		return $allowGaps
-			? count($numbers) === count(array_unique($numbers))
-			: $numbers === range(min($numbers), max($numbers));
+		if ($numbers === [] || !$this->ruleArrayUnique($numbers)) {
+			return false;
+		}
+
+		$normalized = $this->map(
+			function (mixed $number): float|int|null {
+				if ($this->isInt($number) || $this->isFloat($number)) {
+					return $number;
+				}
+
+				if ($this->isString($number) && $this->isNumeric($number)) {
+					return str_contains($number, '.') || stripos($number, 'e') !== false
+						? $this->toFloat($number)
+						: $this->toInt($number);
+				}
+
+				return null;
+			},
+			$numbers
+		);
+
+		if ($this->any($normalized, fn(mixed $number): bool => $this->isNull($number))) {
+			return false;
+		}
+
+		$previous = null;
+
+		foreach ($normalized as $number) {
+			if ($previous === null) {
+				$previous = $number;
+				continue;
+			}
+
+			if ($allowGaps) {
+				if ($number <= $previous) {
+					return false;
+				}
+			} elseif ($number !== $previous + 1) {
+				return false;
+			}
+
+			$previous = $number;
+		}
+
+		return true;
 	}
 
 	/**
@@ -283,7 +353,7 @@ trait RuleTrait
 	 */
 	public function ruleStartsWith(string $input, string $prefix): bool
 	{
-		return str_starts_with($input, $prefix);
+		return $this->startsWith($input, $prefix);
 	}
 
 	/**
@@ -295,7 +365,7 @@ trait RuleTrait
 	 */
 	public function ruleEndsWith(string $input, string $suffix): bool
 	{
-		return str_ends_with($input, $suffix);
+		return $this->endsWith($input, $suffix);
 	}
 
 	/**
@@ -328,6 +398,6 @@ trait RuleTrait
 	 */
 	public function ruleArrayNotEmpty(array $input): bool
 	{
-		return count($input) > 0;
+		return $this->countElements($input) > 0;
 	}
 }

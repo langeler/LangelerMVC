@@ -171,9 +171,13 @@ trait ValidationFilterTrait
 	 */
 	private function getFilterOptions(array $flagKeys = []): array
 	{
+		if ($flagKeys === []) {
+			return [];
+		}
+
 		return [
 			'flags' => $this->reduce(
-				$flagKeys ?: $this->getKeys($this->flags),
+				$flagKeys,
 				fn($carry, $key) => $carry | ($this->flags[$key] ?? 0),
 				0
 			)

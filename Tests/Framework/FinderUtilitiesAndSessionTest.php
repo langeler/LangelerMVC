@@ -60,6 +60,55 @@ class FinderUtilitiesAndSessionTest extends TestCase
             $fileManager->normalizePath($destination)
         );
         self::assertSame('alpha' . PHP_EOL . 'beta' . PHP_EOL, file_get_contents($fileManager->normalizePath($destination)));
+
+        $copyDestination = $destinationDirectory . '/copies/copied.txt';
+        $this->pathsToDelete[] = $fileManager->normalizePath($destinationDirectory . '/copies/copied.txt');
+        $this->pathsToDelete[] = $fileManager->normalizePath($destinationDirectory . '/copies');
+
+        self::assertTrue($fileManager->copyFile($fileManager->normalizePath($destination), $copyDestination));
+        self::assertSame(
+            'alpha' . PHP_EOL . 'beta' . PHP_EOL,
+            file_get_contents($fileManager->normalizePath($copyDestination))
+        );
+    }
+
+    public function testIteratorManagerAppliesSettingsAndFileManagerMaintainsCursorState(): void
+    {
+        $iteratorManager = new IteratorManager();
+        $arrayIterator = $iteratorManager->createIterator('ArrayIterator', ['flag' => ['stdProps' => true]], ['a' => 1]);
+        $directory = sys_get_temp_dir() . '/LangelerMVC/IteratorManager-' . uniqid();
+        $fileManager = new FileManager();
+        $file = tempnam(sys_get_temp_dir(), 'langeler-cursor-');
+
+        self::assertIsString($file);
+        file_put_contents($file, "alpha\nbeta\ngamma\n");
+        $this->pathsToDelete[] = $file;
+        mkdir($directory, 0777, true);
+        file_put_contents($directory . '/sample.txt', 'sample');
+        $this->pathsToDelete[] = $directory . '/sample.txt';
+        $this->pathsToDelete[] = $directory;
+
+        self::assertSame(\ArrayIterator::STD_PROP_LIST, $arrayIterator->getFlags());
+
+        $fileManager->moveToLine($file, 1);
+        self::assertSame("beta\n", $fileManager->readLine($file));
+        self::assertSame(2, $fileManager->getLineNumber($file));
+
+        $fileManager->resetPointer($file);
+        self::assertSame("alpha\n", $fileManager->readLine($file));
+
+        $recursiveIterator = $iteratorManager->RecursiveIteratorIterator(
+            $iteratorManager->RecursiveDirectoryIterator($directory, ['flag' => ['skipDots' => true]])
+        );
+        $iteratorManager->setIterator($recursiveIterator);
+        $iteratorManager->rewind();
+
+        self::assertTrue($iteratorManager->valid());
+        self::assertTrue($iteratorManager->isFile());
+        self::assertFalse($iteratorManager->isDir());
+        self::assertSame(filesize($directory . '/sample.txt'), $iteratorManager->getSize());
+        self::assertSame(realpath($directory . '/sample.txt'), $iteratorManager->getRealPath());
+        self::assertGreaterThan(0, $iteratorManager->getPermissions());
     }
 
     public function testFindersRespectTypeSortingDepthAndCache(): void
@@ -87,6 +136,8 @@ class FinderUtilitiesAndSessionTest extends TestCase
         $fileFinder = new FileFinder(new IteratorManager());
         $directoryFinder = new DirectoryFinder(new IteratorManager());
 
+        self::assertSame(realpath(dirname(__DIR__, 2)), $fileFinder->getRoot());
+
         $sortedFiles = $fileFinder->find(['extension' => 'txt'], $root, ['callback' => 'name']);
         $sortedNames = array_map(fn(\SplFileInfo $file): string => $file->getFilename(), array_values($sortedFiles));
 
@@ -98,10 +149,71 @@ class FinderUtilitiesAndSessionTest extends TestCase
             array_values($depthLimitedFiles)
         ));
 
+        $depthScopedFiles = $fileFinder->findByDepth(['depth' => 1], $root, 2, ['callback' => 'name']);
+        self::assertSame(['alpha.txt', 'root.txt', 'zeta.txt'], array_map(
+            fn(\SplFileInfo $file): string => $file->getFilename(),
+            array_values($depthScopedFiles)
+        ));
+
+        $depthCriteriaFiles = $fileFinder->find(['depth' => 0], $root);
+        self::assertSame(['root.txt'], array_map(
+            fn(\SplFileInfo $file): string => $file->getFilename(),
+            array_values($depthCriteriaFiles)
+        ));
+
         $cachedDirectory = $directoryFinder->findByCache(['name' => 'beta'], $root);
 
         self::assertCount(1, $cachedDirectory);
         self::assertSame('beta', current($cachedDirectory)->getFilename());
+
+        $tree = $directoryFinder->tree($root);
+        self::assertIsString($tree);
+        self::assertStringContainsString('alpha', $tree);
+
+        $bufferLevel = ob_get_level();
+        ob_start();
+        try {
+            $directoryFinder->showTree($root);
+            $streamedTree = ob_get_clean();
+        } finally {
+            while (ob_get_level() > $bufferLevel) {
+                ob_end_clean();
+            }
+        }
+
+        self::assertSame($tree, $streamedTree);
+        self::assertSame($tree, $directoryFinder->tree($root));
+        self::assertCount(1, $fileFinder->scan($root));
+        self::assertCount(3, $directoryFinder->scan($root));
+
+        $fileMetadata = $fileFinder->scan($alpha);
+        self::assertSame('file', $fileMetadata[0]['type']);
+        self::assertArrayHasKey('path', $fileMetadata[0]);
+        self::assertArrayHasKey('modifiedAt', $fileMetadata[0]);
+
+        $multiPathSearch = $fileFinder->search(['extension' => 'txt'], [$alpha, $nested], ['callback' => 'name']);
+        self::assertSame(['alpha.txt', 'deep.txt', 'zeta.txt'], array_map(
+            fn(\SplFileInfo $file): string => $file->getFilename(),
+            array_values($multiPathSearch)
+        ));
+
+        $sortedCachedFiles = $fileFinder->findByCache(['extension' => 'txt'], $root, ['callback' => 'name']);
+        self::assertSame(['alpha.txt', 'deep.txt', 'root.txt', 'zeta.txt'], array_map(
+            fn(\SplFileInfo $file): string => $file->getFilename(),
+            array_values($sortedCachedFiles)
+        ));
+
+        $regexFiles = $fileFinder->findByPattern(['pattern' => '/alpha|deep/'], $root, ['callback' => 'name']);
+        self::assertSame(['alpha.txt', 'deep.txt'], array_map(
+            fn(\SplFileInfo $file): string => $file->getFilename(),
+            array_values($regexFiles)
+        ));
+
+        $fileFinder->useCache(false)->clearCache();
+        self::assertSame(['alpha.txt', 'deep.txt'], array_map(
+            fn(\SplFileInfo $file): string => $file->getFilename(),
+            array_values($fileFinder->findByRegEx(['pattern' => '/alpha|deep/'], $root, ['callback' => 'name']))
+        ));
     }
 
     public function testConfigUsesCachedLookupAndSessionCoreServiceWorks(): void

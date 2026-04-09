@@ -23,6 +23,14 @@ use App\Utilities\Handlers\NumberFormatterHandler;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
+#[\Attribute(\Attribute::TARGET_PROPERTY | \Attribute::TARGET_METHOD)]
+class ReflectionMarker
+{
+    public function __construct(public string $name)
+    {
+    }
+}
+
 class UtilityLayerHardeningTest extends TestCase
 {
     public function testLocaleAndNormalizationHandlersConstructAndOperate(): void
@@ -50,22 +58,37 @@ class UtilityLayerHardeningTest extends TestCase
         );
 
         $subject = new class {
+            #[ReflectionMarker('property')]
             public string $name = 'LangelerMVC';
             public static string $kind = 'framework';
             private string $secret = 'hidden';
+
+            #[ReflectionMarker('method')]
+            public function marker(): void
+            {
+            }
         };
 
-        $properties = $reflectionManager->getPublicPropertiesWithValues($subject::class);
+        $subject->name = 'Runtime value';
+
+        $properties = $reflectionManager->getPublicPropertiesWithValues($subject);
         $visibilities = $reflectionManager->getMethodVisibilities(FileManager::class);
+        $propertyAttributes = $reflectionManager->getAttributeData($subject, 'name');
+        $methodAttributes = $reflectionManager->getAttributeData($subject, 'marker');
         $indexedVisibilities = [];
 
         foreach ($visibilities as $method) {
             $indexedVisibilities[$method['name']] = $method['visibility'];
         }
 
-        self::assertSame('LangelerMVC', $properties['name']);
+        self::assertSame('Runtime value', $properties['name']);
         self::assertSame('framework', $properties['kind']);
         self::assertSame('private', $indexedVisibilities['getFileInfo']);
+        self::assertCount(1, $propertyAttributes);
+        self::assertCount(1, $methodAttributes);
+        self::assertTrue($reflectionManager->methodHasVisibility($subject, 'marker', 'public'));
+        self::assertSame([], $reflectionManager->listUsedTraits($subject));
+        self::assertSame([], $reflectionManager->getConstantsWithMetadata($subject));
     }
 
     public function testFormatterHandlersKeepUpdatedRuntimeState(): void

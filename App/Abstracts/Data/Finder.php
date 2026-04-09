@@ -7,6 +7,7 @@ namespace App\Abstracts\Data;
 use App\Exceptions\Data\FinderException;        // Exception for errors occurring during finder operations.
 
 use App\Utilities\Managers\IteratorManager;     // Manages and facilitates operations involving iterators.
+use SplFileInfo;
 
 use App\Utilities\Traits\{
     ApplicationPathTrait,
@@ -16,6 +17,7 @@ use App\Utilities\Traits\{
     ManipulationTrait,
     TypeCheckerTrait,
 };
+use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
  * Abstract class Finder
@@ -33,6 +35,7 @@ abstract class Finder
     }
     use ManipulationTrait;
     use LoopTrait;
+    use PatternTrait;
     use TypeCheckerTrait;
 
     /**
@@ -51,12 +54,9 @@ abstract class Finder
     protected array $cache = [];
 
     /**
-     * @var array<string, array<int, string>>
+     * @var array<string, int> Tracks iterator depth per discovered item.
      */
-    protected array $foundMarkers = [
-        'files' => [],
-        'directories' => [],
-    ];
+    protected array $itemDepths = [];
 
     /**
      * @var bool $cacheState Determines whether caching is enabled or disabled.
@@ -162,80 +162,6 @@ abstract class Finder
     }
 
     /**
-     * Determines if the fileInfo matches any of the markers.
-     *
-     * @param mixed $fileInfo The file or directory info object to evaluate.
-     *
-     * @return bool True if the file or directory matches the specified markers, otherwise false.
-     */
-    protected function isMarkerMatch($fileInfo): bool
-    {
-        return match (true) {
-            $this->iteratorManager->isFile() =>
-                $this->arraySearch($this->markers['files'], $fileInfo->getFilename()) !== false,
-            $this->iteratorManager->isDir() =>
-                $this->arraySearch($this->markers['directories'], $fileInfo->getFilename()) !== false,
-            default => false,
-        };
-    }
-
-    /**
-     * Collects a marker if it matches either file or directory markers.
-     *
-     * @param mixed $fileInfo The file or directory info object being evaluated.
-     *
-     * @return bool True if all markers have been found, otherwise false.
-     */
-    protected function collectMarker($fileInfo): bool
-    {
-        return !$this->isMarkerMatch($fileInfo)
-            ? $this->allMarkersFound()
-            : (match (true) {
-                $fileInfo->isFile() && $this->isFile($fileInfo?->getRealPath()) =>
-                    $this->addToMarkers('files', $fileInfo->getFilename()),
-                $fileInfo->isDir() && $this->isDirectory($fileInfo?->getRealPath()) =>
-                    $this->addToMarkers('directories', $fileInfo->getFilename()),
-                default => null
-            }) ?? $this->allMarkersFound();
-    }
-
-    /**
-     * Adds a marker to the appropriate list if not already present.
-     *
-     * @param string $type The type of marker ('files' or 'directories').
-     * @param string $marker The filename or directory name of the marker.
-     */
-    private function addToMarkers(string $type, string $marker): void
-    {
-        $this->foundMarkers[$type] ??= [];
-        $this->arraySearch($this->foundMarkers[$type], $marker) === false
-            ? $this->foundMarkers[$type][] = $marker
-            : null;
-    }
-
-    /**
-     * Check if all required markers are found within the current directory.
-     *
-     * @return bool True if all required markers are found, otherwise false.
-     */
-    protected function allMarkersFound(): bool
-    {
-        return $this->hasAllMarkers('files') && $this->hasAllMarkers('directories');
-    }
-
-    /**
-     * Checks if all markers of a specific type are found.
-     *
-     * @param string $type The type of markers to check ('files' or 'directories').
-     *
-     * @return bool True if all markers of the specified type are found, otherwise false.
-     */
-    private function hasAllMarkers(string $type): bool
-    {
-        return $this->isEmpty($this->diff($this->markers[$type], $this->foundMarkers[$type] ?? []));
-    }
-
-    /**
      * Checks for required elements (files or directories) in the specified path.
      *
      * @param string $path The directory path to validate.
@@ -247,7 +173,7 @@ abstract class Finder
     private function hasRequiredElements(string $path, string $type, callable $callback): bool
     {
         return !$this->isEmpty($this->markers[$type]) &&
-               $this->all($this->markers[$type], fn($element) => $callback("$path/$element"));
+               $this->all($this->markers[$type], fn($element) => $callback($path . DIRECTORY_SEPARATOR . $element));
     }
 
     /**
@@ -287,15 +213,10 @@ abstract class Finder
      */
     private function filterElements(array $criteria, string $path): array
     {
-        return $this->wrapFinder(function () use ($criteria, $path) {
-            $this->iteratorManager->setIterator($this->fetchFiltrator($path, $criteria));
-            $this->iteratorManager->rewind();
-
-            return $this->filter(
-                $this->iteratorManager->toArray($this->iteratorManager->getIterator()),
-                fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
-            );
-        }, "Error during filtering");
+        return $this->wrapFinder(
+            fn() => $this->collectIteratorItems($this->fetchFiltrator($path, $criteria), $criteria),
+            "Error during filtering"
+        );
     }
 
     /**
@@ -314,16 +235,6 @@ abstract class Finder
     {
         return $this->wrapFinder(
             fn() => match (true) {
-                // Use RecursiveRegexIterator when a pattern is provided
-                !$this->isEmpty($criteria['pattern'] ?? []) =>
-                    $this->iteratorManager->RecursiveIteratorIterator(
-                        $this->iteratorManager->RecursiveRegexIterator(
-                            $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                            $this->isArray($criteria['pattern'])
-                                ? (string) $this->getCurrentValue($criteria['pattern'])
-                                : (string) $criteria['pattern']
-                        )
-                    ),
                 // Use caching iterator if cacheState is enabled
                 $this->cacheState =>
                     $this->iteratorManager->RecursiveIteratorIterator(
@@ -336,7 +247,9 @@ abstract class Finder
                     $this->iteratorManager->RecursiveIteratorIterator(
                         $this->iteratorManager->RecursiveCallbackFilterIterator(
                             $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                            fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
+                            fn($fileInfo) => !$fileInfo instanceof SplFileInfo
+                                ? false
+                                : ($fileInfo->isDir() || $this->applyFilter($fileInfo, $criteria))
                         )
                     )
             },
@@ -351,10 +264,6 @@ abstract class Finder
     {
         return $this->wrapFinder(function () use ($fileInfo, $criteria) {
             foreach ($criteria as $key => $value) {
-                if ($key === 'pattern') {
-                    continue;
-                }
-
                 $method = 'filterBy' . ucfirst((string) $key);
 
                 if (!$this->methodExists($this, $method)) {
@@ -373,6 +282,25 @@ abstract class Finder
 
             return true;
         }, "Error applying filter");
+    }
+
+    /**
+     * Apply a regex pattern to the current item's display name.
+     *
+     * `patternPath` remains the explicit path-based matcher; the generic `pattern`
+     * criteria is intentionally name-based for a more predictable public API.
+     *
+     * @param mixed $fileInfo
+     * @param string $pattern
+     * @return bool
+     */
+    protected function filterByPattern(mixed $fileInfo, string $pattern): bool
+    {
+        $subject = $fileInfo instanceof SplFileInfo
+            ? $fileInfo->getFilename()
+            : (string) $fileInfo;
+
+        return $this->match($pattern, $subject) === 1;
     }
 
     /**
@@ -434,6 +362,44 @@ abstract class Finder
     }
 
     /**
+     * Return the configured finder root.
+     */
+    public function getRoot(): string
+    {
+        return (string) $this->root;
+    }
+
+    /**
+     * Enable or disable implicit caching for iterative finder operations.
+     */
+    public function useCache(bool $enabled = true): static
+    {
+        $this->cacheState = $enabled;
+
+        return $this;
+    }
+
+    /**
+     * Clear all cache data or the cache entry for a specific path.
+     */
+    public function clearCache(?string $path = null): static
+    {
+        if ($path === null) {
+            $this->cache = [];
+            $this->itemDepths = [];
+
+            return $this;
+        }
+
+        $resolvedPath = $this->iteratorManager->FileInfo($path)->getRealPath() ?: $path;
+
+        unset($this->cache[$resolvedPath], $this->cache[$path]);
+        $this->itemDepths = [];
+
+        return $this;
+    }
+
+    /**
      * Resolves the real path and ensures it is a valid directory.
      *
      * This method checks the existence, validity, and type of the provided path.
@@ -445,22 +411,20 @@ abstract class Finder
      */
     protected function resolvePath(string $path): string
     {
-        return $this->wrapFinder(
-            fn() => match (true) {
-                // Path does not exist
-                !$this->iteratorManager->FileInfo($path) =>
-                    throw new FinderException("Path does not exist: $path"),
-                // Path cannot be resolved
-                !$this->iteratorManager->FileInfo($path)->getRealPath() =>
-                    throw new FinderException("Path is invalid: $path"),
-                // Path is not a directory
-                !$this->iteratorManager->FileInfo($path)->isDir() =>
-                    throw new FinderException("Path is not a directory: $path"),
-                // Path is valid
-                default => $this->iteratorManager->FileInfo($path)->getRealPath(),
-            },
-            "Error resolving path"
-        );
+        return $this->wrapFinder(function () use ($path): string {
+            $fileInfo = $this->iteratorManager->FileInfo($path);
+            $realPath = $fileInfo->getRealPath();
+
+            if (!$this->isString($realPath) || $realPath === '') {
+                throw new FinderException("Path is invalid: $path");
+            }
+
+            if (!$fileInfo->isDir()) {
+                throw new FinderException("Path is not a directory: $path");
+            }
+
+            return $realPath;
+        }, "Error resolving path");
     }
 
     /**
@@ -474,7 +438,7 @@ abstract class Finder
     private function populateCache(string $path): void
     {
         $this->wrapFinder(function () use ($path) {
-            $this->iteratorManager->setIterator(
+            $this->cache[$path] = $this->collectIteratorItems(
                 $this->iteratorManager->RecursiveIteratorIterator(
                     $this->iteratorManager->RecursiveDirectoryIterator($path, [
                         'flag' => ['skipDots' => true],
@@ -482,8 +446,6 @@ abstract class Finder
                     ])
                 )
             );
-
-            $this->cache[$path] = $this->iteratorManager->toArray($this->iteratorManager->getIterator());
         }, "Error populating cache");
     }
 
@@ -499,32 +461,9 @@ abstract class Finder
      * @return array The filtered items matching the regex pattern.
      * @throws FinderException If an error occurs during regex filtering.
      */
-    protected function filterWithRegex(array $criteria, string $path): array
+    protected function filterWithRegex(array $criteria, string $path, array $sort = []): array
     {
-        return $this->wrapFinder(
-            function () use ($criteria, $path): array {
-                $pattern = $this->isEmpty($criteria['pattern'] ?? [])
-                    ? '/.*/'
-                    : ($this->isArray($criteria['pattern'])
-                        ? (string) $this->getCurrentValue($criteria['pattern'])
-                        : (string) $criteria['pattern']);
-
-                $results = $this->iteratorManager->toArray(
-                    $this->iteratorManager->RecursiveIteratorIterator(
-                        $this->iteratorManager->RecursiveRegexIterator(
-                            $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
-                            $pattern
-                        )
-                    )
-                );
-
-                return $this->filter(
-                    $results,
-                    fn($fileInfo): bool => $this->applyFilter($fileInfo, $criteria)
-                );
-            },
-            "Error during regex filtering"
-        );
+        return $this->handle($criteria, $path, $sort);
     }
 
     /**
@@ -569,18 +508,23 @@ abstract class Finder
      *
      * @throws FinderException If an error occurs while displaying the directory tree.
      */
-    protected function displayDirectoryTree(string $path): void
+    protected function displayDirectoryTree(string $path): string
     {
-        $this->wrapFinder(function () use ($path) {
-            $this->iteratorManager->setIterator(
-                $this->iteratorManager->RecursiveTreeIterator(
-                    $this->iteratorManager->RecursiveIteratorIterator(
-                        $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]])
-                    )
+        return $this->wrapFinder(function () use ($path): string {
+            $iterator = $this->iteratorManager->RecursiveTreeIterator(
+                $this->iteratorManager->RecursiveCachingIterator(
+                    $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]])
                 )
             );
 
-            $this->each($this->iteratorManager->getIterator(), fn($key, $item) => print($item . PHP_EOL));
+            $lines = [];
+
+            foreach ($iterator as $item) {
+                $lines[] = (string) $item;
+            }
+
+            return $this->joinStrings(PHP_EOL, $lines)
+                . ($this->isEmpty($lines) ? '' : PHP_EOL);
         }, "Error displaying directory tree");
     }
 
@@ -604,9 +548,9 @@ abstract class Finder
                 $results = [];
 
                 foreach ($paths as $path) {
-                    $results = $this->merge(
+                    $results = $this->mergeSearchResults(
                         $results,
-                        $this->filterElements($criteria, $this->validatePath($path))
+                        $this->filterElements($criteria, $path)
                     );
                 }
 
@@ -645,6 +589,7 @@ abstract class Finder
 
                 while ($this->iteratorManager->valid()) {
                     $fileInfo = $this->iteratorManager->current();
+                    $this->rememberItemDepth($fileInfo, $this->iteratorManager->getDepth());
 
                     if ($this->applyFilter($fileInfo, $criteria)) {
                         $results[$this->iteratorManager->key()] = $fileInfo;
@@ -677,16 +622,180 @@ abstract class Finder
     {
         return $this->wrapFinder(
             fn() => $this->applySort(
-                $this->iteratorManager->toArray(
+                $this->collectIteratorItems(
                     $this->iteratorManager->CallbackFilterIterator(
                         $this->iteratorManager->createIterator($type, $settings),
                         fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
-                    )
+                    ),
+                    $criteria
                 ),
                 $sort
             ),
             "Error during custom iterator resolution"
         );
+    }
+
+    /**
+     * Collects items from an iterator while preserving per-item depth metadata.
+     *
+     * @param \Iterator $iterator
+     * @param array $criteria
+     * @return array
+     */
+    protected function collectIteratorItems(\Iterator $iterator, array $criteria = []): array
+    {
+        $results = [];
+
+        $this->iteratorManager->setIterator($iterator);
+        $this->iteratorManager->rewind();
+
+        while ($this->iteratorManager->valid()) {
+            $item = $this->iteratorManager->current();
+            $this->rememberItemDepth($item, $this->iteratorManager->getDepth());
+
+            if ($criteria === [] || $this->applyFilter($item, $criteria)) {
+                $results[$this->iteratorManager->key()] = $item;
+            }
+
+            $this->iteratorManager->next();
+        }
+
+        return $results;
+    }
+
+    /**
+     * Records the resolved iterator depth for an item.
+     *
+     * @param mixed $item
+     * @param int $depth
+     * @return void
+     */
+    protected function rememberItemDepth(mixed $item, int $depth): void
+    {
+        $key = $this->itemDepthKey($item);
+
+        if ($key !== null) {
+            $this->itemDepths[$key] = $depth;
+        }
+    }
+
+    /**
+     * Returns the cached depth for an item.
+     *
+     * @param mixed $item
+     * @return int
+     */
+    protected function getItemDepth(mixed $item): int
+    {
+        $key = $this->itemDepthKey($item);
+
+        return $key !== null
+            ? ($this->itemDepths[$key] ?? 0)
+            : 0;
+    }
+
+    /**
+     * Builds a stable depth-cache key for an iterator item.
+     *
+     * @param mixed $item
+     * @return string|null
+     */
+    private function itemDepthKey(mixed $item): ?string
+    {
+        if ($item instanceof SplFileInfo) {
+            return 'path:' . ($item->getRealPath() ?: $item->getPathname());
+        }
+
+        if ($this->isObject($item)) {
+            return 'object:' . spl_object_id($item);
+        }
+
+        if ($this->isString($item)) {
+            return 'string:' . $item;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve one or many search roots into validated absolute paths.
+     *
+     * @param string|array|null $paths
+     * @return array<int, string>
+     */
+    protected function resolveSearchPaths(string|array|null $paths = null): array
+    {
+        $candidates = $paths === null
+            ? [$this->root]
+            : ($this->isArray($paths) ? $this->getValues($paths) : [$paths]);
+
+        return $this->map(
+            fn(string $candidate): string => $this->validatePath($candidate),
+            $candidates
+        );
+    }
+
+    /**
+     * Merge search results by stable item identity to avoid duplicates across roots.
+     *
+     * @param array $results
+     * @param array $items
+     * @return array
+     */
+    protected function mergeSearchResults(array $results, array $items): array
+    {
+        foreach ($items as $key => $item) {
+            $identity = $this->itemDepthKey($item) ?? (string) $key;
+            $results[$identity] = $item;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Return a tree representation of the specified path.
+     */
+    public function tree(?string $path = null): string
+    {
+        return $this->displayDirectoryTree($this->validatePath($path ?? $this->root));
+    }
+
+    /**
+     * Output a tree representation of the specified path.
+     */
+    public function showTree(?string $path = null): void
+    {
+        print($this->tree($path));
+    }
+
+    /**
+     * Build a consistent metadata description for a filesystem item.
+     *
+     * @param SplFileInfo $fileInfo
+     * @return array<string, mixed>
+     */
+    protected function describeItem(SplFileInfo $fileInfo): array
+    {
+        $realPath = $fileInfo->getRealPath() ?: $fileInfo->getPathname();
+
+        return [
+            'name' => $fileInfo->getFilename(),
+            'type' => $fileInfo->isDir() ? 'directory' : 'file',
+            'path' => $fileInfo->getPathname(),
+            'realPath' => $realPath,
+            'extension' => $fileInfo->isFile() ? $fileInfo->getExtension() : null,
+            'size' => $fileInfo->getSize(),
+            'permissions' => $fileInfo->getPerms(),
+            'owner' => $fileInfo->getOwner(),
+            'group' => $fileInfo->getGroup(),
+            'modifiedAt' => $fileInfo->getMTime(),
+            'accessedAt' => $fileInfo->getATime(),
+            'createdAt' => $fileInfo->getCTime(),
+            'readable' => $fileInfo->isReadable(),
+            'writable' => $fileInfo->isWritable(),
+            'executable' => $fileInfo->isExecutable(),
+            'symlink' => $fileInfo->isLink(),
+        ];
     }
 
     /**

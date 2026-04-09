@@ -2,6 +2,13 @@
 
 namespace App\Utilities\Traits\Criteria;
 
+use App\Utilities\Traits\{
+    CheckerTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
+
 /**
  * Trait DirectoryCriteriaTrait
  *
@@ -23,6 +30,8 @@ namespace App\Utilities\Traits\Criteria;
  */
 trait DirectoryCriteriaTrait
 {
+    use CheckerTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
     /**
      * Filter directories by path.
      *
@@ -32,7 +41,7 @@ trait DirectoryCriteriaTrait
      */
     protected function filterByPath($fileInfo, string $path): bool
     {
-        return strpos($fileInfo->getRealPath(), $path) !== false;
+        return $this->contains($this->resolveDirectoryPath($fileInfo), $path);
     }
 
     /**
@@ -46,7 +55,9 @@ trait DirectoryCriteriaTrait
     protected function filterByName($fileInfo, string $name, bool $caseSensitive = true): bool
     {
         $directoryName = $fileInfo->getFilename();
-        return $caseSensitive ? $directoryName === $name : strcasecmp($directoryName, $name) === 0;
+        return $caseSensitive
+            ? $directoryName === $name
+            : $this->compareIgnoreCase($directoryName, $name) === 0;
     }
 
     /**
@@ -142,7 +153,7 @@ trait DirectoryCriteriaTrait
      */
     protected function filterByDepth($fileInfo, int $maxDepth): bool
     {
-        return $this->iteratorManager->getDepth() <= $maxDepth;
+        return $this->getItemDepth($fileInfo) <= $maxDepth;
     }
 
     /**
@@ -198,7 +209,7 @@ trait DirectoryCriteriaTrait
      */
     protected function filterByPatternName($fileInfo, string $pattern): bool
     {
-        return preg_match($pattern, $fileInfo->getFilename()) === 1;
+        return $this->match($pattern, $fileInfo->getFilename()) === 1;
     }
 
     /**
@@ -210,6 +221,15 @@ trait DirectoryCriteriaTrait
      */
     protected function filterByPatternPath($fileInfo, string $pattern): bool
     {
-        return preg_match($pattern, $fileInfo->getRealPath()) === 1;
+        return $this->match($pattern, $this->resolveDirectoryPath($fileInfo)) === 1;
+    }
+
+    private function resolveDirectoryPath($fileInfo): string
+    {
+        $realPath = $fileInfo->getRealPath();
+
+        return $this->isString($realPath) && $realPath !== ''
+            ? $realPath
+            : $fileInfo->getPathname();
     }
 }

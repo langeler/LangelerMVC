@@ -2,6 +2,8 @@
 
 namespace App\Utilities\Traits\Sort;
 
+use App\Utilities\Traits\TypeCheckerTrait;
+
 /**
  * Trait DirectorySortTrait
  *
@@ -10,6 +12,8 @@ namespace App\Utilities\Traits\Sort;
  */
 trait DirectorySortTrait
 {
+	use TypeCheckerTrait;
+
 	/**
 	 * Sort by file name.
 	 *
@@ -31,7 +35,7 @@ trait DirectorySortTrait
 	 */
 	protected function sortByPath($a, $b): int
 	{
-		return strcmp($a->getRealPath(), $b->getRealPath());
+		return $this->resolveSortableDirectoryPath($a) <=> $this->resolveSortableDirectoryPath($b);
 	}
 
 	/**
@@ -104,5 +108,14 @@ trait DirectorySortTrait
 	protected function sortByGroup($a, $b): int
 	{
 		return $a->getGroup() <=> $b->getGroup();
+	}
+
+	private function resolveSortableDirectoryPath($fileInfo): string
+	{
+		$realPath = $fileInfo->getRealPath();
+
+		return $this->isString($realPath) && $realPath !== ''
+			? $realPath
+			: $fileInfo->getPathname();
 	}
 }

@@ -20,6 +20,18 @@ class FileManager
 {
 	use ArrayTrait, CheckerTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
 
+	/**
+	 * Persistent file handles used by cursor-aware and locking operations.
+	 *
+	 * @var array<string, SplFileObject>
+	 */
+	private array $persistentFileObjects = [];
+
+	public function __destruct()
+	{
+		$this->persistentFileObjects = [];
+	}
+
 	// Method to get SplFileInfo instance
 	private function getFileInfo(string $path): ?SplFileInfo
 	{
@@ -40,6 +52,46 @@ class FileManager
 		}
 	}
 
+	private function getPersistentFileObject(string $filename, bool $create = false): ?SplFileObject
+	{
+		$normalized = $this->normalizePath($filename);
+
+		if ($normalized === '') {
+			return null;
+		}
+
+		if ($this->keyExists($this->persistentFileObjects, $normalized)) {
+			return $this->persistentFileObjects[$normalized];
+		}
+
+		if (!$create && !$this->fileExists($normalized)) {
+			return null;
+		}
+
+		if ($create) {
+			$directory = dirname($normalized);
+
+			if (!$this->isDirectory($directory) && !$this->createDirectory($directory, 0777, true)) {
+				return null;
+			}
+		}
+
+		$file = $this->getFileObject($normalized, $create ? 'c+' : 'r+');
+
+		if (!$file instanceof SplFileObject) {
+			return null;
+		}
+
+		$this->persistentFileObjects[$normalized] = $file;
+
+		return $file;
+	}
+
+	private function releasePersistentFileObject(string $filename): void
+	{
+		unset($this->persistentFileObjects[$this->normalizePath($filename)]);
+	}
+
 	// Basic File Operations
 
 	public function getBaseName(string $path, string $suffix = ""): ?string
@@ -50,7 +102,21 @@ class FileManager
 	public function copyFile(string $source, string $dest): bool
 	{
 		try {
-			return $this->getFileInfo($source)?->isFile() && copy($source, $dest);
+			$normalizedSource = $this->normalizePath($source);
+			$normalizedDestination = $this->normalizePath($dest);
+			$directory = dirname($normalizedDestination);
+
+			if (
+				!$this->getFileInfo($normalizedSource)?->isFile()
+				|| (
+					!$this->isDirectory($directory)
+					&& !$this->createDirectory($directory, 0777, true)
+				)
+			) {
+				return false;
+			}
+
+			return copy($normalizedSource, $normalizedDestination);
 		} catch (Throwable) {
 			return false;
 		}
@@ -105,7 +171,8 @@ class FileManager
 	public function writeContents(string $filename, string $data): int|false
 	{
 		try {
-			$directory = dirname($filename);
+			$normalized = $this->normalizePath($filename);
+			$directory = dirname($normalized);
 
 			if (!$this->isDirectory($directory) && !$this->createDirectory($directory, 0777, true)) {
 				return false;
@@ -140,7 +207,7 @@ class FileManager
 
 			$file = null;
 
-			if (!$this->replaceFile($tempFile, $filename, true)) {
+			if (!$this->replaceFile($tempFile, $normalized, true)) {
 				if (is_file($tempFile)) {
 					unlink($tempFile);
 				}
@@ -182,6 +249,8 @@ class FileManager
 			}
 
 			if (is_uploaded_file($source)) {
+				$this->releasePersistentFileObject($source);
+				$this->releasePersistentFileObject($target);
 				return move_uploaded_file($source, $target);
 			}
 
@@ -194,7 +263,14 @@ class FileManager
 	public function deleteFile(string $filename): bool
 	{
 		try {
-			return $this->getFileInfo($filename)?->isFile() && unlink($filename);
+			$normalized = $this->normalizePath($filename);
+			$deleted = $this->getFileInfo($normalized)?->isFile() && unlink($normalized);
+
+			if ($deleted) {
+				$this->releasePersistentFileObject($normalized);
+			}
+
+			return $deleted;
 		} catch (Throwable) {
 			return false;
 		}
@@ -266,6 +342,9 @@ class FileManager
 
 	private function replaceFile(string $source, string $target, bool $deleteSource = false): bool
 	{
+		$this->releasePersistentFileObject($source);
+		$this->releasePersistentFileObject($target);
+
 		if (rename($source, $target)) {
 			return true;
 		}
@@ -349,7 +428,11 @@ class FileManager
 	public function readLine(string $filename): string|false
 	{
 		try {
-			return $this->getFileObject($filename, 'r')?->eof() ? false : $this->getFileObject($filename, 'r')?->fgets();
+			$file = $this->getPersistentFileObject($filename);
+
+			return !$file instanceof SplFileObject || $file->eof()
+				? false
+				: $file->fgets();
 		} catch (Throwable) {
 			return false;
 		}
@@ -358,7 +441,15 @@ class FileManager
 	public function writeLine(string $filename, string $content): int|false
 	{
 		try {
-			return $this->getFileObject($filename, 'a')?->fwrite($content);
+			$file = $this->getPersistentFileObject($filename, true);
+
+			if (!$file instanceof SplFileObject) {
+				return false;
+			}
+
+			$file->fseek(0, SEEK_END);
+
+			return $file->fwrite($content);
 		} catch (Throwable) {
 			return false;
 		}
@@ -367,7 +458,11 @@ class FileManager
 	public function lockFile(string $filename, int $operation): bool
 	{
 		try {
-			return $this->getFileObject($filename)?->flock($operation);
+			$file = $this->getPersistentFileObject($filename, $operation !== LOCK_SH);
+
+			return $file instanceof SplFileObject
+				? $file->flock($operation)
+				: false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -376,7 +471,7 @@ class FileManager
 	public function endOfFile(string $filename): bool
 	{
 		try {
-			return $this->getFileObject($filename)?->eof();
+			return $this->getPersistentFileObject($filename)?->eof() ?? false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -385,7 +480,7 @@ class FileManager
 	public function resetPointer(string $filename): void
 	{
 		try {
-			$this->getFileObject($filename)?->rewind();
+			$this->getPersistentFileObject($filename)?->rewind();
 		} catch (Throwable) {
 			// Do nothing
 		}
@@ -394,7 +489,7 @@ class FileManager
 	public function moveToLine(string $filename, int $line): void
 	{
 		try {
-			$this->getFileObject($filename)?->seek($line);
+			$this->getPersistentFileObject($filename)?->seek($line);
 		} catch (Throwable) {
 			// Do nothing
 		}
@@ -403,7 +498,7 @@ class FileManager
 	public function getLineNumber(string $filename): int
 	{
 		try {
-			return $this->getFileObject($filename)?->key() ?? 0;
+			return $this->getPersistentFileObject($filename)?->key() ?? 0;
 		} catch (Throwable) {
 			return 0;
 		}
@@ -412,7 +507,7 @@ class FileManager
 	public function getMaxLineLength(string $filename): int
 	{
 		try {
-			return $this->getFileObject($filename)?->getMaxLineLen() ?? 0;
+			return $this->getPersistentFileObject($filename)?->getMaxLineLen() ?? 0;
 		} catch (Throwable) {
 			return 0;
 		}
@@ -421,7 +516,7 @@ class FileManager
 	public function setMaxLineLength(string $filename, int $length): void
 	{
 		try {
-			$this->getFileObject($filename)?->setMaxLineLen($length);
+			$this->getPersistentFileObject($filename)?->setMaxLineLen($length);
 		} catch (Throwable) {
 			// Do nothing
 		}
@@ -430,7 +525,7 @@ class FileManager
 	public function readCsv(string $filename, string $delimiter = ',', string $enclosure = '"', string $escape = '\\'): array|false
 	{
 		try {
-			return $this->getFileObject($filename)?->fgetcsv($delimiter, $enclosure, $escape) ?? false;
+			return $this->getPersistentFileObject($filename)?->fgetcsv($delimiter, $enclosure, $escape) ?? false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -439,7 +534,15 @@ class FileManager
 	public function writeCsv(string $filename, array $fields, string $delimiter = ',', string $enclosure = '"', string $escape = '\\'): int|false
 	{
 		try {
-			return $this->getFileObject($filename, 'a')?->fputcsv($fields, $delimiter, $enclosure, $escape);
+			$file = $this->getPersistentFileObject($filename, true);
+
+			if (!$file instanceof SplFileObject) {
+				return false;
+			}
+
+			$file->fseek(0, SEEK_END);
+
+			return $file->fputcsv($fields, $delimiter, $enclosure, $escape);
 		} catch (Throwable) {
 			return false;
 		}
@@ -448,7 +551,7 @@ class FileManager
 	public function readBytes(string $filename, int $length): string|false
 	{
 		try {
-			return $this->getFileObject($filename)?->fread($length);
+			return $this->getPersistentFileObject($filename)?->fread($length) ?? false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -457,7 +560,15 @@ class FileManager
 	public function writeBytes(string $filename, string $content): int|false
 	{
 		try {
-			return $this->getFileObject($filename, 'a')?->fwrite($content);
+			$file = $this->getPersistentFileObject($filename, true);
+
+			if (!$file instanceof SplFileObject) {
+				return false;
+			}
+
+			$file->fseek(0, SEEK_END);
+
+			return $file->fwrite($content);
 		} catch (Throwable) {
 			return false;
 		}
@@ -466,7 +577,7 @@ class FileManager
 	public function getPosition(string $filename): int|false
 	{
 		try {
-			return $this->getFileObject($filename)?->ftell();
+			return $this->getPersistentFileObject($filename)?->ftell() ?? false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -475,7 +586,7 @@ class FileManager
 	public function setPosition(string $filename, int $offset, int $whence = SEEK_SET): int
 	{
 		try {
-			return $this->getFileObject($filename)?->fseek($offset, $whence) ?? -1;
+			return $this->getPersistentFileObject($filename)?->fseek($offset, $whence) ?? -1;
 		} catch (Throwable) {
 			return -1;
 		}
@@ -484,7 +595,7 @@ class FileManager
 	public function getStats(string $filename): array|false
 	{
 		try {
-			return $this->getFileObject($filename)?->fstat();
+			return $this->getPersistentFileObject($filename)?->fstat() ?? false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -493,7 +604,7 @@ class FileManager
 	public function flush(string $filename): bool
 	{
 		try {
-			return $this->getFileObject($filename)?->fflush();
+			return $this->getPersistentFileObject($filename)?->fflush() ?? false;
 		} catch (Throwable) {
 			return false;
 		}
@@ -502,7 +613,15 @@ class FileManager
 	public function truncate(string $filename, int $size): bool
 	{
 		try {
-			return $this->getFileObject($filename, 'r+')?->ftruncate($size);
+			$file = $this->getPersistentFileObject($filename, true);
+
+			if (!$file instanceof SplFileObject) {
+				return false;
+			}
+
+			$file->rewind();
+
+			return $file->ftruncate($size);
 		} catch (Throwable) {
 			return false;
 		}
@@ -531,7 +650,20 @@ class FileManager
 
 	public function writeImage(string $filename, string $outputPath): bool
 	{
-		return $this->getImagick($filename)?->writeImage($outputPath) ?? false;
+		$normalizedOutputPath = $this->normalizePath($outputPath);
+		$directory = dirname($normalizedOutputPath);
+
+		if (
+			!$this->isDirectory($directory)
+			&& !$this->createDirectory($directory, 0777, true)
+		) {
+			return false;
+		}
+
+		return $this->withImagick(
+			$filename,
+			fn(Imagick $image): bool => $image->writeImage($normalizedOutputPath)
+		);
 	}
 
 	public function resizeImage(
@@ -550,42 +682,69 @@ class FileManager
 
 	public function cropImage(string $filename, int $width, int $height, int $x, int $y): bool
 	{
-		return $this->getImagick($filename)?->cropImage($width, $height, $x, $y) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->cropImage($width, $height, $x, $y)
+		);
 	}
 
 	public function rotateImage(string $filename, float $angle, string $backgroundColor = 'white'): bool
 	{
-		return $this->getImagick($filename)?->rotateImage(new ImagickPixel($backgroundColor), $angle) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->rotateImage(new ImagickPixel($backgroundColor), $angle)
+		);
 	}
 
 	public function flipImage(string $filename): bool
 	{
-		return $this->getImagick($filename)?->flipImage() ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->flipImage()
+		);
 	}
 
 	public function flopImage(string $filename): bool
 	{
-		return $this->getImagick($filename)?->flopImage() ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->flopImage()
+		);
 	}
 
 	public function sharpenImage(string $filename, float $radius, float $sigma): bool
 	{
-		return $this->getImagick($filename)?->sharpenImage($radius, $sigma) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->sharpenImage($radius, $sigma)
+		);
 	}
 
 	public function blurImage(string $filename, float $radius, float $sigma): bool
 	{
-		return $this->getImagick($filename)?->blurImage($radius, $sigma) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->blurImage($radius, $sigma)
+		);
 	}
 
 	public function addText(string $filename, string $text, int $x = 10, int $y = 10, string $color = 'black', int $size = 12): bool
 	{
-		return $this->getImagick($filename)?->annotateImage((new ImagickDraw())->setFillColor(new ImagickPixel($color))->setFontSize($size), $x, $y, 0, $text) ?? false;
+		return $this->mutateImageInPlace($filename, function (Imagick $image) use ($text, $x, $y, $color, $size): bool {
+			$draw = new ImagickDraw();
+			$draw->setFillColor(new ImagickPixel($color));
+			$draw->setFontSize($size);
+
+			return $image->annotateImage($draw, $x, $y, 0, $text);
+		});
 	}
 
 	public function setCompressionQuality(string $filename, int $quality): bool
 	{
-		return $this->getImagick($filename)?->setImageCompressionQuality($quality) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->setImageCompressionQuality($quality)
+		);
 	}
 
 	public function stripMetadata(string $filename): string|false
@@ -603,7 +762,10 @@ class FileManager
 
 	public function setFormat(string $filename, string $format): bool
 	{
-		return $this->getImagick($filename)?->setImageFormat($format) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->setImageFormat($format)
+		);
 	}
 
 	public function getWidth(string $filename): ?int
@@ -618,32 +780,57 @@ class FileManager
 
 	public function setOpacity(string $filename, float $opacity): bool
 	{
-		return $this->getImagick($filename)?->evaluateImage(Imagick::EVALUATE_MULTIPLY, $opacity, Imagick::CHANNEL_ALPHA) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->evaluateImage(
+				Imagick::EVALUATE_MULTIPLY,
+				$opacity,
+				Imagick::CHANNEL_ALPHA
+			)
+		);
 	}
 
 	public function compositeImage(string $filename, string $overlayFile, int $x = 0, int $y = 0, int $compositeType = Imagick::COMPOSITE_DEFAULT): bool
 	{
-		return $this->getImagick($filename)?->compositeImage(
-			$this->getImagick($overlayFile),
-			$compositeType,
-			$x,
-			$y
-		) ?? false;
+		$overlay = $this->getImagick($overlayFile);
+
+		if (!$overlay instanceof Imagick) {
+			return false;
+		}
+
+		try {
+			return $this->mutateImageInPlace(
+				$filename,
+				fn(Imagick $image): bool => $image->compositeImage($overlay, $compositeType, $x, $y)
+			);
+		} finally {
+			$overlay->clear();
+			$overlay->destroy();
+		}
 	}
 
 	public function trimImage(string $filename, float $fuzz = 0.1): bool
 	{
-		return $this->getImagick($filename)?->trimImage($fuzz) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->trimImage($fuzz)
+		);
 	}
 
 	public function addBorder(string $filename, string $color, int $width, int $height): bool
 	{
-		return $this->getImagick($filename)?->borderImage(new ImagickPixel($color), $width, $height) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->borderImage(new ImagickPixel($color), $width, $height)
+		);
 	}
 
 	public function thumbnailImage(string $filename, int $width, int $height, bool $bestFit = false): bool
 	{
-		return $this->getImagick($filename)?->thumbnailImage($width, $height, $bestFit) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->thumbnailImage($width, $height, $bestFit)
+		);
 	}
 
 	public function getResolution(string $filename): ?array
@@ -653,42 +840,66 @@ class FileManager
 
 	public function setResolution(string $filename, float $xResolution, float $yResolution): bool
 	{
-		return $this->getImagick($filename)?->setImageResolution($xResolution, $yResolution) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->setImageResolution($xResolution, $yResolution)
+		);
 	}
 
 	public function modulateImage(string $filename, float $brightness, float $saturation, float $hue): bool
 	{
-		return $this->getImagick($filename)?->modulateImage($brightness, $saturation, $hue) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->modulateImage($brightness, $saturation, $hue)
+		);
 	}
 
 	public function negateImage(string $filename, bool $grayscale = false): bool
 	{
-		return $this->getImagick($filename)?->negateImage($grayscale) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->negateImage($grayscale)
+		);
 	}
 
 	public function setGamma(string $filename, float $gamma): bool
 	{
-		return $this->getImagick($filename)?->gammaImage($gamma) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->gammaImage($gamma)
+		);
 	}
 
 	public function despeckleImage(string $filename): bool
 	{
-		return $this->getImagick($filename)?->despeckleImage() ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->despeckleImage()
+		);
 	}
 
 	public function oilPaintImage(string $filename, float $radius): bool
 	{
-		return $this->getImagick($filename)?->oilPaintImage($radius) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->oilPaintImage($radius)
+		);
 	}
 
 	public function charcoalImage(string $filename, float $radius, float $sigma): bool
 	{
-		return $this->getImagick($filename)?->charcoalImage($radius, $sigma) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->charcoalImage($radius, $sigma)
+		);
 	}
 
 	public function embossImage(string $filename, float $radius, float $sigma): bool
 	{
-		return $this->getImagick($filename)?->embossImage($radius, $sigma) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->embossImage($radius, $sigma)
+		);
 	}
 
 	public function getColorspace(string $filename): ?int
@@ -698,7 +909,10 @@ class FileManager
 
 	public function setColorspace(string $filename, int $colorspace): bool
 	{
-		return $this->getImagick($filename)?->setImageColorspace($colorspace) ?? false;
+		return $this->mutateImageInPlace(
+			$filename,
+			fn(Imagick $image): bool => $image->setImageColorspace($colorspace)
+		);
 	}
 
 	public function clearImage(string $filename): void
@@ -740,6 +954,29 @@ class FileManager
 			}
 
 			return $image->writeImage($filename) ? $filename : false;
+		} catch (Throwable) {
+			return false;
+		} finally {
+			$image->clear();
+			$image->destroy();
+		}
+	}
+
+	private function mutateImageInPlace(string $filename, callable $operation): bool
+	{
+		return $this->mutateImage($filename, $operation) !== false;
+	}
+
+	private function withImagick(string $filename, callable $callback): mixed
+	{
+		$image = $this->getImagick($filename);
+
+		if (!$image instanceof Imagick) {
+			return false;
+		}
+
+		try {
+			return $callback($image);
 		} catch (Throwable) {
 			return false;
 		} finally {

@@ -141,11 +141,11 @@ use App\Utilities\Traits\{
  * // last modified in the last 7 days.
  * ```
  *
- * #### Example 9: Regex-Based Directory Search
+ * #### Example 9: Pattern-Based Directory Search
  * ```php
  * $finder = new DirectoryFinder();
  * $criteria = ['pattern' => '/^config/i'];
- * $results = $finder->findByRegEx($criteria, '/opt/apps');
+ * $results = $finder->findByPattern($criteria, '/opt/apps');
  * // Searches for directories named like "config", "configProd", etc., in /opt/apps.
  * ```
  *
@@ -166,7 +166,7 @@ class DirectoryFinder extends Finder implements FinderInterface
 	 * Finds directories based on the given criteria and sorting options.
 	 *
 	 * @param array $criteria Arbitrary conditions recognized by Finder logic.
-	 * @param string|null $path Starting path (default: root).
+	 * @param string|array|null $path One or more starting paths (default: root).
 	 * @param array $sort Sorting options recognized by Finder logic.
 	 * @return array Filtered and sorted directory results.
 	 *
@@ -192,12 +192,12 @@ class DirectoryFinder extends Finder implements FinderInterface
 	 *
 	 * @throws FinderException If an error occurs during execution.
 	 */
-	public function search(array $criteria = [], ?string $path = null, array $sort = []): array
+	public function search(array $criteria = [], string|array|null $path = null, array $sort = []): array
 	{
 		$criteria = $this->merge(['type' => 'directory'], $criteria);
 
 		return $this->wrapFinder(
-			fn() => $this->searchMultipleDirectories([$this->validatePath($path ?? $this->root)], $criteria, $sort),
+			fn() => $this->searchMultipleDirectories($this->resolveSearchPaths($path), $criteria, $sort),
 			"Error during searchDirs"
 		);
 	}
@@ -212,28 +212,21 @@ class DirectoryFinder extends Finder implements FinderInterface
 	 */
 	public function scan(?string $path = null): array
 	{
-		return $this->wrapFinder(
-			fn() => $this->map(
-				fn($item) => $this->getFileInfo($item, $path),
-				scandir($this->validatePath($path ?? $this->root)) ?: throw new FinderException("Failed to scan directory")
-			),
-			"Error during scandir"
-		);
-	}
+		return $this->wrapFinder(function () use ($path): array {
+			$entries = [];
+			$validatedPath = $this->validatePath($path ?? $this->root);
+			$iterator = $this->iteratorManager->DirectoryIterator($validatedPath);
 
-	/**
-	 * Displays a tree structure of the specified directory.
-	 *
-	 * @param string|null $path Root directory path to display (default: root).
-	 *
-	 * @throws FinderException If an error occurs while displaying the tree.
-	 */
-	public function showTree(?string $path = null): void
-	{
-		$this->wrapFinder(
-			fn() => $this->displayDirectoryTree($this->validatePath($path ?? $this->root)),
-			"Error displaying directory tree"
-		);
+			foreach ($iterator as $fileInfo) {
+				if ($fileInfo->isDot()) {
+					continue;
+				}
+
+				$entries[] = $this->describeItem($fileInfo);
+			}
+
+			return $entries;
+		}, "Error during scandir");
 	}
 
 	/**
@@ -262,63 +255,48 @@ class DirectoryFinder extends Finder implements FinderInterface
 	 *
 	 * @param array $criteria Arbitrary conditions recognized by the Finder logic.
 	 * @param string|null $path Starting path (default: root).
-	 * @return array Filtered directories from cache.
+	 * @param array $sort Sorting options recognized by Finder logic.
+	 * @return array Filtered and sorted directories from cache.
 	 *
 	 * @throws FinderException If an error occurs during filtering.
 	 */
-	public function findByCache(array $criteria = [], ?string $path = null): array
+	public function findByCache(array $criteria = [], ?string $path = null, array $sort = []): array
 	{
 		$criteria = $this->merge(['type' => 'directory'], $criteria);
 
 		return $this->wrapFinder(
-			fn() => $this->filterWithCache($criteria, $this->validatePath($path ?? $this->root)),
+			fn() => $this->filterWithCache($criteria, $this->validatePath($path ?? $this->root), $sort),
 			"Error during cacheDirs"
 		);
 	}
 
 	/**
-	 * Filters directories using a regex pattern.
+	 * Filters directories by matching the generic `pattern` criteria against directory names.
+	 *
+	 * `patternPath` remains the explicit path-based matcher.
 	 *
 	 * @param array $criteria Criteria including a `'pattern'` key for regex matching.
 	 * @param string|null $path Starting directory path (default: root).
+	 * @param array $sort Sorting options recognized by Finder logic.
 	 * @return array Matched directories.
 	 *
 	 * @throws FinderException If an error occurs during regex filtering.
 	 */
-	public function findByRegEx(array $criteria = [], ?string $path = null): array
+	public function findByPattern(array $criteria = [], ?string $path = null, array $sort = []): array
 	{
 		$criteria = $this->merge(['type' => 'directory'], $criteria);
 
 		return $this->wrapFinder(
-			fn() => $this->filterWithRegex($criteria, $this->validatePath($path ?? $this->root)),
-			"Error during regexDirs"
-		);
+			fn() => $this->filterWithRegex($criteria, $this->validatePath($path ?? $this->root), $sort),
+				"Error during patternDirs"
+			);
 	}
 
 	/**
-	 * Retrieves detailed information about a directory or file item.
-	 *
-	 * @param string $item Name of the file/directory.
-	 * @param string|null $path Parent directory path.
-	 * @return array File or directory details.
-	 *
-	 * @throws FinderException If an error occurs while retrieving file information.
+	 * Backward-compatible alias for `findByPattern()`.
 	 */
-	protected function getFileInfo(string $item, ?string $path): array
+	public function findByRegEx(array $criteria = [], ?string $path = null, array $sort = []): array
 	{
-		return $this->wrapFinder(function () use ($item, $path) {
-			$fileInfo = $this->iteratorManager->FileInfo(
-				$this->validatePath($path ?? $this->root) . DIRECTORY_SEPARATOR . $item
-			);
-
-			return [
-				'name'         => $item,
-				'type'         => $fileInfo->isDir() ? 'directory' : 'file',
-				'realPath'     => $fileInfo->getRealPath(),
-				'size'         => $fileInfo->getSize(),
-				'permissions'  => $fileInfo->getPerms(),
-				'lastModified' => date("F d Y H:i:s", $fileInfo->getMTime()),
-			];
-		}, "Error retrieving file info");
+		return $this->findByPattern($criteria, $path, $sort);
 	}
 }

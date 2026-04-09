@@ -2,6 +2,13 @@
 
 namespace App\Utilities\Traits\Criteria;
 
+use App\Utilities\Traits\{
+    CheckerTrait,
+    ManipulationTrait,
+    TypeCheckerTrait
+};
+use App\Utilities\Traits\Patterns\PatternTrait;
+
 /**
  * Trait FileCriteriaTrait
  *
@@ -26,6 +33,8 @@ namespace App\Utilities\Traits\Criteria;
  */
 trait FileCriteriaTrait
 {
+    use CheckerTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+
     /**
      * Filter files by path.
      *
@@ -35,7 +44,7 @@ trait FileCriteriaTrait
      */
     protected function filterByPath($fileInfo, string $path): bool
     {
-        return strpos($fileInfo->getRealPath(), $path) !== false;
+        return $this->contains($this->resolveFilePath($fileInfo), $path);
     }
 
     /**
@@ -49,7 +58,9 @@ trait FileCriteriaTrait
     protected function filterByName($fileInfo, string $name, bool $caseSensitive = true): bool
     {
         $fileName = $fileInfo->getFilename();
-        return $caseSensitive ? $fileName === $name : strcasecmp($fileName, $name) === 0;
+        return $caseSensitive
+            ? $fileName === $name
+            : $this->compareIgnoreCase($fileName, $name) === 0;
     }
 
     /**
@@ -180,7 +191,7 @@ trait FileCriteriaTrait
      */
     protected function filterByDepth($fileInfo, int $maxDepth): bool
     {
-        return $this->iteratorManager->getDepth() <= $maxDepth;
+        return $this->getItemDepth($fileInfo) <= $maxDepth;
     }
 
     /**
@@ -225,7 +236,7 @@ trait FileCriteriaTrait
      */
     protected function filterByPatternName($fileInfo, string $pattern): bool
     {
-        return preg_match($pattern, $fileInfo->getFilename()) === 1;
+        return $this->match($pattern, $fileInfo->getFilename()) === 1;
     }
 
     /**
@@ -237,7 +248,7 @@ trait FileCriteriaTrait
      */
     protected function filterByPatternExtension($fileInfo, string $pattern): bool
     {
-        return preg_match($pattern, $fileInfo->getExtension()) === 1;
+        return $this->match($pattern, $fileInfo->getExtension()) === 1;
     }
 
     /**
@@ -249,6 +260,15 @@ trait FileCriteriaTrait
      */
     protected function filterByPatternPath($fileInfo, string $pattern): bool
     {
-        return preg_match($pattern, $fileInfo->getRealPath()) === 1;
+        return $this->match($pattern, $this->resolveFilePath($fileInfo)) === 1;
+    }
+
+    private function resolveFilePath($fileInfo): string
+    {
+        $realPath = $fileInfo->getRealPath();
+
+        return $this->isString($realPath) && $realPath !== ''
+            ? $realPath
+            : $fileInfo->getPathname();
     }
 }

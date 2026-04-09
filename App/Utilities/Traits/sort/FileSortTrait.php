@@ -2,6 +2,8 @@
 
 namespace App\Utilities\Traits\Sort;
 
+use App\Utilities\Traits\TypeCheckerTrait;
+
 /**
  * Trait FileSortTrait
  *
@@ -19,6 +21,8 @@ namespace App\Utilities\Traits\Sort;
  */
 trait FileSortTrait
 {
+	use TypeCheckerTrait;
+
 	/**
 	 * Sort files by name (case-sensitive).
 	 *
@@ -40,7 +44,7 @@ trait FileSortTrait
 	 */
 	protected function sortByPath($a, $b): int
 	{
-		return strcmp($a->getRealPath(), $b->getRealPath());
+		return $this->resolveSortableFilePath($a) <=> $this->resolveSortableFilePath($b);
 	}
 
 	/**
@@ -137,5 +141,14 @@ trait FileSortTrait
 	protected function sortByGroup($a, $b): int
 	{
 		return $a->getGroup() <=> $b->getGroup();
+	}
+
+	private function resolveSortableFilePath($fileInfo): string
+	{
+		$realPath = $fileInfo->getRealPath();
+
+		return $this->isString($realPath) && $realPath !== ''
+			? $realPath
+			: $fileInfo->getPathname();
 	}
 }

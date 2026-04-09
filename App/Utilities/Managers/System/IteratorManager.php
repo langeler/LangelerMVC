@@ -6,7 +6,6 @@ use Throwable;                      // Base interface for all errors and excepti
 use SplFileInfo;                    // Provides information about files.
 use Iterator;                       // Interface for creating custom iterators.
 use RecursiveIterator;              // Interface for recursive iteration.
-use Traversable;                    // Base interface for objects used in iteration.
 use RecursiveDirectoryIterator;     // Iterator for directories, allowing recursive traversal.
 use RecursiveIteratorIterator;      // Iterator for flattening recursive iterators.
 
@@ -45,6 +44,23 @@ class IteratorManager
      * @var Iterator|null $iterator The current iterator being managed.
      */
     private ?Iterator $iterator = null;
+
+    /**
+     * Resolve the current iterator item as a SplFileInfo instance when available.
+     *
+     * This lets the manager expose file-oriented convenience methods even when the
+     * active iterator is a wrapper such as RecursiveIteratorIterator.
+     *
+     * @return SplFileInfo|null
+     */
+    private function currentFileInfo(): ?SplFileInfo
+    {
+        $current = $this->iterator?->current();
+
+        return $current instanceof SplFileInfo
+            ? $current
+            : null;
+    }
 
     /**
      * Constructor.
@@ -183,10 +199,21 @@ class IteratorManager
             $iterator = null;
 
             if ($this->methodExists($this, $iteratorName)) {
-                $iterator = $settings === []
-                    ? $this->{$iteratorName}(...$args)
-                    : $this->{$iteratorName}(...$this->merge($args, [$settings]));
+                $reflectionMethod = new \ReflectionMethod($this, $iteratorName);
+                $parameters = $reflectionMethod->getParameters();
+                $expectsSettings = $parameters !== []
+                    && (($type = $parameters[array_key_last($parameters)]->getType()) instanceof \ReflectionNamedType)
+                    && $type->getName() === 'array';
+                $iterator = $this->{$iteratorName}(
+                    ...($settings !== [] && $expectsSettings
+                        ? $this->merge($args, [$settings])
+                        : $args)
+                );
             } else {
+                if ($settings !== []) {
+                    throw new IteratorException("Iterator '{$iteratorName}' does not support manager-level settings.");
+                }
+
                 $iteratorClass = $this->resolve($iteratorName);
                 $iterator = new $iteratorClass(...$args);
             }
@@ -277,7 +304,11 @@ class IteratorManager
      */
     public function hasChildren(): bool
     {
-        return $this->iterator instanceof RecursiveIterator && $this->iterator->hasChildren();
+        return match (true) {
+            $this->iterator instanceof RecursiveIteratorIterator => $this->iterator->callHasChildren(),
+            $this->iterator instanceof RecursiveIterator => $this->iterator->hasChildren(),
+            default => false,
+        };
     }
 
     /**
@@ -299,9 +330,7 @@ class IteratorManager
      */
     public function getPermissions(): int
     {
-        return $this->iterator instanceof RecursiveDirectoryIterator
-            ? $this->iterator->current()->getPerms()
-            : 0;
+        return $this->currentFileInfo()?->getPerms() ?? 0;
     }
 
     /**
@@ -311,9 +340,7 @@ class IteratorManager
      */
     public function getSize(): int
     {
-        return $this->iterator instanceof RecursiveDirectoryIterator
-            ? $this->iterator->current()->getSize()
-            : 0;
+        return $this->currentFileInfo()?->getSize() ?? 0;
     }
 
     /**
@@ -323,9 +350,7 @@ class IteratorManager
      */
     public function getRealPath(): string
     {
-        return $this->iterator instanceof RecursiveDirectoryIterator
-            ? $this->iterator->current()->getRealPath()
-            : '';
+        return $this->currentFileInfo()?->getRealPath() ?: '';
     }
 
     /**
@@ -335,9 +360,7 @@ class IteratorManager
      */
     public function isFile(): bool
     {
-        return $this->iterator instanceof RecursiveDirectoryIterator
-            ? $this->iterator->current()->isFile()
-            : false;
+        return $this->currentFileInfo()?->isFile() ?? false;
     }
 
     /**
@@ -347,9 +370,7 @@ class IteratorManager
      */
     public function isDir(): bool
     {
-        return $this->iterator instanceof RecursiveDirectoryIterator
-            ? $this->iterator->current()->isDir()
-            : false;
+        return $this->currentFileInfo()?->isDir() ?? false;
     }
 
     /**
@@ -372,6 +393,10 @@ class IteratorManager
      */
     public function applyCallback(?Iterator $iterator, callable $callback): int
     {
+        if ($iterator === null) {
+            return 0;
+        }
+
         return iterator_apply($iterator, $callback);
     }
 
@@ -384,6 +409,10 @@ class IteratorManager
      */
     public function toArray(?Iterator $iterator, bool $useKeys = true): array
     {
+        if ($iterator === null) {
+            return [];
+        }
+
         return iterator_to_array($iterator, $useKeys);
     }
 
@@ -395,6 +424,10 @@ class IteratorManager
      */
     public function count(?Iterator $iterator): int
     {
+        if ($iterator === null) {
+            return 0;
+        }
+
         return iterator_count($iterator);
     }
 }

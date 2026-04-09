@@ -222,10 +222,13 @@ class ReflectionManager
 	 * @param string $class Fully qualified class name.
 	 * @return array Associative array of public property names and values.
 	 */
-	public function getPublicPropertiesWithValues(string $class): array
+	public function getPublicPropertiesWithValues(object|string $class): array
 	{
-		$reflectionClass = $this->createClass($class);
-		$instance = $reflectionClass->isAbstract() ? null : $this->newClassInstanceWithoutConstructor($reflectionClass);
+		$instance = $this->isObject($class)
+			? $class
+			: null;
+		$reflectionClass = $this->createClass($instance ?? $class);
+		$instance ??= $reflectionClass->isAbstract() ? null : $this->newClassInstanceWithoutConstructor($reflectionClass);
 		$defaults = $this->getClassDefaultProperties($reflectionClass);
 
 		return $this->reduce(
@@ -254,8 +257,10 @@ class ReflectionManager
 	 * @param string $class Fully qualified class name.
 	 * @return array Array of methods with visibility.
 	 */
-	public function getMethodVisibilities(string $class): array
+	public function getMethodVisibilities(object|string $class): array
 	{
+		$reflectionClass = $this->createClass($this->isString($class) ? $class : $class::class);
+
 		return $this->map(
 			fn($method) => [
 				'name' => $method->getName(),
@@ -265,7 +270,7 @@ class ReflectionManager
 						? 'protected'
 						: ($this->isMethodPrivate($method) ? 'private' : 'unknown')),
 			],
-			$this->getClassMethods($this->createClass($class))
+			$this->getClassMethods($reflectionClass)
 		);
 	}
 
@@ -275,8 +280,10 @@ class ReflectionManager
 	 * @param string $class Fully qualified class name.
 	 * @return array Associative array of constant names, values, and types.
 	 */
-	public function getConstantsWithMetadata(string $class): array
+	public function getConstantsWithMetadata(object|string $class): array
 	{
+		$reflectionClass = $this->createClass($this->isString($class) ? $class : $class::class);
+
 		return $this->map(
 			fn($constant) => [
 				'name' => $this->getClassConstantName($constant),
@@ -285,7 +292,7 @@ class ReflectionManager
 					? $this->getClassConstantType($constant)->getName()
 					: 'mixed'
 			],
-			$this->getClassReflectionConstants($this->createClass($class))
+			$this->getClassReflectionConstants($reflectionClass)
 		);
 	}
 
@@ -295,9 +302,11 @@ class ReflectionManager
 	 * @param string $class Fully qualified class name.
 	 * @return array Array of trait names.
 	 */
-	public function listUsedTraits(string $class): array
+	public function listUsedTraits(object|string $class): array
 	{
-		return $this->getKeys($this->getClassTraits($this->createClass($class)));
+		return $this->getKeys($this->getClassTraits(
+			$this->createClass($this->isString($class) ? $class : $class::class)
+		));
 	}
 
 	/**
@@ -325,7 +334,9 @@ class ReflectionManager
 		return $member
 			? ($this->hasClassProperty($reflectionClass, $member)
 				? $this->getPropertyAttributes($this->getClassProperty($reflectionClass, $member))
-				: [])
+				: ($this->hasClassMethod($reflectionClass, $member)
+					? $this->getFunctionAttributes($this->getClassMethod($reflectionClass, $member))
+					: []))
 			: $this->getClassAttributes($reflectionClass);
 	}
 
@@ -348,9 +359,13 @@ class ReflectionManager
 	 * @param string $visibility Visibility type ('public', 'protected', 'private').
 	 * @return bool True if the method exists with specified visibility, false otherwise.
 	 */
-	public function methodHasVisibility(string $class, string $method, string $visibility): bool
+	public function methodHasVisibility(object|string $class, string $method, string $visibility): bool
 	{
-		$reflectionMethod = $this->getClassMethod($this->createClass($class), $method);
+		$reflectionMethod = $this->getClassMethod(
+			$this->createClass($this->isString($class) ? $class : $class::class),
+			$method
+		);
+
 		return match ($visibility) {
 			'public' => $this->isMethodPublic($reflectionMethod),
 			'protected' => $this->isMethodProtected($reflectionMethod),

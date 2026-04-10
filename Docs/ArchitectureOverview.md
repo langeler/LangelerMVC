@@ -105,7 +105,7 @@ The driver layer exists so the framework can present a stable API to the rest of
 - `Finders`: file and directory discovery
 - `Handlers`: focused utility objects
 - `Managers`: concrete system/data services plus compatibility aliases
-- `Managers/Support`: framework mail and OTP service managers
+- `Managers/Support`: framework mail, OTP, and passkey/WebAuthn service managers
 - `Query`: framework SQL builders
 - `Sanitation`: sanitizer implementations
 - `Validation`: validator implementations
@@ -164,6 +164,7 @@ The following areas are implemented as framework-level subsystems today:
 - migration and seed lifecycle management
 - session runtime
 - file, database, and redis session driver adapters
+- session-backed authentication, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn support
 - sanitation and validation APIs
 - HTTP/MVC abstraction layer
 - presentation resource / negotiated JSON layer
@@ -171,7 +172,7 @@ The following areas are implemented as framework-level subsystems today:
 - database layer and SQL/query builders
 - cache subsystem
 - crypto subsystem
-- mail and OTP service boundaries
+- mail, OTP, and passkey/WebAuthn service boundaries
 - file, finder, iterator, and reflection utilities
 - model and repository foundations
 
@@ -183,10 +184,14 @@ The application layer is intentionally not “finished everywhere” yet.
 
 Current concrete state:
 
-- `WebModule` is the first real vertical slice.
-- `WebModule` has a controller, request, service, presenter, view, response, model, repository, and route file.
+- `WebModule` is the first real starter/content slice.
+- `UserModule` is the first full identity/platform slice.
+- `AdminModule` is the first protected management slice.
+- `WebModule` has a controller, request, service, presenter, view, response, model, repository, route file, migration, and seed.
+- `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows.
+- `AdminModule` now provides dashboard, user, role/permission, and framework-inspection flows.
 - Shared templates currently live in `App/Templates/Layouts` and `App/Templates/Pages`.
-- `AdminModule`, `CartModule`, `OrderModule`, `ShopModule`, and `UserModule` are scaffolded only.
+- `ShopModule`, `CartModule`, and `OrderModule` are scaffolded only.
 
 This means the framework backend is ahead of the business/domain implementation, which is the expected current shape of the project.
 
@@ -201,16 +206,15 @@ The most important extension seams today are:
 - **Drivers**: add more concrete infrastructure backends through providers and contracts.
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.
-- **Support Services**: build authentication, authorization, notifications, and workflow features on top of the mail/OTP/session boundaries.
+- **Support Services**: extend authentication, authorization, notifications, and workflow features on top of the mail/OTP/passkey/session boundaries.
 
 ## Current Architectural Limits
 
 The framework is strong at the backend foundation level, but a few architecture areas are still intentionally incomplete:
 
-- no real business modules beyond `WebModule`
-- no framework-native authentication/RBAC workflow layer yet
+- no real commerce/business modules beyond `WebModule`, `UserModule`, and `AdminModule`
 - no framework-native notification or queue subsystem yet
 - no event dispatcher/listener system yet
-- no concrete admin, shop, cart, or order domains yet
+- no concrete shop, cart, or order domains yet
 
 Those are the main places where future framework work should build on the current base rather than rework it.

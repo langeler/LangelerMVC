@@ -15,7 +15,20 @@ use App\Core\{
     Session
 };
 use App\Console\ConsoleKernel;
+use App\Contracts\Auth\GuardInterface;
+use App\Contracts\Auth\PasswordBrokerInterface;
+use App\Contracts\Auth\UserProviderInterface;
 use App\Exceptions\ContainerException;
+use App\Utilities\Managers\Security\{
+    AuthManager,
+    DatabaseUserProvider,
+    Gate,
+    PasswordBroker,
+    PermissionRegistry,
+    PolicyResolver,
+    SessionGuard
+};
+use App\Utilities\Managers\Support\PasskeyManager;
 use App\Utilities\Managers\System\ErrorManager;
 
 /**
@@ -52,13 +65,21 @@ class CoreProvider extends Container
 
         $this->coreServiceMap = [
             'app'      => App::class,
+            'auth'     => AuthManager::class,
             'console'  => ConsoleKernel::class,
             'config'   => Config::class,
             'database' => Database::class,
+            'gate' => Gate::class,
             'migrationRunner' => MigrationRunner::class,
+            'passwordBroker' => PasswordBroker::class,
+            'passkeys' => PasskeyManager::class,
+            'permissionRegistry' => PermissionRegistry::class,
+            'policyResolver' => PolicyResolver::class,
             'router'   => Router::class,
             'seedRunner' => SeedRunner::class,
             'session'  => Session::class,
+            'guard' => SessionGuard::class,
+            'userProvider' => DatabaseUserProvider::class,
 
             // System
             'errorManager' => ErrorManager::class,
@@ -90,6 +111,10 @@ class CoreProvider extends Container
                     $this->registerAlias($alias, $class);
                     $this->registerLazy($class, fn() => $this->registerInstance($class));
                 }
+
+                $this->registerAlias(GuardInterface::class, SessionGuard::class);
+                $this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
+                $this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
 
                 $this->servicesRegistered = true;
             },

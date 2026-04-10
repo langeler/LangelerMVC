@@ -3,7 +3,13 @@
 namespace App\Providers;
 
 use App\Core\Container;
+use App\Contracts\Auth\GuardInterface;
+use App\Contracts\Auth\PasswordBrokerInterface;
+use App\Contracts\Auth\UserProviderInterface;
 use App\Exceptions\ContainerException;
+use App\Utilities\Managers\Security\DatabaseUserProvider;
+use App\Utilities\Managers\Security\PasswordBroker;
+use App\Utilities\Managers\Security\SessionGuard;
 use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
@@ -74,15 +80,12 @@ class ModuleProvider extends Container
 	public function registerServices(): void
 	{
 		$this->wrapInTry(function (): void {
-			$registered = [];
+			$this->registerAlias(GuardInterface::class, SessionGuard::class);
+			$this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
+			$this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
 
 			foreach ($this->moduleMap as $alias => $class) {
 				$this->registerAlias($alias, $class);
-
-				if (!isset($registered[$class])) {
-					$this->registerLazy($class, fn() => $this->registerInstance($class));
-					$registered[$class] = true;
-				}
 			}
 		}, new ContainerException('Error registering module services.'));
 	}

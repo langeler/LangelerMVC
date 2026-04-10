@@ -60,6 +60,19 @@ class RouterTest extends TestCase
         self::assertSame(200, $response->getStatus());
     }
 
+    public function testRouterRegistersUserAndAdminPlatformRoutes(): void
+    {
+        $router = $this->resolveRouter();
+        $names = array_values(array_filter(array_map(
+            static fn(array $route): ?string => $route['name'],
+            $router->listRoutes()
+        )));
+
+        self::assertContains('user.login', $names);
+        self::assertContains('user.profile', $names);
+        self::assertContains('admin.dashboard', $names);
+    }
+
     private function resolveRouter(): Router
     {
         $provider = new CoreProvider();

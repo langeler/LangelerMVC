@@ -6,8 +6,8 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest verification pass: `8.4.12`
 - Latest full regression result: `composer test`
-- Verification result: `OK (64 tests, 1839 assertions)`
-- Project posture: strong platform-level backend foundation, starter application slice implemented, broader domain layer still to be built
+- Verification result: `OK (71 tests, 1899 assertions)`
+- Project posture: strong platform-level backend foundation, starter/content, identity, and admin slices implemented, broader commerce/event layers still to be built
 
 ## What Is Finished
 
@@ -148,7 +148,7 @@ Implemented areas:
 
 This gives the framework a real maintenance/runtime surface outside HTTP.
 
-### 10. Mail / OTP Support Boundaries
+### 10. Mail / OTP / Passkey Support Boundaries
 
 Status: **implemented and working**
 
@@ -156,10 +156,12 @@ Implemented areas:
 
 - framework-native mail manager
 - framework-native OTP manager
+- framework-native passkey/WebAuthn manager
 - `Mailable` abstraction
 - array/log/PHPMailer-backed transport handling through one manager boundary
+- testing and WebAuthn-backed passkey drivers through one manager boundary
 
-These are foundation services; the business/auth flows that should use them still need to be implemented.
+These are no longer just foundations. They are now exercised by the implemented identity layer.
 
 ### 11. WebModule Starter Slice
 
@@ -182,21 +184,54 @@ Current limitation:
 
 - `WebModule` uses memory-backed content by default, but it now also has framework-managed `pages` migration and seed classes ready for database-backed mode.
 
+### 12. User Platform / Auth Layer
+
+Status: **implemented and working**
+
+Implemented areas:
+
+- session-backed authentication
+- registration, login, and logout
+- password reset and email verification
+- RBAC foundations with roles, permissions, and assignments
+- TOTP-based 2FA with recovery-code support
+- passkey/WebAuthn registration and authentication
+- HTML + JSON auth surface parity
+
+This is now the first real platform/business slice built on top of the framework foundation.
+
+### 13. Admin Platform
+
+Status: **implemented and working**
+
+Implemented areas:
+
+- admin dashboard surface
+- user and role/permission management flows
+- module/cache/config/session inspection flows
+- permission-driven admin middleware for HTML and JSON routes
+
+This gives the framework its first real protected management surface.
+
 ## What Is Partially Finished
 
 ### Application Modules
 
-Status: **scaffolded, not implemented**
+Status: **mixed**
 
-Modules with structure only:
+Implemented modules:
 
+- `WebModule`
+- `UserModule`
 - `AdminModule`
+
+Scaffolded modules:
+
 - `CartModule`
 - `OrderModule`
 - `ShopModule`
-- `UserModule`
 
-The folder architecture is present, but these modules do not yet contain real application behavior.
+The folder architecture is present across all modules, but the commerce modules still do not contain real application behavior yet.
 
 ### Migration / Seed Structure
 
@@ -231,17 +266,14 @@ Scaffolded only:
 
 These are the clearest not-yet-implemented framework/project areas:
 
-- real business modules beyond `WebModule`
-- authentication / authorization workflow layer
-- RBAC / policy / gate system
-- password reset / email verification flows
+- real commerce/business modules beyond `WebModule`, `UserModule`, and `AdminModule`
 - notification subsystem
 - event dispatcher / listener system
 - queue subsystem
 
 Important nuance:
 
-- the framework now has mail/OTP foundations, but no module-level identity workflow is using them yet.
+- the framework now has a working identity/auth layer, but notifications, events, queues, and the commerce modules remain the major unfinished platform areas.
 
 ## Current Risks / Remaining Hardening Work
 
@@ -265,23 +297,21 @@ The framework is ahead of the app layer. That is fine, but it means the next rea
 
 The strongest next domains are:
 
-1. `UserModule`
-2. `AdminModule`
-3. `ShopModule`
-4. `CartModule`
-5. `OrderModule`
+1. `ShopModule`
+2. `CartModule`
+3. `OrderModule`
 
-### 3. Identity / Authorization Layer
+### 3. Identity / Authorization Hardening
 
-The main gap has now shifted from platform tooling to identity and policy workflow.
+The main auth platform is implemented, but the next improvements are now hardening and breadth rather than first delivery.
 
 Recommended next implementation areas:
 
-- session authentication manager
-- user provider / password broker
-- email verification flow
-- OTP challenge flow
-- RBAC / role-permission-policy resolution
+- trusted-device / remember-device handling for 2FA
+- recovery-code UX hardening and broader auth throttling
+- richer passkey management flows and device metadata
+- policy expansion as more business modules are added
+- broader HTML/API auth regression coverage
 
 ### 4. Broader Platform Extensions
 
@@ -299,18 +329,17 @@ That is a natural next framework enhancement once schema lifecycle work starts.
 
 If the goal is a robust, scalable backend, the best next sequence is:
 
-1. Build the migration/seed runner.
-2. Add the first real `pages` migration and seed for `WebModule`.
-3. Switch `WebModule` from memory-backed to database-backed content.
-4. Implement `UserModule` as the first real domain module.
-5. Add CLI tooling around migrations, seeds, cache, and routes.
+1. Implement `ShopModule` as the first commerce/catalog module.
+2. Add `CartModule` with guest/authenticated cart persistence and merge-on-login behavior.
+3. Implement `OrderModule` with checkout orchestration and order snapshots.
+4. Add framework-native events and notifications on top of the current support managers.
+5. Add queue/runtime extensions once events are stable.
 6. Expand integration testing across real infrastructure backends.
 
 ## Potential Future Framework Extensions
 
 These are not required to consider the current core successful, but they are natural extension tracks for LangelerMVC:
 
-- framework-native authentication and authorization package
 - mail and notification service layer
 - API/JSON resource layer for non-HTML applications
 - event/observer or job/queue system

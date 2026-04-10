@@ -320,6 +320,48 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 		};
 	}
 
+	public function PasswordHasher(string $type): callable
+	{
+		return match (strtolower($type)) {
+			'default' => fn(string $password, array $options = []) =>
+				password_hash($password, PASSWORD_DEFAULT, $options)
+				?: throw new CryptoException('Password hashing failed.'),
+
+			'bcrypt' => fn(string $password, array $options = []) =>
+				password_hash($password, PASSWORD_BCRYPT, $options)
+				?: throw new CryptoException('Password hashing failed.'),
+
+			'argon2i' => fn(string $password, array $options = []) =>
+				password_hash($password, PASSWORD_ARGON2I, $options)
+				?: throw new CryptoException('Password hashing failed.'),
+
+			'argon2id' => fn(string $password, array $options = []) =>
+				password_hash($password, PASSWORD_ARGON2ID, $options)
+				?: throw new CryptoException('Password hashing failed.'),
+
+			default => throw new CryptoException("Unsupported password hash type: {$type}."),
+		};
+	}
+
+	public function PasswordVerifier(string $action): callable
+	{
+		return match (strtolower($action)) {
+			'verify' => fn(string $hash, string $password): bool =>
+				password_verify($password, $hash),
+
+			'rehash' => fn(string $hash, string $type = 'default', array $options = []): bool =>
+				password_needs_rehash($hash, match (strtolower($type)) {
+					'default' => PASSWORD_DEFAULT,
+					'bcrypt' => PASSWORD_BCRYPT,
+					'argon2i' => PASSWORD_ARGON2I,
+					'argon2id' => PASSWORD_ARGON2ID,
+					default => PASSWORD_DEFAULT,
+				}, $options),
+
+			default => throw new CryptoException("Unsupported password verifier action: {$action}."),
+		};
+	}
+
 	public function Hasher(string $type): callable
 	{
 		return match ($type) {

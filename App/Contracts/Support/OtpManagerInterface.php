@@ -19,4 +19,17 @@ interface OtpManagerInterface
      * @return list<string>
      */
     public function recoveryCodes(int $count = 8): array;
+
+    public function normalizeRecoveryCode(string $code): string;
+
+    /**
+     * @param list<string> $recoveryCodes
+     */
+    public function verifyRecoveryCode(array $recoveryCodes, string $code): bool;
+
+    /**
+     * @param list<string> $recoveryCodes
+     * @return list<string>
+     */
+    public function consumeRecoveryCode(array $recoveryCodes, string $code): array;
 }

@@ -327,6 +327,16 @@ class SodiumCrypto extends Crypto implements CryptoInterface
 	public function PasswordHasher(string $type): callable
 	{
 		return match ($type) {
+			'default' => fn(
+				string $password,
+				?int $opslimit = null,
+				?int $memlimit = null
+			) => sodium_crypto_pwhash_str(
+				$password,
+				$opslimit ?? $this->config['pwHash']['opslimitInteractive'],
+				$memlimit ?? $this->config['pwHash']['memlimitInteractive']
+			),
+
 			'argon2i' => fn(
 				string $password,
 				?int $opslimit = null,

@@ -58,9 +58,52 @@ class OtpManager implements OtpManagerInterface
         $codes = [];
 
         for ($index = 0; $index < $count; $index++) {
-            $codes[] = strtoupper(bin2hex(random_bytes(4)));
+            $codes[] = $this->formatRecoveryCode(bin2hex(random_bytes(6)));
         }
 
         return $codes;
+    }
+
+    public function normalizeRecoveryCode(string $code): string
+    {
+        return strtoupper(str_replace(['-', ' '], '', trim($code)));
+    }
+
+    public function verifyRecoveryCode(array $recoveryCodes, string $code): bool
+    {
+        $normalized = $this->normalizeRecoveryCode($code);
+
+        foreach ($recoveryCodes as $recoveryCode) {
+            if ($this->normalizeRecoveryCode((string) $recoveryCode) === $normalized) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function consumeRecoveryCode(array $recoveryCodes, string $code): array
+    {
+        $normalized = $this->normalizeRecoveryCode($code);
+        $remaining = [];
+        $consumed = false;
+
+        foreach ($recoveryCodes as $recoveryCode) {
+            $current = $this->normalizeRecoveryCode((string) $recoveryCode);
+
+            if (!$consumed && $current === $normalized) {
+                $consumed = true;
+                continue;
+            }
+
+            $remaining[] = (string) $recoveryCode;
+        }
+
+        return $remaining;
+    }
+
+    private function formatRecoveryCode(string $value): string
+    {
+        return implode('-', str_split(strtoupper($value), 4));
     }
 }

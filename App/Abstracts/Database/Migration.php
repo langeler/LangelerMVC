@@ -67,29 +67,44 @@ abstract class Migration implements MigrationInterface
     {
         $blueprint = new Blueprint($table, $this->configuredDriver());
         $callback($blueprint);
+        $schema = $this->database->schemaQuery();
+        $constraints = [];
+        $indexes = [];
 
-        $this->executeSchema(function ($schema) use ($table, $blueprint): void {
-            $schema->createTable($table, $blueprint->columns());
+        foreach ($blueprint->operations() as $operation) {
+            $payload = $operation['payload'];
 
-            foreach ($blueprint->operations() as $operation) {
-                $payload = $operation['payload'];
+            match ($operation['type']) {
+                'unique' => $constraints[] = $this->compileUniqueConstraint((array) $payload['columns']),
+                'primary' => $constraints[] = $this->compilePrimaryConstraint((array) $payload['columns']),
+                'foreign' => $constraints[] = $this->compileForeignConstraint(
+                    (string) $payload['column'],
+                    (string) $payload['referencedTable'],
+                    (string) $payload['referencedColumn'],
+                    (string) $payload['onDelete'],
+                    (string) $payload['onUpdate']
+                ),
+                'index' => $indexes[] = [
+                    'name' => (string) $payload['name'],
+                    'columns' => (array) $payload['columns'],
+                ],
+                default => null,
+            };
+        }
 
-                match ($operation['type']) {
-                    'unique' => $schema->setUnique($table, $payload['columns']),
-                    'index' => $schema->addIndex($table, (string) $payload['name'], $payload['columns']),
-                    'primary' => $schema->addPrimary($table, $payload['columns']),
-                    'foreign' => $schema->setForeign(
-                        $table,
-                        (string) $payload['column'],
-                        (string) $payload['referencedTable'],
-                        (string) $payload['referencedColumn'],
-                        (string) $payload['onDelete'],
-                        (string) $payload['onUpdate']
-                    ),
-                    default => null,
-                };
-            }
-        });
+        $schema->createTable($table, $blueprint->columns(), $constraints);
+
+        foreach ($schema->toStatements() as $statement) {
+            $this->database->query($statement);
+        }
+
+        foreach ($indexes as $index) {
+            $this->database->query($this->compileCreateIndexStatement(
+                $table,
+                (string) $index['name'],
+                (array) $index['columns']
+            ));
+        }
     }
 
     protected function executeSchema(callable $callback): void
@@ -105,5 +120,71 @@ abstract class Migration implements MigrationInterface
     protected function configuredDriver(): string
     {
         return strtolower((string) $this->database->getAttribute('driverName'));
+    }
+
+    /**
+     * @param array<int, string> $columns
+     */
+    private function compileUniqueConstraint(array $columns): string
+    {
+        return 'UNIQUE (' . $this->compileIdentifierArray($columns) . ')';
+    }
+
+    /**
+     * @param array<int, string> $columns
+     */
+    private function compilePrimaryConstraint(array $columns): string
+    {
+        return 'PRIMARY KEY (' . $this->compileIdentifierArray($columns) . ')';
+    }
+
+    private function compileForeignConstraint(
+        string $column,
+        string $referencedTable,
+        string $referencedColumn,
+        string $onDelete,
+        string $onUpdate
+    ): string {
+        return sprintf(
+            'FOREIGN KEY (%s) REFERENCES %s(%s) ON DELETE %s ON UPDATE %s',
+            $this->quoteIdentifier($column),
+            $this->quoteIdentifier($referencedTable),
+            $this->quoteIdentifier($referencedColumn),
+            strtoupper($onDelete),
+            strtoupper($onUpdate)
+        );
+    }
+
+    /**
+     * @param array<int, string> $columns
+     */
+    private function compileCreateIndexStatement(string $table, string $name, array $columns): string
+    {
+        return sprintf(
+            'CREATE INDEX %s ON %s (%s)',
+            $this->quoteIdentifier($name),
+            $this->quoteIdentifier($table),
+            $this->compileIdentifierArray($columns)
+        );
+    }
+
+    /**
+     * @param array<int, string> $columns
+     */
+    private function compileIdentifierArray(array $columns): string
+    {
+        return implode(', ', array_map(
+            fn(string $column): string => $this->quoteIdentifier($column),
+            array_values($columns)
+        ));
+    }
+
+    private function quoteIdentifier(string $identifier): string
+    {
+        return match ($this->configuredDriver()) {
+            'pgsql', 'sqlite' => '"' . $identifier . '"',
+            'sqlsrv' => '[' . $identifier . ']',
+            default => '`' . $identifier . '`',
+        };
     }
 }

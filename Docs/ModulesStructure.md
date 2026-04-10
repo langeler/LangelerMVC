@@ -31,18 +31,18 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 
 Important current limitation:
 
-- Module `Migrations/` and `Seeds/` folders are present by convention, but the framework does not yet provide a migration runner or seed runner.
+- Shared templates still live in `App/Templates`, so modules currently share a common presentation surface rather than owning isolated template roots per module.
 
 ## Current Module Status
 
 | Module | Status | Notes |
 | --- | --- | --- |
 | `WebModule` | Implemented starter slice | Contains a working controller, request, service, presenter, response, view, route file, model, and repository. |
-| `AdminModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
+| `AdminModule` | Implemented management slice | Contains dashboard, user, role, and system management flows protected by the framework auth/RBAC layer. |
 | `CartModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
 | `OrderModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
 | `ShopModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
-| `UserModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
+| `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows. |
 
 ## `WebModule` Today
 
@@ -66,6 +66,28 @@ It currently renders starter content through shared templates:
 
 By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=memory`. The service is already prepared to use the repository path once a concrete `pages` schema is added.
 
+## `UserModule` Today
+
+`UserModule` is the first full platform/business slice and currently demonstrates:
+
+- session-backed authentication
+- password reset and email verification flows
+- role/permission persistence and RBAC checks
+- TOTP-based 2FA with recovery codes
+- passkey/WebAuthn registration and sign-in
+- HTML + JSON endpoint parity through the same request/service/presenter/response pipeline
+
+The module also contains framework-managed migrations and seeds for users, roles, permissions, auth tokens, and passkeys.
+
+## `AdminModule` Today
+
+`AdminModule` is the first protected management slice and currently demonstrates:
+
+- admin dashboard metrics
+- user and role/permission management flows
+- framework inspection surfaces for modules, cache capabilities, routing, config, and sessions
+- policy/permission-driven middleware for both HTML and JSON routes
+
 ## Placeholder Files
 
 The placeholder `README.md` files in scaffolded module folders are intentional. They make the full intended module architecture visible in the repository tree and give each folder an explicit purpose before implementation begins.
@@ -74,10 +96,8 @@ The placeholder `README.md` files in scaffolded module folders are intentional. 
 
 From the current framework state, the strongest next module order is:
 
-1. `UserModule`
-2. `ShopModule`
-3. `CartModule`
-4. `OrderModule`
-5. `AdminModule`
+1. `ShopModule`
+2. `CartModule`
+3. `OrderModule`
 
-That order lets the application layer grow on top of the framework in dependency order instead of implementing admin or order management before user and catalog foundations exist.
+That order lets the application layer grow from the now-completed platform/auth layer into catalog, cart, and order domains in dependency order.

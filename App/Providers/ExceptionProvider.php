@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Core\Container;
 use App\Exceptions\{
     AppException,
+    AuthException,
     ConfigException,
     SessionException,
     RouteNotFoundException,
@@ -124,6 +125,7 @@ class ExceptionProvider extends Container
 
             // Custom application exceptions
             'app'                => AppException::class,
+            'auth'               => AuthException::class,
             'config'             => ConfigException::class,
             'settings'           => ConfigException::class,
             'session'            => SessionException::class,

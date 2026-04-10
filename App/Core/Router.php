@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core;
 
 use Throwable;
+use App\Contracts\Http\ResponseInterface;
 use App\Exceptions\RouteNotFoundException;
 use App\Utilities\Managers\{
     CacheManager,
@@ -40,6 +41,8 @@ class Router
         ManipulationTrait::toUpper as private toUpperString;
     }
 
+    private const CACHE_SCHEMA_VERSION = 2;
+
     /**
      * @var array<string, array<string, array>>
      */
@@ -53,9 +56,9 @@ class Router
     private array $routeParams = [];
 
     /**
-     * Named routes => normalized path.
+     * Named routes => normalized route metadata.
      *
-     * @var array<string, string>
+     * @var array<string, array{path:string,method:string}>
      */
     private array $namedRoutes = [];
 
@@ -157,7 +160,10 @@ class Router
         array $options = []
     ): void {
         $this->addRoute($method, $path, $controllerAlias, $action, $options);
-        $this->namedRoutes[$alias] = $this->normalizeRoutePath($this->groupPrefix . $path);
+        $this->namedRoutes[$alias] = [
+            'path' => $this->normalizeRoutePath($this->groupPrefix . $path),
+            'method' => $this->toUpperString($method),
+        ];
     }
 
     /**
@@ -248,8 +254,24 @@ class Router
      */
     public function listRoutes(): array
     {
-        $namedByPath = array_flip($this->namedRoutes);
+        $namedByRoute = [];
         $listed = [];
+
+        foreach ($this->namedRoutes as $alias => $definition) {
+            if ($this->isArray($definition)) {
+                $path = (string) ($definition['path'] ?? '');
+                $method = $this->toUpperString((string) ($definition['method'] ?? 'GET'));
+            } else {
+                $path = (string) $definition;
+                $method = '';
+            }
+
+            if ($path === '') {
+                continue;
+            }
+
+            $namedByRoute[$method . ' ' . $path] = $alias;
+        }
 
         foreach ($this->routes as $method => $routes) {
             foreach ($routes as $path => $definition) {
@@ -259,7 +281,7 @@ class Router
                     'method' => (string) $method,
                     'path' => (string) $path,
                     'action' => sprintf('%s@%s', (string) ($callback[0] ?? ''), (string) ($callback[1] ?? '')),
-                    'name' => $namedByPath[$path] ?? null,
+                    'name' => $namedByRoute[$method . ' ' . $path] ?? $namedByRoute[' ' . $path] ?? null,
                     'middleware' => $this->isArray($definition['middleware'] ?? null)
                         ? $definition['middleware']
                         : [],
@@ -291,7 +313,10 @@ class Router
             );
         }
 
-        $route = $this->namedRoutes[$name];
+        $definition = $this->namedRoutes[$name];
+        $route = $this->isArray($definition)
+            ? (string) ($definition['path'] ?? '')
+            : (string) $definition;
 
         foreach ($params as $key => $value) {
             $route = $this->stringReplace('{' . $key . '}', (string) $value, $route);
@@ -316,7 +341,11 @@ class Router
                 $this->getHttpMethod($method)
             );
 
-            $this->applyMiddleware($route['middleware'] ?? []);
+            $middlewareResponse = $this->applyMiddleware($route['middleware'] ?? []);
+
+            if ($middlewareResponse instanceof ResponseInterface) {
+                return $middlewareResponse;
+            }
 
             return $this->moduleManager->resolveModule($route['callback'][0])
                 ->{$route['callback'][1]}(...$this->getValues($this->routeParams));
@@ -357,7 +386,7 @@ class Router
      * @param array $middlewares
      * @return void
      */
-    private function applyMiddleware(array $middlewares): void
+    private function applyMiddleware(array $middlewares): ?ResponseInterface
     {
         foreach ($middlewares as $middleware) {
             $module = $this->moduleManager->resolveModule($middleware[0] ?? '');
@@ -370,8 +399,14 @@ class Router
                 );
             }
 
-            $module->{$method}();
+            $result = $module->{$method}();
+
+            if ($result instanceof ResponseInterface) {
+                return $result;
+            }
         }
+
+        return null;
     }
 
     /**
@@ -428,7 +463,9 @@ class Router
     {
         if (isset($definition['routes']) || isset($definition['namedRoutes']) || $this->keyExists($definition, 'fallbackRoute')) {
             $this->routes = $this->replaceRecursive($this->routes, $definition['routes'] ?? []);
-            $this->namedRoutes = $this->replaceElements($this->namedRoutes, $definition['namedRoutes'] ?? []);
+            $this->namedRoutes = $this->normalizeNamedRouteState(
+                $this->replaceElements($this->namedRoutes, $definition['namedRoutes'] ?? [])
+            );
             $this->fallbackRoute = $definition['fallbackRoute'] ?? $this->fallbackRoute;
             return;
         }
@@ -551,6 +588,7 @@ class Router
     private function exportRouteState(string $signature): array
     {
         return [
+            'version' => self::CACHE_SCHEMA_VERSION,
             'signature' => $signature,
             'routes' => $this->routes,
             'namedRoutes' => $this->namedRoutes,
@@ -567,7 +605,9 @@ class Router
     private function hydrateRouteState(array $state): void
     {
         $this->routes = $this->isArray($state['routes'] ?? null) ? $state['routes'] : [];
-        $this->namedRoutes = $this->isArray($state['namedRoutes'] ?? null) ? $state['namedRoutes'] : [];
+        $this->namedRoutes = $this->normalizeNamedRouteState(
+            $this->isArray($state['namedRoutes'] ?? null) ? $state['namedRoutes'] : []
+        );
         $this->fallbackRoute = $this->isArray($state['fallbackRoute'] ?? null) ? $state['fallbackRoute'] : null;
     }
 
@@ -587,6 +627,36 @@ class Router
     }
 
     /**
+     * @param array<string, mixed> $state
+     * @return array<string, array{path:string,method:string}>
+     */
+    private function normalizeNamedRouteState(array $state): array
+    {
+        $normalized = [];
+
+        foreach ($state as $alias => $definition) {
+            if ($this->isArray($definition)) {
+                $path = (string) ($definition['path'] ?? '');
+                $method = $this->toUpperString((string) ($definition['method'] ?? 'GET'));
+            } else {
+                $path = (string) $definition;
+                $method = 'GET';
+            }
+
+            if ($path === '') {
+                continue;
+            }
+
+            $normalized[(string) $alias] = [
+                'path' => $path,
+                'method' => $method,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Validates cached route state against the current route signature.
      *
      * @param array|null $state
@@ -596,6 +666,7 @@ class Router
     private function isRouteCacheValid(?array $state, string $signature): bool
     {
         return $this->isArray($state)
+            && (int) ($state['version'] ?? 1) === self::CACHE_SCHEMA_VERSION
             && ($state['signature'] ?? null) === $signature
             && $this->isArray($state['routes'] ?? null);
     }

@@ -95,7 +95,7 @@ The application layer is module-first. Each module follows the same backend shap
 - `Services`
 - `Views`
 
-`WebModule` is the first implemented module. The other modules are scaffolded with placeholder `README.md` files so the architecture remains visible in the repository tree.
+`WebModule`, `UserModule`, and `AdminModule` are implemented. `ShopModule`, `CartModule`, and `OrderModule` remain scaffolded with placeholder `README.md` files so the architecture remains visible in the repository tree.
 
 ### `App/Providers`
 
@@ -122,7 +122,7 @@ Shared framework tooling. This is the main reusable backend toolbox and currentl
 - `Finders/`: directory and file discovery
 - `Handlers/`: focused data/system helper objects
 - `Managers/`: concrete manager implementations and compatibility aliases
-- `Managers/Support/`: framework-native mail and OTP service managers
+- `Managers/Support/`: framework-native mail, OTP, and passkey/WebAuthn service managers
 - `Query/`: query builder helpers
 - `Sanitation/`: sanitization implementations
 - `Traits/`: reusable low-level behavior

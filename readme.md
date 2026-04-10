@@ -11,19 +11,21 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-10`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (64 tests, 1839 assertions)`
-- Core runtime, cache, crypto, query, validation, MVC, console, schema lifecycle, session driver, and utility subsystems are implemented
-- `WebModule` is the first completed application slice
-- Remaining business modules are scaffolded, not implemented yet
+- `composer test` passes with `OK (71 tests, 1899 assertions)`
+- Core runtime, cache, crypto, query, validation, MVC, console, schema lifecycle, session driver, auth, and utility subsystems are implemented
+- `WebModule`, `UserModule`, and `AdminModule` are implemented application slices
+- `ShopModule`, `CartModule`, and `OrderModule` remain scaffolded
 
 ## Current State
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, and persistence foundations are implemented and regression-tested.
-- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, and framework-native mail/OTP service boundaries.
+- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, and framework-native mail/OTP/passkey service boundaries.
 - `WebModule` is the first concrete module and demonstrates the intended request-to-response pipeline through request, controller, service, presenter, view, response, model, repository, route, and shared templates.
 - `WebModule` now also includes framework-managed `pages` migration and seed classes, so the starter module can move from memory-backed content to database-backed content without bypassing the framework lifecycle.
-- `AdminModule`, `CartModule`, `OrderModule`, `ShopModule`, and `UserModule` are intentionally scaffolded to make the intended architecture visible, but they still need real implementation.
-- Mail/OTP-related Composer dependencies are now behind framework-native manager abstractions, but identity, RBAC, and notification workflows still need to be built on top of them.
+- `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
+- `AdminModule` now provides the first management slice for dashboard, user, role, permission, cache/config/session inspection, and protected admin routing.
+- `ShopModule`, `CartModule`, and `OrderModule` are still scaffolded and remain the next business modules to implement.
+- Mail/OTP/WebAuthn dependencies are now behind framework-native manager abstractions, while notifications, events, queues, and the remaining commerce modules still need to be built on top of them.
 
 ## Design Goals
 
@@ -57,11 +59,11 @@ In the current starter slice, `WebModule` follows:
 - `Core/`: framework runtime services such as `App`, `Bootstrap`, `Config`, `Container`, `Database`, `MigrationRunner`, `Router`, `SeedRunner`, and `Session`.
 - `Drivers/`: low-level pluggable adapters. Caching, cryptography, and session drivers are present.
 - `Exceptions/`: typed framework exception classes grouped by concern.
-- `Modules/`: application modules. `WebModule` is implemented; the other modules are scaffolded.
+- `Modules/`: application modules. `WebModule`, `UserModule`, and `AdminModule` are implemented; `ShopModule`, `CartModule`, and `OrderModule` are scaffolded.
 - `Providers/`: container/provider wiring for core, cache, crypto, exceptions, and modules.
 - `Resources/`: source asset placeholders that belong to the application layer.
 - `Templates/`: shared PHP template files used by module views.
-- `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail/OTP.
+- `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
 
 ### Other Root Folders
 
@@ -120,7 +122,7 @@ php console route:list
 
 - `.env` provides environment-specific overrides.
 - `Config/*.php` files provide the tracked runtime configuration surface.
-- `Config/auth.php` contains the initial framework auth/OTP baseline settings.
+- `Config/auth.php` contains the framework auth baseline, including RBAC, OTP/TOTP, and passkey/WebAuthn settings.
 - `Config/webmodule.php` controls the current `WebModule` content source.
   - `CONTENT_SOURCE=memory` keeps the starter module self-contained.
   - `CONTENT_SOURCE=database` enables repository-backed loading once the `pages` migration and seed have been run.
@@ -151,13 +153,13 @@ The active framework tests live in `Tests/Framework`. `Tests/Unit` and `Tests/In
 
 ## Development Status
 
-LangelerMVC now has a strong backend foundation and a real starter module. The next highest-value work is:
+LangelerMVC now has a strong backend foundation and real starter/auth/admin slices. The next highest-value work is:
 
-1. Implement `UserModule` on top of the new console/schema/session/mail/OTP platform layer.
-2. Build framework-native session authentication, password reset, email verification, and RBAC services.
-3. Extend `AdminModule` into the management surface for users, roles, permissions, and framework inspection.
-4. Continue into `ShopModule`, `CartModule`, and `OrderModule`.
-5. Add event, notification, and queue subsystems after the core business modules are in place.
+1. Build `ShopModule` on top of the completed query, cache, auth, and admin foundations.
+2. Continue into `CartModule` with guest/authenticated cart persistence and merge-on-login behavior.
+3. Implement `OrderModule` with checkout orchestration, order snapshots, and payment abstraction boundaries.
+4. Add framework-native event and notification subsystems on top of the existing support managers.
+5. Add queue/runtime extensions and broader infrastructure verification after the remaining business modules are in place.
 
 ## Support
 

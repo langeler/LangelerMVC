@@ -2,6 +2,7 @@
 
 namespace App\Utilities\Traits;
 
+use ReflectionObject;
 use Throwable;
 use UnexpectedValueException;
 
@@ -43,16 +44,18 @@ trait ErrorTrait
             }
 
             if ($this->isString($wrapException)) {
+                $resolvedErrorManager = $this->resolveErrorManagerInstance();
+
                 if (
-                    $this->propertyExists($this, 'errorManager')
-                    && $this->isObject($this->errorManager)
-                    && $this->methodExists($this->errorManager, 'resolveException')
+                    $resolvedErrorManager !== null
+                    && $this->isObject($resolvedErrorManager)
+                    && $this->methodExists($resolvedErrorManager, 'resolveException')
                 ) {
                     $code = is_int($caught->getCode())
                         ? $caught->getCode()
                         : (is_numeric($caught->getCode()) ? (int) $caught->getCode() : 0);
 
-                    throw $this->errorManager->resolveException(
+                    throw $resolvedErrorManager->resolveException(
                         $wrapException,
                         $caught->getMessage(),
                         $code,
@@ -74,5 +77,32 @@ trait ErrorTrait
 
             throw new UnexpectedValueException('Invalid wrapException type or unresolvable exception.', 0, $caught);
         }
+    }
+
+    private function resolveErrorManagerInstance(): ?object
+    {
+        if (!$this->propertyExists($this, 'errorManager')) {
+            return null;
+        }
+
+        try {
+            $reflection = new ReflectionObject($this);
+
+            while ($reflection !== false) {
+                if ($reflection->hasProperty('errorManager')) {
+                    $property = $reflection->getProperty('errorManager');
+                    $property->setAccessible(true);
+                    $value = $property->getValue($this);
+
+                    return $this->isObject($value) ? $value : null;
+                }
+
+                $reflection = $reflection->getParentClass() ?: false;
+            }
+        } catch (Throwable) {
+            return null;
+        }
+
+        return null;
     }
 }

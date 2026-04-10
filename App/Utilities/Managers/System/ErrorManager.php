@@ -79,23 +79,33 @@ class ErrorManager
         int $code = 0,
         mixed $previous = null
     ): Throwable {
-        return $this->isObject($type) && $this->isSubclassOf($type, Throwable::class)
-            ? $type
-            : ($this->isString($type)
-                ? $this->exceptionProvider->getException(
-                    $type,
+        if ($this->isObject($type) && $this->isSubclassOf($type, Throwable::class)) {
+            return $type;
+        }
+
+        if ($this->isString($type)) {
+            if ($this->classExists($type) && is_subclass_of($type, Throwable::class, true)) {
+                return new $type(
                     $message,
                     $code,
                     $previous instanceof Throwable ? $previous : null
-                )
-                // If not a valid string or object, fallback to "invalidArgument" alias
-                : $this->exceptionProvider->getException(
-                    'invalidArgument',
-                    $message,
-                    $code,
-                    $previous instanceof Throwable ? $previous : null
-                )
+                );
+            }
+
+            return $this->exceptionProvider->getException(
+                $type,
+                $message,
+                $code,
+                $previous instanceof Throwable ? $previous : null
             );
+        }
+
+        return $this->exceptionProvider->getException(
+            'invalidArgument',
+            $message,
+            $code,
+            $previous instanceof Throwable ? $previous : null
+        );
     }
 
     /**

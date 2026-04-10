@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Core;
 
 use App\Utilities\Managers\Data\CryptoManager;
-use App\Utilities\Managers\SessionManager;
+use App\Utilities\Managers\Data\SessionManager;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;

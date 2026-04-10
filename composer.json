@@ -61,7 +61,7 @@
         "project": {
             "github": "https://github.com/langeler/LangelerMVC",
             "description": "LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles.",
-            "status": "Framework core and WebModule starter slice implemented; additional modules scaffolded.",
+            "status": "Core runtime, console, schema lifecycle, session drivers, cache, crypto, SQL/query, validation, MVC, and utility subsystems implemented and regression-tested; WebModule starter slice completed; additional business modules scaffolded.",
             "topics": [
                 "php",
                 "mvc",

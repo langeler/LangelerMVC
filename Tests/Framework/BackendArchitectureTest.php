@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Framework;
 
-use App\Core\Session;
+use App\Providers\ExceptionProvider;
 use App\Providers\CoreProvider;
 use App\Utilities\Finders\FileFinder;
+use App\Utilities\Managers\FileManager;
 use App\Utilities\Managers\IteratorManager;
+use App\Utilities\Managers\SessionManager;
+use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ApplicationPathTrait;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -50,18 +53,18 @@ class BackendArchitectureTest extends TestCase
         self::assertSame(realpath(dirname(__DIR__, 2)), $finder->rootPath());
     }
 
-    public function testSessionResolvesRelativeSavePathAgainstFrameworkBasePath(): void
+    public function testSessionManagerResolvesRelativeSavePathAgainstFrameworkBasePath(): void
     {
-        $provider = new CoreProvider();
-        $provider->registerServices();
-
-        $session = $provider->getCoreService('session');
-
-        self::assertInstanceOf(Session::class, $session);
-
-        $method = new ReflectionMethod($session, 'resolveSavePath');
+        $manager = new SessionManager(
+            new FileManager(),
+            new ErrorManager(new ExceptionProvider())
+        );
+        $method = new ReflectionMethod($manager, 'resolveSavePath');
         $method->setAccessible(true);
-        $resolved = $method->invoke($session);
+        $resolved = $method->invoke(
+            $manager,
+            $manager->normalizeConfiguration(['SAVE' => 'Storage/Sessions'])
+        );
 
         self::assertSame(
             realpath(dirname(__DIR__, 2) . '/Storage/Sessions'),

@@ -87,4 +87,14 @@ interface RequestInterface
 	 * @return array
 	 */
 	public function headers(): array;
+
+	public function method(): string;
+
+	public function uri(): string;
+
+	public function accepts(string $contentType): bool;
+
+	public function wantsJson(): bool;
+
+	public function expectsJson(): bool;
 }

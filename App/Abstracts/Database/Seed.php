@@ -7,26 +7,45 @@ namespace App\Abstracts\Database;
 use App\Contracts\Database\ModelInterface;
 use App\Contracts\Database\RepositoryInterface;
 use App\Contracts\Database\SeedInterface;
+use App\Core\Database;
 
 /**
  * Base seed abstraction backed by a repository.
  */
 abstract class Seed implements SeedInterface
 {
-    public function __construct(protected RepositoryInterface $repository)
+    public function __construct(
+        protected RepositoryInterface $repository,
+        protected Database $database
+    )
     {
     }
 
     abstract public function run(): void;
 
-    abstract public function insert(array $data): ModelInterface;
+    public function insert(array $data): ModelInterface
+    {
+        return $this->repository->create($data);
+    }
 
     /**
      * @return ModelInterface[]
      */
-    abstract public function insertMany(array $data): array;
+    public function insertMany(array $data): array
+    {
+        $inserted = [];
 
-    abstract public function truncate(): void;
+        foreach ($data as $row) {
+            $inserted[] = $this->insert((array) $row);
+        }
+
+        return $inserted;
+    }
+
+    public function truncate(): void
+    {
+        $this->database->truncate($this->repository->getTable());
+    }
 
     /**
      * @return array<int, array<string, mixed>>

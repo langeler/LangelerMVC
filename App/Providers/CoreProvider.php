@@ -6,12 +6,15 @@ namespace App\Providers;
 
 use App\Core\{
     App,
+    MigrationRunner,
     Config,
     Container,
     Database,
     Router,
+    SeedRunner,
     Session
 };
+use App\Console\ConsoleKernel;
 use App\Exceptions\ContainerException;
 use App\Utilities\Managers\System\ErrorManager;
 
@@ -49,9 +52,12 @@ class CoreProvider extends Container
 
         $this->coreServiceMap = [
             'app'      => App::class,
+            'console'  => ConsoleKernel::class,
             'config'   => Config::class,
             'database' => Database::class,
+            'migrationRunner' => MigrationRunner::class,
             'router'   => Router::class,
+            'seedRunner' => SeedRunner::class,
             'session'  => Session::class,
 
             // System
@@ -105,6 +111,19 @@ class CoreProvider extends Container
         }
 
         return new App($this, $errorManager);
+    }
+
+    public function createConsoleKernel(): ConsoleKernel
+    {
+        $this->registerServices();
+
+        $kernel = $this->getCoreService('console');
+
+        if (!$kernel instanceof ConsoleKernel) {
+            throw new ContainerException('Failed to resolve the console kernel.');
+        }
+
+        return $kernel;
     }
 
     /**

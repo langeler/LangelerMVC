@@ -24,7 +24,7 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 - Traits with their own constructors require explicit care when composed together. Current constructor traits: `DateTimeTrait`, `IteratorTrait`, `RecursiveIteratorTrait`, `SanitationFilterTrait`, `SanitationPatternTrait`, `ValidationFilterTrait`, `ValidationPatternTrait`.
 - Protected-only traits are intended as internal behavior for finders and similar framework internals, not as public helper surfaces. Current protected-only traits: `ApplicationPathTrait`, `DirectoryCriteriaTrait`, `DirectorySortTrait`, `FileCriteriaTrait`, `FileSortTrait`.
 - Method collisions already exist. If multiple traits are mixed into a class, aliasing or `insteadof` conflict resolution may be required.
-- `DataQueryTrait` and the query layer are part of the available surface, but they should still be treated carefully because the current query stack has known correctness gaps from earlier framework review.
+- `DataQueryTrait` and `SchemaQueryTrait` are now stable framework entry surfaces through `App\Utilities\Query\DataQuery` and `App\Utilities\Query\SchemaQuery`. Prefer those wrappers over composing query traits directly in higher-level classes.
 
 ## Practical Leverage Map
 
@@ -33,7 +33,7 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 - `SanitationTrait` and `ValidationTrait` are the general filter-driven input entrypoints. `SanitationPatternTrait` and `ValidationPatternTrait` are the stricter regex-driven entrypoints for well-defined text formats.
 - `RuleTrait` and `RulesTrait` are additive constraint layers. They are intended to sit beside sanitizer and validator traits rather than replace them.
 - `DirectoryCriteriaTrait` with `DirectorySortTrait`, and `FileCriteriaTrait` with `FileSortTrait`, are finder-only surfaces. They fit best inside classes that already inherit the `Finder` lifecycle and data shape.
-- `DataQueryTrait` and `SchemaQueryTrait` are currently surfaced through `App/Utilities/Query/DataQuery.php` and `App/Utilities/Query/SchemaQuery.php`. They should be reused through those wrappers until the query layer itself is hardened further.
+- `DataQueryTrait` and `SchemaQueryTrait` are surfaced through `App/Utilities/Query/DataQuery.php` and `App/Utilities/Query/SchemaQuery.php`. They should generally be consumed through those wrapper classes so SQL normalization, bindings, and driver handling stay centralized.
 - The `Reflection*Trait` family is already centralized behind `App/Utilities/Managers/System/ReflectionManager.php`, which is the cleanest entrypoint for reflection work.
 - `DateTimeTrait` is currently surfaced through `DateTimeManager`. `HashingTrait`, `LocaleUtilityTrait`, `RetrieverTrait`, `IteratorTrait`, and `RecursiveIteratorTrait` are available but not yet broadly integrated into higher-level framework flows.
 

@@ -244,6 +244,38 @@ class Router
     }
 
     /**
+     * @return array<int, array{method:string,path:string,action:string,name:?string,middleware:list<mixed>}>
+     */
+    public function listRoutes(): array
+    {
+        $namedByPath = array_flip($this->namedRoutes);
+        $listed = [];
+
+        foreach ($this->routes as $method => $routes) {
+            foreach ($routes as $path => $definition) {
+                $callback = $definition['callback'] ?? ['', ''];
+
+                $listed[] = [
+                    'method' => (string) $method,
+                    'path' => (string) $path,
+                    'action' => sprintf('%s@%s', (string) ($callback[0] ?? ''), (string) ($callback[1] ?? '')),
+                    'name' => $namedByPath[$path] ?? null,
+                    'middleware' => $this->isArray($definition['middleware'] ?? null)
+                        ? $definition['middleware']
+                        : [],
+                ];
+            }
+        }
+
+        usort(
+            $listed,
+            static fn(array $left, array $right): int => [$left['method'], $left['path']] <=> [$right['method'], $right['path']]
+        );
+
+        return $listed;
+    }
+
+    /**
      * Resolves a named route into a URL.
      *
      * @param string $name

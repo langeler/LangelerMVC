@@ -80,8 +80,10 @@ LangelerMVC
 │   │   ├── AppException.php
 │   │   ├── ConfigException.php
 │   │   ├── ContainerException.php
+│   │   ├── SessionException.php
 │   │   ├── Data
 │   │   │   ├── CacheException.php
+│   │   │   ├── CryptoException.php
 │   │   │   ├── FinderException.php
 │   │   │   ├── SanitizationException.php
 │   │   │   └── ValidationException.php
@@ -402,14 +404,21 @@ LangelerMVC
 │   ├── Products.sql
 │   └── Users.sql
 ├── Docs
+│   ├── ArchitectureOverview.md
 │   ├── CompleteStructure.md
 │   ├── FolderStructure.md
+│   ├── FrameworkStatus.md
 │   ├── IteratorManager Usage.pdf
 │   ├── IteratorManager Usage.rtf
 │   ├── IteratorManager.md
 │   ├── ModulesStructure.md
+│   ├── NativeToTraitConsistencyAudit.md
+│   ├── README.md
+│   ├── SanitationValidationAPI.md
 │   ├── Untitled 5.rtf
 │   ├── Untitled 6.rtf
+│   ├── UtilitiesTraitsOverview.md
+│   ├── UtilitiesTraitsReference.md
 │   ├── abstractcryptoclass.rtf
 │   ├── opensslcryptoclass.rtf
 │   └── sodiumcryptoclass.rtf
@@ -441,12 +450,18 @@ LangelerMVC
 │   ├── Framework
 │   │   ├── BackendArchitectureTest.php
 │   │   ├── BootstrapAndAppTest.php
+│   │   ├── CacheSubsystemTest.php
 │   │   ├── ConfigAndDatabaseTest.php
+│   │   ├── CryptoSubsystemTest.php
 │   │   ├── FinderUtilitiesAndSessionTest.php
 │   │   ├── HttpPresentationSurfaceTest.php
 │   │   ├── ModelAndRepositoryTest.php
 │   │   ├── MvcLayerTest.php
+│   │   ├── QueryLayerTest.php
 │   │   ├── RouterTest.php
+│   │   ├── SessionSubsystemTest.php
+│   │   ├── TraitSurfaceTest.php
+│   │   ├── UtilityLayerHardeningTest.php
 │   │   └── ValidationAndSanitizationTest.php
 │   ├── Integration
 │   │   └── README.md

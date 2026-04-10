@@ -6,12 +6,24 @@
 
 LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles.
 
+## Verification Snapshot
+
+As of `2026-04-10`:
+
+- Verified on PHP `8.4.12`
+- `composer test` passes with `OK (64 tests, 1839 assertions)`
+- Core runtime, cache, crypto, query, validation, MVC, console, schema lifecycle, session driver, and utility subsystems are implemented
+- `WebModule` is the first completed application slice
+- Remaining business modules are scaffolded, not implemented yet
+
 ## Current State
 
-- The framework bootstrap, runtime, dependency container, configuration layer, routing, session handling, validation, sanitization, HTTP/MVC abstractions, and persistence foundations are implemented and covered by the current regression suite.
-- `WebModule` is the first completed vertical slice and currently serves starter page content from memory by default, with repository-backed loading already wired for a future `pages` schema.
-- `AdminModule`, `CartModule`, `OrderModule`, `ShopModule`, and `UserModule` are scaffolded to show the intended architecture, but they are not implemented yet.
-- Intentionally empty architecture folders now contain lightweight `README.md` placeholders so the repository tree shows the complete planned structure.
+- The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, and persistence foundations are implemented and regression-tested.
+- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, and framework-native mail/OTP service boundaries.
+- `WebModule` is the first concrete module and demonstrates the intended request-to-response pipeline through request, controller, service, presenter, view, response, model, repository, route, and shared templates.
+- `WebModule` now also includes framework-managed `pages` migration and seed classes, so the starter module can move from memory-backed content to database-backed content without bypassing the framework lifecycle.
+- `AdminModule`, `CartModule`, `OrderModule`, `ShopModule`, and `UserModule` are intentionally scaffolded to make the intended architecture visible, but they still need real implementation.
+- Mail/OTP-related Composer dependencies are now behind framework-native manager abstractions, but identity, RBAC, and notification workflows still need to be built on top of them.
 
 ## Design Goals
 
@@ -41,26 +53,29 @@ In the current starter slice, `WebModule` follows:
 ### `App/`
 
 - `Abstracts/`: reusable framework base classes for data, database, HTTP, and presentation concerns.
-- `Contracts/`: interface surface for the abstractions and core layer.
-- `Core/`: framework runtime services such as `App`, `Bootstrap`, `Config`, `Container`, `Database`, `Router`, and `Session`.
-- `Drivers/`: low-level pluggable adapters. Caching and cryptography are present; session drivers are scaffolded.
+- `Contracts/`: interface surface for the abstractions and core layer, including console, presentation resource, session, and support contracts.
+- `Core/`: framework runtime services such as `App`, `Bootstrap`, `Config`, `Container`, `Database`, `MigrationRunner`, `Router`, `SeedRunner`, and `Session`.
+- `Drivers/`: low-level pluggable adapters. Caching, cryptography, and session drivers are present.
 - `Exceptions/`: typed framework exception classes grouped by concern.
 - `Modules/`: application modules. `WebModule` is implemented; the other modules are scaffolded.
 - `Providers/`: container/provider wiring for core, cache, crypto, exceptions, and modules.
 - `Resources/`: source asset placeholders that belong to the application layer.
 - `Templates/`: shared PHP template files used by module views.
-- `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, and sanitizers.
+- `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail/OTP.
 
 ### Other Root Folders
 
 - `Config/`: runtime configuration arrays loaded by the config facade and merged with `.env` overrides at runtime.
-- `Data/`: standalone SQL reference files. These are not yet wired into a migration runner.
+- `Data/`: standalone SQL reference files kept as reference material beside the framework-managed migration system.
 - `Docs/`: current architecture and structure docs, plus older reference materials kept in the repository.
 - `Public/`: the public document root, front controller, Apache config, and public asset folders.
+- `console`: the first-party CLI entrypoint for operational framework commands.
 - `Services/`: reserved for cross-application service composition outside a specific module.
 - `Storage/`: cache, logs, secure keys, sessions, and uploads.
 - `Tests/`: framework regression coverage plus scaffolded `Unit` and `Integration` suites.
 - `autoload.php`: legacy fallback autoload helper. The primary bootstrap path uses Composer through `bootstrap/app.php`.
+
+For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md).
 
 ## Installation
 
@@ -92,14 +107,25 @@ php -S 127.0.0.1:8000 -t Public Public/index.php
 
 Point the document root at `Public/` and use [`Public/.htaccess`](./Public/.htaccess) for front-controller routing and baseline public protections.
 
+### Framework Console
+
+```bash
+php console list
+php console migrate
+php console seed WebModule
+php console route:list
+```
+
 ## Configuration Notes
 
 - `.env` provides environment-specific overrides.
 - `Config/*.php` files provide the tracked runtime configuration surface.
+- `Config/auth.php` contains the initial framework auth/OTP baseline settings.
 - `Config/webmodule.php` controls the current `WebModule` content source.
   - `CONTENT_SOURCE=memory` keeps the starter module self-contained.
-  - `CONTENT_SOURCE=database` enables repository-backed loading once the corresponding schema exists.
-- Session files are stored in `Storage/Sessions` by default.
+  - `CONTENT_SOURCE=database` enables repository-backed loading once the `pages` migration and seed have been run.
+- Session drivers support `native`, `file`, `database`, and `redis`, with `native` remaining the tracked default.
+- Session files are stored in `Storage/Sessions` by default when using the native/files-backed modes.
 
 ## Testing
 
@@ -113,13 +139,25 @@ The active framework tests live in `Tests/Framework`. `Tests/Unit` and `Tests/In
 
 ## Structure Docs
 
+- [`Docs/README.md`](./Docs/README.md): documentation index and reading order.
+- [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md): framework architecture, runtime flow, subsystem map, and extension points.
+- [`Docs/FrameworkStatus.md`](./Docs/FrameworkStatus.md): current implementation status, missing areas, and recommended next build order.
 - [`Docs/FolderStructure.md`](./Docs/FolderStructure.md): current architecture by layer and responsibility.
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
+- [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
+- [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
+- [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.
 
 ## Development Status
 
-LangelerMVC now has a stable core foundation and a real starter module. The next major implementation work is at the application layer: building concrete modules such as `UserModule`, `ShopModule`, `CartModule`, `OrderModule`, and `AdminModule` on top of the framework surfaces that now exist.
+LangelerMVC now has a strong backend foundation and a real starter module. The next highest-value work is:
+
+1. Implement `UserModule` on top of the new console/schema/session/mail/OTP platform layer.
+2. Build framework-native session authentication, password reset, email verification, and RBAC services.
+3. Extend `AdminModule` into the management surface for users, roles, permissions, and framework inspection.
+4. Continue into `ShopModule`, `CartModule`, and `OrderModule`.
+5. Add event, notification, and queue subsystems after the core business modules are in place.
 
 ## Support
 

@@ -13,6 +13,7 @@ use App\Contracts\Http\{
 
 use App\Contracts\Presentation\{
 	PresenterInterface, // Contract for defining presentation logic in a presenter.
+	ResourceInterface,
 	ViewInterface       // Contract for handling the rendering of views.
 };
 use App\Exceptions\Http\ControllerException;
@@ -221,6 +222,50 @@ abstract class Controller implements ControllerInterface
 
 			return $this->response;
 		}, ControllerException::class);
+	}
+
+	protected function respondWithJson(array|object $content, int $status = 200, array $headers = []): ResponseInterface
+	{
+		return $this->wrapInTry(function () use ($content, $status, $headers): ResponseInterface {
+			$this->response->setStatus($status);
+			$this->response->addHeader('Content-Type', 'application/json; charset=UTF-8');
+
+			foreach ($headers as $key => $value) {
+				$this->response->addHeader((string) $key, (string) $value);
+			}
+
+			$this->response->setContent($content);
+
+			return $this->response;
+		}, ControllerException::class);
+	}
+
+	protected function respondWithResource(
+		ResourceInterface|array $resource,
+		int $status = 200,
+		array $headers = []
+	): ResponseInterface {
+		return $this->respondWithJson(
+			$resource instanceof ResourceInterface ? $resource->toArray() : $resource,
+			$status,
+			$headers
+		);
+	}
+
+	protected function respondNegotiated(
+		string $viewMethod,
+		string $template,
+		ResourceInterface|array $payload,
+		int $status = 200,
+		array $headers = []
+	): ResponseInterface {
+		if ($this->request->expectsJson()) {
+			return $this->respondWithResource($payload, $status, $headers);
+		}
+
+		$data = $payload instanceof ResourceInterface ? $payload->toArray() : $payload;
+
+		return $this->respondWithView($viewMethod, $template, $data, $status, $headers);
 	}
 
 	/**

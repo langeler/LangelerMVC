@@ -4,168 +4,325 @@ declare(strict_types=1);
 
 namespace App\Core;
 
-use RuntimeException;
-use SessionHandler;
-
-use App\Utilities\Managers\FileManager;
+use App\Utilities\Managers\Data\CryptoManager;
 use App\Utilities\Managers\SessionManager;
 use App\Utilities\Managers\System\ErrorManager;
-use App\Utilities\Traits\ApplicationPathTrait;
-use App\Utilities\Traits\Filters\FiltrationTrait;
-use App\Utilities\Traits\Patterns\PatternTrait;
-use App\Utilities\Traits\{
-    ArrayTrait,
-    CheckerTrait,
-    ErrorTrait,
-    ManipulationTrait,
-    TypeCheckerTrait
-};
+use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\EncodingTrait;
+use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
+use SessionHandler;
 
 /**
  * Core session facade.
  *
- * Bridges runtime configuration and the low-level SessionManager into a focused
- * application-facing API for starting, reading, mutating, and invalidating the
- * active PHP session.
+ * This class intentionally owns only the framework-facing session store API:
+ * reading, writing, flashing, invalidating, and CSRF/token helpers.
+ *
+ * Native PHP session runtime details are delegated to SessionManager so the
+ * subsystem stays extendable and better aligned with SRP/SoC.
  */
 class Session
 {
-    use ApplicationPathTrait;
-    use ArrayTrait, ManipulationTrait, PatternTrait {
+    use ArrayTrait, CheckerTrait, EncodingTrait, ErrorTrait, ManipulationTrait, TypeCheckerTrait {
+        ArrayTrait::push as private pushToArray;
         ManipulationTrait::toLower as private toLowerString;
-        PatternTrait::match as private matchPattern;
     }
-    use ErrorTrait, TypeCheckerTrait, CheckerTrait, FiltrationTrait;
+
+    private const INTERNAL_KEY = '__langelermvc_session';
+    private const FLASH_NEW_KEY = 'new';
+    private const FLASH_OLD_KEY = 'old';
+    private const TOKEN_KEY = '_token';
 
     private SessionHandler $handler;
     private bool $started = false;
     private bool $ephemeral = false;
+    private string $ephemeralId = '';
+
+    /**
+     * @var array<string, mixed>
+     */
+    private array $settings = [];
 
     public function __construct(
         private Config $config,
-        private FileManager $fileManager,
         private SessionManager $sessionManager,
+        private CryptoManager $cryptoManager,
         private ErrorManager $errorManager
     ) {
-        $this->handler = $this->sessionManager->createHandler();
+        $this->settings = $this->sessionManager->normalizeConfiguration(
+            (array) $this->config->get('session', null, [])
+        );
+        $this->handler = $this->sessionManager->createHandler($this->settings);
     }
 
     /**
-     * Start the PHP session using configured cookie and save-handler settings.
-     *
      * @param array<string, mixed> $options
-     * @return bool
      */
     public function start(array $options = []): bool
     {
         return $this->wrapInTry(function () use ($options): bool {
-            $this->guardSupportedDriver();
-
             if ($this->isStarted()) {
                 return true;
             }
+
+            $this->sessionManager->assertSupportedConfiguration($this->settings);
 
             if ($this->shouldUseEphemeralStore()) {
                 return $this->startEphemeralSession();
             }
 
-            if (headers_sent($file, $line)) {
-                $location = $file !== '' ? sprintf(' (%s:%d)', $file, $line) : '';
-
-                throw new RuntimeException(
-                    sprintf('Session cannot be started after headers have been sent%s.', $location)
-                );
-            }
-
             $this->sessionManager->registerHandler($this->handler, true);
-
-            $savePath = $this->resolveSavePath();
-
-            if ($savePath !== null) {
-                session_save_path($savePath);
-            }
-
-            session_set_cookie_params($this->buildCookieOptions($options));
+            $this->sessionManager->applyRuntimeConfiguration($this->settings);
+            $this->sessionManager->setCookieParameters($this->buildCookieOptions($options));
 
             $this->ephemeral = false;
-            $this->started = session_start($options);
+            $this->started = $this->sessionManager->start($options);
+
+            if ($this->started) {
+                $this->initializeMetadata();
+                $this->ageFlashData();
+            }
 
             return $this->started;
-        }, 'runtime');
+        }, 'session');
     }
 
     /**
-     * Retrieve all current session attributes.
-     *
      * @return array<string, mixed>
      */
     public function all(): array
     {
-        return $this->wrapInTry(
-            fn(): array => isset($_SESSION) && $this->isArray($_SESSION) ? $_SESSION : [],
-            'runtime'
-        );
+        return $this->sessionPayload();
     }
 
     /**
-     * Determine whether the active session contains the given key.
+     * @param array<int, string> $keys
+     * @return array<string, mixed>
      */
-    public function has(string $key): bool
-    {
-        return $this->keyExists($this->all(), $key);
-    }
-
-    /**
-     * Retrieve a session attribute.
-     */
-    public function get(string $key, mixed $default = null): mixed
+    public function only(array $keys): array
     {
         $values = $this->all();
+        $subset = [];
+
+        foreach ($keys as $key) {
+            if ($this->keyExists($values, $key)) {
+                $subset[$key] = $values[$key];
+            }
+        }
+
+        return $subset;
+    }
+
+    /**
+     * @param array<int, string> $keys
+     * @return array<string, mixed>
+     */
+    public function except(array $keys): array
+    {
+        $values = $this->all();
+
+        foreach ($keys as $key) {
+            unset($values[$key]);
+        }
+
+        return $values;
+    }
+
+    public function has(string $key): bool
+    {
+        return $this->keyExists($this->sessionPayload(), $key);
+    }
+
+    public function missing(string $key): bool
+    {
+        return !$this->has($key);
+    }
+
+    public function get(string $key, mixed $default = null): mixed
+    {
+        $values = $this->sessionPayload();
 
         return $this->keyExists($values, $key) ? $values[$key] : $default;
     }
 
-    /**
-     * Store a value in the active session.
-     */
     public function put(string $key, mixed $value): void
     {
         $this->wrapInTry(function () use ($key, $value): void {
             $this->ensureStarted();
+            $this->guardReservedKey($key);
             $_SESSION[$key] = $value;
-        }, 'runtime');
+        }, 'session');
     }
 
     /**
-     * Remove a value from the active session.
+     * @param array<string, mixed> $values
      */
+    public function putMany(array $values): void
+    {
+        foreach ($values as $key => $value) {
+            $this->put((string) $key, $value);
+        }
+    }
+
+    /**
+     * Replace visible session data while preserving internal metadata.
+     *
+     * @param array<string, mixed> $values
+     */
+    public function replace(array $values): void
+    {
+        $this->wrapInTry(function () use ($values): void {
+            $this->ensureStarted();
+            $metadata = $this->metadata();
+            $_SESSION = [self::INTERNAL_KEY => $metadata];
+
+            foreach ($values as $key => $value) {
+                $this->guardReservedKey((string) $key);
+                $_SESSION[(string) $key] = $value;
+            }
+        }, 'session');
+    }
+
+    public function push(string $key, mixed $value): void
+    {
+        $this->wrapInTry(function () use ($key, $value): void {
+            $this->ensureStarted();
+            $existing = $this->get($key, []);
+
+            if (!$this->isArray($existing)) {
+                $existing = [$existing];
+            }
+
+            $this->pushToArray($existing, $value);
+            $_SESSION[$key] = $existing;
+        }, 'session');
+    }
+
+    public function increment(string $key, int|float $amount = 1): int|float
+    {
+        return $this->adjustNumericValue($key, $amount);
+    }
+
+    public function decrement(string $key, int|float $amount = 1): int|float
+    {
+        return $this->adjustNumericValue($key, $amount * -1);
+    }
+
     public function forget(string $key): void
     {
         $this->wrapInTry(function () use ($key): void {
             $this->ensureStarted();
+            $this->guardReservedKey($key);
             unset($_SESSION[$key]);
-        }, 'runtime');
+            $this->unmarkFlashKey($key);
+        }, 'session');
+    }
+
+    public function pull(string $key, mixed $default = null): mixed
+    {
+        $value = $this->get($key, $default);
+        $this->forget($key);
+
+        return $value;
+    }
+
+    public function flush(): void
+    {
+        $this->wrapInTry(function (): void {
+            $this->ensureStarted();
+            $_SESSION = [];
+            $this->initializeMetadata();
+        }, 'session');
+    }
+
+    public function flash(string $key, mixed $value): void
+    {
+        $this->put($key, $value);
+        $this->markFlashKey($key, self::FLASH_NEW_KEY);
+    }
+
+    public function now(string $key, mixed $value): void
+    {
+        $this->put($key, $value);
+        $this->markFlashKey($key, self::FLASH_OLD_KEY);
+    }
+
+    public function reflash(): void
+    {
+        $this->keep($this->flashKeys(self::FLASH_OLD_KEY));
     }
 
     /**
-     * Regenerate the current session identifier.
+     * @param string|array<int, string>|null $keys
      */
+    public function keep(string|array|null $keys = null): void
+    {
+        $this->wrapInTry(function () use ($keys): void {
+            $this->ensureStarted();
+            $selection = match (true) {
+                $keys === null => $this->flashKeys(self::FLASH_OLD_KEY),
+                $this->isString($keys) => [$keys],
+                default => $this->getValues((array) $keys),
+            };
+
+            $metadata = $this->metadata();
+            $new = $this->flashKeys(self::FLASH_NEW_KEY);
+
+            foreach ($selection as $key) {
+                if (!$this->isString($key) || !$this->has($key)) {
+                    continue;
+                }
+
+                $new[] = $key;
+            }
+
+            $metadata['flash'][self::FLASH_NEW_KEY] = array_values($this->unique($new));
+            $metadata['flash'][self::FLASH_OLD_KEY] = array_values(
+                array_diff($this->flashKeys(self::FLASH_OLD_KEY), $metadata['flash'][self::FLASH_NEW_KEY])
+            );
+
+            $this->writeMetadata($metadata);
+        }, 'session');
+    }
+
+    public function token(): string
+    {
+        $this->ensureStarted();
+
+        $token = $this->get(self::TOKEN_KEY);
+
+        return $this->isString($token) && $token !== ''
+            ? $token
+            : $this->regenerateToken();
+    }
+
+    public function regenerateToken(): string
+    {
+        $this->ensureStarted();
+        $token = $this->generateTokenValue();
+        $_SESSION[self::TOKEN_KEY] = $token;
+
+        return $token;
+    }
+
     public function regenerate(bool $deleteOldSession = false): bool
     {
         return $this->wrapInTry(function () use ($deleteOldSession): bool {
             $this->ensureStarted();
 
             if ($this->ephemeral) {
+                $this->ephemeralId = $this->generateEphemeralId();
+
                 return true;
             }
 
-            return session_regenerate_id($deleteOldSession);
-        }, 'runtime');
+            return $this->sessionManager->regenerateId($deleteOldSession);
+        }, 'session');
     }
 
-    /**
-     * Close the active session for writing.
-     */
     public function close(): bool
     {
         return $this->wrapInTry(function (): bool {
@@ -175,61 +332,74 @@ class Session
                 return true;
             }
 
-            $closed = session_status() === PHP_SESSION_ACTIVE ? session_write_close() : true;
+            $closed = $this->sessionManager->close();
 
             if ($closed) {
                 $this->started = false;
             }
 
             return $closed;
-        }, 'runtime');
+        }, 'session');
     }
 
-    /**
-     * Invalidate the active session and its cookie.
-     */
     public function invalidate(): bool
     {
         return $this->wrapInTry(function (): bool {
-            $_SESSION = [];
-
             if ($this->ephemeral) {
+                $_SESSION = [];
+                $this->started = false;
+                $this->ephemeralId = '';
+
+                return true;
+            }
+
+            if (!$this->sessionManager->isActive()) {
+                $_SESSION = [];
                 $this->started = false;
 
                 return true;
             }
 
-            if (session_status() !== PHP_SESSION_ACTIVE) {
-                return true;
+            $_SESSION = [];
+
+            if ($this->usesCookies()) {
+                $this->sessionManager->expireCookie();
             }
 
-            if ($this->normalizeBool(ini_get('session.use_cookies'), true) && !headers_sent()) {
-                $params = session_get_cookie_params();
-
-                setcookie(
-                    session_name(),
-                    '',
-                    time() - 42000,
-                    $params['path'] ?: '/',
-                    $params['domain'] ?: '',
-                    (bool) $params['secure'],
-                    (bool) $params['httponly']
-                );
-            }
-
-            $destroyed = session_destroy();
+            $destroyed = $this->sessionManager->destroy();
 
             if ($destroyed) {
                 $this->started = false;
             }
 
             return $destroyed;
-        }, 'runtime');
+        }, 'session');
     }
 
-    /**
-     * Ensure a session has been started before mutation.
-     */
+    public function isStarted(): bool
+    {
+        return $this->sessionManager->isActive() || ($this->ephemeral && $this->started);
+    }
+
+    public function isEphemeral(): bool
+    {
+        return $this->ephemeral;
+    }
+
+    public function id(): string
+    {
+        return $this->ephemeral
+            ? $this->ephemeralId
+            : $this->sessionManager->getId();
+    }
+
+    public function name(): string
+    {
+        return $this->ephemeral
+            ? (string) ($this->settings['NAME'] ?? 'langelermvc_session')
+            : $this->sessionManager->getName();
+    }
+
     private function ensureStarted(): void
     {
         if (!$this->isStarted()) {
@@ -238,60 +408,30 @@ class Session
     }
 
     /**
-     * Build cookie configuration from runtime config and method overrides.
-     *
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>
      */
     private function buildCookieOptions(array $overrides = []): array
     {
-        $lifetime = $this->normalizeInt(
-            $this->config->get('session', 'lifetime', 120),
-            120
-        );
+        $lifetimeMinutes = (int) ($this->settings['LIFETIME'] ?? 120);
+        $expireOnClose = (bool) ($this->settings['EXPIRE_ON_CLOSE'] ?? false);
+        $cookie = (array) ($this->settings['COOKIE'] ?? []);
 
         return [
-            'lifetime' => $this->normalizeInt(
-                $this->resolveOption($overrides, ['lifetime', 'cookie_lifetime'], $lifetime * 60),
-                $lifetime * 60
-            ),
-            'path' => $this->normalizeString(
-                $this->resolveOption($overrides, ['path', 'cookie_path'], '/'),
-                '/'
-            ),
-            'domain' => $this->normalizeString(
-                $this->resolveOption($overrides, ['domain', 'cookie_domain'], ''),
-                ''
-            ),
-            'secure' => $this->normalizeBool(
-                $this->resolveOption(
-                    $overrides,
-                    ['secure', 'cookie_secure'],
-                    $this->config->get('session', 'secure.cookie', false)
-                ),
-                false
-            ),
-            'httponly' => $this->normalizeBool(
-                $this->resolveOption(
-                    $overrides,
-                    ['httponly', 'cookie_httponly'],
-                    $this->config->get('session', 'httponly.cookie', true)
-                ),
-                true
-            ),
+            'lifetime' => $expireOnClose ? 0 : $this->resolveIntOption($overrides, ['lifetime', 'cookie_lifetime'], $lifetimeMinutes * 60),
+            'path' => $this->resolveStringOption($overrides, ['path', 'cookie_path'], (string) ($cookie['PATH'] ?? '/'), '/'),
+            'domain' => $this->resolveStringOption($overrides, ['domain', 'cookie_domain'], (string) ($cookie['DOMAIN'] ?? ''), ''),
+            'secure' => $this->resolveBoolOption($overrides, ['secure', 'cookie_secure'], (bool) ($cookie['SECURE'] ?? true), true),
+            'httponly' => $this->resolveBoolOption($overrides, ['httponly', 'cookie_httponly'], (bool) ($cookie['HTTPONLY'] ?? true), true),
             'samesite' => $this->normalizeSameSite(
-                $this->resolveOption(
-                    $overrides,
-                    ['samesite', 'cookie_samesite'],
-                    $this->config->get('session', 'same.site', 'Lax')
-                )
+                $this->resolveOption($overrides, ['samesite', 'cookie_samesite'], (string) ($cookie['SAME_SITE'] ?? 'Lax'))
             ),
         ];
     }
 
-    private function isStarted(): bool
+    private function usesCookies(): bool
     {
-        return session_status() === PHP_SESSION_ACTIVE || ($this->ephemeral && $this->started);
+        return (bool) (($this->settings['NATIVE']['USE_COOKIES'] ?? true) === true);
     }
 
     private function shouldUseEphemeralStore(): bool
@@ -307,52 +447,181 @@ class Session
 
         $this->ephemeral = true;
         $this->started = true;
+        $this->ephemeralId = $this->ephemeralId !== '' ? $this->ephemeralId : $this->generateEphemeralId();
+
+        $this->initializeMetadata();
+        $this->ageFlashData();
 
         return true;
     }
 
-    private function guardSupportedDriver(): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function sessionPayload(): array
     {
-        $driver = $this->toLowerString($this->normalizeString(
-            $this->config->get('session', 'driver', 'native'),
-            'native'
-        ));
+        $values = isset($_SESSION) && $this->isArray($_SESSION) ? $_SESSION : [];
+        unset($values[self::INTERNAL_KEY]);
 
-        if ($driver !== 'native') {
-            throw new RuntimeException(
-                sprintf('Session driver "%s" is not supported by the core session service.', $driver)
+        return $values;
+    }
+
+    private function initializeMetadata(): void
+    {
+        $metadata = $this->metadata();
+
+        if (!isset($metadata['flash']) || !$this->isArray($metadata['flash'])) {
+            $metadata['flash'] = [];
+        }
+
+        if (!isset($metadata['flash'][self::FLASH_NEW_KEY]) || !$this->isArray($metadata['flash'][self::FLASH_NEW_KEY])) {
+            $metadata['flash'][self::FLASH_NEW_KEY] = [];
+        }
+
+        if (!isset($metadata['flash'][self::FLASH_OLD_KEY]) || !$this->isArray($metadata['flash'][self::FLASH_OLD_KEY])) {
+            $metadata['flash'][self::FLASH_OLD_KEY] = [];
+        }
+
+        $this->writeMetadata($metadata);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metadata(): array
+    {
+        return isset($_SESSION[self::INTERNAL_KEY]) && $this->isArray($_SESSION[self::INTERNAL_KEY])
+            ? $_SESSION[self::INTERNAL_KEY]
+            : [];
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     */
+    private function writeMetadata(array $metadata): void
+    {
+        $_SESSION[self::INTERNAL_KEY] = $metadata;
+    }
+
+    private function ageFlashData(): void
+    {
+        $metadata = $this->metadata();
+        $old = $this->flashKeys(self::FLASH_OLD_KEY);
+
+        foreach ($old as $key) {
+            unset($_SESSION[$key]);
+        }
+
+        $metadata['flash'][self::FLASH_OLD_KEY] = $this->flashKeys(self::FLASH_NEW_KEY);
+        $metadata['flash'][self::FLASH_NEW_KEY] = [];
+
+        $this->writeMetadata($metadata);
+    }
+
+    private function markFlashKey(string $key, string $bucket): void
+    {
+        $this->wrapInTry(function () use ($key, $bucket): void {
+            $this->ensureStarted();
+            $metadata = $this->metadata();
+            $buckets = [self::FLASH_NEW_KEY, self::FLASH_OLD_KEY];
+
+            foreach ($buckets as $name) {
+                $metadata['flash'][$name] = array_values(
+                    array_filter(
+                        $this->flashKeys($name, $metadata),
+                        fn(string $existing): bool => $existing !== $key
+                    )
+                );
+            }
+
+            $metadata['flash'][$bucket][] = $key;
+            $metadata['flash'][$bucket] = array_values($this->unique($metadata['flash'][$bucket]));
+
+            $this->writeMetadata($metadata);
+        }, 'session');
+    }
+
+    private function unmarkFlashKey(string $key): void
+    {
+        $metadata = $this->metadata();
+
+        foreach ([self::FLASH_NEW_KEY, self::FLASH_OLD_KEY] as $bucket) {
+            $metadata['flash'][$bucket] = array_values(
+                array_filter(
+                    $this->flashKeys($bucket, $metadata),
+                    fn(string $existing): bool => $existing !== $key
+                )
+            );
+        }
+
+        $this->writeMetadata($metadata);
+    }
+
+    /**
+     * @param array<string, mixed>|null $metadata
+     * @return array<int, string>
+     */
+    private function flashKeys(string $bucket, ?array $metadata = null): array
+    {
+        $source = $metadata ?? $this->metadata();
+        $keys = (array) (($source['flash'] ?? [])[$bucket] ?? []);
+
+        return array_values(
+            array_filter(
+                $this->getValues($keys),
+                fn(mixed $key): bool => $this->isString($key) && $key !== ''
+            )
+        );
+    }
+
+    private function guardReservedKey(string $key): void
+    {
+        if ($key === self::INTERNAL_KEY) {
+            throw $this->errorManager->resolveException(
+                'session',
+                'The internal session metadata key is reserved and cannot be overwritten.'
             );
         }
     }
 
-    private function resolveSavePath(): ?string
+    private function adjustNumericValue(string $key, int|float $amount): int|float
     {
-        $configuredPath = $this->normalizeString(
-            $this->config->get('session', 'save.path', $this->config->get('session', 'save', '')),
-            ''
-        );
+        return $this->wrapInTry(function () use ($key, $amount): int|float {
+            $this->ensureStarted();
+            $current = $this->get($key, 0);
 
-        if ($configuredPath === '') {
-            return null;
+            if (!$this->isNumeric($current)) {
+                throw $this->errorManager->resolveException(
+                    'session',
+                    sprintf('Session value for "%s" is not numeric and cannot be adjusted.', $key)
+                );
+            }
+
+            $updated = $current + $amount;
+            $_SESSION[$key] = $updated;
+
+            return $updated;
+        }, 'session');
+    }
+
+    private function generateTokenValue(): string
+    {
+        try {
+            $bytes = $this->cryptoManager->generateRandom('custom', 32);
+
+            if ($this->isString($bytes) && $bytes !== '') {
+                return bin2hex($bytes);
+            }
+        } catch (\Throwable) {
+            // Fall back to PHP native secure randomness below.
         }
 
-        $path = $this->isAbsolutePath($configuredPath)
-            ? $configuredPath
-            : $this->frameworkBasePath() . DIRECTORY_SEPARATOR . $configuredPath;
+        return bin2hex(random_bytes(32));
+    }
 
-        $normalizedPath = $this->fileManager->normalizePath($path);
-
-        if ($this->fileManager->isDirectory($normalizedPath)) {
-            return $normalizedPath;
-        }
-
-        if ($this->fileManager->createDirectory($normalizedPath, 0777, true)) {
-            return $normalizedPath;
-        }
-
-        throw new RuntimeException(
-            sprintf('Configured session save path is not writable: %s', $normalizedPath)
-        );
+    private function generateEphemeralId(): string
+    {
+        return bin2hex(random_bytes(20));
     }
 
     /**
@@ -370,49 +639,63 @@ class Session
         return $default;
     }
 
-    private function normalizeBool(mixed $value, bool $default = false): bool
+    /**
+     * @param array<string, mixed> $options
+     * @param array<int, string> $keys
+     */
+    private function resolveBoolOption(array $options, array $keys, bool $default, bool $fallback = false): bool
     {
+        $value = $this->resolveOption($options, $keys, $default);
+
         if ($this->isBool($value)) {
             return $value;
         }
 
-        if ($this->isString($value)) {
-            $normalized = $this->var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-
-            return $normalized ?? $default;
-        }
-
         if ($this->isInt($value) || $this->isFloat($value)) {
-            return (bool) $value;
+            return (int) $value !== 0;
         }
 
-        return $default;
+        if ($this->isString($value)) {
+            return match ($this->toLowerString($this->trimString($value))) {
+                '1', 'true', 'yes', 'on' => true,
+                '0', 'false', 'no', 'off', '' => false,
+                default => $default,
+            };
+        }
+
+        return $fallback;
     }
 
-    private function normalizeInt(mixed $value, int $default): int
+    /**
+     * @param array<string, mixed> $options
+     * @param array<int, string> $keys
+     */
+    private function resolveIntOption(array $options, array $keys, int $default): int
     {
+        $value = $this->resolveOption($options, $keys, $default);
+
         return $this->isNumeric($value) ? (int) $value : $default;
     }
 
-    private function normalizeString(mixed $value, string $default = ''): string
+    /**
+     * @param array<string, mixed> $options
+     * @param array<int, string> $keys
+     */
+    private function resolveStringOption(array $options, array $keys, string $default, string $fallback = ''): string
     {
-        return $this->isScalar($value) ? $this->trimString((string) $value) : $default;
+        $value = $this->resolveOption($options, $keys, $default);
+
+        return $this->isScalar($value)
+            ? $this->trimString((string) $value)
+            : $fallback;
     }
 
     private function normalizeSameSite(mixed $value): string
     {
-        $normalized = $this->toLowerString($this->normalizeString($value, 'lax'));
-
-        return match ($normalized) {
+        return match ($this->toLowerString($this->isScalar($value) ? $this->trimString((string) $value) : 'lax')) {
             'strict' => 'Strict',
             'none' => 'None',
             default => 'Lax',
         };
-    }
-
-    private function isAbsolutePath(string $path): bool
-    {
-        return $this->startsWith($path, DIRECTORY_SEPARATOR)
-            || $this->matchPattern('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;
     }
 }

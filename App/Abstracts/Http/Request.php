@@ -86,7 +86,8 @@ abstract class Request implements RequestInterface
 			'resize' => ['w' => 800, 'h' => 600],
 			'strip' => true,
 		],
-		protected array $headers = []
+		protected array $headers = [],
+		protected array $server = []
 	) {
 		$this->initialize();
 	}
@@ -98,6 +99,8 @@ abstract class Request implements RequestInterface
 	 */
 	protected function initialize(): void
 	{
+		$this->server = $this->server !== [] ? $this->server : (is_array($_SERVER) ? $_SERVER : []);
+
 		$this->storage = $this->wrapInTry(function (): string {
 			$uploads = $this->directoryFinder->find(['name' => 'Uploads']);
 			$path = $this->isArray($uploads) && $uploads !== []
@@ -244,6 +247,48 @@ abstract class Request implements RequestInterface
 
 			return $normalized;
 		}, RequestException::class);
+	}
+
+	public function method(): string
+	{
+		$method = $this->server['REQUEST_METHOD'] ?? 'GET';
+
+		return $this->toUpperString($this->trimString((string) $method));
+	}
+
+	public function uri(): string
+	{
+		$uri = $this->server['REQUEST_URI'] ?? '/';
+
+		return $this->isString($uri) && $uri !== '' ? $uri : '/';
+	}
+
+	public function accepts(string $contentType): bool
+	{
+		$accept = (string) $this->header('accept', '');
+		$needle = $this->toLowerString($this->trimString($contentType));
+
+		if ($needle === '') {
+			return false;
+		}
+
+		return $accept === '*/*'
+			|| $this->contains($this->toLowerString($accept), $needle);
+	}
+
+	public function wantsJson(): bool
+	{
+		return $this->accepts('application/json')
+			|| $this->accepts('application/vnd.api+json')
+			|| $this->isApiRequest();
+	}
+
+	public function expectsJson(): bool
+	{
+		$requestedWith = (string) $this->header('x-requested-with', '');
+
+		return $this->wantsJson()
+			|| $this->toLowerString($requestedWith) === 'xmlhttprequest';
 	}
 
 	/**
@@ -483,5 +528,13 @@ abstract class Request implements RequestInterface
 		}
 
 		return $value;
+	}
+
+	protected function isApiRequest(): bool
+	{
+		$path = parse_url($this->uri(), PHP_URL_PATH);
+		$path = $this->isString($path) ? $path : '/';
+
+		return $path === '/api' || $this->startsWith($path, '/api/');
 	}
 }

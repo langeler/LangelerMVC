@@ -48,10 +48,14 @@ trait ErrorTrait
                     && $this->isObject($this->errorManager)
                     && $this->methodExists($this->errorManager, 'resolveException')
                 ) {
+                    $code = is_int($caught->getCode())
+                        ? $caught->getCode()
+                        : (is_numeric($caught->getCode()) ? (int) $caught->getCode() : 0);
+
                     throw $this->errorManager->resolveException(
                         $wrapException,
                         $caught->getMessage(),
-                        $caught->getCode(),
+                        $code,
                         $caught
                     );
                 }
@@ -60,7 +64,11 @@ trait ErrorTrait
                     $this->classExists($wrapException)
                     && is_subclass_of($wrapException, Throwable::class, true)
                 ) {
-                    throw new $wrapException($caught->getMessage(), $caught->getCode(), $caught);
+                    $code = is_int($caught->getCode())
+                        ? $caught->getCode()
+                        : (is_numeric($caught->getCode()) ? (int) $caught->getCode() : 0);
+
+                    throw new $wrapException($caught->getMessage(), $code, $caught);
                 }
             }
 

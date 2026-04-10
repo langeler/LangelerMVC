@@ -325,10 +325,15 @@ class Database
 	 */
 	public function execute(string $query, array $params = []): int
 	{
-		return $this->wrapInTry(
-			fn(): int => $this->executeQuery($query, $params)->rowCount(),
-			'database'
-		);
+		return $this->wrapInTry(function () use ($query, $params): int {
+			$statement = $this->executeQuery($query, $params);
+
+			try {
+				return $statement->rowCount();
+			} finally {
+				$statement->closeCursor();
+			}
+		}, 'database');
 	}
 
 	/**
@@ -341,9 +346,15 @@ class Database
 	public function fetchOne(string $query, array $params = []): ?array
 	{
 		return $this->wrapInTry(function () use ($query, $params): ?array {
-			$result = $this->executeQuery($query, $params)->fetch(PDO::FETCH_ASSOC);
+			$statement = $this->executeQuery($query, $params);
 
-			return $this->isArray($result) ? $result : null;
+			try {
+				$result = $statement->fetch(PDO::FETCH_ASSOC);
+
+				return $this->isArray($result) ? $result : null;
+			} finally {
+				$statement->closeCursor();
+			}
 		}, 'database');
 	}
 
@@ -357,10 +368,15 @@ class Database
 	 */
 	public function fetchAll(string $query, array $params = [], int $fetchMode = PDO::FETCH_ASSOC): array
 	{
-		return $this->wrapInTry(
-			fn(): array => $this->executeQuery($query, $params)->fetchAll($fetchMode),
-			'database'
-		);
+		return $this->wrapInTry(function () use ($query, $params, $fetchMode): array {
+			$statement = $this->executeQuery($query, $params);
+
+			try {
+				return $statement->fetchAll($fetchMode);
+			} finally {
+				$statement->closeCursor();
+			}
+		}, 'database');
 	}
 
 	/**
@@ -373,10 +389,15 @@ class Database
 	 */
 	public function fetchColumn(string $query, array $params = [], int $column = 0): mixed
 	{
-		return $this->wrapInTry(
-			fn(): mixed => $this->executeQuery($query, $params)->fetchColumn($column),
-			'database'
-		);
+		return $this->wrapInTry(function () use ($query, $params, $column): mixed {
+			$statement = $this->executeQuery($query, $params);
+
+			try {
+				return $statement->fetchColumn($column);
+			} finally {
+				$statement->closeCursor();
+			}
+		}, 'database');
 	}
 
 	/**

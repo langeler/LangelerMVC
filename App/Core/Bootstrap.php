@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Console\ConsoleKernel;
 use Dotenv\Dotenv;
 use App\Providers\CoreProvider;
 use App\Utilities\Traits\{
@@ -37,14 +38,26 @@ class Bootstrap
      */
     public function createApplication(): App
     {
+        $coreProvider = $this->prepareCoreProvider();
+
+        return $coreProvider->createApplication();
+    }
+
+    public function createConsoleKernel(): ConsoleKernel
+    {
+        $coreProvider = $this->prepareCoreProvider();
+
+        return $coreProvider->createConsoleKernel();
+    }
+
+    private function prepareCoreProvider(): CoreProvider
+    {
         $this->registerPaths();
         $this->configureRuntimeDefaults();
         $this->redirectToInstallerIfNeeded();
         $this->loadEnvironment();
 
-        $coreProvider = new CoreProvider();
-
-        return $coreProvider->createApplication();
+        return new CoreProvider();
     }
 
     private function registerPaths(): void

@@ -29,6 +29,10 @@ This structure is intentionally repeated across modules so the application layer
 
 Shared templates currently live in `App/Templates`, so modules can use a common presentation surface without duplicating layout files.
 
+Important current limitation:
+
+- Module `Migrations/` and `Seeds/` folders are present by convention, but the framework does not yet provide a migration runner or seed runner.
+
 ## Current Module Status
 
 | Module | Status | Notes |
@@ -65,3 +69,15 @@ By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=memor
 ## Placeholder Files
 
 The placeholder `README.md` files in scaffolded module folders are intentional. They make the full intended module architecture visible in the repository tree and give each folder an explicit purpose before implementation begins.
+
+## Recommended Module Build Order
+
+From the current framework state, the strongest next module order is:
+
+1. `UserModule`
+2. `ShopModule`
+3. `CartModule`
+4. `OrderModule`
+5. `AdminModule`
+
+That order lets the application layer grow on top of the framework in dependency order instead of implementing admin or order management before user and catalog foundations exist.

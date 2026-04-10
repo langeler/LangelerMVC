@@ -6,6 +6,7 @@ use App\Core\Container;
 use App\Exceptions\{
     AppException,
     ConfigException,
+    SessionException,
     RouteNotFoundException,
     RouterException,
     Data\CacheException,
@@ -125,6 +126,7 @@ class ExceptionProvider extends Container
             'app'                => AppException::class,
             'config'             => ConfigException::class,
             'settings'           => ConfigException::class,
+            'session'            => SessionException::class,
             'routeNotFound'      => RouteNotFoundException::class,
             'router'             => RouterException::class,
 

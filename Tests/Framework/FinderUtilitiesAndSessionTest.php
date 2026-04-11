@@ -209,6 +209,13 @@ class FinderUtilitiesAndSessionTest extends TestCase
             array_values($regexFiles)
         ));
 
+        $depthState = new \ReflectionProperty($fileFinder, 'itemDepths');
+        $depthState->setAccessible(true);
+        $depthCountAfterPatternSearch = count($depthState->getValue($fileFinder));
+
+        $fileFinder->find(['extension' => 'txt'], $root, ['callback' => 'name']);
+        self::assertSame($depthCountAfterPatternSearch, count($depthState->getValue($fileFinder)));
+
         $fileFinder->useCache(false)->clearCache();
         self::assertSame(['alpha.txt', 'deep.txt'], array_map(
             fn(\SplFileInfo $file): string => $file->getFilename(),

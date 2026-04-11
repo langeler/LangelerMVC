@@ -95,7 +95,7 @@ The application layer is module-first. Each module follows the same backend shap
 - `Services`
 - `Views`
 
-`WebModule`, `UserModule`, and `AdminModule` are implemented. `ShopModule`, `CartModule`, and `OrderModule` remain scaffolded with placeholder `README.md` files so the architecture remains visible in the repository tree.
+`WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented. The placeholder `README.md` files that remain inside some module subfolders are intentional and keep the repeated architecture visible even where a folder only needs a few concrete classes today.
 
 ### `App/Providers`
 
@@ -123,7 +123,8 @@ Shared framework tooling. This is the main reusable backend toolbox and currentl
 - `Finders/`: directory and file discovery
 - `Handlers/`: focused data/system helper objects
 - `Managers/`: concrete manager implementations and compatibility aliases
-- `Managers/Support/`: framework-native mail, OTP, and passkey/WebAuthn service managers
+- `Managers/Async/`: event dispatcher, queue manager, and failed-job storage
+- `Managers/Support/`: framework-native mail, notification, OTP, passkey/WebAuthn, and payment service managers
 - `Query/`: query builder helpers
 - `Sanitation/`: sanitization implementations
 - `Traits/`: reusable low-level behavior
@@ -143,7 +144,11 @@ Tracked runtime configuration arrays. The framework loads these through `Setting
 Notable current files include:
 
 - `auth.php`
+- `http.php`
 - `mail.php`
+- `notifications.php`
+- `payment.php`
+- `queue.php`
 - `session.php`
 - `webmodule.php`
 

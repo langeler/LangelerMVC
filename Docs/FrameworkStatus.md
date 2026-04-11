@@ -1,352 +1,197 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and verification status as of `2026-04-10`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-11`.
 
 ## Snapshot
 
-- PHP runtime used for the latest verification pass: `8.4.12`
-- Latest full regression result: `composer test`
-- Verification result: `OK (74 tests, 1911 assertions)`
-- Project posture: strong platform-level backend foundation, starter/content, identity, and admin slices implemented, broader commerce/event layers still to be built
+- PHP runtime used for the latest full verification pass: `8.4.12`
+- Latest default regression result: `composer test`
+- Verification result: `OK (77 tests, 1952 assertions)`
+- Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
+- Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
-## What Is Finished
+## Implemented And Working
 
-### 1. Framework Runtime And Composition
-
-Status: **implemented and working**
-
-Implemented areas:
+### Runtime And Composition
 
 - thin public front controller
-- dedicated bootstrap layer
-- application runtime orchestration
+- dedicated bootstrap layer for HTTP and console entrypoints
 - reflection-driven container
-- provider-based service registration
+- provider-based service registration and aliasing
 - typed exception resolution
-- module discovery and route loading
+- module discovery and module route loading
 
-This means the framework has a real runtime boundary and is no longer just a folder skeleton.
-
-### 2. Configuration And Session
-
-Status: **implemented and working**
-
-Implemented areas:
+### Configuration, Session, And Security Runtime
 
 - tracked config files under `Config/`
-- runtime environment override merging
+- runtime `.env` override merging
 - case-insensitive config lookups
-- framework-managed session runtime
-- default session storage under `Storage/Sessions`
-- first-party file, database, and redis session driver adapters
+- framework session facade
+- file, database, and redis session drivers
+- signed URL generation/verification
+- cache-backed HTTP throttling support
 
-This layer is in a good operational state for normal framework usage.
+### HTTP / MVC / Presentation
 
-### 3. HTTP / MVC / Presentation Layer
+- request, response, controller, middleware, and service abstractions
+- presenter abstraction with export helpers
+- resource and resource-collection abstractions with meta/links/pagination support
+- view abstraction with shared layout/page/partial/component rendering
+- HTML + JSON negotiation through one controller pipeline
 
-Status: **implemented and working**
+### Validation And Sanitization
 
-Implemented areas:
-
-- request abstraction
-- response abstraction
-- controller / middleware / service base classes
-- presenter abstraction
-- resource abstraction and negotiated JSON response helpers
-- resource collection abstraction with pagination/meta support
-- view abstraction
-- shared template rendering pipeline with default-layout-aware page rendering
-- reusable partial/component template surface
-
-The framework-level MVC surface is present and usable. The remaining limit is no longer the presentation API itself; it is the number of concrete business modules built on top of it.
-
-### 4. Sanitation And Validation
-
-Status: **implemented and working**
-
-Implemented areas:
-
-- shared schema-driven sanitizer/validator contract
+- shared schema-driven sanitation/validation engine
 - general filter-based implementations
 - pattern-based implementations
 - rule processing
-- nested schema support
-- collection item schema support
+- nested schema and collection-item schema support
 
-This subsystem is in a strong shape for new application work.
+### Database / SQL / Persistence
 
-### 5. Database / SQL / Persistence Foundation
-
-Status: **implemented and working**
-
-Implemented areas:
-
-- lazy database connection layer
-- compiled SQL data query builder
+- lazy PDO-backed database runtime
+- parameterized data query builder
 - schema query builder
-- model base class
-- repository base class
+- model and repository foundations
 - migration runner
 - seed runner
 - framework-managed migration history storage
-- starter model/repository usage in `WebModule`
+- dependency-aware migration/seed ordering
 
-This is enough to build real domain persistence on top of the framework.
+### Infrastructure Subsystems
 
-### 6. Cache Subsystem
-
-Status: **implemented and working**
-
-Implemented areas:
-
-- cache contract and manager API
-- driver/provider-based cache resolution
-- shared payload lifecycle
+- cache manager and driver/provider resolution
 - array, file, database, redis, and memcache cache backends
-- namespace-aware clearing and pruning behavior
-- runtime-gated unsupported driver handling
+- crypto manager and OpenSSL/Sodium drivers
+- event dispatcher
+- queue manager with sync/database drivers
+- failed-job store
+- notification manager with mail/database channels
+- payment manager with testing driver
+- mail, OTP, and passkey/WebAuthn managers
 
-Important note:
+### Utility Layer
 
-- `Redis` and `Memcache` backends are implemented at framework level, but their real runtime use still depends on the corresponding PHP extensions and backend services being available.
-
-### 7. Crypto Subsystem
-
-Status: **implemented and working**
-
-Implemented areas:
-
-- crypto contract and manager API
-- OpenSSL and Sodium driver support
-- capability-aware driver handling
-- key/cipher resolution through config
-- safer error boundary and runtime checks
-
-This subsystem is solid enough to support future secure storage, signed data, or protected application workflows.
-
-### 8. Utility Layer
-
-Status: **implemented and working**
-
-Implemented areas:
-
+- file manager
 - iterator manager
 - reflection manager
-- file manager
-- finder system
-- trait normalization and collision handling
+- finder subsystem
+- normalized trait surface with collision coverage
 
-These are now framework-grade services rather than thin wrappers over scattered native calls.
+### Console / Operational Tooling
 
-### 9. Console / Operational Tooling
-
-Status: **implemented and working**
-
-Implemented areas:
-
-- first-party `console` entrypoint
+- `console` entrypoint
 - command kernel
-- operational commands for migrations, seeds, routes, cache, config, and modules
+- migration, seed, route, cache, config, and module commands
+- queue work/retry/failed commands
+- notification inspection command
+- event/listener inspection command
 
-This gives the framework a real maintenance/runtime surface outside HTTP.
+## Implemented First-Party Modules
 
-### 10. Mail / OTP / Passkey Support Boundaries
+### `WebModule`
 
-Status: **implemented and working**
-
-Implemented areas:
-
-- framework-native mail manager
-- framework-native OTP manager
-- framework-native passkey/WebAuthn manager
-- `Mailable` abstraction
-- array/log/PHPMailer-backed transport handling through one manager boundary
-- testing and WebAuthn-backed passkey drivers through one manager boundary
-
-These are no longer just foundations. They are now exercised by the implemented identity layer.
-
-### 11. WebModule Starter Slice
-
-Status: **implemented starter slice**
-
-Implemented areas:
-
-- request
-- controller
-- service
-- presenter
-- view
-- response
+- request, controller, service, presenter, view, response
+- `Page` model and repository
 - route file
-- model
-- repository
-- shared templates
+- `pages` migration and seed
+- database-backed content by default
+- shared HTML templates plus JSON/resource parity through the framework presentation pipeline
 
-Current limitation:
-
-- `WebModule` uses memory-backed content by default, but it now also has framework-managed `pages` migration and seed classes ready for database-backed mode.
-
-### 12. User Platform / Auth Layer
-
-Status: **implemented and working**
-
-Implemented areas:
+### `UserModule`
 
 - session-backed authentication
-- registration, login, and logout
-- password reset and email verification
-- RBAC foundations with roles, permissions, and assignments
-- TOTP-based 2FA with recovery-code support
-- passkey/WebAuthn registration and authentication
-- HTML + JSON auth surface parity
+- registration, login, logout
+- password reset
+- email verification
+- roles, permissions, assignments, and RBAC checks
+- TOTP-based 2FA with recovery codes
+- passkey/WebAuthn registration and sign-in
+- HTML + JSON endpoint parity
 
-This is now the first real platform/business slice built on top of the framework foundation.
+### `AdminModule`
 
-### 13. Admin Platform
+- protected dashboard
+- user and role/permission management
+- module/config/cache/session visibility
+- catalog/cart/order visibility
+- queue/notification/event/payment operational visibility where safe
 
-Status: **implemented and working**
+### `ShopModule`
 
-Implemented areas:
+- product and category persistence
+- catalog listing/detail flows
+- pricing and publish-state handling
+- HTML + JSON parity through presenter/resource/view/response layers
+- module migrations and seeds
 
-- admin dashboard surface
-- user and role/permission management flows
-- module/cache/config/session inspection flows
-- permission-driven admin middleware for HTML and JSON routes
+### `CartModule`
 
-This gives the framework its first real protected management surface.
+- guest and authenticated carts
+- session-backed cart identity
+- persistent cart storage
+- merge-on-login behavior through auth events
+- item add/update/remove flows
+- totals calculation in services
+- HTML + JSON parity
 
-## What Is Partially Finished
+### `OrderModule`
 
-### Application Modules
+- checkout orchestration
+- order, order-item, and order-address persistence
+- cart snapshotting into orders
+- order status and payment-state lifecycles
+- payment manager integration through the testing driver
+- order lifecycle notifications and listeners
+- HTML + JSON parity
 
-Status: **mixed**
+## What Is No Longer Missing
 
-Implemented modules:
+These framework/platform areas are now implemented rather than planned:
 
-- `WebModule`
-- `UserModule`
-- `AdminModule`
-
-Scaffolded modules:
-
-- `CartModule`
-- `OrderModule`
-- `ShopModule`
-
-The folder architecture is present across all modules, but the commerce modules still do not contain real application behavior yet.
-
-### Migration / Seed Structure
-
-Status: **implemented foundation, minimal concrete usage present**
-
-Available today:
-
-- migration abstract base
-- seed abstract base
-- migration runner
-- seed runner
-- framework migration history table
-- module-level `Migrations/` and `Seeds/` folders
-- first concrete framework-managed `WebModule` migration and seed
-
-### Templates
-
-Status: **implemented and working**
-
-Implemented today:
-
-- `Layouts/WebShell.php`
-- `Layouts/UserShell.php`
-- `Layouts/AdminShell.php`
-- `Pages/Home.php`
-- `Pages/NotFound.php`
-- `Pages/User*`
-- `Pages/Admin*`
-- reusable partials such as `PageIntro.php`, `StatusMessage.php`, and `PanelMeta.php`
-- reusable components such as `BadgeList.php`, `DefinitionGrid.php`, `DataTable.php`, `LinkList.php`, and `CodeList.php`
-
-## What Is Missing
-
-These are the clearest not-yet-implemented framework/project areas:
-
-- real commerce/business modules beyond `WebModule`, `UserModule`, and `AdminModule`
+- starter/auth/admin/commerce application slices
+- event dispatcher and listener registration
+- queue subsystem and failed-job storage
 - notification subsystem
-- event dispatcher / listener system
-- queue subsystem
+- payment abstraction layer
+- top-level config surfaces for notifications, queues, payments, and HTTP security
+- passkey/WebAuthn and TOTP support behind framework-native boundaries
 
-Important nuance:
+## Remaining Hardening / Environment Work
 
-- the framework now has a working identity/auth layer, but notifications, events, queues, and the commerce modules remain the major unfinished platform areas.
+The framework is in a strong completed state, but a few items remain environment-dependent or are best treated as ongoing hardening rather than missing subsystems:
 
-## Current Risks / Remaining Hardening Work
+### 1. Live Database-Matrix Execution
 
-The framework is not broadly unstable, but a few areas are still best described as “next hardening work” rather than “done forever.”
+The framework now has a dedicated DB-matrix harness, but live execution against MySQL, PostgreSQL, and SQL Server still depends on local or CI services being available and configured through environment variables.
 
-### 1. Broader Infrastructure Test Matrix
+### 2. Optional Runtime Backends
 
-The framework currently has strong PHPUnit coverage, but runtime execution is still concentrated around the local PHP environment and SQLite for database integration.
+Redis, Memcache/Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on those PHP extensions and services being installed in the target environment.
 
-Recommended next verification additions:
+### 3. Auth And Commerce Breadth
 
-- PostgreSQL integration tests
-- MySQL integration tests
-- Redis integration tests
-- Memcache/Memcached integration tests
-- session driver tests once those drivers exist
+The major framework-level auth and commerce flows are implemented. The next gains are hardening and breadth:
 
-### 2. Application-Layer Growth
+- trusted-device / remember-device support for TOTP
+- richer passkey device metadata and management UX
+- broader real-world policy coverage as applications grow
+- deeper end-to-end tests around queue-backed notifications and payment-state transitions in non-SQLite environments
 
-The framework is ahead of the app layer. That is fine, but it means the next real proof of framework quality comes from building additional modules that use the existing foundations heavily.
+## Recommended Ongoing Verification
 
-The strongest next domains are:
+For day-to-day framework development:
 
-1. `ShopModule`
-2. `CartModule`
-3. `OrderModule`
+1. Run `composer test`
+2. Run `composer test:db-matrix` when external databases are available
+3. Use the console commands to verify operational flows such as migrations, seeds, routes, and queue handling
 
-### 3. Identity / Authorization Hardening
+## Extension Outlook
 
-The main auth platform is implemented, but the next improvements are now hardening and breadth rather than first delivery.
+LangelerMVC no longer needs missing-core work. The natural next layer is application growth and optional platform breadth, for example:
 
-Recommended next implementation areas:
-
-- trusted-device / remember-device handling for 2FA
-- recovery-code UX hardening and broader auth throttling
-- richer passkey management flows and device metadata
-- policy expansion as more business modules are added
-- broader HTML/API auth regression coverage
-
-### 4. Broader Platform Extensions
-
-The project still lacks the next platform-tier services such as:
-
-- event dispatcher and listeners
-- notifications
-- queue and failed-job handling
-- rate limiting / signed URLs
-- scaffolding and generator commands
-
-That is a natural next framework enhancement once schema lifecycle work starts.
-
-## Recommended Next Build Order
-
-If the goal is a robust, scalable backend, the best next sequence is:
-
-1. Implement `ShopModule` as the first commerce/catalog module.
-2. Add `CartModule` with guest/authenticated cart persistence and merge-on-login behavior.
-3. Implement `OrderModule` with checkout orchestration and order snapshots.
-4. Add framework-native events and notifications on top of the current support managers.
-5. Add queue/runtime extensions once events are stable.
-6. Expand integration testing across real infrastructure backends.
-
-## Potential Future Framework Extensions
-
-These are not required to consider the current core successful, but they are natural extension tracks for LangelerMVC:
-
-- mail and notification service layer
-- API/JSON resource layer for non-HTML applications
-- event/observer or job/queue system
-- module generators and developer scaffolding commands
-- richer admin tooling and diagnostics
-
-Those should be built on the current core, not by replacing it.
+- richer admin diagnostics and audit surfaces
+- additional notification channels
+- additional payment drivers
+- application-specific policies, events, and workflows
+- optional developer generators on top of the now-stable console/runtime base

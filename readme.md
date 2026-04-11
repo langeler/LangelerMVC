@@ -8,25 +8,24 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 
 ## Verification Snapshot
 
-As of `2026-04-10`:
+As of `2026-04-11`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (74 tests, 1911 assertions)`
-- Core runtime, cache, crypto, query, validation, MVC, console, schema lifecycle, session driver, auth, and utility subsystems are implemented
-- `WebModule`, `UserModule`, and `AdminModule` are implemented application slices
-- `ShopModule`, `CartModule`, and `OrderModule` remain scaffolded
+- `composer test` passes with `OK (77 tests, 1952 assertions)`
+- The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
+- `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
+- SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
 
 ## Current State
 
-- The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, and persistence foundations are implemented and regression-tested.
-- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, and framework-native mail/OTP/passkey service boundaries.
+- The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
+- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
 - The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, and reusable `Layouts`, `Pages`, `Partials`, and `Components`.
-- `WebModule` is the first concrete module and demonstrates the intended request-to-response pipeline through request, controller, service, presenter, view, response, model, repository, route, and shared templates.
-- `WebModule` now also includes framework-managed `pages` migration and seed classes, so the starter module can move from memory-backed content to database-backed content without bypassing the framework lifecycle.
+- `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
-- `AdminModule` now provides the first management slice for dashboard, user, role, permission, cache/config/session inspection, and protected admin routing.
-- `ShopModule`, `CartModule`, and `OrderModule` are still scaffolded and remain the next business modules to implement.
-- Mail/OTP/WebAuthn dependencies are now behind framework-native manager abstractions, while notifications, events, queues, and the remaining commerce modules still need to be built on top of them.
+- `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, and operational health.
+- `ShopModule`, `CartModule`, and `OrderModule` now provide the first full commerce stack for catalog, cart, checkout, payment-state handling, and order lifecycle flows with HTML + JSON parity.
+- Mail, OTP, WebAuthn, notifications, queues, and payments are all consumed through framework-native contracts and managers rather than module-local third-party calls.
 
 ## Design Goals
 
@@ -60,7 +59,7 @@ In the current starter slice, `WebModule` follows:
 - `Core/`: framework runtime services such as `App`, `Bootstrap`, `Config`, `Container`, `Database`, `MigrationRunner`, `Router`, `SeedRunner`, and `Session`.
 - `Drivers/`: low-level pluggable adapters. Caching, cryptography, and session drivers are present.
 - `Exceptions/`: typed framework exception classes grouped by concern.
-- `Modules/`: application modules. `WebModule`, `UserModule`, and `AdminModule` are implemented; `ShopModule`, `CartModule`, and `OrderModule` are scaffolded.
+- `Modules/`: application modules. `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party slices.
 - `Providers/`: container/provider wiring for core, cache, crypto, exceptions, and modules.
 - `Resources/`: source asset placeholders that belong to the application layer.
 - `Templates/`: shared PHP template files used by module views, including layouts, pages, partials, and reusable components.
@@ -75,7 +74,7 @@ In the current starter slice, `WebModule` follows:
 - `console`: the first-party CLI entrypoint for operational framework commands.
 - `Services/`: reserved for cross-application service composition outside a specific module.
 - `Storage/`: cache, logs, secure keys, sessions, and uploads.
-- `Tests/`: framework regression coverage plus scaffolded `Unit` and `Integration` suites.
+- `Tests/`: framework regression coverage plus scaffolded `Unit` and `Integration` suites, and a separate DB-matrix harness.
 - `autoload.php`: legacy fallback autoload helper. The primary bootstrap path uses Composer through `bootstrap/app.php`.
 
 For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md).
@@ -124,9 +123,8 @@ php console route:list
 - `.env` provides environment-specific overrides.
 - `Config/*.php` files provide the tracked runtime configuration surface.
 - `Config/auth.php` contains the framework auth baseline, including RBAC, OTP/TOTP, and passkey/WebAuthn settings.
-- `Config/webmodule.php` controls the current `WebModule` content source.
-  - `CONTENT_SOURCE=memory` keeps the starter module self-contained.
-  - `CONTENT_SOURCE=database` enables repository-backed loading once the `pages` migration and seed have been run.
+- `Config/webmodule.php` controls the current `WebModule` content source and defaults to `CONTENT_SOURCE=database`.
+- `Config/notifications.php`, `Config/queue.php`, `Config/payment.php`, and `Config/http.php` provide the top-level settings for notifications, queue drivers, payment drivers, throttling, and signed URLs.
 - Session drivers support `native`, `file`, `database`, and `redis`, with `native` remaining the tracked default.
 - Session files are stored in `Storage/Sessions` by default when using the native/files-backed modes.
 
@@ -136,31 +134,40 @@ Run the current regression suite with:
 
 ```bash
 composer test
+composer test:db-matrix
+composer test:mysql
+composer test:pgsql
+composer test:sqlsrv
 ```
 
-The active framework tests live in `Tests/Framework`. `Tests/Unit` and `Tests/Integration` are intentionally present as scaffolded suites for future growth.
+The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain reserved for future expansion.
 
 ## Structure Docs
 
 - [`Docs/README.md`](./Docs/README.md): documentation index and reading order.
 - [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md): framework architecture, runtime flow, subsystem map, and extension points.
-- [`Docs/FrameworkStatus.md`](./Docs/FrameworkStatus.md): current implementation status, missing areas, and recommended next build order.
+- [`Docs/FrameworkStatus.md`](./Docs/FrameworkStatus.md): current implementation status, remaining hardening areas, and environment-dependent verification notes.
 - [`Docs/FolderStructure.md`](./Docs/FolderStructure.md): current architecture by layer and responsibility.
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
+- [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
 - [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.
 
-## Development Status
+## Platform Status
 
-LangelerMVC now has a strong backend foundation and real starter/auth/admin slices. The next highest-value work is:
+LangelerMVC now ships as a complete first-party platform framework with:
 
-1. Build `ShopModule` on top of the completed query, cache, auth, and admin foundations.
-2. Continue into `CartModule` with guest/authenticated cart persistence and merge-on-login behavior.
-3. Implement `OrderModule` with checkout orchestration, order snapshots, and payment abstraction boundaries.
-4. Add framework-native event and notification subsystems on top of the existing support managers.
-5. Add queue/runtime extensions and broader infrastructure verification after the remaining business modules are in place.
+- a thin bootstrap/runtime boundary
+- provider-driven composition and lazy infrastructure
+- validated session/auth/RBAC/TOTP/passkey support
+- cache, crypto, SQL/query, migration, and seed subsystems
+- async events, queues, notifications, and payment abstractions
+- completed HTML + JSON presentation parity across first-party modules
+- a database-backed starter module plus user/admin/shop/cart/order slices
+
+The main remaining work is hardening and environment breadth rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcache-backed runtime verification where those services exist, and ongoing domain/policy refinement as real applications are built on top of the framework.
 
 ## Support
 

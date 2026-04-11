@@ -8,6 +8,7 @@ use App\Utilities\Finders\{
     FileFinder
 };
 use App\Utilities\Traits\{
+    ApplicationPathTrait,
     ArrayTrait,
     TypeCheckerTrait,
     CheckerTrait,
@@ -31,6 +32,7 @@ use App\Utilities\Validation\{
  */
 class SettingsManager
 {
+    use ApplicationPathTrait;
     use ArrayTrait, ErrorTrait, ManipulationTrait, PatternTrait {
         ManipulationTrait::toLower as private toLowerString;
         ManipulationTrait::toUpper as private toUpperString;
@@ -183,10 +185,9 @@ class SettingsManager
     private function locateConfigFolder(): string
     {
         return $this->wrapInTry(function (): string {
-            $directories = $this->dirFinder->find(['name' => 'Config']);
-            $directoryPath = $this->isArray($directories) && !$this->isEmpty($directories)
-                ? $this->keyFirst($directories)
-                : null;
+            $directoryPath = $this->frameworkBasePath()
+                . DIRECTORY_SEPARATOR
+                . 'Config';
 
             if ($this->isString($directoryPath) && $this->fileManager->isDirectory($directoryPath)) {
                 return $directoryPath;

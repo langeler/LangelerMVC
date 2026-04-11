@@ -192,9 +192,13 @@ abstract class Finder
     protected function handle(array $criteria = [], ?string $path = null, array $sort = []): array
     {
         return $this->wrapFinder(
-            fn() => !$this->isEmpty($sort)
-                ? $this->applySort($this->filterElements($criteria, $path ?? $this->root), $sort)
-                : $this->filterElements($criteria, $path ?? $this->root),
+            function () use ($criteria, $path, $sort): array {
+                $this->resetTraversalDepths();
+
+                return !$this->isEmpty($sort)
+                    ? $this->applySort($this->filterElements($criteria, $path ?? $this->root), $sort)
+                    : $this->filterElements($criteria, $path ?? $this->root);
+            },
             "Error in handle"
         );
     }
@@ -545,6 +549,7 @@ abstract class Finder
     {
         return $this->wrapFinder(
             function () use ($paths, $criteria, $sort): array {
+                $this->resetTraversalDepths();
                 $results = [];
 
                 foreach ($paths as $path) {
@@ -578,6 +583,7 @@ abstract class Finder
     {
         return $this->wrapFinder(
             function () use ($criteria, $path, $maxDepth, $sort): array {
+                $this->resetTraversalDepths();
                 $iterator = $this->iteratorManager->RecursiveIteratorIterator(
                     $this->iteratorManager->RecursiveDirectoryIterator($path, ['flag' => ['skipDots' => true]]),
                     ['mode' => ['selfFirst'], 'maxDepth' => $maxDepth]
@@ -621,16 +627,20 @@ abstract class Finder
     protected function customIterator(string $type, array $settings = [], array $criteria = [], array $sort = []): array
     {
         return $this->wrapFinder(
-            fn() => $this->applySort(
-                $this->collectIteratorItems(
-                    $this->iteratorManager->CallbackFilterIterator(
-                        $this->iteratorManager->createIterator($type, $settings),
-                        fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
+            function () use ($type, $settings, $criteria, $sort): array {
+                $this->resetTraversalDepths();
+
+                return $this->applySort(
+                    $this->collectIteratorItems(
+                        $this->iteratorManager->CallbackFilterIterator(
+                            $this->iteratorManager->createIterator($type, $settings),
+                            fn($fileInfo) => $this->applyFilter($fileInfo, $criteria)
+                        ),
+                        $criteria
                     ),
-                    $criteria
-                ),
-                $sort
-            ),
+                    $sort
+                );
+            },
             "Error during custom iterator resolution"
         );
     }
@@ -677,6 +687,18 @@ abstract class Finder
         if ($key !== null) {
             $this->itemDepths[$key] = $depth;
         }
+    }
+
+    /**
+     * Resets per-traversal depth metadata so long-lived finder instances do not retain
+     * stale iterator state across unrelated scans.
+     *
+     * Cached finder results repopulate their own depth metadata when the cache is built,
+     * so clearing this transient state is safe at traversal boundaries.
+     */
+    protected function resetTraversalDepths(): void
+    {
+        $this->itemDepths = [];
     }
 
     /**

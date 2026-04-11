@@ -72,6 +72,9 @@ Responsibility split:
 - `ExceptionProvider`: typed exception alias resolution
 - `CacheProvider`: cache driver resolution
 - `CryptoProvider`: crypto driver resolution
+- `NotificationProvider`: notification channel resolution
+- `PaymentProvider`: payment driver resolution
+- `QueueProvider`: queue driver resolution
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -94,6 +97,10 @@ These layers are intentionally reusable. Application code is expected to extend 
 
 - `Caching`: `ArrayCache`, `FileCache`, `DatabaseCache`, `RedisCache`, `MemCache`
 - `Cryptography`: `OpenSSLCrypto`, `SodiumCrypto`
+- `Notifications`: `MailNotificationChannel`, `DatabaseNotificationChannel`
+- `Payments`: `TestingPaymentDriver`
+- `Queue`: `SyncQueueDriver`, `DatabaseQueueDriver`
+- `Passkeys`: `TestingPasskeyDriver`, `WebAuthnPasskeyDriver`
 - `Session`: `FileSessionDriver`, `DatabaseSessionDriver`, `RedisSessionDriver`
 
 The driver layer exists so the framework can present a stable API to the rest of the application while still allowing backend implementation changes.
@@ -105,7 +112,9 @@ The driver layer exists so the framework can present a stable API to the rest of
 - `Finders`: file and directory discovery
 - `Handlers`: focused utility objects
 - `Managers`: concrete system/data services plus compatibility aliases
-- `Managers/Support`: framework mail, OTP, and passkey/WebAuthn service managers
+- `Managers/Async`: event dispatcher, queue manager, and failed-job storage
+- `Managers/Security`: auth, gate, policy, HTTP signed URL/throttle, and user-provider services
+- `Managers/Support`: framework mail, notification, OTP, passkey/WebAuthn, and payment service managers
 - `Query`: framework SQL builders
 - `Sanitation`: sanitizer implementations
 - `Validation`: validator implementations
@@ -165,6 +174,7 @@ The following areas are implemented as framework-level subsystems today:
 - session runtime
 - file, database, and redis session driver adapters
 - session-backed authentication, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn support
+- signed URL and throttling support
 - sanitation and validation APIs
 - HTTP/MVC abstraction layer
 - presentation resource / negotiated JSON layer
@@ -172,6 +182,9 @@ The following areas are implemented as framework-level subsystems today:
 - database layer and SQL/query builders
 - cache subsystem
 - crypto subsystem
+- async events and queues
+- notification subsystem
+- payment abstraction subsystem
 - mail, OTP, and passkey/WebAuthn service boundaries
 - file, finder, iterator, and reflection utilities
 - model and repository foundations
@@ -184,16 +197,19 @@ The application layer is intentionally not “finished everywhere” yet.
 
 Current concrete state:
 
-- `WebModule` is the first real starter/content slice.
-- `UserModule` is the first full identity/platform slice.
-- `AdminModule` is the first protected management slice.
+- `WebModule` is the database-backed starter/content slice.
+- `UserModule` is the full identity/platform slice.
+- `AdminModule` is the protected management slice.
+- `ShopModule`, `CartModule`, and `OrderModule` complete the first commerce stack.
 - `WebModule` has a controller, request, service, presenter, view, response, model, repository, route file, migration, and seed.
 - `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows.
-- `AdminModule` now provides dashboard, user, role/permission, and framework-inspection flows.
+- `AdminModule` now provides dashboard, user, role/permission, catalog, cart, order, and framework-inspection flows.
+- `ShopModule` provides catalog listing/detail flows with products, categories, pricing, and publish state.
+- `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
+- `OrderModule` provides checkout orchestration, order snapshots, payment-state handling, and lifecycle notifications.
 - Shared templates currently live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components`.
-- `ShopModule`, `CartModule`, and `OrderModule` are scaffolded only.
 
-This means the framework backend is ahead of the business/domain implementation, which is the expected current shape of the project.
+This means the framework now has both a completed platform base and a real first-party application surface exercising it.
 
 ## Extension Points
 
@@ -206,15 +222,14 @@ The most important extension seams today are:
 - **Drivers**: add more concrete infrastructure backends through providers and contracts.
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.
-- **Support Services**: extend authentication, authorization, notifications, and workflow features on top of the mail/OTP/passkey/session boundaries.
+- **Support Services**: extend authentication, authorization, notifications, and payments on top of the existing manager and provider boundaries.
+- **Async**: add listeners, jobs, queue drivers, and failed-job strategies without rewriting runtime or modules.
 
 ## Current Architectural Limits
 
-The framework is strong at the backend foundation level, but a few architecture areas are still intentionally incomplete:
+The framework no longer has major missing platform subsystems. The main architectural work left is environment breadth and optional expansion:
 
-- no real commerce/business modules beyond `WebModule`, `UserModule`, and `AdminModule`
-- no framework-native notification or queue subsystem yet
-- no event dispatcher/listener system yet
-- no concrete shop, cart, or order domains yet
-
-Those are the main places where future framework work should build on the current base rather than rework it.
+- live multi-database verification when external services are available
+- additional notification channels or payment drivers
+- optional developer generators on top of the stable console layer
+- deeper application-specific policies and workflows as real products are built

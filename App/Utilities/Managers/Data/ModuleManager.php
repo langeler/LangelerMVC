@@ -12,6 +12,7 @@ use App\Utilities\Finders\{
 };
 use App\Utilities\Handlers\NamespaceResolveHandler;
 use App\Utilities\Traits\{
+	ApplicationPathTrait,
 	ArrayTrait,
 	TypeCheckerTrait,
 	ErrorTrait
@@ -25,6 +26,7 @@ use App\Utilities\Traits\{
  */
 class ModuleManager
 {
+	use ApplicationPathTrait;
 	use ArrayTrait, TypeCheckerTrait, ErrorTrait;
 
 	private string $base;
@@ -176,9 +178,15 @@ class ModuleManager
 	 */
 	private function initializeModules(): void
 	{
-		$baseDirectories = $this->dirs->find(['name' => 'Modules', 'readable' => true]);
-		$this->base = $this->keyFirst($baseDirectories)
-			?? throw new AppException('Modules directory not found or not readable.');
+		$this->base = $this->frameworkBasePath()
+			. DIRECTORY_SEPARATOR
+			. 'App'
+			. DIRECTORY_SEPARATOR
+			. 'Modules';
+
+		if (!$this->isReadable($this->base) || !is_dir($this->base)) {
+			throw new AppException('Modules directory not found or not readable.');
+		}
 
 		$moduleDirectories = glob($this->base . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR) ?: [];
 

@@ -165,7 +165,6 @@ class Database
 
 		$this->cache = [];
 		$this->connected = $this->pdo instanceof PDO;
-		$this->errorManager->logError('Database connection established.', 'userNotice');
 	}
 
 	/**

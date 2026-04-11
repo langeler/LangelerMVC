@@ -272,13 +272,7 @@ abstract class View implements ViewInterface
 				. DIRECTORY_SEPARATOR
 				. $dirName;
 
-			if ($this->fileManager->isDirectory($expected)) {
-				return $this->normalizePath($expected);
-			}
-
-			$fallback = $this->keyFirst($this->dirs->find(['name' => $dirName])) ?: null;
-
-			return $this->getValidPath($fallback, "Base directory '{$dirName}' not found.");
+			return $this->getValidPath($expected, "Base directory '{$dirName}' not found.");
 		}, ViewException::class);
 	}
 

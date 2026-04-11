@@ -97,23 +97,14 @@ abstract class Request implements RequestInterface
 	 * Here we determine the storage directory for uploaded files.
 	 * We expect an "Uploads" directory; otherwise, throw a RuntimeException.
 	 */
-	protected function initialize(): void
-	{
-		$this->server = $this->server !== [] ? $this->server : (is_array($_SERVER) ? $_SERVER : []);
+    protected function initialize(): void
+    {
+        $this->server = $this->server !== [] ? $this->server : (is_array($_SERVER) ? $_SERVER : []);
 
-		$this->storage = $this->wrapInTry(function (): string {
-			$uploads = $this->directoryFinder->find(['name' => 'Uploads']);
-			$path = $this->isArray($uploads) && $uploads !== []
-				? $this->keyFirst($uploads)
-				: null;
-
-			if ($this->isString($path) && $this->fileManager->isDirectory($path)) {
-				return $path;
-			}
-
-			$fallback = $this->fileManager->normalizePath(
-				$this->frameworkStoragePath('Uploads')
-			);
+        $this->storage = $this->wrapInTry(function (): string {
+            $fallback = $this->fileManager->normalizePath(
+                $this->frameworkStoragePath('Uploads')
+            );
 
 			if (
 				$this->fileManager->isDirectory($fallback)

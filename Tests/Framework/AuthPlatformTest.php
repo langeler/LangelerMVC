@@ -625,7 +625,7 @@ class AuthPlatformTest extends TestCase
             }
         };
 
-        $crypto = $this->createMock(CryptoManager::class);
+        $crypto = $this->createStub(CryptoManager::class);
         $crypto->method('generateRandom')->willReturnCallback(function (string $type, mixed ...$arguments): string {
             if ($type === 'generateRandomIv') {
                 return random_bytes(16);

@@ -1,8 +1,8 @@
 # Complete Structure
 
-This tree reflects the current repository structure and excludes only `.git` and `vendor`.
+This indexed tree reflects the current repository structure and excludes only `.git` and `vendor`.
 
-Placeholder `README.md` files are intentionally present in previously empty architecture folders so the complete framework and module layout stays visible in the repository.
+Placeholder `README.md` files that remain in repeated architecture folders are intentional and help keep the full framework shape visible in the repository.
 
 ```text
 LangelerMVC
@@ -10,269 +10,438 @@ LangelerMVC
 ├── .env.example
 ├── .gitignore
 ├── .nova
-│   └── Configuration.json
+│   ├── Configuration.json
 ├── App
 │   ├── Abstracts
+│   │   ├── Console
+│   │   │   ├── Command.php
 │   │   ├── Data
 │   │   │   ├── Cache.php
 │   │   │   ├── Crypto.php
 │   │   │   ├── Finder.php
 │   │   │   ├── Sanitizer.php
-│   │   │   └── Validator.php
+│   │   │   ├── SchemaProcessor.php
+│   │   │   ├── Validator.php
 │   │   ├── Database
 │   │   │   ├── Migration.php
 │   │   │   ├── Model.php
 │   │   │   ├── Query.php
 │   │   │   ├── Repository.php
-│   │   │   └── Seed.php
+│   │   │   ├── Seed.php
 │   │   ├── Http
 │   │   │   ├── Controller.php
+│   │   │   ├── InboundRequest.php
 │   │   │   ├── Middleware.php
 │   │   │   ├── Request.php
 │   │   │   ├── Response.php
-│   │   │   └── Service.php
-│   │   └── Presentation
-│   │       ├── Presenter.php
-│   │       └── View.php
+│   │   │   ├── Service.php
+│   │   │   ├── StandardResponse.php
+│   │   ├── Presentation
+│   │   │   ├── Presenter.php
+│   │   │   ├── Resource.php
+│   │   │   ├── ResourceCollection.php
+│   │   │   ├── View.php
+│   │   ├── Support
+│   │   │   ├── Mailable.php
+│   │   │   ├── Notification.php
+│   ├── Console
+│   │   ├── Commands
+│   │   │   ├── CacheClearCommand.php
+│   │   │   ├── ConfigShowCommand.php
+│   │   │   ├── EventListCommand.php
+│   │   │   ├── MigrateCommand.php
+│   │   │   ├── MigrateRollbackCommand.php
+│   │   │   ├── MigrateStatusCommand.php
+│   │   │   ├── ModuleListCommand.php
+│   │   │   ├── NotificationListCommand.php
+│   │   │   ├── QueueFailedCommand.php
+│   │   │   ├── QueueRetryCommand.php
+│   │   │   ├── QueueWorkCommand.php
+│   │   │   ├── RouteListCommand.php
+│   │   │   ├── SeedCommand.php
+│   │   ├── ConsoleKernel.php
 │   ├── Contracts
+│   │   ├── Async
+│   │   │   ├── EventDispatcherInterface.php
+│   │   │   ├── FailedJobStoreInterface.php
+│   │   │   ├── JobInterface.php
+│   │   │   ├── ListenerInterface.php
+│   │   │   ├── QueueDriverInterface.php
+│   │   ├── Auth
+│   │   │   ├── AuthenticatableInterface.php
+│   │   │   ├── GuardInterface.php
+│   │   │   ├── PasswordBrokerInterface.php
+│   │   │   ├── UserProviderInterface.php
+│   │   ├── Console
+│   │   │   ├── CommandInterface.php
 │   │   ├── Data
 │   │   │   ├── CacheDriverInterface.php
 │   │   │   ├── CryptoInterface.php
 │   │   │   ├── FinderInterface.php
 │   │   │   ├── SanitizerInterface.php
-│   │   │   └── ValidatorInterface.php
+│   │   │   ├── ValidatorInterface.php
 │   │   ├── Database
 │   │   │   ├── MigrationInterface.php
 │   │   │   ├── ModelInterface.php
 │   │   │   ├── RepositoryInterface.php
-│   │   │   └── SeedInterface.php
+│   │   │   ├── SeedInterface.php
 │   │   ├── Http
 │   │   │   ├── ControllerInterface.php
 │   │   │   ├── MiddlewareInterface.php
 │   │   │   ├── RequestInterface.php
 │   │   │   ├── ResponseInterface.php
-│   │   │   └── ServiceInterface.php
-│   │   └── Presentation
-│   │       ├── PresenterInterface.php
-│   │       └── ViewInterface.php
+│   │   │   ├── ServiceInterface.php
+│   │   ├── Presentation
+│   │   │   ├── PresenterInterface.php
+│   │   │   ├── ResourceInterface.php
+│   │   │   ├── ViewInterface.php
+│   │   ├── Session
+│   │   │   ├── SessionDriverInterface.php
+│   │   ├── Support
+│   │   │   ├── MailerInterface.php
+│   │   │   ├── NotifiableInterface.php
+│   │   │   ├── NotificationChannelInterface.php
+│   │   │   ├── NotificationInterface.php
+│   │   │   ├── NotificationManagerInterface.php
+│   │   │   ├── OtpManagerInterface.php
+│   │   │   ├── PasskeyDriverInterface.php
+│   │   │   ├── PasskeyManagerInterface.php
+│   │   │   ├── PaymentDriverInterface.php
+│   │   │   ├── PaymentManagerInterface.php
 │   ├── Core
 │   │   ├── App.php
 │   │   ├── Bootstrap.php
 │   │   ├── Config.php
 │   │   ├── Container.php
 │   │   ├── Database.php
+│   │   ├── MigrationRunner.php
 │   │   ├── ModuleManager.php
 │   │   ├── Router.php
-│   │   └── Session.php
+│   │   ├── Schema
+│   │   │   ├── Blueprint.php
+│   │   ├── SeedRunner.php
+│   │   ├── Session.php
 │   ├── Drivers
 │   │   ├── Caching
 │   │   │   ├── ArrayCache.php
 │   │   │   ├── DatabaseCache.php
 │   │   │   ├── FileCache.php
 │   │   │   ├── MemCache.php
-│   │   │   └── RedisCache.php
+│   │   │   ├── RedisCache.php
 │   │   ├── Cryptography
 │   │   │   ├── OpenSSLCrypto.php
-│   │   │   └── SodiumCrypto.php
-│   │   └── Session
-│   │       └── README.md
+│   │   │   ├── SodiumCrypto.php
+│   │   ├── Notifications
+│   │   │   ├── DatabaseNotificationChannel.php
+│   │   │   ├── MailNotificationChannel.php
+│   │   ├── Passkeys
+│   │   │   ├── TestingPasskeyDriver.php
+│   │   │   ├── WebAuthnPasskeyDriver.php
+│   │   ├── Payments
+│   │   │   ├── TestingPaymentDriver.php
+│   │   ├── Queue
+│   │   │   ├── DatabaseQueueDriver.php
+│   │   │   ├── SyncQueueDriver.php
+│   │   ├── Session
+│   │   │   ├── DatabaseSessionDriver.php
+│   │   │   ├── FileSessionDriver.php
+│   │   │   ├── README.md
+│   │   │   ├── RedisSessionDriver.php
 │   ├── Exceptions
 │   │   ├── AppException.php
+│   │   ├── AuthException.php
 │   │   ├── ConfigException.php
 │   │   ├── ContainerException.php
-│   │   ├── SessionException.php
 │   │   ├── Data
 │   │   │   ├── CacheException.php
 │   │   │   ├── CryptoException.php
 │   │   │   ├── FinderException.php
 │   │   │   ├── SanitizationException.php
-│   │   │   └── ValidationException.php
+│   │   │   ├── ValidationException.php
 │   │   ├── Database
 │   │   │   ├── DatabaseException.php
 │   │   │   ├── MigrationException.php
 │   │   │   ├── ModelException.php
 │   │   │   ├── RepositoryException.php
-│   │   │   └── SeedException.php
+│   │   │   ├── SeedException.php
 │   │   ├── Http
 │   │   │   ├── ControllerException.php
 │   │   │   ├── MiddlewareException.php
 │   │   │   ├── RequestException.php
 │   │   │   ├── ResponseException.php
-│   │   │   └── ServiceException.php
+│   │   │   ├── ServiceException.php
 │   │   ├── Iterator
 │   │   │   ├── IteratorException.php
-│   │   │   └── IteratorNotFoundException.php
+│   │   │   ├── IteratorNotFoundException.php
 │   │   ├── Presentation
 │   │   │   ├── PresenterException.php
-│   │   │   └── ViewException.php
+│   │   │   ├── ViewException.php
 │   │   ├── RouteNotFoundException.php
-│   │   └── RouterException.php
+│   │   ├── RouterException.php
+│   │   ├── SessionException.php
 │   ├── Helpers
-│   │   └── README.md
+│   │   ├── README.md
 │   ├── Modules
 │   │   ├── AdminModule
 │   │   │   ├── Controllers
-│   │   │   │   └── README.md
+│   │   │   │   ├── AdminController.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Middlewares
-│   │   │   │   └── README.md
+│   │   │   │   ├── AdminAccessMiddleware.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Migrations
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Models
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Presenters
-│   │   │   │   └── README.md
+│   │   │   │   ├── AdminPresenter.php
+│   │   │   │   ├── AdminResource.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Repositories
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Requests
-│   │   │   │   └── README.md
+│   │   │   │   ├── AdminRequest.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Responses
-│   │   │   │   └── README.md
+│   │   │   │   ├── AdminResponse.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Routes
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── web.php
 │   │   │   ├── Seeds
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Services
-│   │   │   │   └── README.md
-│   │   │   └── Views
-│   │   │       └── README.md
+│   │   │   │   ├── AdminAccessService.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Views
+│   │   │   │   ├── AdminView.php
+│   │   │   │   ├── README.md
 │   │   ├── CartModule
 │   │   │   ├── Controllers
-│   │   │   │   └── README.md
+│   │   │   │   ├── CartController.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Listeners
+│   │   │   │   ├── MergeCartOnLoginListener.php
 │   │   │   ├── Middlewares
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Migrations
-│   │   │   │   └── README.md
+│   │   │   │   ├── CreateCartTables.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Models
-│   │   │   │   └── README.md
+│   │   │   │   ├── Cart.php
+│   │   │   │   ├── CartItem.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Notifications
 │   │   │   ├── Presenters
-│   │   │   │   └── README.md
+│   │   │   │   ├── CartPresenter.php
+│   │   │   │   ├── CartResource.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Repositories
-│   │   │   │   └── README.md
+│   │   │   │   ├── CartItemRepository.php
+│   │   │   │   ├── CartRepository.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Requests
-│   │   │   │   └── README.md
+│   │   │   │   ├── CartRequest.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Responses
-│   │   │   │   └── README.md
+│   │   │   │   ├── CartResponse.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Routes
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── web.php
 │   │   │   ├── Seeds
-│   │   │   │   └── README.md
+│   │   │   │   ├── CartSeed.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Services
-│   │   │   │   └── README.md
-│   │   │   └── Views
-│   │   │       └── README.md
+│   │   │   │   ├── CartService.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Views
+│   │   │   │   ├── CartView.php
+│   │   │   │   ├── README.md
 │   │   ├── OrderModule
 │   │   │   ├── Controllers
-│   │   │   │   └── README.md
+│   │   │   │   ├── OrderController.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Listeners
+│   │   │   │   ├── OrderLifecycleNotificationListener.php
 │   │   │   ├── Middlewares
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Migrations
-│   │   │   │   └── README.md
+│   │   │   │   ├── CreateOrderTables.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Models
-│   │   │   │   └── README.md
+│   │   │   │   ├── Order.php
+│   │   │   │   ├── OrderAddress.php
+│   │   │   │   ├── OrderItem.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Notifications
+│   │   │   │   ├── OrderStatusNotification.php
 │   │   │   ├── Presenters
-│   │   │   │   └── README.md
+│   │   │   │   ├── OrderPresenter.php
+│   │   │   │   ├── OrderResource.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Repositories
-│   │   │   │   └── README.md
+│   │   │   │   ├── OrderAddressRepository.php
+│   │   │   │   ├── OrderItemRepository.php
+│   │   │   │   ├── OrderRepository.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Requests
-│   │   │   │   └── README.md
+│   │   │   │   ├── OrderRequest.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Responses
-│   │   │   │   └── README.md
+│   │   │   │   ├── OrderResponse.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Routes
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── web.php
 │   │   │   ├── Seeds
-│   │   │   │   └── README.md
+│   │   │   │   ├── OrderSeed.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Services
-│   │   │   │   └── README.md
-│   │   │   └── Views
-│   │   │       └── README.md
+│   │   │   │   ├── OrderService.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Views
+│   │   │   │   ├── OrderView.php
+│   │   │   │   ├── README.md
 │   │   ├── ShopModule
 │   │   │   ├── Controllers
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── ShopController.php
+│   │   │   ├── Listeners
 │   │   │   ├── Middlewares
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
 │   │   │   ├── Migrations
-│   │   │   │   └── README.md
+│   │   │   │   ├── CreateShopTables.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Models
-│   │   │   │   └── README.md
+│   │   │   │   ├── Category.php
+│   │   │   │   ├── Product.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Notifications
 │   │   │   ├── Presenters
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── ShopPresenter.php
+│   │   │   │   ├── ShopResource.php
 │   │   │   ├── Repositories
-│   │   │   │   └── README.md
+│   │   │   │   ├── CategoryRepository.php
+│   │   │   │   ├── ProductRepository.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Requests
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── ShopRequest.php
 │   │   │   ├── Responses
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── ShopResponse.php
 │   │   │   ├── Routes
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── web.php
 │   │   │   ├── Seeds
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── ShopSeed.php
 │   │   │   ├── Services
-│   │   │   │   └── README.md
-│   │   │   └── Views
-│   │   │       └── README.md
+│   │   │   │   ├── CatalogService.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Views
+│   │   │   │   ├── README.md
+│   │   │   │   ├── ShopView.php
 │   │   ├── UserModule
 │   │   │   ├── Controllers
-│   │   │   │   └── README.md
+│   │   │   │   ├── AuthController.php
+│   │   │   │   ├── PasskeyController.php
+│   │   │   │   ├── ProfileController.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Middlewares
-│   │   │   │   └── README.md
+│   │   │   │   ├── AuthenticateMiddleware.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Migrations
-│   │   │   │   └── README.md
+│   │   │   │   ├── CreateUserPlatformTables.php
+│   │   │   │   ├── README.md
 │   │   │   ├── Models
-│   │   │   │   └── README.md
+│   │   │   │   ├── Permission.php
+│   │   │   │   ├── README.md
+│   │   │   │   ├── Role.php
+│   │   │   │   ├── User.php
+│   │   │   │   ├── UserAuthToken.php
+│   │   │   │   ├── UserPasskey.php
 │   │   │   ├── Presenters
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── UserPresenter.php
+│   │   │   │   ├── UserResource.php
 │   │   │   ├── Repositories
-│   │   │   │   └── README.md
+│   │   │   │   ├── PermissionRepository.php
+│   │   │   │   ├── README.md
+│   │   │   │   ├── RoleRepository.php
+│   │   │   │   ├── UserAuthTokenRepository.php
+│   │   │   │   ├── UserPasskeyRepository.php
+│   │   │   │   ├── UserRepository.php
 │   │   │   ├── Requests
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── UserRequest.php
 │   │   │   ├── Responses
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── UserResponse.php
 │   │   │   ├── Routes
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── web.php
 │   │   │   ├── Seeds
-│   │   │   │   └── README.md
+│   │   │   │   ├── README.md
+│   │   │   │   ├── UserPlatformSeed.php
 │   │   │   ├── Services
-│   │   │   │   └── README.md
-│   │   │   └── Views
-│   │   │       └── README.md
-│   │   └── WebModule
-│   │       ├── Controllers
-│   │       │   └── HomeController.php
-│   │       ├── Middlewares
-│   │       │   └── README.md
-│   │       ├── Migrations
-│   │       │   └── README.md
-│   │       ├── Models
-│   │       │   └── Page.php
-│   │       ├── Presenters
-│   │       │   └── PagePresenter.php
-│   │       ├── Repositories
-│   │       │   └── PageRepository.php
-│   │       ├── Requests
-│   │       │   └── WebRequest.php
-│   │       ├── Responses
-│   │       │   └── WebResponse.php
-│   │       ├── Routes
-│   │       │   └── web.php
-│   │       ├── Seeds
-│   │       │   └── README.md
-│   │       ├── Services
-│   │       │   └── PageService.php
-│   │       └── Views
-│   │           └── WebView.php
+│   │   │   │   ├── README.md
+│   │   │   │   ├── UserAuthService.php
+│   │   │   │   ├── UserPasskeyService.php
+│   │   │   │   ├── UserProfileService.php
+│   │   │   ├── Views
+│   │   │   │   ├── README.md
+│   │   │   │   ├── UserView.php
+│   │   ├── WebModule
+│   │   │   ├── Controllers
+│   │   │   │   ├── HomeController.php
+│   │   │   ├── Middlewares
+│   │   │   │   ├── README.md
+│   │   │   ├── Migrations
+│   │   │   │   ├── CreatePagesTable.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Models
+│   │   │   │   ├── Page.php
+│   │   │   ├── Presenters
+│   │   │   │   ├── PagePresenter.php
+│   │   │   ├── Repositories
+│   │   │   │   ├── PageRepository.php
+│   │   │   ├── Requests
+│   │   │   │   ├── WebRequest.php
+│   │   │   ├── Responses
+│   │   │   │   ├── WebResponse.php
+│   │   │   ├── Routes
+│   │   │   │   ├── web.php
+│   │   │   ├── Seeds
+│   │   │   │   ├── PageSeed.php
+│   │   │   │   ├── README.md
+│   │   │   ├── Services
+│   │   │   │   ├── PageService.php
+│   │   │   ├── Views
+│   │   │   │   ├── WebView.php
 │   ├── Providers
 │   │   ├── CacheProvider.php
 │   │   ├── CoreProvider.php
 │   │   ├── CryptoProvider.php
 │   │   ├── ExceptionProvider.php
-│   │   └── ModuleProvider.php
+│   │   ├── ModuleProvider.php
+│   │   ├── NotificationProvider.php
+│   │   ├── PaymentProvider.php
+│   │   ├── QueueProvider.php
 │   ├── Resources
 │   │   ├── css
-│   │   │   └── README.md
+│   │   │   ├── README.md
 │   │   ├── images
-│   │   │   └── README.md
-│   │   └── js
-│   │       └── README.md
+│   │   │   ├── README.md
+│   │   ├── js
+│   │   │   ├── README.md
+│   ├── Support
+│   │   ├── ArrayMailable.php
+│   │   ├── Payments
+│   │   │   ├── PaymentIntent.php
+│   │   │   ├── PaymentResult.php
 │   ├── Templates
 │   │   ├── Components
 │   │   │   ├── BadgeList.php
@@ -280,152 +449,187 @@ LangelerMVC
 │   │   │   ├── DataTable.php
 │   │   │   ├── DefinitionGrid.php
 │   │   │   ├── LinkList.php
-│   │   │   └── README.md
+│   │   │   ├── README.md
 │   │   ├── Layouts
 │   │   │   ├── AdminShell.php
 │   │   │   ├── UserShell.php
-│   │   │   └── WebShell.php
+│   │   │   ├── WebShell.php
 │   │   ├── Pages
+│   │   │   ├── AdminCarts.php
+│   │   │   ├── AdminCatalog.php
 │   │   │   ├── AdminDashboard.php
+│   │   │   ├── AdminOperations.php
+│   │   │   ├── AdminOrders.php
 │   │   │   ├── AdminRoles.php
 │   │   │   ├── AdminSystem.php
 │   │   │   ├── AdminUsers.php
+│   │   │   ├── CartPage.php
 │   │   │   ├── Home.php
 │   │   │   ├── NotFound.php
+│   │   │   ├── OrderCheckout.php
+│   │   │   ├── OrderDetail.php
+│   │   │   ├── OrderList.php
+│   │   │   ├── ShopCatalog.php
+│   │   │   ├── ShopProduct.php
 │   │   │   ├── UserLogin.php
 │   │   │   ├── UserPasswordForgot.php
 │   │   │   ├── UserPasswordReset.php
 │   │   │   ├── UserProfile.php
 │   │   │   ├── UserRegister.php
-│   │   │   └── UserStatus.php
-│   │   └── Partials
-│   │       ├── PageIntro.php
-│   │       ├── PanelMeta.php
-│   │       ├── README.md
-│   │       └── StatusMessage.php
-│   └── Utilities
-│       ├── Finders
-│       │   ├── DirectoryFinder.php
-│       │   └── FileFinder.php
-│       ├── Handlers
-│       │   ├── CryptoHandler.php
-│       │   ├── DataHandler.php
-│       │   ├── DataStructureHandler.php
-│       │   ├── LocaleHandler.php
-│       │   ├── MessageFormatterHandler.php
-│       │   ├── NamespaceResolveHandler.php
-│       │   ├── NormalizeHandler.php
-│       │   ├── NumberFormatterHandler.php
-│       │   ├── SQLHandler.php
-│       │   └── SystemHandler.php
-│       ├── Managers
-│       │   ├── CacheManager.php
-│       │   ├── CompressionManager.php
-│       │   ├── Data
-│       │   │   ├── CacheManager.php
-│       │   │   ├── CryptoManager.php
-│       │   │   ├── ModuleManager.php
-│       │   │   └── SessionManager.php
-│       │   ├── DateTimeManager.php
-│       │   ├── FileManager.php
-│       │   ├── IteratorManager.php
-│       │   ├── ReflectionManager.php
-│       │   ├── SessionManager.php
-│       │   ├── SettingsManager.php
-│       │   └── System
-│       │       ├── CompressionManager.php
-│       │       ├── DateTimeManager.php
-│       │       ├── ErrorManager.php
-│       │       ├── FileManager.php
-│       │       ├── IteratorManager.php
-│       │       ├── ReflectionManager.php
-│       │       └── SettingsManager.php
-│       ├── Query
-│       │   ├── DataQuery.php
-│       │   └── SchemaQuery.php
-│       ├── Sanitation
-│       │   ├── GeneralSanitizer.php
-│       │   └── PatternSanitizer.php
-│       ├── Traits
-│       │   ├── ApplicationPathTrait.php
-│       │   ├── ArrayTrait.php
-│       │   ├── CheckerTrait.php
-│       │   ├── ConversionTrait.php
-│       │   ├── Criteria
-│       │   │   ├── DirectoryCriteriaTrait.php
-│       │   │   └── FileCriteriaTrait.php
-│       │   ├── DateTimeTrait.php
-│       │   ├── DirectoryCriteriaTrait.php
-│       │   ├── DirectorySortTrait.php
-│       │   ├── EncodingTrait.php
-│       │   ├── ErrorTrait.php
-│       │   ├── ExistenceCheckerTrait.php
-│       │   ├── FileCriteriaTrait.php
-│       │   ├── FileSortTrait.php
-│       │   ├── Filters
-│       │   │   ├── FiltrationTrait.php
-│       │   │   ├── SanitationFilterTrait.php
-│       │   │   ├── SanitationTrait.php
-│       │   │   ├── ValidationFilterTrait.php
-│       │   │   └── ValidationTrait.php
-│       │   ├── HashingTrait.php
-│       │   ├── Iterator
-│       │   │   ├── IteratorTrait.php
-│       │   │   └── RecursiveIteratorTrait.php
-│       │   ├── LocaleTrait.php
-│       │   ├── LocaleUtilityTrait.php
-│       │   ├── LoopTrait.php
-│       │   ├── ManipulationTrait.php
-│       │   ├── MetricsTrait.php
-│       │   ├── Patterns
-│       │   │   ├── PatternTrait.php
-│       │   │   ├── SanitationPatternTrait.php
-│       │   │   └── ValidationPatternTrait.php
-│       │   ├── Query
-│       │   │   ├── DataQueryTrait.php
-│       │   │   └── SchemaQueryTrait.php
-│       │   ├── Reflection
-│       │   │   ├── ReflectionAttributeTrait.php
-│       │   │   ├── ReflectionClassTrait.php
-│       │   │   ├── ReflectionConstantTrait.php
-│       │   │   ├── ReflectionEnumTrait.php
-│       │   │   ├── ReflectionExtensionTrait.php
-│       │   │   ├── ReflectionFunctionTrait.php
-│       │   │   ├── ReflectionGeneratorTrait.php
-│       │   │   ├── ReflectionMethodTrait.php
-│       │   │   ├── ReflectionParameterTrait.php
-│       │   │   ├── ReflectionPropertyTrait.php
-│       │   │   ├── ReflectionTrait.php
-│       │   │   └── ReflectionTypeTrait.php
-│       │   ├── RetrieverTrait.php
-│       │   ├── Rules
-│       │   │   ├── RuleTrait.php
-│       │   │   └── RulesTrait.php
-│       │   ├── Sort
-│       │   │   ├── DirectorySortTrait.php
-│       │   │   └── FileSortTrait.php
-│       │   └── TypeCheckerTrait.php
-│       └── Validation
-│           ├── GeneralValidator.php
-│           └── PatternValidator.php
+│   │   │   ├── UserStatus.php
+│   │   ├── Partials
+│   │   │   ├── PageIntro.php
+│   │   │   ├── PanelMeta.php
+│   │   │   ├── README.md
+│   │   │   ├── StatusMessage.php
+│   ├── Utilities
+│   │   ├── Finders
+│   │   │   ├── DirectoryFinder.php
+│   │   │   ├── FileFinder.php
+│   │   ├── Handlers
+│   │   │   ├── CryptoHandler.php
+│   │   │   ├── DataHandler.php
+│   │   │   ├── DataStructureHandler.php
+│   │   │   ├── LocaleHandler.php
+│   │   │   ├── MessageFormatterHandler.php
+│   │   │   ├── NamespaceResolveHandler.php
+│   │   │   ├── NormalizeHandler.php
+│   │   │   ├── NumberFormatterHandler.php
+│   │   │   ├── SQLHandler.php
+│   │   │   ├── SystemHandler.php
+│   │   ├── Managers
+│   │   │   ├── Async
+│   │   │   │   ├── DatabaseFailedJobStore.php
+│   │   │   │   ├── EventDispatcher.php
+│   │   │   │   ├── QueueManager.php
+│   │   │   ├── CacheManager.php
+│   │   │   ├── CompressionManager.php
+│   │   │   ├── Data
+│   │   │   │   ├── CacheManager.php
+│   │   │   │   ├── CryptoManager.php
+│   │   │   │   ├── ModuleManager.php
+│   │   │   │   ├── SessionManager.php
+│   │   │   ├── DateTimeManager.php
+│   │   │   ├── FileManager.php
+│   │   │   ├── IteratorManager.php
+│   │   │   ├── ReflectionManager.php
+│   │   │   ├── Security
+│   │   │   │   ├── AuthManager.php
+│   │   │   │   ├── DatabaseUserProvider.php
+│   │   │   │   ├── Gate.php
+│   │   │   │   ├── HttpSecurityManager.php
+│   │   │   │   ├── PasswordBroker.php
+│   │   │   │   ├── PermissionRegistry.php
+│   │   │   │   ├── PolicyResolver.php
+│   │   │   │   ├── SessionGuard.php
+│   │   │   ├── SessionManager.php
+│   │   │   ├── SettingsManager.php
+│   │   │   ├── Support
+│   │   │   │   ├── MailManager.php
+│   │   │   │   ├── NotificationManager.php
+│   │   │   │   ├── OtpManager.php
+│   │   │   │   ├── PasskeyManager.php
+│   │   │   │   ├── PaymentManager.php
+│   │   │   ├── System
+│   │   │   │   ├── CompressionManager.php
+│   │   │   │   ├── DateTimeManager.php
+│   │   │   │   ├── ErrorManager.php
+│   │   │   │   ├── FileManager.php
+│   │   │   │   ├── IteratorManager.php
+│   │   │   │   ├── ReflectionManager.php
+│   │   │   │   ├── SettingsManager.php
+│   │   ├── Query
+│   │   │   ├── DataQuery.php
+│   │   │   ├── SchemaQuery.php
+│   │   ├── Sanitation
+│   │   │   ├── GeneralSanitizer.php
+│   │   │   ├── PatternSanitizer.php
+│   │   ├── Traits
+│   │   │   ├── ApplicationPathTrait.php
+│   │   │   ├── ArrayTrait.php
+│   │   │   ├── CheckerTrait.php
+│   │   │   ├── ConversionTrait.php
+│   │   │   ├── Criteria
+│   │   │   │   ├── DirectoryCriteriaTrait.php
+│   │   │   │   ├── FileCriteriaTrait.php
+│   │   │   ├── DateTimeTrait.php
+│   │   │   ├── DirectoryCriteriaTrait.php
+│   │   │   ├── DirectorySortTrait.php
+│   │   │   ├── EncodingTrait.php
+│   │   │   ├── ErrorTrait.php
+│   │   │   ├── ExistenceCheckerTrait.php
+│   │   │   ├── FileCriteriaTrait.php
+│   │   │   ├── FileSortTrait.php
+│   │   │   ├── Filters
+│   │   │   │   ├── FiltrationTrait.php
+│   │   │   │   ├── SanitationFilterTrait.php
+│   │   │   │   ├── SanitationTrait.php
+│   │   │   │   ├── ValidationFilterTrait.php
+│   │   │   │   ├── ValidationTrait.php
+│   │   │   ├── HashingTrait.php
+│   │   │   ├── Iterator
+│   │   │   │   ├── IteratorTrait.php
+│   │   │   │   ├── RecursiveIteratorTrait.php
+│   │   │   ├── LocaleTrait.php
+│   │   │   ├── LocaleUtilityTrait.php
+│   │   │   ├── LoopTrait.php
+│   │   │   ├── ManipulationTrait.php
+│   │   │   ├── MetricsTrait.php
+│   │   │   ├── Patterns
+│   │   │   │   ├── PatternTrait.php
+│   │   │   │   ├── SanitationPatternTrait.php
+│   │   │   │   ├── ValidationPatternTrait.php
+│   │   │   ├── Query
+│   │   │   │   ├── DataQueryTrait.php
+│   │   │   │   ├── SchemaQueryTrait.php
+│   │   │   ├── Reflection
+│   │   │   │   ├── ReflectionAttributeTrait.php
+│   │   │   │   ├── ReflectionClassTrait.php
+│   │   │   │   ├── ReflectionConstantTrait.php
+│   │   │   │   ├── ReflectionEnumTrait.php
+│   │   │   │   ├── ReflectionExtensionTrait.php
+│   │   │   │   ├── ReflectionFunctionTrait.php
+│   │   │   │   ├── ReflectionGeneratorTrait.php
+│   │   │   │   ├── ReflectionMethodTrait.php
+│   │   │   │   ├── ReflectionParameterTrait.php
+│   │   │   │   ├── ReflectionPropertyTrait.php
+│   │   │   │   ├── ReflectionTrait.php
+│   │   │   │   ├── ReflectionTypeTrait.php
+│   │   │   ├── RetrieverTrait.php
+│   │   │   ├── Rules
+│   │   │   │   ├── RuleTrait.php
+│   │   │   │   ├── RulesTrait.php
+│   │   │   ├── Sort
+│   │   │   │   ├── DirectorySortTrait.php
+│   │   │   │   ├── FileSortTrait.php
+│   │   │   ├── TypeCheckerTrait.php
+│   │   ├── Validation
+│   │   │   ├── GeneralValidator.php
+│   │   │   ├── PatternValidator.php
 ├── Config
 │   ├── app.php
+│   ├── auth.php
 │   ├── cache.php
 │   ├── cookie.php
 │   ├── db.php
 │   ├── encryption.php
 │   ├── feature.php
+│   ├── http.php
 │   ├── mail.php
+│   ├── notifications.php
+│   ├── payment.php
+│   ├── queue.php
 │   ├── session.php
-│   └── webmodule.php
+│   ├── webmodule.php
 ├── Data
 │   ├── Carts.sql
 │   ├── Orders.sql
 │   ├── Products.sql
-│   └── Users.sql
+│   ├── Users.sql
 ├── Docs
 │   ├── ArchitectureOverview.md
 │   ├── CompleteStructure.md
+│   ├── DatabaseMatrixTesting.md
 │   ├── FolderStructure.md
 │   ├── FrameworkStatus.md
 │   ├── IteratorManager Usage.pdf
@@ -441,58 +645,72 @@ LangelerMVC
 │   ├── UtilitiesTraitsReference.md
 │   ├── abstractcryptoclass.rtf
 │   ├── opensslcryptoclass.rtf
-│   └── sodiumcryptoclass.rtf
+│   ├── sodiumcryptoclass.rtf
 ├── Public
 │   ├── .htaccess
 │   ├── assets
 │   │   ├── css
-│   │   │   └── README.md
+│   │   │   ├── README.md
 │   │   ├── images
-│   │   │   └── README.md
-│   │   └── js
-│   │       └── README.md
-│   └── index.php
+│   │   │   ├── README.md
+│   │   ├── js
+│   │   │   ├── README.md
+│   ├── index.php
+├── Scripts
+│   ├── AuditNativeToTraitConsistency.pl
+│   ├── GenerateUtilitiesTraitsReference.pl
 ├── Services
-│   └── README.md
+│   ├── README.md
 ├── Storage
 │   ├── Cache
+│   │   ├── a82007219b79a35957ffa8cf656e7511350b9b4cfe139ec5acd4a4751d341107.cache
 │   │   ├── codex-test.cache
-│   │   └── routes.cache
+│   │   ├── e649b0836d42ddca848924140c8a35ac18712105a723b44066520f33d9ed14a1.cache
+│   │   ├── routes.cache
 │   ├── Logs
-│   │   └── README.md
+│   │   ├── README.md
 │   ├── Secure
-│   │   └── cache_key
+│   │   ├── cache_key
 │   ├── Sessions
-│   │   └── README.md
-│   └── Uploads
-│       └── README.md
+│   │   ├── README.md
+│   ├── Uploads
+│   │   ├── README.md
 ├── Tests
+│   ├── DbMatrix
+│   │   ├── DatabaseMatrixHarnessTest.php
 │   ├── Framework
+│   │   ├── AuthPlatformTest.php
 │   │   ├── BackendArchitectureTest.php
 │   │   ├── BootstrapAndAppTest.php
 │   │   ├── CacheSubsystemTest.php
 │   │   ├── ConfigAndDatabaseTest.php
 │   │   ├── CryptoSubsystemTest.php
 │   │   ├── FinderUtilitiesAndSessionTest.php
+│   │   ├── FrameworkCompletionTest.php
 │   │   ├── HttpPresentationSurfaceTest.php
 │   │   ├── ModelAndRepositoryTest.php
 │   │   ├── MvcLayerTest.php
+│   │   ├── PlatformFoundationTest.php
+│   │   ├── PresentationLayerCompletionTest.php
 │   │   ├── QueryLayerTest.php
 │   │   ├── RouterTest.php
 │   │   ├── SessionSubsystemTest.php
 │   │   ├── TraitSurfaceTest.php
 │   │   ├── UtilityLayerHardeningTest.php
-│   │   └── ValidationAndSanitizationTest.php
+│   │   ├── ValidationAndSanitizationTest.php
 │   ├── Integration
-│   │   └── README.md
-│   └── Unit
-│       └── README.md
+│   │   ├── README.md
+│   ├── Unit
+│   │   ├── README.md
 ├── autoload.php
 ├── bootstrap
-│   └── app.php
+│   ├── app.php
+│   ├── console.php
 ├── composer.json
 ├── composer.lock
+├── console
 ├── logo.jpeg
+├── phpunit.db-matrix.xml
 ├── phpunit.xml
-└── readme.md
+├── readme.md
 ```

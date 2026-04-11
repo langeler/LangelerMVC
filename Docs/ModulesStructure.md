@@ -33,11 +33,11 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| `WebModule` | Implemented starter slice | Contains a working controller, request, service, presenter, response, view, route file, model, and repository. |
-| `AdminModule` | Implemented management slice | Contains dashboard, user, role, and system management flows protected by the framework auth/RBAC layer. |
-| `CartModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
-| `OrderModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
-| `ShopModule` | Scaffolded | Folder structure is present with placeholder `README.md` files only. |
+| `WebModule` | Implemented starter slice | Contains the reference request/controller/service/presenter/view/response pipeline plus `pages` migration, seed, model, repository, and shared templates. |
+| `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, and operations management flows protected by the framework auth/RBAC layer. |
+| `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, merge-on-login listener, presenters/resources, routes, migrations, seeds, and views. |
+| `OrderModule` | Implemented commerce slice | Contains checkout/order lifecycle services, listeners, notifications, presenters/resources, routes, migrations, seeds, and views. |
+| `ShopModule` | Implemented commerce slice | Contains catalog services, presenters/resources, routes, migrations, seeds, views, and product/category persistence. |
 | `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows. |
 
 ## `WebModule` Today
@@ -62,7 +62,7 @@ It currently renders starter content through shared templates:
 - `App/Templates/Partials/PageIntro.php`
 - `App/Templates/Components/BadgeList.php`
 
-By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=memory`. The service is already prepared to use the repository path once a concrete `pages` schema is added.
+By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=database`. The seeded `pages` table is now the normal starter path, while memory-backed content remains an explicit fallback/testing mode.
 
 ## `UserModule` Today
 
@@ -87,16 +87,43 @@ The module also contains framework-managed migrations and seeds for users, roles
 - policy/permission-driven middleware for both HTML and JSON routes
 - shared admin templates composed from reusable presentation partials and components
 
+It now also exposes management visibility for:
+
+- catalog data
+- carts
+- orders
+- queue/notification/event/payment operational state
+
+## `ShopModule` Today
+
+`ShopModule` now provides the first catalog/business slice and demonstrates:
+
+- product and category persistence
+- module-managed migrations and seeds
+- catalog listing/detail flows
+- publish-state and pricing handling
+- HTML + JSON parity through presenters, resources, views, and responses
+
+## `CartModule` Today
+
+`CartModule` now demonstrates:
+
+- guest and authenticated cart persistence
+- session-backed cart identity
+- merge-on-login behavior wired through framework auth events
+- totals calculation in services
+- HTML + JSON parity through the framework presentation pipeline
+
+## `OrderModule` Today
+
+`OrderModule` now demonstrates:
+
+- checkout orchestration
+- order, order-item, and address persistence
+- payment-state lifecycle handling through the framework payment manager
+- order lifecycle listeners and notifications
+- HTML + JSON parity through presenters, resources, views, and responses
+
 ## Placeholder Files
 
-The placeholder `README.md` files in scaffolded module folders are intentional. They make the full intended module architecture visible in the repository tree and give each folder an explicit purpose before implementation begins.
-
-## Recommended Module Build Order
-
-From the current framework state, the strongest next module order is:
-
-1. `ShopModule`
-2. `CartModule`
-3. `OrderModule`
-
-That order lets the application layer grow from the now-completed platform/auth layer into catalog, cart, and order domains in dependency order.
+The placeholder `README.md` files that still exist inside module subfolders are intentional. They keep the repeated module architecture visible even when a given folder only needs a small number of concrete classes today.

@@ -743,7 +743,7 @@ final class FrameworkCompletionTest extends TestCase
 
     private function makeCryptoStub(): CryptoManager
     {
-        $crypto = $this->createMock(CryptoManager::class);
+        $crypto = $this->createStub(CryptoManager::class);
         $crypto->method('generateRandom')->willReturnCallback(function (string $type, mixed ...$arguments): string {
             if ($type === 'generateRandomIv') {
                 return random_bytes(16);
@@ -777,7 +777,7 @@ final class FrameworkCompletionTest extends TestCase
     private function makeCacheDouble(): CacheManager
     {
         $cacheStore = [];
-        $cache = $this->createMock(CacheManager::class);
+        $cache = $this->createStub(CacheManager::class);
         $cache->method('get')->willReturnCallback(
             static function (string $key, mixed $default = null) use (&$cacheStore): mixed {
                 return $cacheStore[$key] ?? (is_callable($default) ? $default() : $default);

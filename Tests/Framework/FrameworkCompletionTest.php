@@ -477,6 +477,25 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('payments', $adminJson['data']['operations']);
     }
 
+    public function testShopSeededCatalogMediaPointsToTrackedPublicAssets(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+        $catalog = $stack['catalogService']->forAction('catalog', ['page' => 1])->execute();
+        $projectRoot = dirname(__DIR__, 2);
+
+        self::assertNotEmpty($catalog['products']);
+
+        foreach ($catalog['products'] as $product) {
+            self::assertIsArray($product);
+            self::assertNotEmpty($product['media'] ?? []);
+
+            foreach ((array) ($product['media'] ?? []) as $mediaPath) {
+                self::assertIsString($mediaPath);
+                self::assertFileExists($projectRoot . '/Public' . $mediaPath);
+            }
+        }
+    }
+
     private function makePlatformStack(bool $seedCart, bool $seedOrders): array
     {
         $database = $this->makeSqliteDatabase();

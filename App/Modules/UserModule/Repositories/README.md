@@ -1,4 +1,11 @@
 # Repositories
 
-This directory is intentionally present to make the planned `UserModule` architecture visible in the repository.
-Place concrete repository classes that isolate module persistence concerns here as the module is implemented.
+This directory contains the current `UserModule` Repositories surface. Persistence adapters that isolate module data access.
+
+Current files:
+
+- `PermissionRepository.php`
+- `RoleRepository.php`
+- `UserAuthTokenRepository.php`
+- `UserPasskeyRepository.php`
+- `UserRepository.php`

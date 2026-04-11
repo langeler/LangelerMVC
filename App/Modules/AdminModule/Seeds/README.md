@@ -1,4 +1,5 @@
 # Seeds
 
-This directory is intentionally present to make the planned `AdminModule` architecture visible in the repository.
-Place concrete seed classes that populate module data for development and testing here as the module is implemented.
+This directory is part of the implemented `AdminModule` module contract. Development and test seed classes for the module.
+
+No concrete files are required here right now, but the folder remains tracked so the module layout stays explicit and ready for extension.

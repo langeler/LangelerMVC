@@ -1,4 +1,8 @@
 # Presenters
 
-This directory is intentionally present to make the planned `CartModule` architecture visible in the repository.
-Place concrete presentation transformers that prepare module data for templates or response payloads here as the module is implemented.
+This directory contains the current `CartModule` Presenters surface. Presentation transformers and resources for HTML and JSON output.
+
+Current files:
+
+- `CartPresenter.php`
+- `CartResource.php`

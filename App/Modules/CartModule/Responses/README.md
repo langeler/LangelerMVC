@@ -1,4 +1,7 @@
 # Responses
 
-This directory is intentionally present to make the planned `CartModule` architecture visible in the repository.
-Place concrete module response classes for HTTP output policies and transport formatting here as the module is implemented.
+This directory contains the current `CartModule` Responses surface. Module HTTP response classes and transport policies.
+
+Current files:
+
+- `CartResponse.php`

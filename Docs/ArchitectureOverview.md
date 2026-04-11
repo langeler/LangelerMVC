@@ -194,7 +194,7 @@ These subsystems are also covered by the current regression suite under `Tests/F
 
 ## Concrete Application Surface Today
 
-The application layer is intentionally not “finished everywhere” yet.
+The application layer now ships with completed first-party reference slices and remains intentionally extensible.
 
 Current concrete state:
 
@@ -205,7 +205,7 @@ Current concrete state:
 - `WebModule` has a controller, request, service, presenter, view, response, model, repository, route file, migration, and seed.
 - `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows.
 - `AdminModule` now provides dashboard, user, role/permission, catalog, cart, order, and framework-inspection flows.
-- `ShopModule` provides catalog listing/detail flows with products, categories, pricing, and publish state.
+- `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
 - `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
 - `OrderModule` provides checkout orchestration, order snapshots, payment-state handling, and lifecycle notifications.
 - Shared templates currently live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components`.
@@ -218,7 +218,7 @@ The most important extension seams today are:
 
 - **Modules**: add real business slices under `App/Modules/*`.
 - **Persistence**: add migrations, seeds, repositories, and real schemas on top of the existing database/query/model base.
-- **Console**: add more operational commands and later scaffolding/generator support.
+- **Console**: extend the operational command set or add scaffolding/generator support when a project needs it.
 - **Views**: extend the shared presentation surface with new layouts, pages, partials, and components without duplicating module orchestration.
 - **Drivers**: add more concrete infrastructure backends through providers and contracts.
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.

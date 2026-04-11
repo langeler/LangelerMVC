@@ -1,4 +1,7 @@
 # Services
 
-This directory is intentionally present to make the planned `AdminModule` architecture visible in the repository.
-Place concrete application services that hold module use-case logic here as the module is implemented.
+This directory contains the current `AdminModule` Services surface. Use-case services that hold the module application logic.
+
+Current files:
+
+- `AdminAccessService.php`

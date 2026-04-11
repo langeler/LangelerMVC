@@ -1,4 +1,9 @@
 # Services
 
-This directory is intentionally present to make the planned `UserModule` architecture visible in the repository.
-Place concrete application services that hold module use-case logic here as the module is implemented.
+This directory contains the current `UserModule` Services surface. Use-case services that hold the module application logic.
+
+Current files:
+
+- `UserAuthService.php`
+- `UserPasskeyService.php`
+- `UserProfileService.php`

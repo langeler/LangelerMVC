@@ -1,4 +1,9 @@
 # Repositories
 
-This directory is intentionally present to make the planned `OrderModule` architecture visible in the repository.
-Place concrete repository classes that isolate module persistence concerns here as the module is implemented.
+This directory contains the current `OrderModule` Repositories surface. Persistence adapters that isolate module data access.
+
+Current files:
+
+- `OrderAddressRepository.php`
+- `OrderItemRepository.php`
+- `OrderRepository.php`

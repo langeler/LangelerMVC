@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (78 tests, 1963 assertions)`
+- Verification result: `OK (81 tests, 1980 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -122,6 +122,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - product and category persistence
 - catalog listing/detail flows
+- tracked public demo product imagery under `Public/assets/images`
 - pricing and publish-state handling
 - HTML + JSON parity through presenter/resource/view/response layers
 - module migrations and seeds

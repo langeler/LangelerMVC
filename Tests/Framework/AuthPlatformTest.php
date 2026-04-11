@@ -10,9 +10,15 @@ use App\Core\MigrationRunner;
 use App\Core\Router;
 use App\Core\SeedRunner;
 use App\Core\Session;
+use App\Exceptions\AuthException;
+use App\Exceptions\Database\RepositoryException;
+use App\Exceptions\Http\ServiceException;
 use App\Contracts\Async\EventDispatcherInterface;
 use App\Drivers\Session\FileSessionDriver;
 use App\Modules\AdminModule\Services\AdminAccessService;
+use App\Modules\CartModule\Migrations\CreateCartTables;
+use App\Modules\CartModule\Repositories\CartItemRepository;
+use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Modules\UserModule\Migrations\CreateUserPlatformTables;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
@@ -22,6 +28,7 @@ use App\Modules\UserModule\Repositories\UserRepository;
 use App\Modules\UserModule\Seeds\UserPlatformSeed;
 use App\Modules\UserModule\Services\UserAuthService;
 use App\Modules\UserModule\Services\UserPasskeyService;
+use App\Modules\UserModule\Services\UserProfileService;
 use App\Providers\CoreProvider;
 use App\Providers\ExceptionProvider;
 use App\Utilities\Managers\CacheManager;
@@ -308,6 +315,56 @@ class AuthPlatformTest extends TestCase
 
         self::assertSame(200, $deleted['status']);
         self::assertCount(0, $stack['passkeys']->allForUserData(2));
+    }
+
+    public function testUserProfileServiceUsesFrameworkAuthContextWhenNoUserIsAuthenticated(): void
+    {
+        $database = $this->makeSqliteDatabase();
+        $modules = $this->makeModuleManagerStub([
+            CreateUserPlatformTables::class,
+            UserPlatformSeed::class,
+        ]);
+        $errors = new ErrorManager(new ExceptionProvider());
+
+        (new MigrationRunner($database, $modules, $errors))->migrate('UserModule');
+        (new SeedRunner($database, $modules, $errors))->run('UserModule');
+
+        $stack = $this->makeAuthStack($database);
+        $service = new UserProfileService(
+            $stack['users'],
+            $stack['passkeys'],
+            $stack['provider'],
+            $stack['auth'],
+            $stack['config'],
+            $stack['passkeyManager']
+        );
+
+        try {
+            $service->execute();
+            self::fail('Expected the profile service to reject unauthenticated access.');
+        } catch (ServiceException $exception) {
+            self::assertInstanceOf(AuthException::class, $exception->getPrevious());
+            self::assertSame('Authenticated user is required.', $exception->getPrevious()?->getMessage());
+        }
+    }
+
+    public function testCartItemRepositoryUsesRepositoryExceptionForMissingQuantityUpdates(): void
+    {
+        $database = $this->makeSqliteDatabase();
+        $modules = $this->makeModuleManagerStub([
+            CreateUserPlatformTables::class,
+            CreateShopTables::class,
+            CreateCartTables::class,
+        ]);
+        $errors = new ErrorManager(new ExceptionProvider());
+
+        (new MigrationRunner($database, $modules, $errors))->migrate();
+
+        $repository = new CartItemRepository($database);
+
+        $this->expectException(RepositoryException::class);
+        $this->expectExceptionMessage('Cart item [999] could not be found.');
+        $repository->updateQuantity(999, 2);
     }
 
     public function testAdminServiceExposesDashboardAndRoleManagement(): void

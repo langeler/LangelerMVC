@@ -1,4 +1,7 @@
 # Routes
 
-This directory is intentionally present to make the planned `UserModule` architecture visible in the repository.
-Place concrete route definition files that register the module entry points here as the module is implemented.
+This directory contains the current `UserModule` Routes surface. Route definition files registered by the framework router.
+
+Current files:
+
+- `web.php`

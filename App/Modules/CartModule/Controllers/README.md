@@ -1,4 +1,7 @@
 # Controllers
 
-This directory is intentionally present to make the planned `CartModule` architecture visible in the repository.
-Place concrete module controllers that orchestrate request, service, presenter, view, and response flow here as the module is implemented.
+This directory contains the current `CartModule` Controllers surface. HTTP entrypoints that orchestrate request, service, presenter, view, and response flow.
+
+Current files:
+
+- `CartController.php`

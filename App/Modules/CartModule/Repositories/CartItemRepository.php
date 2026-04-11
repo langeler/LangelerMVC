@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\CartModule\Repositories;
 
 use App\Abstracts\Database\Repository;
+use App\Exceptions\Database\RepositoryException;
 use App\Modules\CartModule\Models\CartItem;
 
 class CartItemRepository extends Repository
@@ -64,7 +65,7 @@ class CartItemRepository extends Repository
         $item = $this->find($itemId);
 
         if (!$item instanceof CartItem) {
-            throw new \RuntimeException(sprintf('Cart item [%d] could not be found.', $itemId));
+            throw new RepositoryException(sprintf('Cart item [%d] could not be found.', $itemId));
         }
 
         $quantity = max(1, $quantity);

@@ -1,4 +1,7 @@
 # Middlewares
 
-This directory is intentionally present to make the planned `AdminModule` architecture visible in the repository.
-Place concrete module-specific middleware classes that run before or around controller execution here as the module is implemented.
+This directory contains the current `AdminModule` Middlewares surface. Module-specific middleware that runs before or around controller execution.
+
+Current files:
+
+- `AdminAccessMiddleware.php`

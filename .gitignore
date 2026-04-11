@@ -4,6 +4,7 @@
 !/Public/assets/js/README.md
 /Public/assets/images/*
 !/Public/assets/images/README.md
+!/Public/assets/images/*.svg
 /Storage/Cache/
 /Storage/Logs/*
 !/Storage/Logs/README.md

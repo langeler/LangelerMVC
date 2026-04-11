@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\UserModule\Repositories;
 
 use App\Abstracts\Database\Repository;
+use App\Exceptions\Database\RepositoryException;
 use App\Modules\UserModule\Models\UserPasskey;
 use JsonException;
 
@@ -67,7 +68,7 @@ class UserPasskeyRepository extends Repository
             return $fresh;
         }
 
-        throw new \RuntimeException('The passkey record could not be persisted.');
+        throw new RepositoryException('The passkey record could not be persisted.');
     }
 
     public function refreshAssertion(int $passkeyId, array $source): UserPasskey
@@ -178,7 +179,7 @@ class UserPasskeyRepository extends Repository
         $passkey = $this->find($passkeyId);
 
         if (!$passkey instanceof UserPasskey) {
-            throw new \RuntimeException('The passkey record could not be reloaded.');
+            throw new RepositoryException('The passkey record could not be reloaded.');
         }
 
         return $passkey;

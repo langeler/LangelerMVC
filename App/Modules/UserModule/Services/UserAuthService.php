@@ -6,6 +6,7 @@ namespace App\Modules\UserModule\Services;
 
 use App\Abstracts\Http\Service;
 use App\Core\Config;
+use App\Exceptions\AuthException;
 use App\Modules\UserModule\Models\User;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserAuthTokenRepository;
@@ -637,7 +638,7 @@ class UserAuthService extends Service
         $raw = base64_decode($value, true);
 
         if ($raw === false) {
-            throw new \RuntimeException('Failed to decode encrypted OTP payload.');
+            throw new AuthException('Failed to decode encrypted OTP payload.');
         }
 
         $driver = $this->toLowerString($this->cryptoManager->getDriverName());

@@ -1,4 +1,7 @@
 # Migrations
 
-This directory is intentionally present to make the planned `CartModule` architecture visible in the repository.
-Place concrete database migrations that belong to the module here as the module is implemented.
+This directory contains the current `CartModule` Migrations surface. Database migrations owned by the module schema lifecycle.
+
+Current files:
+
+- `CreateCartTables.php`

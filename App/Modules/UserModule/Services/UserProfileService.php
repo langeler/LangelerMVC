@@ -6,6 +6,7 @@ namespace App\Modules\UserModule\Services;
 
 use App\Abstracts\Http\Service;
 use App\Core\Config;
+use App\Exceptions\AuthException;
 use App\Modules\UserModule\Models\User;
 use App\Modules\UserModule\Repositories\UserPasskeyRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
@@ -157,7 +158,7 @@ class UserProfileService extends Service
         $user = $this->auth->user();
 
         if (!$user instanceof User) {
-            throw new \RuntimeException('Authenticated user is required.');
+            throw new AuthException('Authenticated user is required.');
         }
 
         return $user;

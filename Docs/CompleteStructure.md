@@ -450,6 +450,7 @@ LangelerMVC
 │   │   │   ├── DataTable.php
 │   │   │   ├── DefinitionGrid.php
 │   │   │   ├── LinkList.php
+│   │   │   ├── ProductGrid.php
 │   │   │   ├── README.md
 │   │   ├── Layouts
 │   │   │   ├── AdminShell.php
@@ -653,7 +654,10 @@ LangelerMVC
 │   │   ├── css
 │   │   │   ├── README.md
 │   │   ├── images
+│   │   │   ├── admin-operations-pack.svg
+│   │   │   ├── queue-visibility-dashboard.svg
 │   │   │   ├── README.md
+│   │   │   ├── starter-platform-license.svg
 │   │   ├── js
 │   │   │   ├── README.md
 │   ├── index.php

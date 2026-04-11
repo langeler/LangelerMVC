@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
+  <title id="title">Queue Visibility Dashboard</title>
+  <desc id="desc">Decorative demo artwork for the seeded queue visibility dashboard product.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#eef6ff"/>
+      <stop offset="100%" stop-color="#f6f4ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="640" fill="url(#bg)"/>
+  <rect x="70" y="78" width="820" height="484" rx="34" fill="#fffdf8" stroke="#d8d0c2" stroke-width="6"/>
+  <rect x="118" y="126" width="724" height="74" rx="18" fill="#1d4e89"/>
+  <rect x="118" y="236" width="224" height="114" rx="20" fill="#dcecff"/>
+  <rect x="368" y="236" width="224" height="114" rx="20" fill="#dff3ee"/>
+  <rect x="618" y="236" width="224" height="114" rx="20" fill="#f2ead8"/>
+  <polyline points="146,488 252,416 360,446 468,334 576,362 684,276 792,304" fill="none" stroke="#0f6b5b" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="252" cy="416" r="16" fill="#0f6b5b"/>
+  <circle cx="468" cy="334" r="16" fill="#0f6b5b"/>
+  <circle cx="684" cy="276" r="16" fill="#0f6b5b"/>
+  <text x="148" y="172" font-family="Georgia, 'Times New Roman', serif" font-size="38" fill="#ffffff">Queue Visibility Dashboard</text>
+  <text x="152" y="294" font-family="Georgia, 'Times New Roman', serif" font-size="24" fill="#1b1a17">Pending</text>
+  <text x="404" y="294" font-family="Georgia, 'Times New Roman', serif" font-size="24" fill="#1b1a17">Processed</text>
+  <text x="654" y="294" font-family="Georgia, 'Times New Roman', serif" font-size="24" fill="#1b1a17">Alerts</text>
+</svg>

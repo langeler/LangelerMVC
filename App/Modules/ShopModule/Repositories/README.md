@@ -1,4 +1,8 @@
 # Repositories
 
-This directory is intentionally present to make the planned `ShopModule` architecture visible in the repository.
-Place concrete repository classes that isolate module persistence concerns here as the module is implemented.
+This directory contains the current `ShopModule` Repositories surface. Persistence adapters that isolate module data access.
+
+Current files:
+
+- `CategoryRepository.php`
+- `ProductRepository.php`

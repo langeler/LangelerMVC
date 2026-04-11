@@ -101,6 +101,7 @@ It now also exposes management visibility for:
 - product and category persistence
 - module-managed migrations and seeds
 - catalog listing/detail flows
+- tracked public product artwork served from `Public/assets/images`
 - publish-state and pricing handling
 - HTML + JSON parity through presenters, resources, views, and responses
 
@@ -124,6 +125,6 @@ It now also exposes management visibility for:
 - order lifecycle listeners and notifications
 - HTML + JSON parity through presenters, resources, views, and responses
 
-## Placeholder Files
+## Directory Notes
 
-The placeholder `README.md` files that still exist inside module subfolders are intentional. They keep the repeated module architecture visible even when a given folder only needs a small number of concrete classes today.
+The `README.md` files that still exist inside module subfolders are intentional. They now document the purpose and current population of each repeated module directory, even when a given folder only needs a small number of concrete classes today.

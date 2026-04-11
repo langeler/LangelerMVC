@@ -9,3 +9,4 @@ Current components:
 - `DataTable.php`
 - `DefinitionGrid.php`
 - `LinkList.php`
+- `ProductGrid.php`

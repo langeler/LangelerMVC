@@ -18,14 +18,8 @@
 
     <div class="section">
         <h2>Products</h2>
-        <?= $view->renderComponent('DataTable', [
-            'columns' => [
-                'name' => 'Product',
-                'price' => 'Price',
-                'stock' => 'Stock',
-                'slug' => 'Product URL',
-            ],
-            'rows' => is_array($products ?? null) ? $products : [],
+        <?= $view->renderComponent('ProductGrid', [
+            'products' => is_array($products ?? null) ? $products : [],
             'empty' => 'No products are currently published.',
         ]) ?>
     </div>

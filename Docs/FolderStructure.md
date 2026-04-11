@@ -1,6 +1,6 @@
 # Folder Structure
 
-This document describes the current LangelerMVC repository as it exists in code today. It is intentionally based on the tracked filesystem and implemented classes rather than on planned future layers.
+This document describes the current LangelerMVC repository as it exists in code today. It is intentionally based on the tracked filesystem and implemented classes rather than on speculative future layers.
 
 ## Front Controller And Bootstrap
 
@@ -76,7 +76,7 @@ Typed exceptions grouped by concern so failures stay explicit and easier to debu
 
 ### `App/Helpers`
 
-Reserved for helper classes that genuinely belong outside traits, managers, handlers, and modules. It is intentionally present but not used yet.
+Available for focused helper classes that genuinely belong outside traits, managers, handlers, and modules. It remains tracked as an explicit extension seam even when no helper class is currently needed.
 
 ### `App/Modules`
 
@@ -95,7 +95,7 @@ The application layer is module-first. Each module follows the same backend shap
 - `Services`
 - `Views`
 
-`WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented. The placeholder `README.md` files that remain inside some module subfolders are intentional and keep the repeated architecture visible even where a folder only needs a few concrete classes today.
+`WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented. The `README.md` files that remain inside module subfolders now act as living directory notes so each repeated backend surface stays explicit even when a specific folder only needs a few concrete classes today.
 
 ### `App/Providers`
 
@@ -103,7 +103,7 @@ Container/provider wiring for core, cache, crypto, exception, and module registr
 
 ### `App/Resources`
 
-Reserved source assets that belong to the application layer rather than the public web root.
+Source asset workspace that belongs to the application layer rather than the public web root.
 
 ### `App/Templates`
 
@@ -178,7 +178,7 @@ The web-facing document root:
 
 - `index.php` is the thin front controller.
 - `.htaccess` contains the Apache rewrite and baseline public protections.
-- `assets/` contains public asset directories.
+- `assets/` contains public asset directories, including tracked demo storefront images under `assets/images/`.
 
 ### `Services`
 
@@ -199,8 +199,8 @@ Runtime storage:
 Testing surface:
 
 - `Framework/`: current regression suite for the framework/backend itself
-- `Unit/`: scaffolded for isolated class tests
-- `Integration/`: scaffolded for cross-layer tests
+- `Unit/`: optional bucket for isolated class tests
+- `Integration/`: optional bucket for cross-layer tests
 
 ### `console`
 
@@ -212,5 +212,5 @@ Legacy fallback autoload helper. It is still tracked, but the primary applicatio
 
 ## Notes
 
-- Placeholder `README.md` files were intentionally added to previously empty folders so the repository can communicate the full planned architecture without invisible directories.
+- Directory `README.md` files are intentionally kept in extension-oriented folders so the repository can communicate the full implemented architecture without invisible directories.
 - The canonical current documentation entrypoints are `Docs/README.md`, `Docs/ArchitectureOverview.md`, and `Docs/FrameworkStatus.md`.

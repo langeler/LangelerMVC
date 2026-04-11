@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-11`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (78 tests, 1963 assertions)`
+- `composer test` passes with `OK (81 tests, 1980 assertions)`
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
@@ -20,7 +20,7 @@ As of `2026-04-11`:
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
-- The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, and reusable `Layouts`, `Pages`, `Partials`, and `Components`.
+- The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
 - `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, and operational health.
@@ -61,7 +61,7 @@ In the current starter slice, `WebModule` follows:
 - `Exceptions/`: typed framework exception classes grouped by concern.
 - `Modules/`: application modules. `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party slices.
 - `Providers/`: container/provider wiring for core, cache, crypto, exceptions, and modules.
-- `Resources/`: source asset placeholders that belong to the application layer.
+- `Resources/`: source asset workspace that belongs to the application layer.
 - `Templates/`: shared PHP template files used by module views, including layouts, pages, partials, and reusable components.
 - `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
 
@@ -70,11 +70,11 @@ In the current starter slice, `WebModule` follows:
 - `Config/`: runtime configuration arrays loaded by the config facade and merged with `.env` overrides at runtime.
 - `Data/`: standalone SQL reference files kept as reference material beside the framework-managed migration system.
 - `Docs/`: current architecture and structure docs, plus older reference materials kept in the repository.
-- `Public/`: the public document root, front controller, Apache config, and public asset folders.
+- `Public/`: the public document root, front controller, Apache config, and public asset folders, including tracked storefront demo imagery.
 - `console`: the first-party CLI entrypoint for operational framework commands.
-- `Services/`: reserved for cross-application service composition outside a specific module.
+- `Services/`: workspace for cross-application service composition outside a specific module.
 - `Storage/`: cache, logs, secure keys, sessions, and uploads.
-- `Tests/`: framework regression coverage plus scaffolded `Unit` and `Integration` suites, and a separate DB-matrix harness.
+- `Tests/`: framework regression coverage, optional `Unit` and `Integration` suite buckets, and a separate DB-matrix harness.
 - `autoload.php`: legacy fallback autoload helper. The primary bootstrap path uses Composer through `bootstrap/app.php`.
 
 For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md).
@@ -141,7 +141,7 @@ composer test:pgsql
 composer test:sqlsrv
 ```
 
-The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain reserved for future expansion.
+The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain available for additional isolated and cross-layer suites when a project needs them.
 
 ## Structure Docs
 

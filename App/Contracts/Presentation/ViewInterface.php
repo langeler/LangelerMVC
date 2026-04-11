@@ -13,6 +13,28 @@ namespace App\Contracts\Presentation;
 interface ViewInterface
 {
 	/**
+	 * Set the default layout used when rendering pages.
+	 *
+	 * @param string $layout
+	 * @return static
+	 */
+	public function setDefaultLayout(string $layout): static;
+
+	/**
+	 * Get the current default layout, if any.
+	 *
+	 * @return string|null
+	 */
+	public function getDefaultLayout(): ?string;
+
+	/**
+	 * Clear the current default layout.
+	 *
+	 * @return static
+	 */
+	public function clearDefaultLayout(): static;
+
+	/**
 	 * Render a layout template with given data.
 	 *
 	 * @param string $layout The layout name.
@@ -22,13 +44,32 @@ interface ViewInterface
 	public function renderLayout(string $layout, array $data = []): string;
 
 	/**
-	 * Render a page template with given data.
+	 * Render a page template with the active default layout when configured.
 	 *
 	 * @param string $page The page name.
 	 * @param array<string,mixed> $data Data to pass to the page.
 	 * @return string The rendered page output.
 	 */
 	public function renderPage(string $page, array $data = []): string;
+
+	/**
+	 * Render a page template without applying a layout.
+	 *
+	 * @param string $page
+	 * @param array<string,mixed> $data
+	 * @return string
+	 */
+	public function renderPageContent(string $page, array $data = []): string;
+
+	/**
+	 * Render a page template inside a specific layout.
+	 *
+	 * @param string $layout
+	 * @param string $page
+	 * @param array<string,mixed> $data
+	 * @return string
+	 */
+	public function renderPageWithLayout(string $layout, string $page, array $data = []): string;
 
 	/**
 	 * Render a partial template.
@@ -49,6 +90,15 @@ interface ViewInterface
 	public function renderComponent(string $component, array $data = []): string;
 
 	/**
+	 * Determine whether a template exists within the presentation tree.
+	 *
+	 * @param string $type One of layout, page, partial, or component.
+	 * @param string $template
+	 * @return bool
+	 */
+	public function templateExists(string $type, string $template): bool;
+
+	/**
 	 * Render an asset (e.g., CSS, JS).
 	 *
 	 * @param string $type  The asset type (css, js, etc.).
@@ -64,6 +114,15 @@ interface ViewInterface
 	 * @return void
 	 */
 	public function setGlobals(array $variables): void;
+
+	/**
+	 * Share one or more global variables with the view layer.
+	 *
+	 * @param string|array<string,mixed> $key
+	 * @param mixed $value
+	 * @return static
+	 */
+	public function share(string|array $key, mixed $value = null): static;
 
 	/**
 	 * Retrieve all global variables.

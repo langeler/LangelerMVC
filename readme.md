@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-10`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (71 tests, 1899 assertions)`
+- `composer test` passes with `OK (74 tests, 1911 assertions)`
 - Core runtime, cache, crypto, query, validation, MVC, console, schema lifecycle, session driver, auth, and utility subsystems are implemented
 - `WebModule`, `UserModule`, and `AdminModule` are implemented application slices
 - `ShopModule`, `CartModule`, and `OrderModule` remain scaffolded
@@ -20,6 +20,7 @@ As of `2026-04-10`:
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, and persistence foundations are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, and framework-native mail/OTP/passkey service boundaries.
+- The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, and reusable `Layouts`, `Pages`, `Partials`, and `Components`.
 - `WebModule` is the first concrete module and demonstrates the intended request-to-response pipeline through request, controller, service, presenter, view, response, model, repository, route, and shared templates.
 - `WebModule` now also includes framework-managed `pages` migration and seed classes, so the starter module can move from memory-backed content to database-backed content without bypassing the framework lifecycle.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
@@ -62,7 +63,7 @@ In the current starter slice, `WebModule` follows:
 - `Modules/`: application modules. `WebModule`, `UserModule`, and `AdminModule` are implemented; `ShopModule`, `CartModule`, and `OrderModule` are scaffolded.
 - `Providers/`: container/provider wiring for core, cache, crypto, exceptions, and modules.
 - `Resources/`: source asset placeholders that belong to the application layer.
-- `Templates/`: shared PHP template files used by module views.
+- `Templates/`: shared PHP template files used by module views, including layouts, pages, partials, and reusable components.
 - `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
 
 ### Other Root Folders

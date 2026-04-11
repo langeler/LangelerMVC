@@ -27,11 +27,7 @@ This structure is intentionally repeated across modules so the application layer
 - `App\Providers\ModuleProvider` registers module classes and aliases them for container resolution.
 - `App\Core\Router` loads route files from module `Routes/` folders and dispatches controller actions from there.
 
-Shared templates currently live in `App/Templates`, so modules can use a common presentation surface without duplicating layout files.
-
-Important current limitation:
-
-- Shared templates still live in `App/Templates`, so modules currently share a common presentation surface rather than owning isolated template roots per module.
+Shared templates currently live in `App/Templates`, so modules can use a common presentation surface with shared layouts, partials, and components without duplicating markup primitives across modules.
 
 ## Current Module Status
 
@@ -63,6 +59,8 @@ It currently renders starter content through shared templates:
 - `App/Templates/Layouts/WebShell.php`
 - `App/Templates/Pages/Home.php`
 - `App/Templates/Pages/NotFound.php`
+- `App/Templates/Partials/PageIntro.php`
+- `App/Templates/Components/BadgeList.php`
 
 By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=memory`. The service is already prepared to use the repository path once a concrete `pages` schema is added.
 
@@ -87,6 +85,7 @@ The module also contains framework-managed migrations and seeds for users, roles
 - user and role/permission management flows
 - framework inspection surfaces for modules, cache capabilities, routing, config, and sessions
 - policy/permission-driven middleware for both HTML and JSON routes
+- shared admin templates composed from reusable presentation partials and components
 
 ## Placeholder Files
 

@@ -269,6 +269,57 @@ abstract class Controller implements ControllerInterface
 	}
 
 	/**
+	 * Finalize a controller payload through the shared presentation pipeline.
+	 *
+	 * @param array<string, mixed> $result
+	 * @param string $fallbackTemplate
+	 * @param ResourceInterface|class-string<ResourceInterface>|null $resource
+	 * @param array<string, string> $headers
+	 * @return ResponseInterface
+	 */
+	protected function respondWithPresentation(
+		array $result,
+		string $fallbackTemplate,
+		ResourceInterface|string|null $resource = null,
+		array $headers = []
+	): ResponseInterface {
+		$status = (int) ($result['status'] ?? 200);
+
+		if ($this->request->expectsJson()) {
+			$payload = $resource;
+
+			if ($this->isString($resource)) {
+				$payload = new $resource($result);
+			}
+
+			return $this->respondWithResource(
+				$payload instanceof ResourceInterface ? $payload : $result,
+				$status,
+				$headers
+			);
+		}
+
+		$redirect = $result['redirect'] ?? null;
+
+		if ($this->isString($redirect) && $redirect !== '') {
+			return $this->respond('', max(200, min($status, 399)), [
+				...$headers,
+				'Location' => $redirect,
+			]);
+		}
+
+		$payload = $this->preparePresenterData('prepare', $result);
+
+		return $this->respondWithView(
+			'renderPage',
+			(string) ($payload['template'] ?? $fallbackTemplate),
+			$payload,
+			$status,
+			$headers
+		);
+	}
+
+	/**
 	 * Render a template and mark the response as HTML.
 	 *
 	 * @param string $method

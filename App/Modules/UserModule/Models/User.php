@@ -6,8 +6,9 @@ namespace App\Modules\UserModule\Models;
 
 use App\Abstracts\Database\Model;
 use App\Contracts\Auth\AuthenticatableInterface;
+use App\Contracts\Support\NotifiableInterface;
 
-class User extends Model implements AuthenticatableInterface
+class User extends Model implements AuthenticatableInterface, NotifiableInterface
 {
     protected string $table = 'users';
 
@@ -81,5 +82,24 @@ class User extends Model implements AuthenticatableInterface
         $secret = $this->getAttribute('otp_secret');
 
         return is_string($secret) && $secret !== '';
+    }
+
+    public function notificationType(): string
+    {
+        return static::class;
+    }
+
+    public function notificationIdentifier(): mixed
+    {
+        return $this->getKey();
+    }
+
+    public function routeNotificationFor(string $channel): mixed
+    {
+        return match ($channel) {
+            'mail' => $this->getEmailForVerification(),
+            'database' => $this->getKey(),
+            default => null,
+        };
     }
 }

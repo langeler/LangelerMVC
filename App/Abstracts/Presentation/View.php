@@ -5,68 +5,53 @@ declare(strict_types=1);
 namespace App\Abstracts\Presentation;
 
 use App\Contracts\Presentation\ViewInterface;
-use App\Exceptions\Data\FinderException;          // Exception for errors occurring during finder operations.
-use App\Exceptions\Presentation\ViewException;    // Exception for errors in presentation layer views.
-
-use App\Utilities\Finders\{
-	FileFinder,      // Handles searching and managing files.
-	DirectoryFinder  // Handles searching and managing directories.
-};
-
-use App\Utilities\Managers\{
-	CacheManager,    // Manages caching operations and configurations.
-	FileManager      // Manages file operations and configurations.
-};
-
-use App\Utilities\Sanitation\PatternSanitizer;    // Provides utilities for sanitizing data using patterns.
-use App\Utilities\Validation\PatternValidator;    // Provides utilities for validating data using patterns.
-use App\Utilities\Traits\{
-	ArrayTrait,
-	ErrorTrait,
-	ManipulationTrait,
-	TypeCheckerTrait
-};
+use App\Exceptions\Data\FinderException;
+use App\Exceptions\Presentation\ViewException;
+use App\Utilities\Finders\DirectoryFinder;
+use App\Utilities\Finders\FileFinder;
+use App\Utilities\Managers\CacheManager;
+use App\Utilities\Managers\FileManager;
+use App\Utilities\Sanitation\PatternSanitizer;
+use App\Utilities\Traits\ApplicationPathTrait;
+use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\ConversionTrait;
+use App\Utilities\Traits\EncodingTrait;
+use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
+use App\Utilities\Validation\PatternValidator;
 
 /**
- * Abstract View Class
+ * Base presentation view.
  *
- * Responsibilities:
- * - Locate and resolve template and resource file paths (layouts, pages, partials, components, assets).
- * - Provide an interface for rendering templates and caching them.
- * - Ensure all paths are sanitized, validated, and normalized.
- *
- * Boundaries:
- * - Does not handle business logic or HTTP directly; it only prepares resources for the presentation layer.
- * - Focused on filesystem interactions, template/resource location, and rendering contracts.
- *
- * Alignment with Updated Classes:
- * - Uses strict typing and typed return values.
- * - Constructor property promotion for dependencies.
- * - Utilizes custom exceptions for finder and view errors.
+ * Centralizes path resolution, page-to-layout composition, shared globals,
+ * partial/component rendering, and safe template lookup so modules can focus
+ * on presentation intent instead of filesystem orchestration.
  */
 abstract class View implements ViewInterface
 {
-	use ErrorTrait, ArrayTrait, ManipulationTrait, TypeCheckerTrait;
+	use ApplicationPathTrait;
+	use ErrorTrait;
+	use ArrayTrait;
+	use ConversionTrait;
+	use ManipulationTrait;
+	use EncodingTrait;
+	use TypeCheckerTrait;
 
 	protected array $globals = [];
 	protected string $templateExt = 'php';
 	protected string $resourceExt = 'php';
 	protected string $theme = 'default';
+	protected ?string $defaultLayout = null;
 
 	private string $resourcesPath;
 	private string $templatesPath;
 
 	/**
-	 * Constructor that injects all necessary dependencies using property promotion.
-	 *
-	 * @param FileFinder       $files        Finds files in directories.
-	 * @param DirectoryFinder  $dirs         Finds directories.
-	 * @param TypeChecker      $types        Utility for type and existence checks.
-	 * @param CacheManager     $cache        Manages cached templates.
-	 * @param FileManager      $fileManager  Handles file operations.
-	 * @param PatternSanitizer $sanitizer    Sanitizes input paths or strings.
-	 * @param PatternValidator $validator    Validates input data against given rules.
+	 * @var array<string, string>
 	 */
+	private array $resolvedPaths = [];
+
 	public function __construct(
 		private FileFinder $files,
 		private DirectoryFinder $dirs,
@@ -79,6 +64,25 @@ abstract class View implements ViewInterface
 		$this->templatesPath = $this->resolveBasePath('Templates');
 	}
 
+	public function setDefaultLayout(string $layout): static
+	{
+		$this->defaultLayout = $this->normalizeTemplateName($layout, 'layout');
+
+		return $this;
+	}
+
+	public function getDefaultLayout(): ?string
+	{
+		return $this->defaultLayout;
+	}
+
+	public function clearDefaultLayout(): static
+	{
+		$this->defaultLayout = null;
+
+		return $this;
+	}
+
 	public function renderLayout(string $layout, array $data = []): string
 	{
 		return $this->renderTemplate($this->getLayoutPath($layout), $data);
@@ -86,7 +90,25 @@ abstract class View implements ViewInterface
 
 	public function renderPage(string $page, array $data = []): string
 	{
+		if ($this->defaultLayout === null || $this->defaultLayout === '') {
+			return $this->renderPageContent($page, $data);
+		}
+
+		return $this->renderPageWithLayout($this->defaultLayout, $page, $data);
+	}
+
+	public function renderPageContent(string $page, array $data = []): string
+	{
 		return $this->renderTemplate($this->getPagePath($page), $data);
+	}
+
+	public function renderPageWithLayout(string $layout, string $page, array $data = []): string
+	{
+		$pageContent = $this->renderPageContent($page, $data);
+
+		return $this->renderLayout($layout, $this->replaceElements($data, [
+			'content' => $pageContent,
+		]));
 	}
 
 	public function renderPartial(string $partial, array $data = []): string
@@ -97,6 +119,17 @@ abstract class View implements ViewInterface
 	public function renderComponent(string $component, array $data = []): string
 	{
 		return $this->renderTemplate($this->getComponentPath($component), $data);
+	}
+
+	public function templateExists(string $type, string $template): bool
+	{
+		try {
+			$this->resolveTemplatePath($type, $template);
+
+			return true;
+		} catch (\Throwable) {
+			return false;
+		}
 	}
 
 	public function renderAsset(string $type, string $asset): string
@@ -114,6 +147,13 @@ abstract class View implements ViewInterface
 	public function setGlobals(array $variables): void
 	{
 		$this->globals = $this->replaceElements($this->globals, $variables);
+	}
+
+	public function share(string|array $key, mixed $value = null): static
+	{
+		$this->setGlobals($this->isArray($key) ? $key : [$key => $value]);
+
+		return $this;
 	}
 
 	public function getGlobals(): array
@@ -139,158 +179,56 @@ abstract class View implements ViewInterface
 		}, ViewException::class);
 	}
 
-	/**
-	 * Resolve the base directory for resources or templates.
-	 *
-	 * @param string $dirName The directory name to resolve.
-	 * @return string The resolved and validated base path.
-	 */
-	private function resolveBasePath(string $dirName): string
+	public function escape(mixed $value): string
 	{
-		return $this->wrapInTry(fn(): string =>
-			$this->getValidPath(
-				$this->keyFirst($this->dirs->find(['name' => $dirName])) ?: null,
-				"Base directory '{$dirName}' not found."
-			),
-			ViewException::class
-		);
-	}
-
-	/**
-	 * Resolve subdirectories within base directories.
-	 *
-	 * @param string $basePath The base directory path.
-	 * @param string $subDir   The subdirectory name.
-	 * @return string The resolved subdirectory path.
-	 */
-	private function resolveSubDirPath(string $basePath, string $subDir): string
-	{
-		return $this->wrapInTry(fn(): string =>
-			$this->getValidPath(
-				$this->keyFirst($this->dirs->find(['name' => $subDir], $basePath)) ?: null,
-				"Subdirectory '{$subDir}' not found in '{$basePath}'."
-			),
-			ViewException::class
-		);
-	}
-
-	/**
-	 * Resolve file paths within directories.
-	 *
-	 * @param string      $basePath The base path in which to find the file.
-	 * @param string      $fileName The file name.
-	 * @param string|null $ext      Optional extension to append.
-	 * @return string The resolved file path.
-	 */
-	private function resolveFilePath(string $basePath, string $fileName, ?string $ext = null): string
-	{
-		return $this->wrapInTry(fn(): string =>
-			$this->getValidPath(
-				$this->sanitizeAndValidate(
-					['path' => $basePath . DIRECTORY_SEPARATOR . $fileName . ($ext ? ".{$ext}" : '')],
-					['path' => ['notEmpty' => true]]
-				)['path'],
-				"File '{$fileName}' not found in '{$basePath}'.",
-				isFileCheck: true
-			),
-			ViewException::class
-		);
-	}
-
-	/**
-	 * Validate and normalize a path.
-	 *
-	 * @param string|null $path
-	 * @param string      $errorMessage
-	 * @param bool        $isFileCheck  If true, validates that $path is a file; otherwise checks for directory.
-	 * @return string The validated and normalized path.
-	 * @throws FinderException If the path is invalid.
-	 */
-	private function getValidPath(?string $path, string $errorMessage, bool $isFileCheck = false): string
-	{
-		if (
-			!$this->isSet($path)
-			|| ($isFileCheck && !$this->fileManager->fileExists($path))
-			|| (!$isFileCheck && !$this->fileManager->isDirectory($path))
-		) {
-			throw new FinderException($errorMessage);
+		if ($this->isArray($value)) {
+			return $this->escapeHtml($this->joinStrings(', ', $this->map(
+				fn(mixed $item): string => $this->stringifyValue($item),
+				$value
+			)));
 		}
 
-		return $this->normalizePath($path);
+		return $this->escapeHtml($this->stringifyValue($value));
 	}
 
-	/**
-	 * Sanitize and validate input data.
-	 *
-	 * @param array<string,mixed> $data  The data to sanitize and validate.
-	 * @param array<string,array<string,mixed>> $rules Validation rules.
-	 * @return array<string,mixed> The sanitized and validated data.
-	 */
-	private function sanitizeAndValidate(array $data, array $rules): array
+	public function escapeUrl(mixed $value): string
 	{
-		$sanitized = [];
-
-		foreach ($data as $key => $value) {
-			$sanitized[$key] = $this->sanitizer->sanitizePathUnix((string) $value);
-
-			if (!$this->validator->validatePathUnix((string) $sanitized[$key])) {
-				throw new FinderException("Invalid path provided for '{$key}'.");
-			}
-		}
-
-		return $sanitized;
+		return $this->encodeStringForUrl($this->stringifyValue($value));
 	}
 
-	/**
-	 * Normalize file paths to a consistent format.
-	 *
-	 * @param string $path The path to normalize.
-	 * @return string The normalized path.
-	 */
-	private function normalizePath(string $path): string
-	{
-		return $this->fileManager->normalizePath($this->fileManager->getRealPath($path) ?? $path);
-	}
-
-	/**
-	 * Fetch resource paths (e.g., CSS, JS, images).
-	 */
 	protected function getCssPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->resourcesPath, 'css'), $file);
+		return $this->resolveAssetPath('css', $file);
 	}
 
 	protected function getJsPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->resourcesPath, 'js'), $file);
+		return $this->resolveAssetPath('js', $file);
 	}
 
 	protected function getImagePath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->resourcesPath, 'images'), $file);
+		return $this->resolveAssetPath('images', $file);
 	}
 
-	/**
-	 * Fetch template paths (layouts, pages, partials, components).
-	 */
 	protected function getLayoutPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Layouts'), $file, $this->templateExt);
+		return $this->resolveTemplatePath('layout', $file);
 	}
 
 	protected function getPagePath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Pages'), $file, $this->templateExt);
+		return $this->resolveTemplatePath('page', $file);
 	}
 
 	protected function getPartialPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Partials'), $file, $this->templateExt);
+		return $this->resolveTemplatePath('partial', $file);
 	}
 
 	protected function getComponentPath(string $file): string
 	{
-		return $this->resolveFilePath($this->resolveSubDirPath($this->templatesPath, 'Components'), $file, $this->templateExt);
+		return $this->resolveTemplatePath('component', $file);
 	}
 
 	/**
@@ -323,5 +261,159 @@ abstract class View implements ViewInterface
 
 			return $this->isString($result ?? null) ? $result : '';
 		}, ViewException::class);
+	}
+
+	private function resolveBasePath(string $dirName): string
+	{
+		return $this->wrapInTry(function () use ($dirName): string {
+			$expected = $this->frameworkBasePath()
+				. DIRECTORY_SEPARATOR
+				. 'App'
+				. DIRECTORY_SEPARATOR
+				. $dirName;
+
+			if ($this->fileManager->isDirectory($expected)) {
+				return $this->normalizePath($expected);
+			}
+
+			$fallback = $this->keyFirst($this->dirs->find(['name' => $dirName])) ?: null;
+
+			return $this->getValidPath($fallback, "Base directory '{$dirName}' not found.");
+		}, ViewException::class);
+	}
+
+	private function resolveDirectory(string $basePath, string $subDir, string $label): string
+	{
+		$cacheKey = 'dir:' . $basePath . ':' . $subDir;
+
+		if (isset($this->resolvedPaths[$cacheKey])) {
+			return $this->resolvedPaths[$cacheKey];
+		}
+
+		$path = $basePath . DIRECTORY_SEPARATOR . $subDir;
+		$this->resolvedPaths[$cacheKey] = $this->getValidPath(
+			$path,
+			"{$label} directory '{$subDir}' not found in '{$basePath}'."
+		);
+
+		return $this->resolvedPaths[$cacheKey];
+	}
+
+	private function resolveAssetPath(string $type, string $file): string
+	{
+		$directory = $this->resolveDirectory($this->resourcesPath, $type, 'Resource');
+
+		return $this->resolveFilePath($directory, $file, null, 'asset');
+	}
+
+	private function resolveTemplatePath(string $type, string $template): string
+	{
+		$normalizedType = $this->normalizeTemplateType($type);
+		$directory = match ($normalizedType) {
+			'layout' => $this->resolveDirectory($this->templatesPath, 'Layouts', 'Template'),
+			'page' => $this->resolveDirectory($this->templatesPath, 'Pages', 'Template'),
+			'partial' => $this->resolveDirectory($this->templatesPath, 'Partials', 'Template'),
+			'component' => $this->resolveDirectory($this->templatesPath, 'Components', 'Template'),
+		};
+
+		return $this->resolveFilePath($directory, $template, $this->templateExt, $normalizedType);
+	}
+
+	private function resolveFilePath(string $basePath, string $fileName, ?string $ext = null, string $label = 'file'): string
+	{
+		$normalizedName = $this->normalizeTemplateName($fileName, $label);
+		$cacheKey = 'file:' . $basePath . ':' . $normalizedName . ':' . ($ext ?? '');
+
+		if (isset($this->resolvedPaths[$cacheKey])) {
+			return $this->resolvedPaths[$cacheKey];
+		}
+
+		$path = $basePath
+			. DIRECTORY_SEPARATOR
+			. $normalizedName
+			. ($ext !== null && $ext !== '' ? ".{$ext}" : '');
+
+		$this->resolvedPaths[$cacheKey] = $this->getValidPath(
+			$path,
+			ucfirst($label) . " '{$normalizedName}' not found in '{$basePath}'.",
+			isFileCheck: true
+		);
+
+		return $this->resolvedPaths[$cacheKey];
+	}
+
+	private function normalizeTemplateType(string $type): string
+	{
+		$normalized = $this->toLower($this->trimString($type));
+
+		return match ($normalized) {
+			'layout', 'layouts' => 'layout',
+			'page', 'pages' => 'page',
+			'partial', 'partials' => 'partial',
+			'component', 'components' => 'component',
+			default => throw new ViewException("Unsupported template type '{$type}'."),
+		};
+	}
+
+	private function normalizeTemplateName(string $name, string $label): string
+	{
+		$normalized = $this->replaceText('\\', '/', $this->trimString($name));
+		$normalized = $this->sanitizer->sanitizePathUnix((string) $normalized);
+
+		if ($normalized === '') {
+			throw new ViewException("Invalid {$label} identifier '{$name}'.");
+		}
+
+		$segments = $this->splitString('/', (string) $normalized);
+
+		if ($this->any($segments, fn(string $segment): bool => $segment === '' || $segment === '.' || $segment === '..')) {
+			throw new ViewException("Unsafe {$label} identifier '{$name}'.");
+		}
+
+		if ($this->any($segments, fn(string $segment): bool => !$this->validator->validateDirectory($segment))) {
+			throw new ViewException("Invalid {$label} identifier '{$name}'.");
+		}
+
+		return $this->joinStrings(DIRECTORY_SEPARATOR, $segments);
+	}
+
+	private function getValidPath(?string $path, string $errorMessage, bool $isFileCheck = false): string
+	{
+		if (
+			!$this->isString($path)
+			|| $path === ''
+			|| ($isFileCheck && !$this->fileManager->fileExists($path))
+			|| (!$isFileCheck && !$this->fileManager->isDirectory($path))
+		) {
+			throw new FinderException($errorMessage);
+		}
+
+		return $this->normalizePath($path);
+	}
+
+	private function normalizePath(string $path): string
+	{
+		return $this->fileManager->normalizePath($this->fileManager->getRealPath($path) ?? $path);
+	}
+
+	private function stringifyValue(mixed $value): string
+	{
+		if ($this->isString($value)) {
+			return $value;
+		}
+
+		if ($this->isNull($value)) {
+			return '';
+		}
+
+		if ($this->isBool($value)) {
+			return $value ? 'true' : 'false';
+		}
+
+		if ($this->isScalar($value)) {
+			return (string) $value;
+		}
+
+		return '';
 	}
 }

@@ -84,7 +84,7 @@ These cover:
 - data helpers such as cache, finder, sanitizer, validator, and crypto
 - persistence abstractions such as model, repository, migration, seed, and query
 - HTTP abstractions such as controller, request, response, middleware, and service
-- presentation abstractions such as presenter and view
+- presentation abstractions such as presenter, view, resource, and resource collection
 
 These layers are intentionally reusable. Application code is expected to extend them rather than bypass them.
 
@@ -168,7 +168,7 @@ The following areas are implemented as framework-level subsystems today:
 - sanitation and validation APIs
 - HTTP/MVC abstraction layer
 - presentation resource / negotiated JSON layer
-- view/presenter layer
+- completed view/presenter/template layer with shared layouts, partials, and components
 - database layer and SQL/query builders
 - cache subsystem
 - crypto subsystem
@@ -190,7 +190,7 @@ Current concrete state:
 - `WebModule` has a controller, request, service, presenter, view, response, model, repository, route file, migration, and seed.
 - `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows.
 - `AdminModule` now provides dashboard, user, role/permission, and framework-inspection flows.
-- Shared templates currently live in `App/Templates/Layouts` and `App/Templates/Pages`.
+- Shared templates currently live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components`.
 - `ShopModule`, `CartModule`, and `OrderModule` are scaffolded only.
 
 This means the framework backend is ahead of the business/domain implementation, which is the expected current shape of the project.
@@ -202,7 +202,7 @@ The most important extension seams today are:
 - **Modules**: add real business slices under `App/Modules/*`.
 - **Persistence**: add migrations, seeds, repositories, and real schemas on top of the existing database/query/model base.
 - **Console**: add more operational commands and later scaffolding/generator support.
-- **Views**: expand templates, layouts, components, and partials.
+- **Views**: extend the shared presentation surface with new layouts, pages, partials, and components without duplicating module orchestration.
 - **Drivers**: add more concrete infrastructure backends through providers and contracts.
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.

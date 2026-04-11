@@ -6,10 +6,15 @@ namespace App\Console;
 
 use App\Console\Commands\CacheClearCommand;
 use App\Console\Commands\ConfigShowCommand;
+use App\Console\Commands\EventListCommand;
 use App\Console\Commands\MigrateCommand;
 use App\Console\Commands\MigrateRollbackCommand;
 use App\Console\Commands\MigrateStatusCommand;
 use App\Console\Commands\ModuleListCommand;
+use App\Console\Commands\NotificationListCommand;
+use App\Console\Commands\QueueFailedCommand;
+use App\Console\Commands\QueueRetryCommand;
+use App\Console\Commands\QueueWorkCommand;
 use App\Console\Commands\RouteListCommand;
 use App\Console\Commands\SeedCommand;
 use App\Contracts\Console\CommandInterface;
@@ -33,9 +38,28 @@ class ConsoleKernel
         RouteListCommand $routeList,
         CacheClearCommand $cacheClear,
         ConfigShowCommand $configShow,
-        ModuleListCommand $moduleList
+        ModuleListCommand $moduleList,
+        QueueWorkCommand $queueWork,
+        QueueFailedCommand $queueFailed,
+        QueueRetryCommand $queueRetry,
+        EventListCommand $eventList,
+        NotificationListCommand $notificationList
     ) {
-        foreach ([$migrate, $migrateStatus, $migrateRollback, $seed, $routeList, $cacheClear, $configShow, $moduleList] as $command) {
+        foreach ([
+            $migrate,
+            $migrateStatus,
+            $migrateRollback,
+            $seed,
+            $routeList,
+            $cacheClear,
+            $configShow,
+            $moduleList,
+            $queueWork,
+            $queueFailed,
+            $queueRetry,
+            $eventList,
+            $notificationList,
+        ] as $command) {
             $this->commands[$command->name()] = $command;
         }
     }

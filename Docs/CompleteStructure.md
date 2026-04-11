@@ -275,14 +275,34 @@ LangelerMVC
 │   │       └── README.md
 │   ├── Templates
 │   │   ├── Components
+│   │   │   ├── BadgeList.php
+│   │   │   ├── CodeList.php
+│   │   │   ├── DataTable.php
+│   │   │   ├── DefinitionGrid.php
+│   │   │   ├── LinkList.php
 │   │   │   └── README.md
 │   │   ├── Layouts
+│   │   │   ├── AdminShell.php
+│   │   │   ├── UserShell.php
 │   │   │   └── WebShell.php
 │   │   ├── Pages
+│   │   │   ├── AdminDashboard.php
+│   │   │   ├── AdminRoles.php
+│   │   │   ├── AdminSystem.php
+│   │   │   ├── AdminUsers.php
 │   │   │   ├── Home.php
-│   │   │   └── NotFound.php
+│   │   │   ├── NotFound.php
+│   │   │   ├── UserLogin.php
+│   │   │   ├── UserPasswordForgot.php
+│   │   │   ├── UserPasswordReset.php
+│   │   │   ├── UserProfile.php
+│   │   │   ├── UserRegister.php
+│   │   │   └── UserStatus.php
 │   │   └── Partials
-│   │       └── README.md
+│   │       ├── PageIntro.php
+│   │       ├── PanelMeta.php
+│   │       ├── README.md
+│   │       └── StatusMessage.php
 │   └── Utilities
 │       ├── Finders
 │       │   ├── DirectoryFinder.php

@@ -1,19 +1,30 @@
-<section>
-    <h1><?= htmlspecialchars((string) ($headline ?? 'Sign in'), ENT_QUOTES, 'UTF-8') ?></h1>
-    <p><?= htmlspecialchars((string) ($summary ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-    <?php if (($message ?? '') !== ''): ?>
-        <p><strong><?= htmlspecialchars((string) $message, ENT_QUOTES, 'UTF-8') ?></strong></p>
-    <?php endif; ?>
+<section class="stack">
+    <?= $view->renderPartial('PageIntro', [
+        'eyebrow' => 'UserModule',
+        'headline' => $headline ?? 'Sign in',
+        'summary' => $summary ?? '',
+    ]) ?>
+
+    <?= $view->renderPartial('StatusMessage', ['message' => $message ?? '']) ?>
+
     <form method="post" action="/users/login">
-        <p><label>Email<br><input type="email" name="email" required></label></p>
-        <p><label>Password<br><input type="password" name="password" required></label></p>
-        <p><label>OTP Code (if enabled)<br><input type="text" name="otp_code" inputmode="numeric"></label></p>
-        <p><label>Recovery Code (if needed)<br><input type="text" name="recovery_code" autocapitalize="characters"></label></p>
-        <p><label><input type="checkbox" name="remember" value="1"> Remember me</label></p>
-        <p><button type="submit">Sign in</button></p>
+        <label>Email<br><input type="email" name="email" required></label>
+        <label>Password<br><input type="password" name="password" required></label>
+        <label>OTP Code (if enabled)<br><input type="text" name="otp_code" inputmode="numeric"></label>
+        <label>Recovery Code (if needed)<br><input type="text" name="recovery_code" autocapitalize="characters"></label>
+        <label><input type="checkbox" name="remember" value="1"> Remember me</label>
+        <button type="submit">Sign in</button>
     </form>
-    <p><button type="button" id="passkey-login-button">Sign in with passkey</button></p>
-    <p><a href="/users/password/forgot">Forgot password?</a></p>
+
+    <div class="section">
+        <button type="button" id="passkey-login-button">Sign in with passkey</button>
+        <?= $view->renderComponent('LinkList', [
+            'links' => [
+                ['href' => '/users/password/forgot', 'label' => 'Forgot password?'],
+                ['href' => '/users/register', 'label' => 'Create an account'],
+            ],
+        ]) ?>
+    </div>
 </section>
 <script>
     (() => {

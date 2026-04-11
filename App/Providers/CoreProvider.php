@@ -15,20 +15,32 @@ use App\Core\{
     Session
 };
 use App\Console\ConsoleKernel;
+use App\Contracts\Async\EventDispatcherInterface;
+use App\Contracts\Async\FailedJobStoreInterface;
 use App\Contracts\Auth\GuardInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
 use App\Contracts\Auth\UserProviderInterface;
+use App\Contracts\Support\NotificationManagerInterface;
+use App\Contracts\Support\PaymentManagerInterface;
 use App\Exceptions\ContainerException;
+use App\Utilities\Managers\Async\DatabaseFailedJobStore;
+use App\Utilities\Managers\Async\EventDispatcher;
+use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Managers\Security\{
     AuthManager,
     DatabaseUserProvider,
     Gate,
+    HttpSecurityManager,
     PasswordBroker,
     PermissionRegistry,
     PolicyResolver,
     SessionGuard
 };
-use App\Utilities\Managers\Support\PasskeyManager;
+use App\Utilities\Managers\Support\{
+    NotificationManager,
+    PasskeyManager,
+    PaymentManager
+};
 use App\Utilities\Managers\System\ErrorManager;
 
 /**
@@ -69,17 +81,23 @@ class CoreProvider extends Container
             'console'  => ConsoleKernel::class,
             'config'   => Config::class,
             'database' => Database::class,
+            'events' => EventDispatcher::class,
             'gate' => Gate::class,
+            'httpSecurity' => HttpSecurityManager::class,
             'migrationRunner' => MigrationRunner::class,
+            'notifications' => NotificationManager::class,
             'passwordBroker' => PasswordBroker::class,
             'passkeys' => PasskeyManager::class,
+            'payments' => PaymentManager::class,
             'permissionRegistry' => PermissionRegistry::class,
+            'queue' => QueueManager::class,
             'policyResolver' => PolicyResolver::class,
             'router'   => Router::class,
             'seedRunner' => SeedRunner::class,
             'session'  => Session::class,
             'guard' => SessionGuard::class,
             'userProvider' => DatabaseUserProvider::class,
+            'failedJobs' => DatabaseFailedJobStore::class,
 
             // System
             'errorManager' => ErrorManager::class,
@@ -115,6 +133,10 @@ class CoreProvider extends Container
                 $this->registerAlias(GuardInterface::class, SessionGuard::class);
                 $this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
                 $this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
+                $this->registerAlias(EventDispatcherInterface::class, EventDispatcher::class);
+                $this->registerAlias(NotificationManagerInterface::class, NotificationManager::class);
+                $this->registerAlias(PaymentManagerInterface::class, PaymentManager::class);
+                $this->registerAlias(FailedJobStoreInterface::class, DatabaseFailedJobStore::class);
 
                 $this->servicesRegistered = true;
             },
@@ -171,5 +193,20 @@ class CoreProvider extends Container
             ),
             new ContainerException("Error retrieving core service [$serviceAlias].")
         );
+    }
+
+    public function resolveClass(string $classOrAlias): object
+    {
+        $this->registerServices();
+
+        if ($classOrAlias === 'container') {
+            return $this;
+        }
+
+        $class = $this->coreServiceMap[$classOrAlias]
+            ?? $this->aliases[$classOrAlias]
+            ?? $classOrAlias;
+
+        return $this->getInstance($class);
     }
 }

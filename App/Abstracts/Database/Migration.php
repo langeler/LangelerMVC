@@ -17,6 +17,14 @@ abstract class Migration implements MigrationInterface
     {
     }
 
+    /**
+     * @return list<class-string|non-empty-string>
+     */
+    public static function dependencies(): array
+    {
+        return [];
+    }
+
     abstract public function up(): void;
 
     abstract public function down(): void;

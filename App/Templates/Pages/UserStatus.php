@@ -1,22 +1,39 @@
-<section>
-    <h1><?= htmlspecialchars((string) ($headline ?? 'Status'), ENT_QUOTES, 'UTF-8') ?></h1>
-    <p><?= htmlspecialchars((string) ($summary ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-    <?php if (($message ?? '') !== ''): ?>
-        <p><strong><?= htmlspecialchars((string) $message, ENT_QUOTES, 'UTF-8') ?></strong></p>
-    <?php endif; ?>
+<section class="stack">
+    <?= $view->renderPartial('PageIntro', [
+        'eyebrow' => 'UserModule',
+        'headline' => $headline ?? 'Status',
+        'summary' => $summary ?? '',
+    ]) ?>
+
+    <?= $view->renderPartial('StatusMessage', ['message' => $message ?? '']) ?>
+
     <?php if (is_array($user ?? null)): ?>
-        <p>User: <?= htmlspecialchars((string) ($user['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+        <?= $view->renderComponent('DefinitionGrid', [
+            'items' => [
+                'User' => $user['email'] ?? '',
+            ],
+        ]) ?>
     <?php endif; ?>
+
     <?php if (is_array($otp ?? null) && ($otp['uri'] ?? '') !== ''): ?>
-        <p>Provisioning URI: <code><?= htmlspecialchars((string) $otp['uri'], ENT_QUOTES, 'UTF-8') ?></code></p>
+        <div class="section">
+            <h2>Provisioning URI</h2>
+            <?= $view->renderComponent('CodeList', ['items' => [$otp['uri']]]) ?>
+        </div>
     <?php endif; ?>
+
     <?php if (!empty($recoveryCodes ?? [])): ?>
-        <h2>Recovery Codes</h2>
-        <ul>
-            <?php foreach (($recoveryCodes ?? []) as $code): ?>
-                <li><code><?= htmlspecialchars((string) $code, ENT_QUOTES, 'UTF-8') ?></code></li>
-            <?php endforeach; ?>
-        </ul>
+        <div class="section">
+            <h2>Recovery Codes</h2>
+            <?= $view->renderComponent('CodeList', ['items' => $recoveryCodes]) ?>
+        </div>
     <?php endif; ?>
-    <p><a href="/users/profile">Profile</a> · <a href="/users/login">Sign in</a> · <a href="/users/register">Register</a></p>
+
+    <?= $view->renderComponent('LinkList', [
+        'links' => [
+            ['href' => '/users/profile', 'label' => 'Profile'],
+            ['href' => '/users/login', 'label' => 'Sign in'],
+            ['href' => '/users/register', 'label' => 'Register'],
+        ],
+    ]) ?>
 </section>

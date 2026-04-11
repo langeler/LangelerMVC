@@ -161,6 +161,7 @@ class MigrationRunner
             $migrations,
             static fn(array $left, array $right): int => strcmp($left['file'], $right['file'])
         );
+        $migrations = $this->sortDiscoveredMigrations($migrations);
 
         return array_map(
             static fn(array $migration): array => [
@@ -182,6 +183,64 @@ class MigrationRunner
         }
 
         return $instance;
+    }
+
+    /**
+     * @param array<int, array{name:string,module:string,class:string,file:string}> $migrations
+     * @return array<int, array{name:string,module:string,class:string,file:string}>
+     */
+    private function sortDiscoveredMigrations(array $migrations): array
+    {
+        $byClass = [];
+        $byName = [];
+
+        foreach ($migrations as $migration) {
+            $byClass[$migration['class']] = $migration;
+            $byName[$migration['name']] = $migration['class'];
+        }
+
+        $ordered = [];
+        $visiting = [];
+        $visited = [];
+
+        $visit = function (string $class) use (&$visit, &$ordered, &$visiting, &$visited, $byClass, $byName): void {
+            if (isset($visited[$class])) {
+                return;
+            }
+
+            if (isset($visiting[$class])) {
+                throw new MigrationException(sprintf('Circular migration dependency detected for [%s].', $class));
+            }
+
+            $candidate = $byClass[$class] ?? null;
+
+            if ($candidate === null) {
+                return;
+            }
+
+            $visiting[$class] = true;
+            $dependencies = is_callable([$class, 'dependencies']) ? $class::dependencies() : [];
+
+            foreach ($dependencies as $dependency) {
+                $dependencyClass = $byClass[(string) $dependency]['class']
+                    ?? $byName[(string) $dependency]
+                    ?? (is_string($dependency) ? $dependency : '');
+
+                if ($dependencyClass !== '' && isset($byClass[$dependencyClass])) {
+                    $visit($dependencyClass);
+                }
+            }
+
+            unset($visiting[$class]);
+            $visited[$class] = true;
+            $ordered[] = $candidate;
+        };
+
+        foreach ($migrations as $migration) {
+            $visit($migration['class']);
+        }
+
+        return $ordered;
     }
 
     private function ensureRepositoryTable(): void

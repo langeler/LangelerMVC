@@ -172,27 +172,6 @@ class AuthController extends Controller
             return parent::finalize($result);
         }
 
-        $status = (int) ($result['status'] ?? 200);
-
-        if ($this->request->expectsJson()) {
-            return $this->respondWithResource(new UserResource($result), $status, ['X-Module' => 'UserModule']);
-        }
-
-        if (isset($result['redirect']) && is_string($result['redirect']) && $result['redirect'] !== '') {
-            return $this->respond('', max(200, min($status, 399)), [
-                'Location' => $result['redirect'],
-                'X-Module' => 'UserModule',
-            ]);
-        }
-
-        $payload = $this->preparePresenterData('prepare', $result);
-
-        return $this->respondWithView(
-            'renderPage',
-            (string) ($payload['template'] ?? $this->template),
-            $payload,
-            $status,
-            ['X-Module' => 'UserModule']
-        );
+        return $this->respondWithPresentation($result, $this->template, UserResource::class, ['X-Module' => 'UserModule']);
     }
 }

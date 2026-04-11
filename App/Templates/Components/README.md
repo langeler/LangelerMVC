@@ -1,3 +1,11 @@
 # Template Components
 
-Reserved for reusable template fragments that are shared across pages or modules.
+Reusable building blocks shared across pages and modules.
+
+Current components:
+
+- `BadgeList.php`
+- `CodeList.php`
+- `DataTable.php`
+- `DefinitionGrid.php`
+- `LinkList.php`

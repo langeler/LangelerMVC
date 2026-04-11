@@ -8,11 +8,11 @@ use App\Abstracts\Presentation\Resource;
 
 class UserResource extends Resource
 {
-    public function toArray(): array
+    protected function resolveData(): array
     {
         $payload = is_array($this->resource) ? $this->resource : [];
 
-        $data = [
+        return [
             'status' => (int) ($payload['status'] ?? 200),
             'title' => (string) ($payload['title'] ?? 'User Platform'),
             'message' => (string) ($payload['message'] ?? ''),
@@ -26,19 +26,16 @@ class UserResource extends Resource
             'passkeySupport' => is_array($payload['passkeySupport'] ?? null) ? $payload['passkeySupport'] : [],
             'requiresOtp' => (bool) ($payload['requiresOtp'] ?? false),
         ];
+    }
 
-        $response = ['data' => $data];
+    protected function defaultMeta(): array
+    {
+        $payload = is_array($this->resource) ? $this->resource : [];
 
-        $meta = array_filter([
+        return array_filter([
             'template' => $payload['template'] ?? null,
             'module' => 'UserModule',
             'redirect' => $payload['redirect'] ?? null,
         ], static fn(mixed $value): bool => $value !== null && $value !== '');
-
-        if ($meta !== []) {
-            $response['meta'] = $meta;
-        }
-
-        return $response;
     }
 }

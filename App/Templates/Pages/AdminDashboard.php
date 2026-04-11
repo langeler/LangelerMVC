@@ -1,11 +1,30 @@
-<section>
-    <h1><?= htmlspecialchars((string) ($headline ?? 'Admin dashboard'), ENT_QUOTES, 'UTF-8') ?></h1>
-    <p><?= htmlspecialchars((string) ($summary ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-    <h2>Metrics</h2>
-    <ul>
-        <?php foreach (($metrics ?? []) as $label => $value): ?>
-            <li><?= htmlspecialchars((string) $label, ENT_QUOTES, 'UTF-8') ?>: <?= htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') ?></li>
-        <?php endforeach; ?>
-    </ul>
-    <p><a href="/admin/users">Users</a> · <a href="/admin/roles">Roles</a> · <a href="/admin/system">System</a></p>
+<section class="stack">
+    <?= $view->renderPartial('PageIntro', [
+        'eyebrow' => 'AdminModule',
+        'headline' => $headline ?? 'Admin dashboard',
+        'summary' => $summary ?? '',
+    ]) ?>
+
+    <div class="section">
+        <h2>Metrics</h2>
+        <?= $view->renderComponent('DefinitionGrid', [
+            'items' => is_array($metrics ?? null) ? $metrics : [],
+            'empty' => 'No administrative metrics are available yet.',
+        ]) ?>
+    </div>
+
+    <div class="section">
+        <h2>Management</h2>
+        <?= $view->renderComponent('LinkList', [
+            'links' => [
+                ['href' => '/admin/users', 'label' => 'Users'],
+                ['href' => '/admin/roles', 'label' => 'Roles'],
+                ['href' => '/admin/catalog', 'label' => 'Catalog'],
+                ['href' => '/admin/carts', 'label' => 'Carts'],
+                ['href' => '/admin/orders', 'label' => 'Orders'],
+                ['href' => '/admin/system', 'label' => 'System'],
+                ['href' => '/admin/operations', 'label' => 'Operations'],
+            ],
+        ]) ?>
+    </div>
 </section>

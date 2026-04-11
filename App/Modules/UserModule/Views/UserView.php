@@ -15,8 +15,6 @@ use App\Utilities\Validation\PatternValidator;
 
 class UserView extends View
 {
-    private string $defaultLayout = 'UserShell';
-
     public function __construct(
         FileFinder $files,
         DirectoryFinder $dirs,
@@ -28,18 +26,12 @@ class UserView extends View
     ) {
         parent::__construct($files, $dirs, $cache, $fileManager, $sanitizer, $validator);
 
-        $this->setGlobals([
+        $this->setDefaultLayout('UserShell');
+
+        $this->share([
             'appName' => (string) $config->get('app', 'NAME', 'LangelerMVC'),
             'appVersion' => (string) $config->get('app', 'VERSION', '1.0.0'),
+            'moduleName' => 'UserModule',
         ]);
-    }
-
-    public function renderPage(string $page, array $data = []): string
-    {
-        $pageContent = parent::renderPage($page, $data);
-
-        return parent::renderLayout($this->defaultLayout, $this->replaceElements($data, [
-            'content' => $pageContent,
-        ]));
     }
 }

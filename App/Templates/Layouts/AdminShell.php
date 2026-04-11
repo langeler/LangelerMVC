@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars((string) ($title ?? $appName ?? 'LangelerMVC Admin'), ENT_QUOTES, 'UTF-8') ?></title>
-    <meta name="description" content="<?= htmlspecialchars((string) ($metaDescription ?? $summary ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+    <title><?= $view->escape((string) ($title ?? $appName ?? 'LangelerMVC Admin')) ?></title>
+    <meta name="description" content="<?= $view->escape((string) ($metaDescription ?? $summary ?? '')) ?>">
     <style>
         :root {
             color-scheme: light;
@@ -14,6 +14,7 @@
             --muted: #5d6973;
             --line: #d5dce2;
             --accent: #1d5f8a;
+            --accent-soft: #e4f0f8;
         }
         * { box-sizing: border-box; }
         body {
@@ -24,6 +25,7 @@
                 var(--bg);
             color: var(--ink);
         }
+        a { color: var(--accent); }
         .shell {
             width: min(1140px, calc(100% - 2rem));
             margin: 0 auto;
@@ -47,6 +49,85 @@
             padding: 2rem;
             box-shadow: 0 1rem 2.5rem rgba(22, 32, 39, 0.08);
         }
+        .intro {
+            display: grid;
+            gap: 0.6rem;
+            margin-bottom: 1.5rem;
+        }
+        .intro__eyebrow,
+        .meta,
+        .footer {
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+        .intro__eyebrow {
+            margin: 0;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+        }
+        .intro__headline {
+            margin: 0;
+            font-size: clamp(1.8rem, 3vw, 2.6rem);
+            line-height: 1.1;
+        }
+        .intro__summary {
+            margin: 0;
+            max-width: 48rem;
+            line-height: 1.7;
+        }
+        .stack {
+            display: grid;
+            gap: 1.25rem;
+        }
+        .section {
+            display: grid;
+            gap: 0.75rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--line);
+        }
+        .definition-grid {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 0.5rem 1rem;
+            margin: 0;
+        }
+        .definition-grid dt {
+            font-weight: 700;
+        }
+        .definition-grid dd {
+            margin: 0;
+        }
+        .badge-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .badge-list li {
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+        .link-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem 1rem;
+        }
         .meta {
             display: flex;
             flex-wrap: wrap;
@@ -54,28 +135,35 @@
             margin-top: 1.5rem;
             padding-top: 1rem;
             border-top: 1px solid var(--line);
-            color: var(--muted);
-            font-size: 0.94rem;
         }
-        a { color: var(--accent); }
+        .system-dump {
+            margin: 0;
+            padding: 1rem;
+            border-radius: 1rem;
+            background: #f7fafc;
+            border: 1px solid var(--line);
+            overflow: auto;
+        }
     </style>
 </head>
 <body>
     <div class="shell">
         <header class="header">
-            <strong><?= htmlspecialchars((string) ($appName ?? 'LangelerMVC'), ENT_QUOTES, 'UTF-8') ?> Admin</strong>
-            <span><?= htmlspecialchars((string) ($headline ?? 'Operations'), ENT_QUOTES, 'UTF-8') ?></span>
+            <strong><?= $view->escape((string) ($appName ?? 'LangelerMVC')) ?> Admin</strong>
+            <span><?= $view->escape((string) ($headline ?? 'Operations')) ?></span>
         </header>
         <main class="panel">
             <?= $content ?? '' ?>
-            <div class="meta">
-                <span>Status: <?= htmlspecialchars((string) ($meta['status'] ?? $status ?? 200), ENT_QUOTES, 'UTF-8') ?></span>
-                <span>Module: <?= htmlspecialchars((string) ($meta['module'] ?? 'AdminModule'), ENT_QUOTES, 'UTF-8') ?></span>
-                <span>Generated: <?= htmlspecialchars((string) ($meta['generatedAt'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
-            </div>
+            <?= $view->renderPartial('PanelMeta', [
+                'items' => [
+                    'Status' => $meta['status'] ?? $status ?? 200,
+                    'Module' => $meta['module'] ?? 'AdminModule',
+                    'Generated' => $meta['generatedAt'] ?? '',
+                ],
+            ]) ?>
         </main>
         <footer class="footer">
-            <span>RBAC-backed management surfaces now share the same service and response pipeline as the rest of the framework.</span>
+            <span>Administrative surfaces now reuse the same presentation contracts as the rest of the framework.</span>
         </footer>
     </div>
 </body>

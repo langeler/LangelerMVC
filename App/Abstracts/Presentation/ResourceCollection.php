@@ -6,24 +6,27 @@ namespace App\Abstracts\Presentation;
 
 abstract class ResourceCollection extends Resource
 {
+    public function withPagination(array $pagination): static
+    {
+        return $this->withMeta(['pagination' => $pagination]);
+    }
+
     /**
-     * @return array<string, mixed>
+     * @return list<array<string, mixed>>
      */
-    public function toArray(): array
+    protected function resolveData(): array
     {
         $data = [];
 
-        foreach ((array) $this->resource as $item) {
+        if (!$this->isIterable($this->resource)) {
+            return $data;
+        }
+
+        foreach ($this->resource as $item) {
             $data[] = $this->mapItem($item);
         }
 
-        $payload = ['data' => $data];
-
-        if ($this->metaPayload() !== []) {
-            $payload['meta'] = $this->metaPayload();
-        }
-
-        return $payload;
+        return $data;
     }
 
     /**

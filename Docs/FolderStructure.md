@@ -107,13 +107,14 @@ Reserved source assets that belong to the application layer rather than the publ
 
 ### `App/Templates`
 
-Shared PHP templates used by concrete view classes. The current starter slice uses:
+Shared PHP templates used by concrete view classes. The framework now uses:
 
 - `Layouts/WebShell.php`
-- `Pages/Home.php`
-- `Pages/NotFound.php`
-
-`Components/` and `Partials/` are scaffolded for future shared view fragments.
+- `Layouts/UserShell.php`
+- `Layouts/AdminShell.php`
+- module pages under `Pages/`
+- reusable shared fragments under `Partials/`
+- reusable shared building blocks under `Components/`
 
 ### `App/Utilities`
 

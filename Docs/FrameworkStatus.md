@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest verification pass: `8.4.12`
 - Latest full regression result: `composer test`
-- Verification result: `OK (71 tests, 1899 assertions)`
+- Verification result: `OK (74 tests, 1911 assertions)`
 - Project posture: strong platform-level backend foundation, starter/content, identity, and admin slices implemented, broader commerce/event layers still to be built
 
 ## What Is Finished
@@ -53,10 +53,12 @@ Implemented areas:
 - controller / middleware / service base classes
 - presenter abstraction
 - resource abstraction and negotiated JSON response helpers
+- resource collection abstraction with pagination/meta support
 - view abstraction
-- shared template rendering pipeline
+- shared template rendering pipeline with default-layout-aware page rendering
+- reusable partial/component template surface
 
-The framework-level MVC surface is present and usable. What is still limited is the number of concrete application modules using it.
+The framework-level MVC surface is present and usable. The remaining limit is no longer the presentation API itself; it is the number of concrete business modules built on top of it.
 
 ### 4. Sanitation And Validation
 
@@ -249,18 +251,19 @@ Available today:
 
 ### Templates
 
-Status: **starter surface implemented**
+Status: **implemented and working**
 
 Implemented today:
 
 - `Layouts/WebShell.php`
+- `Layouts/UserShell.php`
+- `Layouts/AdminShell.php`
 - `Pages/Home.php`
 - `Pages/NotFound.php`
-
-Scaffolded only:
-
-- `Components/`
-- `Partials/`
+- `Pages/User*`
+- `Pages/Admin*`
+- reusable partials such as `PageIntro.php`, `StatusMessage.php`, and `PanelMeta.php`
+- reusable components such as `BadgeList.php`, `DefinitionGrid.php`, `DataTable.php`, `LinkList.php`, and `CodeList.php`
 
 ## What Is Missing
 

@@ -166,6 +166,11 @@ abstract class Presenter implements PresenterInterface
 		}, PresenterException::class);
 	}
 
+	public function toArray(): array
+	{
+		return $this->prepare();
+	}
+
 	/**
 	 * Retrieve a specific value from the prepared data or state.
 	 *

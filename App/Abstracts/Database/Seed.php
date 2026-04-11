@@ -21,6 +21,14 @@ abstract class Seed implements SeedInterface
     {
     }
 
+    /**
+     * @return list<class-string|non-empty-string>
+     */
+    public static function dependencies(): array
+    {
+        return [];
+    }
+
     abstract public function run(): void;
 
     public function insert(array $data): ModelInterface

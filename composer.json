@@ -45,6 +45,11 @@
     },
     "scripts": {
         "test": "phpunit --testdox",
+        "test:sqlite": "@test",
+        "test:db-matrix": "phpunit -c phpunit.db-matrix.xml --testdox",
+        "test:mysql": "LANGELER_DB_MATRIX_TARGET=mysql phpunit -c phpunit.db-matrix.xml --testdox",
+        "test:pgsql": "LANGELER_DB_MATRIX_TARGET=pgsql phpunit -c phpunit.db-matrix.xml --testdox",
+        "test:sqlsrv": "LANGELER_DB_MATRIX_TARGET=sqlsrv phpunit -c phpunit.db-matrix.xml --testdox",
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ]
@@ -62,7 +67,7 @@
         "project": {
             "github": "https://github.com/langeler/LangelerMVC",
             "description": "LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles.",
-            "status": "Core runtime, console, schema lifecycle, session drivers, cache, crypto, SQL/query, validation, MVC, and utility subsystems implemented and regression-tested; WebModule starter slice completed; additional business modules scaffolded.",
+            "status": "Runtime, console, migrations/seeds, session/auth/RBAC, TOTP/passkeys, cache, crypto, SQL/query, async, notifications, payments, presentation, admin, WebModule, ShopModule, CartModule, and OrderModule are implemented and regression-tested; DB-matrix harness is available for MySQL/PostgreSQL/SQL Server verification.",
             "topics": [
                 "php",
                 "mvc",
@@ -72,7 +77,12 @@
                 "oop",
                 "srp",
                 "soc",
-                "php84"
+                "php84",
+                "totp",
+                "webauthn",
+                "queue",
+                "notifications",
+                "payments"
             ],
             "support": {
                 "issues": "https://github.com/langeler/LangelerMVC/issues",

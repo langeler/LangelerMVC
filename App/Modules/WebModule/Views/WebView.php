@@ -18,8 +18,6 @@ use App\Utilities\Validation\PatternValidator;
  */
 class WebView extends View
 {
-    private string $defaultLayout = 'WebShell';
-
     public function __construct(
         FileFinder $files,
         DirectoryFinder $dirs,
@@ -31,20 +29,12 @@ class WebView extends View
     ) {
         parent::__construct($files, $dirs, $cache, $fileManager, $sanitizer, $validator);
 
-        $this->defaultLayout = (string) $config->get('webmodule', 'DEFAULT_LAYOUT', 'WebShell');
+        $this->setDefaultLayout((string) $config->get('webmodule', 'DEFAULT_LAYOUT', 'WebShell'));
 
-        $this->setGlobals([
+        $this->share([
             'appName' => (string) $config->get('app', 'NAME', 'LangelerMVC'),
             'appVersion' => (string) $config->get('app', 'VERSION', '1.0.0'),
+            'moduleName' => 'WebModule',
         ]);
-    }
-
-    public function renderPage(string $page, array $data = []): string
-    {
-        $pageContent = parent::renderPage($page, $data);
-
-        return parent::renderLayout($this->defaultLayout, $this->replaceElements($data, [
-            'content' => $pageContent,
-        ]));
     }
 }

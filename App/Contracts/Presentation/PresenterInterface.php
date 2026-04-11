@@ -50,6 +50,13 @@ interface PresenterInterface
 	public function prepare(): array;
 
 	/**
+	 * Export the prepared presenter payload.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function toArray(): array;
+
+	/**
 	 * Retrieve a specific value from the prepared data.
 	 *
 	 * @param string     $key

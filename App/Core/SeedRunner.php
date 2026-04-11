@@ -61,6 +61,7 @@ class SeedRunner
             $seeds,
             static fn(array $left, array $right): int => strcmp($left['file'], $right['file'])
         );
+        $seeds = $this->sortDiscoveredSeeds($seeds);
 
         return array_map(
             static fn(array $seed): array => [
@@ -145,6 +146,64 @@ class SeedRunner
         }
 
         return $instance;
+    }
+
+    /**
+     * @param array<int, array{name:string,module:string,class:string,file:string}> $seeds
+     * @return array<int, array{name:string,module:string,class:string,file:string}>
+     */
+    private function sortDiscoveredSeeds(array $seeds): array
+    {
+        $byClass = [];
+        $byName = [];
+
+        foreach ($seeds as $seed) {
+            $byClass[$seed['class']] = $seed;
+            $byName[$seed['name']] = $seed['class'];
+        }
+
+        $ordered = [];
+        $visiting = [];
+        $visited = [];
+
+        $visit = function (string $class) use (&$visit, &$ordered, &$visiting, &$visited, $byClass, $byName): void {
+            if (isset($visited[$class])) {
+                return;
+            }
+
+            if (isset($visiting[$class])) {
+                throw new SeedException(sprintf('Circular seed dependency detected for [%s].', $class));
+            }
+
+            $candidate = $byClass[$class] ?? null;
+
+            if ($candidate === null) {
+                return;
+            }
+
+            $visiting[$class] = true;
+            $dependencies = is_callable([$class, 'dependencies']) ? $class::dependencies() : [];
+
+            foreach ($dependencies as $dependency) {
+                $dependencyClass = $byClass[(string) $dependency]['class']
+                    ?? $byName[(string) $dependency]
+                    ?? (is_string($dependency) ? $dependency : '');
+
+                if ($dependencyClass !== '' && isset($byClass[$dependencyClass])) {
+                    $visit($dependencyClass);
+                }
+            }
+
+            unset($visiting[$class]);
+            $visited[$class] = true;
+            $ordered[] = $candidate;
+        };
+
+        foreach ($seeds as $seed) {
+            $visit($seed['class']);
+        }
+
+        return $ordered;
     }
 
     private function resolveModuleName(string $class): string

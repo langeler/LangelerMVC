@@ -1,11 +1,18 @@
-<section>
-    <h1><?= htmlspecialchars((string) ($headline ?? 'Roles'), ENT_QUOTES, 'UTF-8') ?></h1>
-    <p><?= htmlspecialchars((string) ($summary ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
+<section class="stack">
+    <?= $view->renderPartial('PageIntro', [
+        'eyebrow' => 'AdminModule',
+        'headline' => $headline ?? 'Roles',
+        'summary' => $summary ?? '',
+    ]) ?>
+
     <?php foreach (($roles ?? []) as $role): ?>
-        <article>
-            <h2><?= htmlspecialchars((string) ($role['label'] ?? $role['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></h2>
-            <p><?= htmlspecialchars((string) ($role['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-            <p>Permissions: <?= htmlspecialchars(implode(', ', $role['permissions'] ?? []), ENT_QUOTES, 'UTF-8') ?></p>
+        <article class="section">
+            <h2><?= $view->escape((string) ($role['label'] ?? $role['name'] ?? 'Role')) ?></h2>
+            <p><?= $view->escape((string) ($role['description'] ?? '')) ?></p>
+            <?= $view->renderComponent('BadgeList', [
+                'items' => is_array($role['permissions'] ?? null) ? $role['permissions'] : [],
+                'empty' => 'No permissions assigned.',
+            ]) ?>
         </article>
     <?php endforeach; ?>
 </section>

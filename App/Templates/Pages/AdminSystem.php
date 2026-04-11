@@ -1,8 +1,20 @@
-<section>
-    <h1><?= htmlspecialchars((string) ($headline ?? 'System'), ENT_QUOTES, 'UTF-8') ?></h1>
-    <p><?= htmlspecialchars((string) ($summary ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-    <h2>Modules</h2>
-    <p><?= htmlspecialchars(implode(', ', $modules ?? []), ENT_QUOTES, 'UTF-8') ?></p>
-    <h2>System</h2>
-    <pre><?= htmlspecialchars(json_encode($system ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8') ?></pre>
+<section class="stack">
+    <?= $view->renderPartial('PageIntro', [
+        'eyebrow' => 'AdminModule',
+        'headline' => $headline ?? 'System',
+        'summary' => $summary ?? '',
+    ]) ?>
+
+    <div class="section">
+        <h2>Modules</h2>
+        <?= $view->renderComponent('BadgeList', [
+            'items' => is_array($modules ?? null) ? $modules : [],
+            'empty' => 'No modules reported.',
+        ]) ?>
+    </div>
+
+    <div class="section">
+        <h2>Runtime snapshot</h2>
+        <pre class="system-dump"><?= $view->escape($view->toJson($system ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) ?></pre>
+    </div>
 </section>

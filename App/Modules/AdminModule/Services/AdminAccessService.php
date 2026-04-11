@@ -5,15 +5,25 @@ declare(strict_types=1);
 namespace App\Modules\AdminModule\Services;
 
 use App\Abstracts\Http\Service;
+use App\Contracts\Async\EventDispatcherInterface;
 use App\Core\Config;
 use App\Core\Router;
+use App\Modules\CartModule\Models\Cart;
+use App\Modules\CartModule\Repositories\CartItemRepository;
+use App\Modules\CartModule\Repositories\CartRepository;
+use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Modules\ShopModule\Repositories\CategoryRepository;
+use App\Modules\ShopModule\Repositories\ProductRepository;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
+use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Managers\CacheManager;
 use App\Utilities\Managers\Data\ModuleManager;
 use App\Utilities\Managers\Data\SessionManager;
 use App\Utilities\Managers\Security\AuthManager;
+use App\Utilities\Managers\Support\NotificationManager;
+use App\Utilities\Managers\Support\PaymentManager;
 
 class AdminAccessService extends Service
 {
@@ -34,9 +44,18 @@ class AdminAccessService extends Service
         private readonly UserRepository $users,
         private readonly RoleRepository $roles,
         private readonly PermissionRepository $permissions,
+        private readonly ProductRepository $products,
+        private readonly CategoryRepository $categories,
+        private readonly CartRepository $carts,
+        private readonly CartItemRepository $cartItems,
+        private readonly OrderRepository $orders,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
+        private readonly QueueManager $queue,
+        private readonly NotificationManager $notifications,
+        private readonly PaymentManager $payments,
+        private readonly EventDispatcherInterface $events,
         private readonly Router $router,
         private readonly Config $config
     ) {
@@ -62,7 +81,11 @@ class AdminAccessService extends Service
             'assignRoles' => $this->assignRoles(),
             'roles' => $this->rolesPage(),
             'syncPermissions' => $this->syncPermissions(),
+            'catalog' => $this->catalogPage(),
+            'carts' => $this->cartsPage(),
+            'orders' => $this->ordersPage(),
             'system' => $this->systemPage(),
+            'operations' => $this->operationsPage(),
             default => $this->dashboard(),
         };
     }
@@ -81,6 +104,10 @@ class AdminAccessService extends Service
                 'permissions' => $this->permissions->count([]),
                 'modules' => count($this->modules->getModules()),
                 'routes' => count($this->router->listRoutes()),
+                'products' => $this->products->count([]),
+                'carts' => $this->carts->count([]),
+                'orders' => $this->orders->count([]),
+                'failed_jobs' => count($this->queue->failed()),
             ],
             'users' => array_slice($this->users->allWithRoles(), 0, 5),
             'roles' => array_slice($this->roles->allWithPermissions(), 0, 5),
@@ -238,7 +265,106 @@ class AdminAccessService extends Service
                 ],
                 'cache' => $this->cache->capabilities(),
                 'session' => $this->sessionManager->capabilities(),
+                'queue' => [
+                    'driver' => $this->queue->driverName(),
+                    'drivers' => $this->queue->availableDrivers(),
+                ],
+                'notifications' => [
+                    'channels' => $this->notifications->availableChannels(),
+                    'stored' => count($this->notifications->databaseNotifications()),
+                ],
+                'payments' => [
+                    'driver' => $this->payments->driverName(),
+                    'drivers' => $this->payments->availableDrivers(),
+                    'capabilities' => $this->payments->capabilities(),
+                ],
                 'routes' => $this->router->listRoutes(),
+            ],
+        ];
+    }
+
+    private function catalogPage(): array
+    {
+        if (!$this->auth->hasPermission('shop.catalog.manage')) {
+            return $this->forbidden('AdminCatalog', 'Catalog administration requires the shop.catalog.manage permission.');
+        }
+
+        return [
+            'template' => 'AdminCatalog',
+            'status' => 200,
+            'title' => 'Catalog administration',
+            'headline' => 'Shop catalog management',
+            'summary' => 'Inspect products and categories through the completed shop module repositories.',
+            'categories' => $this->categories->publishedSummaries(),
+            'catalog' => $this->products->adminCatalog(),
+        ];
+    }
+
+    private function cartsPage(): array
+    {
+        if (!$this->auth->hasPermission('cart.manage')) {
+            return $this->forbidden('AdminCarts', 'Cart inspection requires the cart.manage permission.');
+        }
+
+        return [
+            'template' => 'AdminCarts',
+            'status' => 200,
+            'title' => 'Cart administration',
+            'headline' => 'Cart visibility',
+            'summary' => 'Guest and authenticated carts remain visible through the session-aware cart subsystem.',
+            'carts' => $this->cartSummaries(),
+        ];
+    }
+
+    private function ordersPage(): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Order inspection requires the order.manage permission.');
+        }
+
+        return [
+            'template' => 'AdminOrders',
+            'status' => 200,
+            'title' => 'Order administration',
+            'headline' => 'Order lifecycle visibility',
+            'summary' => 'Review order snapshots and payment lifecycle state from the completed order module.',
+            'orders' => $this->orders->allSummary(),
+        ];
+    }
+
+    private function operationsPage(): array
+    {
+        if (!$this->auth->hasPermission('admin.system.view')) {
+            return $this->forbidden('AdminOperations', 'Operational inspection requires the admin.system.view permission.');
+        }
+
+        return [
+            'template' => 'AdminOperations',
+            'status' => 200,
+            'title' => 'Operations',
+            'headline' => 'Async and platform operations',
+            'summary' => 'Inspect queue health, notification delivery, event listeners, and payment capabilities.',
+            'operations' => [
+                'queue' => [
+                    'driver' => $this->queue->driverName(),
+                    'drivers' => $this->queue->availableDrivers(),
+                    'failed_jobs' => count($this->queue->failed()),
+                    'pending_default' => count($this->queue->pending()),
+                    'pending_notifications' => count($this->queue->pending('notifications')),
+                ],
+                'notifications' => [
+                    'channels' => $this->notifications->availableChannels(),
+                    'stored' => count($this->notifications->databaseNotifications()),
+                ],
+                'events' => [
+                    'registered' => array_keys($this->events->listeners()),
+                    'listeners' => $this->events->listeners(),
+                ],
+                'payments' => [
+                    'driver' => $this->payments->driverName(),
+                    'drivers' => $this->payments->availableDrivers(),
+                    'capabilities' => $this->payments->capabilities(),
+                ],
             ],
         ];
     }
@@ -264,5 +390,39 @@ class AdminAccessService extends Service
     private function forbidden(string $template, string $message): array
     {
         return $this->error($template, 'Forbidden', $message, 403);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function cartSummaries(): array
+    {
+        return array_map(function (mixed $cart): array {
+            if (!$cart instanceof Cart) {
+                return [];
+            }
+
+            $items = $this->cartItems->summaryForCart((int) $cart->getKey());
+            $subtotal = array_reduce(
+                $items,
+                static fn(int $carry, array $item): int => $carry + (int) ($item['line_total_minor'] ?? 0),
+                0
+            );
+
+            return [
+                'id' => (int) $cart->getKey(),
+                'user_id' => $cart->getAttribute('user_id') ?? '-',
+                'session_key' => (string) ($cart->getAttribute('session_key') ?? ''),
+                'status' => (string) ($cart->getAttribute('status') ?? 'active'),
+                'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
+                'items' => count($items),
+                'subtotal' => $this->formatMoney($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
+            ];
+        }, array_values(array_filter($this->carts->all(), static fn(mixed $cart): bool => $cart instanceof Cart)));
+    }
+
+    private function formatMoney(int $amount, string $currency): string
+    {
+        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 }

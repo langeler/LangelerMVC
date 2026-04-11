@@ -10,6 +10,7 @@ use App\Core\MigrationRunner;
 use App\Core\Router;
 use App\Core\SeedRunner;
 use App\Core\Session;
+use App\Contracts\Async\EventDispatcherInterface;
 use App\Drivers\Session\FileSessionDriver;
 use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\UserModule\Migrations\CreateUserPlatformTables;
@@ -24,6 +25,7 @@ use App\Modules\UserModule\Services\UserPasskeyService;
 use App\Providers\CoreProvider;
 use App\Providers\ExceptionProvider;
 use App\Utilities\Managers\CacheManager;
+use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Managers\Data\CryptoManager;
 use App\Utilities\Managers\Data\ModuleManager;
 use App\Utilities\Managers\Data\SessionManager;
@@ -36,6 +38,8 @@ use App\Utilities\Managers\Security\PermissionRegistry;
 use App\Utilities\Managers\Security\PolicyResolver;
 use App\Utilities\Managers\Security\SessionGuard;
 use App\Utilities\Managers\Support\MailManager;
+use App\Utilities\Managers\Support\NotificationManager;
+use App\Utilities\Managers\Support\PaymentManager;
 use App\Utilities\Managers\Support\OtpManager;
 use App\Utilities\Managers\Support\PasskeyManager;
 use App\Utilities\Managers\System\ErrorManager;
@@ -344,9 +348,18 @@ class AuthPlatformTest extends TestCase
             $stack['users'],
             $stack['roles'],
             $stack['permissions'],
+            $this->createStub(\App\Modules\ShopModule\Repositories\ProductRepository::class),
+            $this->createStub(\App\Modules\ShopModule\Repositories\CategoryRepository::class),
+            $this->createStub(\App\Modules\CartModule\Repositories\CartRepository::class),
+            $this->createStub(\App\Modules\CartModule\Repositories\CartItemRepository::class),
+            $this->createStub(\App\Modules\OrderModule\Repositories\OrderRepository::class),
             $moduleManager,
             $cache,
             $stack['sessionManager'],
+            $this->createStub(QueueManager::class),
+            $this->createStub(NotificationManager::class),
+            $this->createStub(PaymentManager::class),
+            $this->createStub(EventDispatcherInterface::class),
             $router,
             $stack['config']
         );
@@ -657,7 +670,13 @@ class AuthPlatformTest extends TestCase
         $registry = new PermissionRegistry($config);
         $gate = new Gate($guard, $provider, $registry, new PolicyResolver());
         $passwords = new PasswordBroker($config, $provider, $users, $tokens, $crypto, $mail, $errors);
-        $auth = new AuthManager($guard, $gate, $passwords, $provider, $registry);
+        $events = new class implements EventDispatcherInterface {
+            public function listen(string $event, callable|string|array $listener, bool $queued = false, string $queue = 'default'): void {}
+            public function subscribe(array $listeners): void {}
+            public function dispatch(string|object $event, array $payload = []): array { return []; }
+            public function listeners(?string $event = null): array { return []; }
+        };
+        $auth = new AuthManager($guard, $gate, $passwords, $provider, $registry, $events);
 
         return [
             'auth' => $auth,

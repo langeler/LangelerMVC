@@ -162,9 +162,9 @@ class PlatformFoundationTest extends TestCase
         };
 
         $resource = new class(['name' => 'LangelerMVC']) extends Resource {
-            public function toArray(): array
+            protected function resolveData(): array
             {
-                return ['data' => $this->resource] + ($this->metaPayload() !== [] ? ['meta' => $this->metaPayload()] : []);
+                return is_array($this->resource) ? $this->resource : [];
             }
         };
 

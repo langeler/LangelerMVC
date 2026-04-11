@@ -71,9 +71,37 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function catalog(): ResponseInterface
+    {
+        $this->action = 'catalog';
+
+        return $this->run();
+    }
+
+    public function carts(): ResponseInterface
+    {
+        $this->action = 'carts';
+
+        return $this->run();
+    }
+
+    public function orders(): ResponseInterface
+    {
+        $this->action = 'orders';
+
+        return $this->run();
+    }
+
     public function system(): ResponseInterface
     {
         $this->action = 'system';
+
+        return $this->run();
+    }
+
+    public function operations(): ResponseInterface
+    {
+        $this->action = 'operations';
 
         return $this->run();
     }
@@ -89,27 +117,6 @@ class AdminController extends Controller
             return parent::finalize($result);
         }
 
-        $status = (int) ($result['status'] ?? 200);
-
-        if ($this->request->expectsJson()) {
-            return $this->respondWithResource(new AdminResource($result), $status, ['X-Module' => 'AdminModule']);
-        }
-
-        if (isset($result['redirect']) && is_string($result['redirect']) && $result['redirect'] !== '') {
-            return $this->respond('', max(200, min($status, 399)), [
-                'Location' => $result['redirect'],
-                'X-Module' => 'AdminModule',
-            ]);
-        }
-
-        $payload = $this->preparePresenterData('prepare', $result);
-
-        return $this->respondWithView(
-            'renderPage',
-            (string) ($payload['template'] ?? 'AdminDashboard'),
-            $payload,
-            $status,
-            ['X-Module' => 'AdminModule']
-        );
+        return $this->respondWithPresentation($result, 'AdminDashboard', AdminResource::class, ['X-Module' => 'AdminModule']);
     }
 }

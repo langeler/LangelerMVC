@@ -4,7 +4,7 @@
          cacheResult="false">
     <testsuites>
         <testsuite name="Framework">
-            <directory>Tests</directory>
+            <directory>Tests/Framework</directory>
         </testsuite>
     </testsuites>
 </phpunit>

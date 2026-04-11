@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars((string) ($title ?? $appName ?? 'LangelerMVC'), ENT_QUOTES, 'UTF-8') ?></title>
-    <meta name="description" content="<?= htmlspecialchars((string) ($metaDescription ?? $summary ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+    <title><?= $view->escape((string) ($title ?? $appName ?? 'LangelerMVC')) ?></title>
+    <meta name="description" content="<?= $view->escape((string) ($metaDescription ?? $summary ?? '')) ?>">
     <style>
         :root {
             color-scheme: light;
@@ -25,6 +25,7 @@
                 linear-gradient(180deg, #fff9f4 0%, var(--bg) 100%);
             color: var(--ink);
         }
+        a { color: var(--accent); }
         .shell {
             width: min(1040px, calc(100% - 2rem));
             margin: 0 auto;
@@ -47,7 +48,7 @@
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
-        .brand span, .footer, .meta {
+        .brand span, .footer, .meta, .intro__eyebrow {
             color: var(--muted);
             font-size: 0.95rem;
         }
@@ -58,6 +59,118 @@
             padding: 2rem;
             box-shadow: 0 1.25rem 3rem rgba(34, 31, 26, 0.07);
         }
+        .intro {
+            display: grid;
+            gap: 0.65rem;
+            margin-bottom: 1.5rem;
+        }
+        .intro__eyebrow {
+            margin: 0;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+        }
+        .intro__headline {
+            margin: 0;
+            font-size: clamp(1.9rem, 4vw, 3rem);
+            line-height: 1.1;
+        }
+        .intro__summary {
+            margin: 0;
+            max-width: 42rem;
+            line-height: 1.7;
+        }
+        .stack {
+            display: grid;
+            gap: 1.25rem;
+        }
+        .section {
+            display: grid;
+            gap: 0.75rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--line);
+        }
+        .section h2,
+        .section h3 {
+            margin: 0;
+        }
+        .message {
+            margin: 1rem 0 1.5rem;
+            padding: 1rem 1.2rem;
+            border-radius: 1rem;
+            border: 1px solid rgba(180, 76, 47, 0.2);
+            background: var(--accent-soft);
+        }
+        .definition-grid {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 0.5rem 1rem;
+            margin: 0;
+        }
+        .definition-grid dt {
+            font-weight: 700;
+        }
+        .definition-grid dd {
+            margin: 0;
+        }
+        .badge-list,
+        .code-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .badge-list li,
+        .code-list li {
+            padding: 0.55rem 0.85rem;
+            border-radius: 999px;
+            background: var(--accent-soft);
+        }
+        .link-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem 1rem;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+        form {
+            display: grid;
+            gap: 0.75rem;
+            max-width: 32rem;
+        }
+        input,
+        button {
+            font: inherit;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.7rem 0.8rem;
+            border-radius: 0.8rem;
+            border: 1px solid var(--line);
+            background: #fff;
+        }
+        button {
+            width: fit-content;
+            padding: 0.75rem 1rem;
+            border-radius: 999px;
+            border: 0;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+        }
         .meta {
             display: flex;
             flex-wrap: wrap;
@@ -66,7 +179,6 @@
             padding-top: 1rem;
             border-top: 1px solid var(--line);
         }
-        a { color: var(--accent); }
     </style>
     <script>
         window.LangelerPasskeys = {
@@ -193,21 +305,23 @@
     <div class="shell">
         <header class="header">
             <div class="brand">
-                <strong><?= htmlspecialchars((string) ($appName ?? 'LangelerMVC'), ENT_QUOTES, 'UTF-8') ?></strong>
-                <span>User and identity platform surface</span>
+                <strong><?= $view->escape((string) ($appName ?? 'LangelerMVC')) ?></strong>
+                <span><?= $view->escape((string) ($moduleName ?? 'UserModule')) ?> identity platform</span>
             </div>
-            <span>Version <?= htmlspecialchars((string) ($appVersion ?? '1.0.0'), ENT_QUOTES, 'UTF-8') ?></span>
+            <span>Version <?= $view->escape((string) ($appVersion ?? '1.0.0')) ?></span>
         </header>
         <main class="panel">
             <?= $content ?? '' ?>
-            <div class="meta">
-                <span>Status: <?= htmlspecialchars((string) ($meta['status'] ?? $status ?? 200), ENT_QUOTES, 'UTF-8') ?></span>
-                <span>Module: <?= htmlspecialchars((string) ($meta['module'] ?? 'UserModule'), ENT_QUOTES, 'UTF-8') ?></span>
-                <span>Generated: <?= htmlspecialchars((string) ($meta['generatedAt'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span>
-            </div>
+            <?= $view->renderPartial('PanelMeta', [
+                'items' => [
+                    'Status' => $meta['status'] ?? $status ?? 200,
+                    'Module' => $meta['module'] ?? 'UserModule',
+                    'Generated' => $meta['generatedAt'] ?? '',
+                ],
+            ]) ?>
         </main>
         <footer class="footer">
-            <span>Session auth, verification, password reset, OTP, and passkeys are now part of the framework lifecycle.</span>
+            <span>Identity flows, OTP, passkeys, and JSON resources now share one presentation pipeline.</span>
         </footer>
     </div>
 </body>

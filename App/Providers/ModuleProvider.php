@@ -3,13 +3,21 @@
 namespace App\Providers;
 
 use App\Core\Container;
+use App\Contracts\Async\EventDispatcherInterface;
+use App\Contracts\Async\FailedJobStoreInterface;
 use App\Contracts\Auth\GuardInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
 use App\Contracts\Auth\UserProviderInterface;
+use App\Contracts\Support\NotificationManagerInterface;
+use App\Contracts\Support\PaymentManagerInterface;
 use App\Exceptions\ContainerException;
+use App\Utilities\Managers\Async\DatabaseFailedJobStore;
+use App\Utilities\Managers\Async\EventDispatcher;
 use App\Utilities\Managers\Security\DatabaseUserProvider;
 use App\Utilities\Managers\Security\PasswordBroker;
 use App\Utilities\Managers\Security\SessionGuard;
+use App\Utilities\Managers\Support\NotificationManager;
+use App\Utilities\Managers\Support\PaymentManager;
 use App\Utilities\Traits\Patterns\PatternTrait;
 
 /**
@@ -83,6 +91,10 @@ class ModuleProvider extends Container
 			$this->registerAlias(GuardInterface::class, SessionGuard::class);
 			$this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
 			$this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
+			$this->registerAlias(EventDispatcherInterface::class, EventDispatcher::class);
+			$this->registerAlias(NotificationManagerInterface::class, NotificationManager::class);
+			$this->registerAlias(PaymentManagerInterface::class, PaymentManager::class);
+			$this->registerAlias(FailedJobStoreInterface::class, DatabaseFailedJobStore::class);
 
 			foreach ($this->moduleMap as $alias => $class) {
 				$this->registerAlias($alias, $class);

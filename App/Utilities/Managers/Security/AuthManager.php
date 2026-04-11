@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Utilities\Managers\Security;
 
+use App\Contracts\Async\EventDispatcherInterface;
 use App\Contracts\Auth\AuthenticatableInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
 
@@ -14,7 +15,8 @@ class AuthManager
         private readonly Gate $gate,
         private readonly PasswordBrokerInterface $passwordBroker,
         private readonly DatabaseUserProvider $provider,
-        private readonly PermissionRegistry $permissions
+        private readonly PermissionRegistry $permissions,
+        private readonly EventDispatcherInterface $events
     ) {
     }
 
@@ -58,12 +60,38 @@ class AuthManager
      */
     public function attempt(array $credentials, bool $remember = false): bool
     {
-        return $this->guard->attempt($credentials, $remember);
+        $successful = $this->guard->attempt($credentials, $remember);
+
+        if ($successful) {
+            $user = $this->user();
+
+            if ($user instanceof AuthenticatableInterface) {
+                $this->dispatch('auth.login', [
+                    'user_id' => $user->getAuthIdentifier(),
+                    'remember' => $remember,
+                    'via' => 'credentials',
+                ]);
+            }
+
+            return true;
+        }
+
+        $this->dispatch('auth.failed', [
+            'email' => isset($credentials['email']) ? (string) $credentials['email'] : '',
+            'via' => 'credentials',
+        ]);
+
+        return false;
     }
 
     public function login(AuthenticatableInterface $user, bool $remember = false): void
     {
         $this->guard->login($user, $remember);
+        $this->dispatch('auth.login', [
+            'user_id' => $user->getAuthIdentifier(),
+            'remember' => $remember,
+            'via' => 'manual',
+        ]);
     }
 
     public function syncUser(AuthenticatableInterface $user, ?bool $remembered = null): void
@@ -73,7 +101,15 @@ class AuthManager
 
     public function logout(): void
     {
+        $user = $this->user();
+        $identifier = $user instanceof AuthenticatableInterface ? $user->getAuthIdentifier() : null;
         $this->guard->logout();
+
+        if ($identifier !== null) {
+            $this->dispatch('auth.logout', [
+                'user_id' => $identifier,
+            ]);
+        }
     }
 
     public function viaRemember(): bool
@@ -131,5 +167,13 @@ class AuthManager
         return $user instanceof AuthenticatableInterface
             ? $this->provider->permissionsFor($user)
             : [];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function dispatch(string $event, array $payload): void
+    {
+        $this->events->dispatch($event, $payload);
     }
 }

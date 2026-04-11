@@ -1,3 +1,9 @@
 # Template Partials
 
-Reserved for small shared template fragments such as headers, footers, and navigation blocks.
+Small shared template fragments used to compose pages and layouts.
+
+Current partials:
+
+- `PageIntro.php`
+- `PanelMeta.php`
+- `StatusMessage.php`

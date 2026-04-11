@@ -60,17 +60,6 @@ class HomeController extends Controller
             return parent::finalize($result);
         }
 
-        $payload = $this->preparePresenterData('prepare', $result);
-        $status = isset($payload['status']) && $this->isInt($payload['status'])
-            ? $payload['status']
-            : $this->status;
-
-        return $this->respondWithView(
-            'renderPage',
-            $this->template,
-            $payload,
-            $status,
-            ['X-Module' => 'WebModule']
-        );
+        return $this->respondWithPresentation($result, $this->template, null, ['X-Module' => 'WebModule']);
     }
 }

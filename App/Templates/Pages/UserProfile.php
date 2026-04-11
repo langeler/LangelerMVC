@@ -1,88 +1,130 @@
-<section>
-    <h1><?= htmlspecialchars((string) ($headline ?? 'Profile'), ENT_QUOTES, 'UTF-8') ?></h1>
-    <p><?= htmlspecialchars((string) ($summary ?? ''), ENT_QUOTES, 'UTF-8') ?></p>
-    <?php if (is_array($user ?? null)): ?>
-        <dl>
-            <dt>Name</dt><dd><?= htmlspecialchars((string) ($user['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?></dd>
-            <dt>Email</dt><dd><?= htmlspecialchars((string) ($user['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?></dd>
-            <dt>Status</dt><dd><?= htmlspecialchars((string) ($user['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?></dd>
-            <dt>Email Verified</dt><dd><?= !empty($user['emailVerified']) ? 'Yes' : 'No' ?></dd>
-            <dt>OTP Enabled</dt><dd><?= !empty($user['otpEnabled']) ? 'Yes' : 'No' ?></dd>
-        </dl>
-    <?php endif; ?>
-    <h2>Update profile</h2>
-    <form method="post" action="/users/profile">
-        <p><label>Name<br><input type="text" name="name" value="<?= htmlspecialchars((string) ($user['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required></label></p>
-        <p><label>Email<br><input type="email" name="email" value="<?= htmlspecialchars((string) ($user['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required></label></p>
-        <p><button type="submit">Save profile</button></p>
-    </form>
-    <h2>Change password</h2>
-    <form method="post" action="/users/password/change">
-        <p><label>Current Password<br><input type="password" name="current_password" required></label></p>
-        <p><label>New Password<br><input type="password" name="password" required></label></p>
-        <p><label>Confirm New Password<br><input type="password" name="password_confirmation" required></label></p>
-        <p><button type="submit">Change password</button></p>
-    </form>
-    <h2>Roles</h2>
-    <p><?= htmlspecialchars(implode(', ', $roles ?? []), ENT_QUOTES, 'UTF-8') ?></p>
-    <h2>Permissions</h2>
-    <p><?= htmlspecialchars(implode(', ', $permissions ?? []), ENT_QUOTES, 'UTF-8') ?></p>
-    <h2>OTP</h2>
-    <form method="post" action="/users/otp/enable">
-        <p><button type="submit">Provision OTP</button></p>
-    </form>
-    <form method="post" action="/users/otp/verify">
-        <p><label>Current OTP Code<br><input type="text" name="otp_code" inputmode="numeric"></label></p>
-        <p><button type="submit">Verify OTP</button></p>
-    </form>
-    <form method="post" action="/users/otp/recovery-codes/regenerate">
-        <p><button type="submit">Regenerate Recovery Codes</button></p>
-    </form>
-    <form method="post" action="/users/otp/disable">
-        <p><button type="submit">Disable OTP</button></p>
-    </form>
-    <?php if (!empty($recoveryCodes ?? [])): ?>
-        <h3>Recovery Codes</h3>
-        <ul>
-            <?php foreach (($recoveryCodes ?? []) as $code): ?>
-                <li><code><?= htmlspecialchars((string) $code, ENT_QUOTES, 'UTF-8') ?></code></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-    <h2>Passkeys</h2>
-    <p>
-        <?php if (!empty($passkeySupport['available'])): ?>
-            Driver: <?= htmlspecialchars((string) ($passkeySupport['driver'] ?? 'unknown'), ENT_QUOTES, 'UTF-8') ?>
-        <?php else: ?>
-            Passkeys are not available in the current runtime.
+<section class="stack">
+    <?= $view->renderPartial('PageIntro', [
+        'eyebrow' => 'UserModule',
+        'headline' => $headline ?? 'Profile',
+        'summary' => $summary ?? '',
+    ]) ?>
+
+    <div class="section">
+        <h2>Account overview</h2>
+        <?= $view->renderComponent('DefinitionGrid', [
+            'items' => is_array($user ?? null) ? [
+                'Name' => $user['name'] ?? '',
+                'Email' => $user['email'] ?? '',
+                'Status' => $user['status'] ?? '',
+                'Email Verified' => !empty($user['emailVerified']) ? 'Yes' : 'No',
+                'OTP Enabled' => !empty($user['otpEnabled']) ? 'Yes' : 'No',
+            ] : [],
+            'empty' => 'No profile data is available.',
+        ]) ?>
+    </div>
+
+    <div class="section">
+        <h2>Update profile</h2>
+        <form method="post" action="/users/profile">
+            <label>Name<br><input type="text" name="name" value="<?= $view->escape((string) ($user['name'] ?? '')) ?>" required></label>
+            <label>Email<br><input type="email" name="email" value="<?= $view->escape((string) ($user['email'] ?? '')) ?>" required></label>
+            <button type="submit">Save profile</button>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>Change password</h2>
+        <form method="post" action="/users/password/change">
+            <label>Current Password<br><input type="password" name="current_password" required></label>
+            <label>New Password<br><input type="password" name="password" required></label>
+            <label>Confirm New Password<br><input type="password" name="password_confirmation" required></label>
+            <button type="submit">Change password</button>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>Roles</h2>
+        <?= $view->renderComponent('BadgeList', [
+            'items' => is_array($roles ?? null) ? $roles : [],
+            'empty' => 'No roles assigned.',
+        ]) ?>
+    </div>
+
+    <div class="section">
+        <h2>Permissions</h2>
+        <?= $view->renderComponent('BadgeList', [
+            'items' => is_array($permissions ?? null) ? $permissions : [],
+            'empty' => 'No permissions assigned.',
+        ]) ?>
+    </div>
+
+    <div class="section">
+        <h2>OTP</h2>
+        <form method="post" action="/users/otp/enable">
+            <button type="submit">Provision OTP</button>
+        </form>
+        <form method="post" action="/users/otp/verify">
+            <label>Current OTP Code<br><input type="text" name="otp_code" inputmode="numeric"></label>
+            <button type="submit">Verify OTP</button>
+        </form>
+        <form method="post" action="/users/otp/recovery-codes/regenerate">
+            <button type="submit">Regenerate recovery codes</button>
+        </form>
+        <form method="post" action="/users/otp/disable">
+            <button type="submit">Disable OTP</button>
+        </form>
+        <?php if (!empty($recoveryCodes ?? [])): ?>
+            <h3>Recovery codes</h3>
+            <?= $view->renderComponent('CodeList', ['items' => $recoveryCodes]) ?>
         <?php endif; ?>
-    </p>
-    <?php if (!empty($passkeys ?? [])): ?>
-        <ul>
-            <?php foreach (($passkeys ?? []) as $passkey): ?>
-                <li>
-                    <strong><?= htmlspecialchars((string) ($passkey['name'] ?? 'Passkey'), ENT_QUOTES, 'UTF-8') ?></strong>
-                    <span> • Counter <?= htmlspecialchars((string) ($passkey['counter'] ?? 0), ENT_QUOTES, 'UTF-8') ?></span>
-                    <?php if (($passkey['lastUsedAt'] ?? '') !== ''): ?>
-                        <span> • Last used <?= htmlspecialchars((string) $passkey['lastUsedAt'], ENT_QUOTES, 'UTF-8') ?></span>
-                    <?php endif; ?>
-                    <form method="post" action="/users/passkeys/<?= (int) ($passkey['id'] ?? 0) ?>/delete" style="display:inline">
-                        <button type="submit">Remove</button>
-                    </form>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    <?php else: ?>
-        <p>No passkeys are registered for this account yet.</p>
-    <?php endif; ?>
-    <p><label>Passkey Name<br><input type="text" id="passkey-name" name="passkey_name" placeholder="My phone passkey"></label></p>
-    <p><button type="button" id="register-passkey-button">Register Passkey</button></p>
-    <form method="post" action="/users/email/verify">
-        <p><button type="submit">Resend verification email</button></p>
-    </form>
-    <form method="post" action="/users/logout">
-        <p><button type="submit">Sign out</button></p>
-    </form>
+    </div>
+
+    <div class="section">
+        <h2>Passkeys</h2>
+        <p>
+            <?php if (!empty($passkeySupport['available'])): ?>
+                Driver: <?= $view->escape((string) ($passkeySupport['driver'] ?? 'unknown')) ?>
+            <?php else: ?>
+                Passkeys are not available in the current runtime.
+            <?php endif; ?>
+        </p>
+        <?php if (!empty($passkeys ?? [])): ?>
+            <div class="stack">
+                <?php foreach (($passkeys ?? []) as $passkey): ?>
+                    <article class="section">
+                        <strong><?= $view->escape((string) ($passkey['name'] ?? 'Passkey')) ?></strong>
+                        <?= $view->renderComponent('DefinitionGrid', [
+                            'items' => [
+                                'Counter' => $passkey['counter'] ?? 0,
+                                'Last used' => $passkey['lastUsedAt'] ?? 'Not used yet',
+                            ],
+                        ]) ?>
+                        <form method="post" action="/users/passkeys/<?= (int) ($passkey['id'] ?? 0) ?>/delete">
+                            <button type="submit">Remove passkey</button>
+                        </form>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p>No passkeys are registered for this account yet.</p>
+        <?php endif; ?>
+        <div class="stack">
+            <label>Passkey Name<br><input type="text" id="passkey-name" name="passkey_name" placeholder="My phone passkey"></label>
+            <button type="button" id="register-passkey-button">Register passkey</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Account actions</h2>
+        <?= $view->renderComponent('LinkList', [
+            'links' => [
+                ['href' => '/users/login', 'label' => 'Sign in'],
+                ['href' => '/users/register', 'label' => 'Register another account'],
+            ],
+        ]) ?>
+        <form method="post" action="/users/email/verify">
+            <button type="submit">Resend verification email</button>
+        </form>
+        <form method="post" action="/users/logout">
+            <button type="submit">Sign out</button>
+        </form>
+    </div>
 </section>
 <script>
     (() => {

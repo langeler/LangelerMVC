@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-11`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (77 tests, 1952 assertions)`
+- `composer test` passes with `OK (78 tests, 1963 assertions)`
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
@@ -19,7 +19,7 @@ As of `2026-04-11`:
 ## Current State
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
-- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
+- The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
 - The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, and reusable `Layouts`, `Pages`, `Partials`, and `Components`.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
@@ -126,6 +126,7 @@ php console route:list
 - `Config/webmodule.php` controls the current `WebModule` content source and defaults to `CONTENT_SOURCE=database`.
 - `Config/notifications.php`, `Config/queue.php`, `Config/payment.php`, and `Config/http.php` provide the top-level settings for notifications, queue drivers, payment drivers, throttling, and signed URLs.
 - Session drivers support `native`, `file`, `database`, and `redis`, with `native` remaining the tracked default.
+- `Config/session.php` also supports `ENCRYPT=true`, which encrypts persisted session payloads at rest through the configured crypto subsystem while keeping legacy plaintext sessions readable during transition.
 - Session files are stored in `Storage/Sessions` by default when using the native/files-backed modes.
 
 ## Testing

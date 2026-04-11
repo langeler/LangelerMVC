@@ -144,6 +144,7 @@ LangelerMVC
 │   │   │   ├── SyncQueueDriver.php
 │   │   ├── Session
 │   │   │   ├── DatabaseSessionDriver.php
+│   │   │   ├── EncryptedSessionDriver.php
 │   │   │   ├── FileSessionDriver.php
 │   │   │   ├── README.md
 │   │   │   ├── RedisSessionDriver.php

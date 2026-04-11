@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (77 tests, 1952 assertions)`
+- Verification result: `OK (78 tests, 1963 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -28,6 +28,7 @@ This document records the current implementation state of LangelerMVC based on t
 - case-insensitive config lookups
 - framework session facade
 - file, database, and redis session drivers
+- encrypted persisted session payload support through the framework crypto layer
 - signed URL generation/verification
 - cache-backed HTTP throttling support
 

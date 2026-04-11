@@ -101,7 +101,7 @@ These layers are intentionally reusable. Application code is expected to extend 
 - `Payments`: `TestingPaymentDriver`
 - `Queue`: `SyncQueueDriver`, `DatabaseQueueDriver`
 - `Passkeys`: `TestingPasskeyDriver`, `WebAuthnPasskeyDriver`
-- `Session`: `FileSessionDriver`, `DatabaseSessionDriver`, `RedisSessionDriver`
+- `Session`: `FileSessionDriver`, `DatabaseSessionDriver`, `RedisSessionDriver`, `EncryptedSessionDriver`
 
 The driver layer exists so the framework can present a stable API to the rest of the application while still allowing backend implementation changes.
 
@@ -173,6 +173,7 @@ The following areas are implemented as framework-level subsystems today:
 - migration and seed lifecycle management
 - session runtime
 - file, database, and redis session driver adapters
+- encrypted persisted session payload support
 - session-backed authentication, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn support
 - signed URL and throttling support
 - sanitation and validation APIs

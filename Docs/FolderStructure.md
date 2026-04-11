@@ -60,7 +60,7 @@ Low-level adapters for pluggable infrastructure concerns:
 
 - `Caching/`: concrete cache drivers (`ArrayCache`, `FileCache`, `DatabaseCache`, `RedisCache`, `MemCache`)
 - `Cryptography/`: concrete crypto drivers
-- `Session/`: concrete file, database, and redis session drivers
+- `Session/`: concrete file, database, redis, and encrypted session drivers
 
 ### `App/Exceptions`
 
@@ -151,6 +151,8 @@ Notable current files include:
 - `queue.php`
 - `session.php`
 - `webmodule.php`
+
+`session.php` now also exposes `ENCRYPT`, which enables at-rest session payload encryption through the framework crypto subsystem.
 
 ### `Data`
 

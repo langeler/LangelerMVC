@@ -7,6 +7,7 @@ namespace App\Utilities\Managers\Data;
 use App\Contracts\Session\SessionDriverInterface;
 use App\Core\Database;
 use App\Drivers\Session\DatabaseSessionDriver;
+use App\Drivers\Session\EncryptedSessionDriver;
 use App\Drivers\Session\FileSessionDriver;
 use App\Drivers\Session\RedisSessionDriver;
 use App\Exceptions\SessionException;
@@ -27,6 +28,7 @@ use SessionHandler;
  * - normalize raw session configuration into one canonical structure
  * - expose runtime capabilities and supported driver information
  * - mediate all low-level PHP session runtime calls
+ * - compose optional encrypted session persistence on top of supported handlers
  * - keep native session behavior out of the high-level Session facade
  */
 class SessionManager
@@ -43,35 +45,48 @@ class SessionManager
 
     /**
      * @param array<string, mixed> $config
+     * @param SessionHandler|null $handler
+     * @param CryptoManager|null $cryptoManager
      */
-    public function createHandler(array $config = [], ?SessionHandler $handler = null): SessionHandler
+    public function createHandler(
+        array $config = [],
+        ?SessionHandler $handler = null,
+        ?CryptoManager $cryptoManager = null
+    ): SessionHandler
     {
-        if ($handler instanceof SessionHandler) {
-            return $handler;
+        $normalized = $this->normalizeConfiguration($config);
+        $resolvedHandler = $handler instanceof SessionHandler
+            ? $handler
+            : match ($normalized['DRIVER']) {
+                'file' => new FileSessionDriver(
+                    $this->fileManager,
+                    $this->resolveSavePath($normalized) ?? $this->frameworkStoragePath('Sessions')
+                ),
+                'database' => new DatabaseSessionDriver(
+                    $this->database ?? throw new SessionException('Database session driver requires the framework Database service.'),
+                    $normalized['DATABASE']['TABLE']
+                ),
+                'redis' => new RedisSessionDriver([
+                    'host' => $normalized['REDIS']['HOST'],
+                    'port' => $normalized['REDIS']['PORT'],
+                    'timeout' => $normalized['REDIS']['TIMEOUT'],
+                    'password' => $normalized['REDIS']['PASSWORD'],
+                    'database' => $normalized['REDIS']['DATABASE'],
+                    'prefix' => $normalized['REDIS']['PREFIX'],
+                    'ttl' => $normalized['GC']['MAX_LIFETIME'],
+                ]),
+                default => new SessionHandler(),
+            };
+
+        if (!$normalized['ENCRYPT']) {
+            return $resolvedHandler;
         }
 
-        $normalized = $this->normalizeConfiguration($config);
+        if (!$cryptoManager instanceof CryptoManager) {
+            throw new SessionException('Encrypted sessions require the framework CryptoManager service.');
+        }
 
-        return match ($normalized['DRIVER']) {
-            'file' => new FileSessionDriver(
-                $this->fileManager,
-                $this->resolveSavePath($normalized) ?? $this->frameworkStoragePath('Sessions')
-            ),
-            'database' => new DatabaseSessionDriver(
-                $this->database ?? throw new SessionException('Database session driver requires the framework Database service.'),
-                $normalized['DATABASE']['TABLE']
-            ),
-            'redis' => new RedisSessionDriver([
-                'host' => $normalized['REDIS']['HOST'],
-                'port' => $normalized['REDIS']['PORT'],
-                'timeout' => $normalized['REDIS']['TIMEOUT'],
-                'password' => $normalized['REDIS']['PASSWORD'],
-                'database' => $normalized['REDIS']['DATABASE'],
-                'prefix' => $normalized['REDIS']['PREFIX'],
-                'ttl' => $normalized['GC']['MAX_LIFETIME'],
-            ]),
-            default => new SessionHandler(),
-        };
+        return new EncryptedSessionDriver($resolvedHandler, $cryptoManager);
     }
 
     /**
@@ -83,12 +98,14 @@ class SessionManager
             'runtime' => [
                 'native' => true,
                 'cli_ephemeral' => $this->isInArray(PHP_SAPI, ['cli', 'phpdbg'], true),
+                'encryption' => true,
             ],
             'drivers' => [
                 'native' => true,
                 'file' => true,
                 'database' => $this->database instanceof Database,
                 'redis' => class_exists(\Redis::class),
+                'encrypted' => true,
             ],
             'handlers' => [
                 'files' => true,
@@ -122,6 +139,11 @@ class SessionManager
      */
     public function normalizeConfiguration(array $config): array
     {
+        $encrypt = $this->normalizeBoolValue(
+            $this->resolveConfigPath($config, [['ENCRYPT'], ['LEGACY', 'ENCRYPT']], false),
+            false
+        );
+
         return [
             'DRIVER' => $this->normalizeDriverName((string) $this->resolveConfigPath($config, [['DRIVER']], 'native')),
             'NAME' => $this->normalizeStringValue(
@@ -227,11 +249,9 @@ class SessionManager
                     'langelermvc_session'
                 ),
             ],
+            'ENCRYPT' => $encrypt,
             'LEGACY' => [
-                'ENCRYPT' => $this->normalizeBoolValue(
-                    $this->resolveConfigPath($config, [['ENCRYPT']], false),
-                    false
-                ),
+                'ENCRYPT' => $encrypt,
             ],
         ];
     }
@@ -263,12 +283,6 @@ class SessionManager
 
         if ($driver === 'redis' && !$this->supports('drivers.redis')) {
             throw new SessionException('Redis session driver requires the ext-redis PHP extension.');
-        }
-
-        if ($normalized['LEGACY']['ENCRYPT']) {
-            throw new SessionException(
-                'Session encryption is not implemented in the current session subsystem. Use the crypto layer explicitly where needed.'
-            );
         }
     }
 

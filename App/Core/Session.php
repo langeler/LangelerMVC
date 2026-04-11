@@ -55,7 +55,7 @@ class Session
         $this->settings = $this->sessionManager->normalizeConfiguration(
             (array) $this->config->get('session', null, [])
         );
-        $this->handler = $this->sessionManager->createHandler($this->settings);
+        $this->handler = $this->sessionManager->createHandler($this->settings, cryptoManager: $this->cryptoManager);
     }
 
     /**

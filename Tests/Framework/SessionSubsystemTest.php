@@ -106,6 +106,50 @@ class SessionSubsystemTest extends TestCase
         self::assertTrue($session->invalidate());
     }
 
+    public function testSessionManagerEncryptsPersistedPayloadsWhenEnabled(): void
+    {
+        $path = sys_get_temp_dir() . '/langelermvc-session-encrypted-' . bin2hex(random_bytes(4));
+        mkdir($path, 0777, true);
+
+        try {
+            $manager = new SessionManager(
+                new FileManager(),
+                new ErrorManager(new ExceptionProvider())
+            );
+            $crypto = new CryptoManager(new CryptoProvider(), $this->makeSettingsManager());
+            $config = [
+                'DRIVER' => 'file',
+                'SAVE' => ['PATH' => $path],
+                'ENCRYPT' => true,
+            ];
+
+            $manager->assertSupportedConfiguration($config);
+            $handler = $manager->createHandler($config, cryptoManager: $crypto);
+
+            self::assertTrue($manager->supports('runtime.encryption'));
+            self::assertTrue($manager->open($handler, $path, 'framework'));
+            self::assertTrue($manager->write($handler, 'encrypted', 'payload|s:5:"alive";'));
+
+            $stored = file_get_contents($path . '/encrypted.session');
+
+            self::assertIsString($stored);
+            self::assertNotSame('payload|s:5:"alive";', $stored);
+            self::assertStringStartsWith('lgx:v1:', $stored);
+            self::assertSame('payload|s:5:"alive";', $manager->read($handler, 'encrypted'));
+
+            file_put_contents($path . '/legacy.session', 'payload|s:3:"old";');
+            self::assertSame('payload|s:3:"old";', $manager->read($handler, 'legacy'));
+
+            self::assertTrue($manager->destroyById($handler, 'encrypted'));
+            self::assertTrue($manager->destroyById($handler, 'legacy'));
+            self::assertTrue($manager->closeHandler($handler));
+        } finally {
+            @unlink($path . '/encrypted.session');
+            @unlink($path . '/legacy.session');
+            @rmdir($path);
+        }
+    }
+
     public function testSessionRejectsUnsupportedFrameworkLevelConfiguration(): void
     {
         $session = new Session(

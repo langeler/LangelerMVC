@@ -5,6 +5,7 @@ return array(
   'NAME' => 'langelermvc_session       # Session name / cookie name',
   'LIFETIME' => '120                   # Session lifetime in minutes',
   'EXPIRE_ON_CLOSE' => 'false          # Expire the session cookie when the browser closes',
+  'ENCRYPT' => 'false                  # Encrypt persisted session payloads using the configured crypto subsystem',
   'SAVE' =>
   array(
     'PATH' => 'Storage/Sessions        # Save path used by the native files handler',

@@ -147,7 +147,11 @@ abstract class InboundRequest extends Request
             return [];
         }
 
-        $decoded = json_decode($raw, true);
+        try {
+            $decoded = $this->fromJson($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
 
         return $this->isArray($decoded) ? $decoded : [];
     }

@@ -59,7 +59,7 @@ Responsibility split:
 - `Database`: lazy PDO wrapper plus query factories
 - `MigrationRunner`: module-aware schema lifecycle runner
 - `Router`: route registration, caching, dispatch, and fallback handling
-- `SeedRunner`: module-aware data seed lifecycle runner
+- `SeedRunner`: module-aware data seed lifecycle runner with dependency-aware seed ordering and framework-service resolution
 - `Session`: framework session runtime aligned with the config layer
 - `ModuleManager`: compatibility alias over the concrete module manager
 

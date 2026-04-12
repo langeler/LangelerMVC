@@ -144,8 +144,12 @@ class ProductRepository extends Repository
      */
     private function decodeMedia(string $payload): array
     {
-        $decoded = json_decode($payload, true);
+        try {
+            $decoded = $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
 
-        return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];
+        return $this->isArray($decoded) ? array_values(array_map('strval', $decoded)) : [];
     }
 }

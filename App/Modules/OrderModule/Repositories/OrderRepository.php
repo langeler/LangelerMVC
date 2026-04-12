@@ -66,8 +66,13 @@ class OrderRepository extends Repository
      */
     public function mapSummary(Order $order): array
     {
-        $intent = json_decode((string) ($order->getAttribute('payment_intent') ?? '{}'), true);
-        $intent = is_array($intent) ? $intent : [];
+        try {
+            $intent = $this->fromJson((string) ($order->getAttribute('payment_intent') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            $intent = [];
+        }
+
+        $intent = $this->isArray($intent) ? $intent : [];
 
         return [
             'id' => (int) $order->getKey(),

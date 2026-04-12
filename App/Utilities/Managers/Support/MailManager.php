@@ -11,13 +11,14 @@ use App\Utilities\Managers\FileManager;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
 use App\Utilities\Traits\Patterns\PatternTrait;
 use PHPMailer\PHPMailer\PHPMailer;
 
 class MailManager implements MailerInterface
 {
-    use ArrayTrait, CheckerTrait, ManipulationTrait, PatternTrait {
+    use ArrayTrait, CheckerTrait, ConversionTrait, ManipulationTrait, PatternTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -111,7 +112,10 @@ class MailManager implements MailerInterface
         }
 
         $existing = $this->fileManager->readContents($path) ?? '';
-        $payload = $existing . json_encode($message, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
+        $payload = $existing . $this->toJson(
+            $message,
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+        ) . PHP_EOL;
 
         return $this->fileManager->writeContents($path, $payload) !== false;
     }

@@ -9,6 +9,7 @@ use App\Core\Database;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
+use App\Utilities\Managers\Security\DatabaseUserProvider;
 
 class UserPlatformSeed extends Seed
 {
@@ -16,6 +17,7 @@ class UserPlatformSeed extends Seed
         UserRepository $repository,
         private readonly RoleRepository $roles,
         private readonly PermissionRepository $permissions,
+        private readonly DatabaseUserProvider $userProvider,
         Database $database
     ) {
         parent::__construct($repository, $database);
@@ -78,7 +80,7 @@ class UserPlatformSeed extends Seed
             $admin = $this->users()->create([
                 'name' => 'Platform Administrator',
                 'email' => 'admin@langelermvc.test',
-                'password' => password_hash('admin12345', PASSWORD_DEFAULT),
+                'password' => $this->userProvider->hashValue('admin12345'),
                 'email_verified_at' => gmdate('Y-m-d H:i:s'),
                 'status' => 'active',
             ]);
@@ -90,7 +92,7 @@ class UserPlatformSeed extends Seed
             $customerUser = $this->users()->create([
                 'name' => 'Demo Customer',
                 'email' => 'customer@langelermvc.test',
-                'password' => password_hash('customer12345', PASSWORD_DEFAULT),
+                'password' => $this->userProvider->hashValue('customer12345'),
                 'email_verified_at' => gmdate('Y-m-d H:i:s'),
                 'status' => 'active',
             ]);

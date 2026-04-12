@@ -244,7 +244,11 @@ class CartService extends Service
      */
     private function decodeMetadata(string $metadata): array
     {
-        $decoded = json_decode($metadata, true);
+        try {
+            $decoded = $this->fromJson($metadata, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
 
         return is_array($decoded) ? $decoded : [];
     }

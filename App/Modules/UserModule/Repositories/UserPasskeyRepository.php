@@ -7,7 +7,6 @@ namespace App\Modules\UserModule\Repositories;
 use App\Abstracts\Database\Repository;
 use App\Exceptions\Database\RepositoryException;
 use App\Modules\UserModule\Models\UserPasskey;
-use JsonException;
 
 class UserPasskeyRepository extends Repository
 {
@@ -74,8 +73,8 @@ class UserPasskeyRepository extends Repository
     public function refreshAssertion(int $passkeyId, array $source): UserPasskey
     {
         $this->updateRow($passkeyId, [
-            'source' => $this->encodeJson($source),
-            'transports' => $this->encodeJson(array_values(array_map('strval', (array) ($source['transports'] ?? [])))),
+            'source' => $this->toJson($source, JSON_THROW_ON_ERROR),
+            'transports' => $this->toJson(array_values(array_map('strval', (array) ($source['transports'] ?? []))), JSON_THROW_ON_ERROR),
             'aaguid' => (string) ($source['aaguid'] ?? ''),
             'counter' => (int) ($source['counter'] ?? 0),
             'backup_eligible' => $this->normalizeBoolean($source['backupEligible'] ?? null),
@@ -129,8 +128,8 @@ class UserPasskeyRepository extends Repository
             'user_id' => $userId,
             'name' => $name !== '' ? $name : 'Passkey',
             'credential_id' => (string) ($source['publicKeyCredentialId'] ?? ''),
-            'source' => $this->encodeJson($source),
-            'transports' => $this->encodeJson(array_values(array_map('strval', (array) ($source['transports'] ?? [])))),
+            'source' => $this->toJson($source, JSON_THROW_ON_ERROR),
+            'transports' => $this->toJson(array_values(array_map('strval', (array) ($source['transports'] ?? []))), JSON_THROW_ON_ERROR),
             'aaguid' => (string) ($source['aaguid'] ?? ''),
             'counter' => (int) ($source['counter'] ?? 0),
             'backup_eligible' => $this->normalizeBoolean($source['backupEligible'] ?? null),
@@ -154,14 +153,6 @@ class UserPasskeyRepository extends Repository
             ->toExecutable();
 
         $this->db->execute($query['sql'], $query['bindings']);
-    }
-
-    /**
-     * @throws JsonException
-     */
-    private function encodeJson(array $value): string
-    {
-        return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
     private function normalizeBoolean(mixed $value): bool

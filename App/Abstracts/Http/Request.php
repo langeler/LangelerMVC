@@ -24,6 +24,7 @@ use App\Utilities\Traits\{
 	ArrayTrait,        // Provides utility methods for array operations.
 	ApplicationPathTrait,
 	CheckerTrait,
+	ConversionTrait,
 	ErrorTrait,        // Offers framework-aligned exception wrapping.
 	ExistenceCheckerTrait,
 	ManipulationTrait,
@@ -46,7 +47,7 @@ use App\Utilities\Traits\{
  */
 abstract class Request implements RequestInterface
 {
-	use ArrayTrait, ManipulationTrait {
+	use ArrayTrait, ConversionTrait, ManipulationTrait {
 		ManipulationTrait::toLower as private toLowerString;
 	}
 	use CheckerTrait, ErrorTrait, ExistenceCheckerTrait, TypeCheckerTrait;

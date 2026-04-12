@@ -6,6 +6,7 @@ namespace App\Abstracts\Http;
 
 use App\Contracts\Http\ServiceInterface;
 use App\Exceptions\Http\ServiceException;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ErrorTrait;
 
 /**
@@ -29,7 +30,7 @@ use App\Utilities\Traits\ErrorTrait;
  */
 abstract class Service implements ServiceInterface
 {
-	use ErrorTrait;
+	use ConversionTrait, ErrorTrait;
 
 	/**
 	 * Constructor for injecting dependencies required by the service.

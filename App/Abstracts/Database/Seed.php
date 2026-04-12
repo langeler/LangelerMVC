@@ -8,12 +8,15 @@ use App\Contracts\Database\ModelInterface;
 use App\Contracts\Database\RepositoryInterface;
 use App\Contracts\Database\SeedInterface;
 use App\Core\Database;
+use App\Utilities\Traits\ConversionTrait;
 
 /**
  * Base seed abstraction backed by a repository.
  */
 abstract class Seed implements SeedInterface
 {
+    use ConversionTrait;
+
     public function __construct(
         protected RepositoryInterface $repository,
         protected Database $database

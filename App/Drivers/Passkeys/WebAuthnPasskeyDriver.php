@@ -8,6 +8,7 @@ use App\Contracts\Support\PasskeyDriverInterface;
 use App\Exceptions\AuthException;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
 use App\Utilities\Traits\TypeCheckerTrait;
 use Webauthn\AttestationStatement\AttestationStatementSupportManager;
@@ -30,7 +31,7 @@ use Webauthn\PublicKeyCredentialUserEntity;
 
 class WebAuthnPasskeyDriver implements PasskeyDriverInterface
 {
-    use ArrayTrait, CheckerTrait, ManipulationTrait, TypeCheckerTrait;
+    use ArrayTrait, CheckerTrait, ConversionTrait, ManipulationTrait, TypeCheckerTrait;
 
     private ?\Symfony\Component\Serializer\SerializerInterface $serializer = null;
 
@@ -156,9 +157,15 @@ class WebAuthnPasskeyDriver implements PasskeyDriverInterface
         }
 
         $sourcePayload = $storedCredential['source'] ?? null;
-        $normalizedSource = $this->isString($sourcePayload)
-            ? json_decode($sourcePayload, true)
-            : $sourcePayload;
+        if ($this->isString($sourcePayload)) {
+            try {
+                $normalizedSource = $this->fromJson($sourcePayload, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException $exception) {
+                throw new AuthException('The stored passkey source payload is invalid.', 0, $exception);
+            }
+        } else {
+            $normalizedSource = $sourcePayload;
+        }
 
         if (!$this->isArray($normalizedSource)) {
             throw new AuthException('The stored passkey source payload is invalid.');

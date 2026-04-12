@@ -31,7 +31,16 @@ class UserPasskey extends Model
     public function sourceData(): array
     {
         $value = $this->getAttribute('source');
-        $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+        if (is_string($value)) {
+            try {
+                $decoded = $this->fromJson($value, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                $decoded = [];
+            }
+        } else {
+            $decoded = $value;
+        }
 
         return is_array($decoded) ? $decoded : [];
     }
@@ -42,7 +51,16 @@ class UserPasskey extends Model
     public function transportsList(): array
     {
         $value = $this->getAttribute('transports');
-        $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+        if (is_string($value)) {
+            try {
+                $decoded = $this->fromJson($value, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                $decoded = [];
+            }
+        } else {
+            $decoded = $value;
+        }
 
         return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];
     }

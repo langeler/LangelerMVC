@@ -131,7 +131,10 @@ class OrderService extends Service
             'currency' => (string) ($cartPayload['currency'] ?? 'SEK'),
             'subtotal_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
             'total_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
-            'payment_intent' => json_encode($payment->intent->toArray(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            'payment_intent' => $this->toJson(
+                $payment->intent->toArray(),
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ),
         ]);
 
         foreach ((array) ($cartPayload['items'] ?? []) as $item) {
@@ -142,7 +145,7 @@ class OrderService extends Service
                 'quantity' => (int) ($item['quantity'] ?? 0),
                 'unit_price_minor' => (int) ($item['unit_price_minor'] ?? 0),
                 'line_total_minor' => (int) ($item['line_total_minor'] ?? 0),
-                'metadata' => json_encode(['slug' => $item['slug'] ?? '']),
+                'metadata' => $this->toJson(['slug' => $item['slug'] ?? ''], JSON_THROW_ON_ERROR),
             ]);
         }
 
@@ -289,7 +292,10 @@ class OrderService extends Service
             'status' => $status,
             'payment_status' => $result->intent->status,
             'payment_reference' => $result->intent->reference,
-            'payment_intent' => json_encode($result->intent->toArray(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            'payment_intent' => $this->toJson(
+                $result->intent->toArray(),
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ),
         ]);
 
         $event = match ($action) {
@@ -413,7 +419,11 @@ class OrderService extends Service
      */
     private function decodeIntent(string $payload): array
     {
-        $decoded = json_decode($payload, true);
+        try {
+            $decoded = $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
 
         return is_array($decoded) ? $decoded : [];
     }

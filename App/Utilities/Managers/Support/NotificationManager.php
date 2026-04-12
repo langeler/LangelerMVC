@@ -16,11 +16,13 @@ use App\Providers\NotificationProvider;
 use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
 
 class NotificationManager implements NotificationManagerInterface
 {
-    use ArrayTrait, CheckerTrait, ManipulationTrait {
+    use ArrayTrait, CheckerTrait, ConversionTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -126,8 +128,7 @@ class NotificationManager implements NotificationManagerInterface
         $executable = $query->orderBy('id')->toExecutable();
 
         return array_map(function (array $row): array {
-            $row['data'] = json_decode((string) ($row['data'] ?? '{}'), true);
-            $row['data'] = is_array($row['data']) ? $row['data'] : [];
+            $row['data'] = $this->decodeJsonArray((string) ($row['data'] ?? '{}'));
 
             return $row;
         }, $this->database->fetchAll($executable['sql'], $executable['bindings']));
@@ -219,5 +220,19 @@ class NotificationManager implements NotificationManagerInterface
         }
 
         return $instance;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeJsonArray(string $payload): array
+    {
+        try {
+            $decoded = $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+
+            return $this->isArray($decoded) ? $decoded : [];
+        } catch (\JsonException) {
+            return [];
+        }
     }
 }

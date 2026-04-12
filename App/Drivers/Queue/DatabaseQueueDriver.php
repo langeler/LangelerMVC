@@ -7,11 +7,13 @@ namespace App\Drivers\Queue;
 use App\Contracts\Async\QueueDriverInterface;
 use App\Core\Database;
 use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
 
 class DatabaseQueueDriver implements QueueDriverInterface
 {
-    use ArrayTrait, ManipulationTrait {
+    use ArrayTrait, ConversionTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -61,8 +63,8 @@ class DatabaseQueueDriver implements QueueDriverInterface
             'queue' => $queue,
             'type' => (string) ($envelope['type'] ?? 'job'),
             'class' => (string) ($envelope['class'] ?? ''),
-            'handler' => json_encode($envelope['handler'] ?? null, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-            'payload' => json_encode($envelope['payload'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'handler' => $this->toJson($envelope['handler'] ?? null, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'payload' => $this->toJson($envelope['payload'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
             'attempts' => (int) ($envelope['attempts'] ?? 0),
             'available_at' => time() + max(0, $delay),
             'reserved_at' => null,
@@ -203,20 +205,29 @@ class DatabaseQueueDriver implements QueueDriverInterface
      */
     private function hydrateEnvelope(array $row, int $attempts): array
     {
-        $handler = json_decode((string) ($row['handler'] ?? 'null'), true);
-        $payload = json_decode((string) ($row['payload'] ?? '{}'), true);
+        $handler = $this->decodeJsonValue((string) ($row['handler'] ?? 'null'), null);
+        $payload = $this->decodeJsonValue((string) ($row['payload'] ?? '{}'), []);
 
         return [
             'id' => (string) ($row['id'] ?? ''),
             'queue' => (string) ($row['queue'] ?? 'default'),
             'type' => (string) ($row['type'] ?? 'job'),
             'class' => (string) ($row['class'] ?? ''),
-            'handler' => is_array($handler) ? $handler : $handler,
-            'payload' => is_array($payload) ? $payload : [],
+            'handler' => $handler,
+            'payload' => $this->isArray($payload) ? $payload : [],
             'attempts' => $attempts,
             'available_at' => (int) ($row['available_at'] ?? 0),
             'reserved_at' => isset($row['reserved_at']) ? (int) $row['reserved_at'] : null,
             'created_at' => (int) ($row['created_at'] ?? 0),
         ];
+    }
+
+    private function decodeJsonValue(string $payload, mixed $fallback): mixed
+    {
+        try {
+            return $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return $fallback;
+        }
     }
 }

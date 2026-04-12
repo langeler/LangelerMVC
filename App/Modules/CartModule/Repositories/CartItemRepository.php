@@ -51,10 +51,10 @@ class CartItemRepository extends Repository
             'unit_price_minor' => (int) ($product['price_minor'] ?? 0),
             'quantity' => $quantity,
             'line_total_minor' => ((int) ($product['price_minor'] ?? 0)) * $quantity,
-            'metadata' => json_encode([
+            'metadata' => $this->toJson([
                 'slug' => $product['slug'] ?? null,
                 'currency' => $product['currency'] ?? 'SEK',
-            ]),
+            ], JSON_THROW_ON_ERROR),
         ]);
 
         return $item;
@@ -105,7 +105,11 @@ class CartItemRepository extends Repository
     public function summaryForCart(int $cartId): array
     {
         return array_map(function (CartItem $item): array {
-            $metadata = json_decode((string) ($item->getAttribute('metadata') ?? '[]'), true);
+            try {
+                $metadata = $this->fromJson((string) ($item->getAttribute('metadata') ?? '[]'), true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                $metadata = [];
+            }
 
             return [
                 'id' => (int) $item->getKey(),

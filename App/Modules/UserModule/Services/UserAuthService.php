@@ -342,7 +342,7 @@ class UserAuthService extends Service
         $this->users->saveOtpConfiguration(
             (int) $user->getKey(),
             $this->encryptSecret((string) $provision['secret']),
-            $this->encryptSecret(json_encode($recoveryCodes, JSON_THROW_ON_ERROR)),
+            $this->encryptSecret($this->toJson($recoveryCodes, JSON_THROW_ON_ERROR)),
             null
         );
         $fresh = $this->users->find((int) $user->getKey());
@@ -420,7 +420,7 @@ class UserAuthService extends Service
         $this->users->saveOtpConfiguration(
             (int) $user->getKey(),
             (string) $user->getAttribute('otp_secret'),
-            $this->encryptSecret(json_encode($recoveryCodes, JSON_THROW_ON_ERROR)),
+            $this->encryptSecret($this->toJson($recoveryCodes, JSON_THROW_ON_ERROR)),
             (string) $user->getAttribute('otp_confirmed_at')
         );
         $fresh = $this->users->find((int) $user->getKey());
@@ -578,7 +578,7 @@ class UserAuthService extends Service
         }
 
         try {
-            $decoded = json_decode($this->decryptSecret($cipher), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = $this->fromJson($this->decryptSecret($cipher), true, 512, JSON_THROW_ON_ERROR);
 
             return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];
         } catch (Throwable $exception) {
@@ -601,7 +601,7 @@ class UserAuthService extends Service
             $this->users->saveOtpConfiguration(
                 (int) $user->getKey(),
                 (string) $user->getAttribute('otp_secret'),
-                $this->encryptSecret(json_encode($remaining, JSON_THROW_ON_ERROR)),
+                $this->encryptSecret($this->toJson($remaining, JSON_THROW_ON_ERROR)),
                 (string) $user->getAttribute('otp_confirmed_at')
             );
 

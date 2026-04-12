@@ -40,7 +40,7 @@ class NotificationListCommand extends Command
                 (string) ($notification['id'] ?? ''),
                 (string) ($notification['notification'] ?? ''),
                 (string) ($notification['notifiable_type'] ?? ''),
-                json_encode($notification['data'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+                $this->encodeJsonPayload($notification['data'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
             ));
         }
 

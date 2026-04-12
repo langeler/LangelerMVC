@@ -7,6 +7,7 @@ use App\Contracts\Data\CryptoInterface;
 use App\Exceptions\Data\CryptoException;
 use App\Utilities\Traits\{
 	EncodingTrait,
+	HashingTrait,
 	ManipulationTrait,
 	TypeCheckerTrait
 };
@@ -14,7 +15,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 
 class OpenSSLCrypto extends Crypto implements CryptoInterface
 {
-	use EncodingTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+	use EncodingTrait, HashingTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
 
 	protected readonly array $config;
 	protected readonly array $capabilities;
@@ -324,19 +325,19 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 	{
 		return match (strtolower($type)) {
 			'default' => fn(string $password, array $options = []) =>
-				password_hash($password, PASSWORD_DEFAULT, $options)
+				$this->passwordHash($password, PASSWORD_DEFAULT, $options)
 				?: throw new CryptoException('Password hashing failed.'),
 
 			'bcrypt' => fn(string $password, array $options = []) =>
-				password_hash($password, PASSWORD_BCRYPT, $options)
+				$this->passwordHash($password, PASSWORD_BCRYPT, $options)
 				?: throw new CryptoException('Password hashing failed.'),
 
 			'argon2i' => fn(string $password, array $options = []) =>
-				password_hash($password, PASSWORD_ARGON2I, $options)
+				$this->passwordHash($password, PASSWORD_ARGON2I, $options)
 				?: throw new CryptoException('Password hashing failed.'),
 
 			'argon2id' => fn(string $password, array $options = []) =>
-				password_hash($password, PASSWORD_ARGON2ID, $options)
+				$this->passwordHash($password, PASSWORD_ARGON2ID, $options)
 				?: throw new CryptoException('Password hashing failed.'),
 
 			default => throw new CryptoException("Unsupported password hash type: {$type}."),
@@ -347,7 +348,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 	{
 		return match (strtolower($action)) {
 			'verify' => fn(string $hash, string $password): bool =>
-				password_verify($password, $hash),
+				$this->verifyPassword($password, $hash),
 
 			'rehash' => fn(string $hash, string $type = 'default', array $options = []): bool =>
 				password_needs_rehash($hash, match (strtolower($type)) {

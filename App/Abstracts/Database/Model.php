@@ -8,6 +8,7 @@ use App\Contracts\Database\ModelInterface;
 use App\Exceptions\Database\ModelException;
 use App\Utilities\Traits\{
 	ArrayTrait,
+	ConversionTrait,
 	ManipulationTrait,
 	TypeCheckerTrait
 };
@@ -18,7 +19,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
  */
 abstract class Model implements ModelInterface
 {
-    use ArrayTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
+    use ArrayTrait, ConversionTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait;
 
     /**
      * @var array<string, mixed>

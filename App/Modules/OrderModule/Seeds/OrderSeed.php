@@ -73,7 +73,7 @@ class OrderSeed extends Seed
             'currency' => 'SEK',
             'subtotal_minor' => $subtotal,
             'total_minor' => $subtotal,
-            'payment_intent' => json_encode([
+            'payment_intent' => $this->toJson([
                 'amount' => $subtotal,
                 'currency' => 'SEK',
                 'reference' => 'demo-seed-order',
@@ -81,7 +81,7 @@ class OrderSeed extends Seed
                 'authorizedAmount' => $subtotal,
                 'capturedAmount' => $subtotal,
                 'refundedAmount' => 0,
-            ]),
+            ], JSON_THROW_ON_ERROR),
         ]);
 
         foreach ($cartItems as $item) {
@@ -92,7 +92,7 @@ class OrderSeed extends Seed
                 'quantity' => (int) ($item['quantity'] ?? 0),
                 'unit_price_minor' => (int) ($item['unit_price_minor'] ?? 0),
                 'line_total_minor' => (int) ($item['line_total_minor'] ?? 0),
-                'metadata' => json_encode(['slug' => $item['slug'] ?? '']),
+                'metadata' => $this->toJson(['slug' => $item['slug'] ?? ''], JSON_THROW_ON_ERROR),
             ]);
         }
 

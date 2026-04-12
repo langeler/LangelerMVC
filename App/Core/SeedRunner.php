@@ -15,12 +15,18 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 use App\Utilities\Traits\TypeCheckerTrait;
 use ReflectionClass;
 use ReflectionNamedType;
+use ReflectionParameter;
 
 class SeedRunner
 {
     use ArrayTrait, ManipulationTrait, PatternTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
+
+    /**
+     * @var array<class-string, object>
+     */
+    private array $resolvedDependencies = [];
 
     public function __construct(
         private readonly Database $database,
@@ -131,12 +137,7 @@ class SeedRunner
                 continue;
             }
 
-            if (is_subclass_of($typeName, Repository::class)) {
-                $arguments[] = new $typeName($this->database);
-                continue;
-            }
-
-            throw new SeedException(sprintf('Seed [%s] constructor parameter [%s] cannot be resolved by the seed runner.', $class, $parameter->getName()));
+            $arguments[] = $this->resolveDependency($typeName, $class, $parameter, [$class]);
         }
 
         $instance = $reflection->newInstanceArgs($arguments);
@@ -146,6 +147,135 @@ class SeedRunner
         }
 
         return $instance;
+    }
+
+    /**
+     * @param list<string> $stack
+     */
+    private function resolveDependency(string $typeName, string $seedClass, ReflectionParameter $parameter, array $stack = []): object
+    {
+        if ($typeName === Database::class) {
+            return $this->database;
+        }
+
+        if ($typeName === ModuleManager::class) {
+            return $this->moduleManager;
+        }
+
+        if ($typeName === ErrorManager::class) {
+            return $this->errorManager;
+        }
+
+        if (isset($this->resolvedDependencies[$typeName])) {
+            return $this->resolvedDependencies[$typeName];
+        }
+
+        if (is_subclass_of($typeName, Repository::class)) {
+            return $this->resolvedDependencies[$typeName] = new $typeName($this->database);
+        }
+
+        if (!class_exists($typeName)) {
+            throw new SeedException(sprintf(
+                'Seed [%s] constructor parameter [%s] references an unknown dependency [%s].',
+                $seedClass,
+                $parameter->getName(),
+                $typeName
+            ));
+        }
+
+        return $this->resolvedDependencies[$typeName] = $this->instantiateDependency(
+            $typeName,
+            $seedClass,
+            $stack === [] ? [$seedClass] : $stack
+        );
+    }
+
+    /**
+     * @param list<string> $stack
+     */
+    private function instantiateDependency(string $class, string $seedClass, array $stack): object
+    {
+        if (isset($this->resolvedDependencies[$class])) {
+            return $this->resolvedDependencies[$class];
+        }
+
+        if (in_array($class, $stack, true)) {
+            throw new SeedException(sprintf(
+                'Circular seed dependency resolution detected while building [%s] for seed [%s].',
+                $class,
+                $seedClass
+            ));
+        }
+
+        $reflection = new ReflectionClass($class);
+
+        if (!$reflection->isInstantiable()) {
+            throw new SeedException(sprintf(
+                'Seed [%s] dependency [%s] is not instantiable.',
+                $seedClass,
+                $class
+            ));
+        }
+
+        $constructor = $reflection->getConstructor();
+
+        if ($constructor === null) {
+            return $reflection->newInstance();
+        }
+
+        $arguments = [];
+        $stack[] = $class;
+
+        foreach ($constructor->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                $arguments[] = $parameter->getDefaultValue();
+                continue;
+            }
+
+            $type = $parameter->getType();
+
+            if (!$type instanceof ReflectionNamedType) {
+                if ($parameter->allowsNull()) {
+                    $arguments[] = null;
+                    continue;
+                }
+
+                throw new SeedException(sprintf(
+                    'Seed [%s] dependency [%s] has an unsupported constructor parameter [%s].',
+                    $seedClass,
+                    $class,
+                    $parameter->getName()
+                ));
+            }
+
+            if ($type->isBuiltin()) {
+                if ($parameter->allowsNull()) {
+                    $arguments[] = null;
+                    continue;
+                }
+
+                throw new SeedException(sprintf(
+                    'Seed [%s] dependency [%s] has an unresolved builtin constructor parameter [%s].',
+                    $seedClass,
+                    $class,
+                    $parameter->getName()
+                ));
+            }
+
+            $dependencyType = $type->getName();
+
+            if ($dependencyType === $class) {
+                throw new SeedException(sprintf(
+                    'Seed [%s] dependency [%s] cannot recursively resolve itself.',
+                    $seedClass,
+                    $class
+                ));
+            }
+
+            $arguments[] = $this->resolveDependency($dependencyType, $seedClass, $parameter, $stack);
+        }
+
+        return $reflection->newInstanceArgs($arguments);
     }
 
     /**

@@ -7,11 +7,12 @@ namespace App\Drivers\Notifications;
 use App\Contracts\Support\NotificationChannelInterface;
 use App\Contracts\Support\NotificationInterface;
 use App\Core\Database;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
 
 class DatabaseNotificationChannel implements NotificationChannelInterface
 {
-    use ManipulationTrait {
+    use ConversionTrait, ManipulationTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -34,7 +35,10 @@ class DatabaseNotificationChannel implements NotificationChannelInterface
             'notifiable_id' => isset($notifiable['id']) ? (string) $notifiable['id'] : null,
             'channel' => $this->name(),
             'notification' => $notification->type(),
-            'data' => json_encode($notification->toDatabase($notifiable), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'data' => $this->toJson(
+                $notification->toDatabase($notifiable),
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ),
             'read_at' => null,
             'created_at' => time(),
         ];

@@ -10,6 +10,7 @@ use App\Core\Database;
 use App\Exceptions\Database\RepositoryException;
 use App\Utilities\Traits\{
     ArrayTrait,
+    ConversionTrait,
     ManipulationTrait,
     TypeCheckerTrait
 };
@@ -21,7 +22,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 abstract class Repository implements RepositoryInterface
 {
     use TypeCheckerTrait;
-    use ArrayTrait, ManipulationTrait, PatternTrait {
+    use ArrayTrait, ConversionTrait, ManipulationTrait, PatternTrait {
         ManipulationTrait::toLower as private toLowerString;
         ManipulationTrait::toUpper as private toUpperString;
         PatternTrait::match as private matchPattern;

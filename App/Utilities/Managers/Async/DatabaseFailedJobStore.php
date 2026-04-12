@@ -6,11 +6,13 @@ namespace App\Utilities\Managers\Async;
 
 use App\Contracts\Async\FailedJobStoreInterface;
 use App\Core\Database;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
 
 class DatabaseFailedJobStore implements FailedJobStoreInterface
 {
-    use ManipulationTrait {
+    use ConversionTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -30,8 +32,8 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
             'queue' => (string) ($envelope['queue'] ?? 'default'),
             'type' => (string) ($envelope['type'] ?? 'job'),
             'class' => (string) ($envelope['class'] ?? ''),
-            'handler' => json_encode($envelope['handler'] ?? null, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-            'payload' => json_encode($envelope['payload'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'handler' => $this->toJson($envelope['handler'] ?? null, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'payload' => $this->toJson($envelope['payload'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
             'attempts' => (int) ($envelope['attempts'] ?? 0),
             'exception' => $exception::class . ': ' . $exception->getMessage(),
             'failed_at' => time(),
@@ -141,19 +143,28 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
      */
     private function hydrate(array $row): array
     {
-        $handler = json_decode((string) ($row['handler'] ?? 'null'), true);
-        $payload = json_decode((string) ($row['payload'] ?? '{}'), true);
+        $handler = $this->decodeJsonValue((string) ($row['handler'] ?? 'null'), null);
+        $payload = $this->decodeJsonValue((string) ($row['payload'] ?? '{}'), []);
 
         return [
             'id' => (string) ($row['id'] ?? ''),
             'queue' => (string) ($row['queue'] ?? 'default'),
             'type' => (string) ($row['type'] ?? 'job'),
             'class' => (string) ($row['class'] ?? ''),
-            'handler' => is_array($handler) ? $handler : $handler,
-            'payload' => is_array($payload) ? $payload : [],
+            'handler' => $handler,
+            'payload' => $this->isArray($payload) ? $payload : [],
             'attempts' => (int) ($row['attempts'] ?? 0),
             'exception' => (string) ($row['exception'] ?? ''),
             'failed_at' => (int) ($row['failed_at'] ?? 0),
         ];
+    }
+
+    private function decodeJsonValue(string $payload, mixed $fallback): mixed
+    {
+        try {
+            return $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return $fallback;
+        }
     }
 }

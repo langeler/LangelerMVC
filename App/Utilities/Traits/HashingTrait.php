@@ -55,13 +55,14 @@ trait HashingTrait
 	/**
 	 * Create a secure password hash using Argon2 (default) or Bcrypt.
 	 *
-	 * @param string $password The input password.
-	 * @param int $algo        The hashing algorithm (default: PASSWORD_ARGON2ID).
-	 * @return string          The hashed password.
+	 * @param string     $password The input password.
+	 * @param int|string $algo     The hashing algorithm (default: PASSWORD_ARGON2ID).
+	 * @param array      $options  Optional hasher configuration (cost, memory cost, threads, etc.).
+	 * @return string|false        The hashed password.
 	 */
-	public function passwordHash(string $password, int $algo = PASSWORD_ARGON2ID): string
+	public function passwordHash(string $password, int|string $algo = PASSWORD_ARGON2ID, array $options = []): string|false
 	{
-		return password_hash($password, $algo);
+		return password_hash($password, $algo, $options);
 	}
 
 	/**

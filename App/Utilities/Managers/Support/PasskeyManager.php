@@ -14,12 +14,13 @@ use App\Exceptions\AuthException;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ErrorTrait;
 use App\Utilities\Traits\ManipulationTrait;
 use App\Utilities\Traits\TypeCheckerTrait;
 class PasskeyManager implements PasskeyManagerInterface
 {
-    use ArrayTrait, CheckerTrait, ErrorTrait, ManipulationTrait, TypeCheckerTrait {
+    use ArrayTrait, CheckerTrait, ConversionTrait, ErrorTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -242,7 +243,11 @@ class PasskeyManager implements PasskeyManagerInterface
             return $credentialPayload;
         }
 
-        $decoded = json_decode($credentialPayload, true);
+        try {
+            $decoded = $this->fromJson($credentialPayload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new AuthException('The submitted passkey payload is invalid.', 0, $exception);
+        }
 
         if (!$this->isArray($decoded)) {
             throw new AuthException('The submitted passkey payload is invalid.');

@@ -1,6 +1,6 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-11`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-12`.
 
 ## Snapshot
 
@@ -58,6 +58,7 @@ This document records the current implementation state of LangelerMVC based on t
 - seed runner
 - framework-managed migration history storage
 - dependency-aware migration/seed ordering
+- seed dependency resolution across repositories and framework services
 
 ### Infrastructure Subsystems
 
@@ -78,6 +79,7 @@ This document records the current implementation state of LangelerMVC based on t
 - reflection manager
 - finder subsystem
 - normalized trait surface with collision coverage
+- framework-consistent JSON/payload serialization across async, auth, console, and commerce flows
 
 ### Console / Operational Tooling
 

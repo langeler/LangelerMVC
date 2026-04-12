@@ -14,13 +14,14 @@ use App\Utilities\Managers\Data\CryptoManager;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\HashingTrait;
 use App\Utilities\Traits\ManipulationTrait;
 use App\Utilities\Traits\TypeCheckerTrait;
 use Throwable;
 
 class DatabaseUserProvider implements UserProviderInterface
 {
-    use ArrayTrait, CheckerTrait, ManipulationTrait, TypeCheckerTrait {
+    use ArrayTrait, CheckerTrait, HashingTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -119,7 +120,7 @@ class DatabaseUserProvider implements UserProviderInterface
             $this->errorManager->logThrowable($exception, 'auth.hash', 'userNotice');
         }
 
-        $fallback = password_hash($value, PASSWORD_DEFAULT);
+        $fallback = $this->passwordHash($value, PASSWORD_DEFAULT);
 
         if ($fallback === false) {
             throw new AuthException('Failed to hash the provided value for authentication.');
@@ -138,7 +139,7 @@ class DatabaseUserProvider implements UserProviderInterface
             $this->errorManager->logThrowable($exception, 'auth.verify', 'userNotice');
         }
 
-        return password_verify($value, $hash);
+        return $this->verifyPassword($value, $hash);
     }
 
     public function needsRehash(string $hash): bool

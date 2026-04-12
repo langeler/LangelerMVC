@@ -51,7 +51,7 @@ The framework runtime layer:
 - `ModuleManager.php`: compatibility wrapper for module discovery.
 - `Router.php`: route registration, route cache loading, and dispatch.
 - `Schema/`: schema blueprint support for framework migrations.
-- `SeedRunner.php`: module-aware seed lifecycle runner.
+- `SeedRunner.php`: module-aware seed lifecycle runner with dependency-aware ordering and framework-service resolution.
 - `Session.php`: framework session runtime.
 
 ### `App/Drivers`

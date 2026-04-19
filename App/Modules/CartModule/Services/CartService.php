@@ -220,7 +220,7 @@ class CartService extends Service
             'items' => $items,
             'item_count' => count($items),
             'subtotal_minor' => $subtotal,
-            'subtotal' => $this->formatMoney($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
+            'subtotal' => $this->formatMoneyMinor($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
         ];
     }
 
@@ -251,10 +251,5 @@ class CartService extends Service
         }
 
         return is_array($decoded) ? $decoded : [];
-    }
-
-    private function formatMoney(int $amount, string $currency): string
-    {
-        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 }

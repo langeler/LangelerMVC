@@ -20,13 +20,14 @@ use App\Utilities\Managers\Support\OtpManager;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
+use App\Utilities\Traits\EncodingTrait;
 use App\Utilities\Traits\ManipulationTrait;
 use App\Utilities\Traits\TypeCheckerTrait;
 use Throwable;
 
 class UserAuthService extends Service
 {
-    use ArrayTrait, CheckerTrait, ManipulationTrait, TypeCheckerTrait {
+    use ArrayTrait, CheckerTrait, EncodingTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
 
@@ -623,19 +624,19 @@ class UserAuthService extends Service
             $nonce = $this->cryptoManager->generateRandom('custom', $nonceLength);
             $cipher = $this->cryptoManager->encrypt('secretBox', $value, $nonce, $key);
 
-            return base64_encode($nonce . $cipher);
+            return $this->base64EncodeString($nonce . $cipher);
         }
 
         $cipherMethod = $this->cryptoManager->resolveConfiguredCipher('openssl');
         $iv = $this->cryptoManager->generateRandom('generateRandomIv', $cipherMethod);
         $cipher = $this->cryptoManager->encrypt('symmetric', $value, $cipherMethod, $key, $iv);
 
-        return base64_encode($iv . $cipher);
+        return $this->base64EncodeString($iv . $cipher);
     }
 
     private function decryptSecret(string $value): string
     {
-        $raw = base64_decode($value, true);
+        $raw = $this->base64DecodeString($value, true);
 
         if ($raw === false) {
             throw new AuthException('Failed to decode encrypted OTP payload.');

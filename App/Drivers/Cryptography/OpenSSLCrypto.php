@@ -351,7 +351,7 @@ class OpenSSLCrypto extends Crypto implements CryptoInterface
 				$this->verifyPassword($password, $hash),
 
 			'rehash' => fn(string $hash, string $type = 'default', array $options = []): bool =>
-				password_needs_rehash($hash, match (strtolower($type)) {
+				$this->passwordNeedsRehash($hash, match (strtolower($type)) {
 					'default' => PASSWORD_DEFAULT,
 					'bcrypt' => PASSWORD_BCRYPT,
 					'argon2i' => PASSWORD_ARGON2I,

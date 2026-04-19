@@ -8,6 +8,7 @@ use App\Contracts\Http\ServiceInterface;
 use App\Exceptions\Http\ServiceException;
 use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ErrorTrait;
+use App\Utilities\Traits\MoneyFormattingTrait;
 
 /**
  * Abstract Service Class
@@ -30,7 +31,7 @@ use App\Utilities\Traits\ErrorTrait;
  */
 abstract class Service implements ServiceInterface
 {
-	use ConversionTrait, ErrorTrait;
+	use ConversionTrait, ErrorTrait, MoneyFormattingTrait;
 
 	/**
 	 * Constructor for injecting dependencies required by the service.

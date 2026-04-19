@@ -117,16 +117,11 @@ class CartItemRepository extends Repository
                 'name' => (string) ($item->getAttribute('product_name') ?? ''),
                 'quantity' => (int) ($item->getAttribute('quantity') ?? 0),
                 'unit_price_minor' => (int) ($item->getAttribute('unit_price_minor') ?? 0),
-                'unit_price' => $this->formatMoney((int) ($item->getAttribute('unit_price_minor') ?? 0), (string) (($metadata['currency'] ?? 'SEK'))),
+                'unit_price' => $this->formatMoneyMinor((int) ($item->getAttribute('unit_price_minor') ?? 0), (string) (($metadata['currency'] ?? 'SEK'))),
                 'line_total_minor' => (int) ($item->getAttribute('line_total_minor') ?? 0),
-                'line_total' => $this->formatMoney((int) ($item->getAttribute('line_total_minor') ?? 0), (string) (($metadata['currency'] ?? 'SEK'))),
+                'line_total' => $this->formatMoneyMinor((int) ($item->getAttribute('line_total_minor') ?? 0), (string) (($metadata['currency'] ?? 'SEK'))),
                 'slug' => (string) ($metadata['slug'] ?? ''),
             ];
         }, $this->forCart($cartId));
-    }
-
-    private function formatMoney(int $amount, string $currency): string
-    {
-        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 }

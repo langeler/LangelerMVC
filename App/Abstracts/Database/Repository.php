@@ -12,6 +12,7 @@ use App\Utilities\Traits\{
     ArrayTrait,
     ConversionTrait,
     ManipulationTrait,
+    MoneyFormattingTrait,
     TypeCheckerTrait
 };
 use App\Utilities\Traits\Patterns\PatternTrait;
@@ -22,7 +23,7 @@ use App\Utilities\Traits\Patterns\PatternTrait;
 abstract class Repository implements RepositoryInterface
 {
     use TypeCheckerTrait;
-    use ArrayTrait, ConversionTrait, ManipulationTrait, PatternTrait {
+    use ArrayTrait, ConversionTrait, ManipulationTrait, MoneyFormattingTrait, PatternTrait {
         ManipulationTrait::toLower as private toLowerString;
         ManipulationTrait::toUpper as private toUpperString;
         PatternTrait::match as private matchPattern;

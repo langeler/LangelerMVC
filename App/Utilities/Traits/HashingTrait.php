@@ -78,6 +78,19 @@ trait HashingTrait
 	}
 
 	/**
+	 * Determine whether a password hash should be regenerated.
+	 *
+	 * @param string     $hash    The stored password hash.
+	 * @param int|string $algo    The hashing algorithm to evaluate against.
+	 * @param array      $options Optional hasher configuration (cost, memory cost, threads, etc.).
+	 * @return bool
+	 */
+	public function passwordNeedsRehash(string $hash, int|string $algo = PASSWORD_ARGON2ID, array $options = []): bool
+	{
+		return password_needs_rehash($hash, $algo, $options);
+	}
+
+	/**
 	 * Securely compare two strings or hashes to prevent timing attacks.
 	 *
 	 * @param string $known     The known string (e.g., a stored hash).

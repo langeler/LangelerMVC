@@ -107,7 +107,7 @@ class ProductRepository extends Repository
                 'name' => (string) ($row['name'] ?? ''),
                 'slug' => (string) ($row['slug'] ?? ''),
                 'visibility' => (string) ($row['visibility'] ?? ''),
-                'price' => $this->formatMoney((int) ($row['price_minor'] ?? 0), (string) ($row['currency'] ?? 'SEK')),
+                'price' => $this->formatMoneyMinor((int) ($row['price_minor'] ?? 0), (string) ($row['currency'] ?? 'SEK')),
                 'stock' => (int) ($row['stock'] ?? 0),
                 'category' => (string) ($row['category_name'] ?? ''),
             ];
@@ -127,16 +127,11 @@ class ProductRepository extends Repository
             'description' => (string) ($product->getAttribute('description') ?? ''),
             'price_minor' => (int) ($product->getAttribute('price_minor') ?? 0),
             'currency' => (string) ($product->getAttribute('currency') ?? 'SEK'),
-            'price' => $this->formatMoney((int) ($product->getAttribute('price_minor') ?? 0), (string) ($product->getAttribute('currency') ?? 'SEK')),
+            'price' => $this->formatMoneyMinor((int) ($product->getAttribute('price_minor') ?? 0), (string) ($product->getAttribute('currency') ?? 'SEK')),
             'visibility' => (string) ($product->getAttribute('visibility') ?? 'draft'),
             'stock' => (int) ($product->getAttribute('stock') ?? 0),
             'media' => $this->decodeMedia((string) ($product->getAttribute('media') ?? '[]')),
         ];
-    }
-
-    private function formatMoney(int $amount, string $currency): string
-    {
-        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 
     /**

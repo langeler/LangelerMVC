@@ -152,7 +152,7 @@ class DatabaseUserProvider implements UserProviderInterface
             $this->errorManager->logThrowable($exception, 'auth.rehash', 'userNotice');
         }
 
-        return password_needs_rehash($hash, PASSWORD_DEFAULT);
+        return $this->passwordNeedsRehash($hash, PASSWORD_DEFAULT);
     }
 
     private function repository(): UserRepository

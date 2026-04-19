@@ -327,8 +327,8 @@ class OrderService extends Service
             'items' => array_map(function (array $item) use ($summary): array {
                 return [
                     ...$item,
-                    'unit_price' => $this->formatMoney((int) ($item['unit_price_minor'] ?? 0), (string) ($summary['currency'] ?? 'SEK')),
-                    'line_total' => $this->formatMoney((int) ($item['line_total_minor'] ?? 0), (string) ($summary['currency'] ?? 'SEK')),
+                    'unit_price' => $this->formatMoneyMinor((int) ($item['unit_price_minor'] ?? 0), (string) ($summary['currency'] ?? 'SEK')),
+                    'line_total' => $this->formatMoneyMinor((int) ($item['line_total_minor'] ?? 0), (string) ($summary['currency'] ?? 'SEK')),
                 ];
             }, $items),
             'addresses' => $addresses,
@@ -373,7 +373,7 @@ class OrderService extends Service
             'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
             'item_count' => count($items),
             'subtotal_minor' => $subtotal,
-            'subtotal' => $this->formatMoney($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
+            'subtotal' => $this->formatMoneyMinor($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
             'items' => $items,
         ];
     }
@@ -426,10 +426,5 @@ class OrderService extends Service
         }
 
         return is_array($decoded) ? $decoded : [];
-    }
-
-    private function formatMoney(int $amount, string $currency): string
-    {
-        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 }

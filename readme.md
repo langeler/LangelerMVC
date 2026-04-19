@@ -8,10 +8,10 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 
 ## Verification Snapshot
 
-As of `2026-04-12`:
+As of `2026-04-19`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (81 tests, 1980 assertions)`
+- `composer test` passes with `OK (81 tests, 1984 assertions)`
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
@@ -21,6 +21,7 @@ As of `2026-04-12`:
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
+- Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
 - The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.

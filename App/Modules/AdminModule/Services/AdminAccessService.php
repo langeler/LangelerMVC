@@ -416,13 +416,8 @@ class AdminAccessService extends Service
                 'status' => (string) ($cart->getAttribute('status') ?? 'active'),
                 'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
                 'items' => count($items),
-                'subtotal' => $this->formatMoney($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
+                'subtotal' => $this->formatMoneyMinor($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
             ];
         }, array_values(array_filter($this->carts->all(), static fn(mixed $cart): bool => $cart instanceof Cart)));
-    }
-
-    private function formatMoney(int $amount, string $currency): string
-    {
-        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 }

@@ -86,14 +86,9 @@ class OrderRepository extends Repository
             'currency' => (string) ($order->getAttribute('currency') ?? 'SEK'),
             'subtotal_minor' => (int) ($order->getAttribute('subtotal_minor') ?? 0),
             'total_minor' => (int) ($order->getAttribute('total_minor') ?? 0),
-            'subtotal' => $this->formatMoney((int) ($order->getAttribute('subtotal_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
-            'total' => $this->formatMoney((int) ($order->getAttribute('total_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
+            'subtotal' => $this->formatMoneyMinor((int) ($order->getAttribute('subtotal_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
+            'total' => $this->formatMoneyMinor((int) ($order->getAttribute('total_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
             'payment_intent' => $intent,
         ];
-    }
-
-    private function formatMoney(int $amount, string $currency): string
-    {
-        return strtoupper($currency) . ' ' . number_format($amount / 100, 2, '.', ' ');
     }
 }

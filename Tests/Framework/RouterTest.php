@@ -20,6 +20,7 @@ class RouterTest extends TestCase
     private array $postBackup = [];
     private array $getBackup = [];
     private array $envBackup = [];
+    private ?string $sqliteTestDatabasePath = null;
 
     protected function setUp(): void
     {
@@ -32,16 +33,30 @@ class RouterTest extends TestCase
             'WEBMODULE_CONTENT_SOURCE' => getenv('WEBMODULE_CONTENT_SOURCE') !== false ? (string) getenv('WEBMODULE_CONTENT_SOURCE') : null,
         ];
 
+        $databasePath = sys_get_temp_dir() . '/langelermvc-router-test.sqlite';
+
+        if (file_exists($databasePath)) {
+            unlink($databasePath);
+        }
+
+        $databasePath = tempnam(sys_get_temp_dir(), 'langelermvc-router-');
+
+        if ($databasePath === false) {
+            throw new \RuntimeException('Failed to allocate temporary SQLite database path for router test.');
+        }
+
+        $this->sqliteTestDatabasePath = $databasePath;
+
         putenv('DB_CONNECTION=sqlite');
-        putenv('DB_DATABASE=:memory:');
+        putenv('DB_DATABASE=' . $databasePath);
         putenv('DB_TIMEOUT=1');
         putenv('WEBMODULE_CONTENT_SOURCE=memory');
         $_ENV['DB_CONNECTION'] = 'sqlite';
-        $_ENV['DB_DATABASE'] = ':memory:';
+        $_ENV['DB_DATABASE'] = $databasePath;
         $_ENV['DB_TIMEOUT'] = '1';
         $_ENV['WEBMODULE_CONTENT_SOURCE'] = 'memory';
         $_SERVER['DB_CONNECTION'] = 'sqlite';
-        $_SERVER['DB_DATABASE'] = ':memory:';
+        $_SERVER['DB_DATABASE'] = $databasePath;
         $_SERVER['DB_TIMEOUT'] = '1';
         $_SERVER['WEBMODULE_CONTENT_SOURCE'] = 'memory';
     }
@@ -62,6 +77,12 @@ class RouterTest extends TestCase
             $_ENV[$key] = $value;
             $_SERVER[$key] = $value;
         }
+
+        if ($this->sqliteTestDatabasePath !== null && file_exists($this->sqliteTestDatabasePath)) {
+            @unlink($this->sqliteTestDatabasePath);
+        }
+
+        $this->sqliteTestDatabasePath = null;
     }
 
     public function testRouterDispatchesHomeRouteFromModuleRouteFile(): void

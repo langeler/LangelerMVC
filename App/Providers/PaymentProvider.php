@@ -4,9 +4,17 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Abstracts\Support\PaymentDriver as AbstractPaymentDriver;
 use App\Contracts\Support\PaymentDriverInterface;
 use App\Core\Container;
+use App\Drivers\Payments\CardPaymentDriver;
+use App\Drivers\Payments\CryptoPaymentDriver;
+use App\Drivers\Payments\KlarnaPaymentDriver;
+use App\Drivers\Payments\PayPalPaymentDriver;
+use App\Drivers\Payments\QliroPaymentDriver;
+use App\Drivers\Payments\SwishPaymentDriver;
 use App\Drivers\Payments\TestingPaymentDriver;
+use App\Drivers\Payments\WalleyPaymentDriver;
 use App\Exceptions\ContainerException;
 use App\Utilities\Traits\ManipulationTrait;
 use App\Utilities\Traits\Patterns\PatternTrait;
@@ -28,6 +36,13 @@ class PaymentProvider extends Container
 
         $this->driverMap = [
             'testing' => TestingPaymentDriver::class,
+            'card' => CardPaymentDriver::class,
+            'crypto' => CryptoPaymentDriver::class,
+            'paypal' => PayPalPaymentDriver::class,
+            'klarna' => KlarnaPaymentDriver::class,
+            'swish' => SwishPaymentDriver::class,
+            'qliro' => QliroPaymentDriver::class,
+            'walley' => WalleyPaymentDriver::class,
         ];
     }
 
@@ -55,6 +70,10 @@ class PaymentProvider extends Container
             throw new ContainerException(sprintf('Resolved payment driver [%s] does not implement the payment contract.', $driver));
         }
 
+        if ($instance instanceof AbstractPaymentDriver) {
+            $instance->configure($settings);
+        }
+
         return $instance;
     }
 
@@ -68,7 +87,13 @@ class PaymentProvider extends Container
 
     public function extendDriver(string $alias, string $class): void
     {
-        $this->driverMap[$this->normalizeAlias($alias)] = $class;
+        $alias = $this->normalizeAlias($alias);
+        $this->driverMap[$alias] = $class;
+
+        if ($this->servicesRegistered) {
+            $this->registerAlias($alias, $class);
+            $this->registerLazy($class, fn() => $this->registerInstance($class));
+        }
     }
 
     private function normalizeAlias(string $name): string

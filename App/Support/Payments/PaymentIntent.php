@@ -14,6 +14,7 @@ final class PaymentIntent implements \JsonSerializable
         public readonly string $currency = 'SEK',
         public readonly string $description = '',
         public readonly array $metadata = [],
+        public readonly string $driver = 'testing',
         public readonly string $method = 'card',
         public readonly string $flow = 'authorize_capture',
         public readonly ?string $reference = null,
@@ -37,6 +38,7 @@ final class PaymentIntent implements \JsonSerializable
             (string) ($payload['currency'] ?? 'SEK'),
             (string) ($payload['description'] ?? ''),
             is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [],
+            isset($payload['driver']) ? (string) $payload['driver'] : 'testing',
             PaymentMethod::fromMixed(isset($payload['method']) ? (string) $payload['method'] : null)->value,
             PaymentFlow::fromMixed(isset($payload['flow']) ? (string) $payload['flow'] : null)->value,
             isset($payload['reference']) ? (string) $payload['reference'] : null,
@@ -60,6 +62,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             $this->flow,
             $this->reference,
@@ -83,6 +86,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             $this->flow,
             $reference,
@@ -106,6 +110,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             PaymentMethod::fromMixed($method)->value,
             $this->flow,
             $this->reference,
@@ -129,6 +134,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             PaymentFlow::fromMixed($flow)->value,
             $this->reference,
@@ -156,6 +162,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             $this->flow,
             $reference ?? $this->reference,
@@ -179,6 +186,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             $this->flow,
             $this->reference,
@@ -205,6 +213,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             $this->flow,
             $this->reference,
@@ -228,6 +237,7 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->driver,
             $this->method,
             $this->flow,
             $this->reference,
@@ -249,6 +259,30 @@ final class PaymentIntent implements \JsonSerializable
         return max(0, $this->authorizedAmount - $this->capturedAmount);
     }
 
+    public function withDriver(string $driver): self
+    {
+        return new self(
+            $this->amount,
+            $this->currency,
+            $this->description,
+            $this->metadata,
+            $driver,
+            $this->method,
+            $this->flow,
+            $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
+            $this->status,
+            $this->authorizedAmount,
+            $this->capturedAmount,
+            $this->refundedAmount
+        );
+    }
+
     public function remainingRefundAmount(): int
     {
         return max(0, $this->capturedAmount - $this->refundedAmount);
@@ -264,6 +298,7 @@ final class PaymentIntent implements \JsonSerializable
             'currency' => $this->currency,
             'description' => $this->description,
             'metadata' => $this->metadata,
+            'driver' => $this->driver,
             'method' => $this->method,
             'flow' => $this->flow,
             'reference' => $this->reference,

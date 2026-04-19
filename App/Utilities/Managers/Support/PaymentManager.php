@@ -7,6 +7,7 @@ namespace App\Utilities\Managers\Support;
 use App\Contracts\Support\PaymentDriverInterface;
 use App\Contracts\Support\PaymentManagerInterface;
 use App\Core\Config;
+use App\Exceptions\Support\PaymentException;
 use App\Providers\PaymentProvider;
 use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
@@ -18,9 +19,13 @@ class PaymentManager implements PaymentManagerInterface
 {
     use ManipulationTrait {
         ManipulationTrait::toLower as private toLowerString;
+        ManipulationTrait::trimString as private trimStringValue;
     }
 
-    private ?PaymentDriverInterface $driver = null;
+    /**
+     * @var array<string, PaymentDriverInterface>
+     */
+    private array $drivers = [];
 
     public function __construct(
         private readonly Config $config,
@@ -31,45 +36,84 @@ class PaymentManager implements PaymentManagerInterface
 
     public function driverName(): string
     {
-        return $this->toLowerString((string) $this->config->get('payment', 'DRIVER', 'testing'));
+        return $this->normalizeDriverName((string) $this->config->get('payment', 'DRIVER', 'testing'));
     }
 
-    /**
-     * @return list<string>
-     */
     public function availableDrivers(): array
     {
-        return $this->provider->getSupportedDrivers();
+        $available = [];
+
+        foreach ($this->provider->getSupportedDrivers() as $driver) {
+            $settings = $this->driverSettings($driver);
+
+            if ((bool) ($settings['ENABLED'] ?? false)) {
+                $available[] = $driver;
+            }
+        }
+
+        if ($available === []) {
+            return ['testing'];
+        }
+
+        return array_values(array_unique($available));
     }
 
-    public function capabilities(): array
+    public function driverCatalog(): array
     {
-        return $this->driver()->capabilities();
+        $catalog = [];
+
+        foreach ($this->availableDrivers() as $driver) {
+            $capabilities = $this->capabilities($driver);
+
+            $catalog[$driver] = [
+                'driver' => $driver,
+                'label' => (string) ($capabilities['label'] ?? ucfirst($driver)),
+                'enabled' => true,
+                'mode' => (string) ($capabilities['mode'] ?? 'reference'),
+                'docs_url' => $capabilities['docs_url'] ?? null,
+                'regions' => is_array($capabilities['regions'] ?? null) ? array_values($capabilities['regions']) : [],
+                'methods' => $this->supportedMethods($driver),
+                'flows' => $this->supportedFlows($driver),
+                'required_settings' => is_array($capabilities['required_settings'] ?? null)
+                    ? array_values($capabilities['required_settings'])
+                    : [],
+                'capabilities' => $capabilities,
+            ];
+        }
+
+        return $catalog;
     }
 
-    public function supports(string $feature): bool
+    public function capabilities(?string $driver = null): array
     {
-        return $this->driver()->supports($feature);
+        $resolved = $this->driver($driver);
+
+        return $resolved->capabilities();
     }
 
-    public function supportedMethods(): array
+    public function supports(string $feature, ?string $driver = null): bool
     {
-        return $this->driver()->supportedMethods();
+        return $this->driver($driver)->supports($feature);
     }
 
-    public function supportedFlows(): array
+    public function supportedMethods(?string $driver = null): array
     {
-        return $this->driver()->supportedFlows();
+        return $this->driver($driver)->supportedMethods();
     }
 
-    public function supportsMethod(PaymentMethod|string $method): bool
+    public function supportedFlows(?string $driver = null): array
     {
-        return $this->driver()->supportsMethod($method);
+        return $this->driver($driver)->supportedFlows();
     }
 
-    public function supportsFlow(PaymentFlow|string $flow): bool
+    public function supportsMethod(PaymentMethod|string $method, ?string $driver = null): bool
     {
-        return $this->driver()->supportsFlow($flow);
+        return $this->driver($driver)->supportsMethod($method);
+    }
+
+    public function supportsFlow(PaymentFlow|string $flow, ?string $driver = null): bool
+    {
+        return $this->driver($driver)->supportsFlow($flow);
     }
 
     public function createIntent(
@@ -79,16 +123,29 @@ class PaymentManager implements PaymentManagerInterface
         array $metadata = [],
         PaymentMethod|string|null $method = null,
         PaymentFlow|string|null $flow = null,
-        ?string $idempotencyKey = null
+        ?string $idempotencyKey = null,
+        ?string $driver = null
     ): PaymentIntent {
-        $resolvedMethod = PaymentMethod::fromMixed($method ?? (string) $this->config->get('payment', 'DEFAULT_METHOD', PaymentMethod::default()->value));
-        $resolvedFlow = PaymentFlow::fromMixed($flow ?? (string) $this->config->get('payment', 'DEFAULT_FLOW', PaymentFlow::default()->value));
+        $resolvedDriver = $this->resolveDriverName($driver);
+        $defaultMethod = $this->defaultMethodFor($resolvedDriver);
+        $defaultFlow = $this->defaultFlowFor($resolvedDriver);
+        $resolvedMethod = PaymentMethod::fromMixed($method ?? $defaultMethod);
+        $resolvedFlow = PaymentFlow::fromMixed($flow ?? $defaultFlow);
+
+        if (!$this->supportsMethod($resolvedMethod, $resolvedDriver)) {
+            $resolvedMethod = PaymentMethod::fromMixed($defaultMethod);
+        }
+
+        if (!$this->supportsFlow($resolvedFlow, $resolvedDriver)) {
+            $resolvedFlow = PaymentFlow::fromMixed($defaultFlow);
+        }
 
         return new PaymentIntent(
             $amount,
             $currency ?? (string) $this->config->get('payment', 'CURRENCY', 'SEK'),
             $description,
             $metadata,
+            $resolvedDriver,
             $resolvedMethod->value,
             $resolvedFlow->value,
             null,
@@ -100,39 +157,136 @@ class PaymentManager implements PaymentManagerInterface
 
     public function authorize(PaymentIntent $intent): PaymentResult
     {
-        return $this->driver()->authorize($intent);
+        $driver = $this->driver($intent->driver, true);
+
+        return $driver->authorize($intent->withDriver($this->resolveDriverName($intent->driver, true)));
     }
 
     public function capture(PaymentIntent $intent, ?int $amount = null): PaymentResult
     {
-        return $this->driver()->capture($intent, $amount);
+        $driver = $this->driver($intent->driver, true);
+
+        return $driver->capture($intent->withDriver($this->resolveDriverName($intent->driver, true)), $amount);
     }
 
     public function cancel(PaymentIntent $intent, ?string $reason = null): PaymentResult
     {
-        return $this->driver()->cancel($intent, $reason);
+        $driver = $this->driver($intent->driver, true);
+
+        return $driver->cancel($intent->withDriver($this->resolveDriverName($intent->driver, true)), $reason);
     }
 
     public function refund(PaymentIntent $intent, ?int $amount = null, ?string $reason = null): PaymentResult
     {
-        return $this->driver()->refund($intent, $amount, $reason);
+        $driver = $this->driver($intent->driver, true);
+
+        return $driver->refund($intent->withDriver($this->resolveDriverName($intent->driver, true)), $amount, $reason);
     }
 
     public function reconcile(PaymentIntent $intent, array $payload = []): PaymentResult
     {
-        return $this->driver()->reconcile($intent, $payload);
+        $driver = $this->driver($intent->driver, true);
+
+        return $driver->reconcile($intent->withDriver($this->resolveDriverName($intent->driver, true)), $payload);
     }
 
-    private function driver(): PaymentDriverInterface
+    private function defaultMethodFor(string $driver): string
     {
-        if ($this->driver instanceof PaymentDriverInterface) {
-            return $this->driver;
+        $driverSettings = $this->driverSettings($driver);
+        $configured = $this->normalizeDriverName((string) ($driverSettings['DEFAULT_METHOD'] ?? ''));
+
+        if ($configured !== '' && $this->supportsMethod($configured, $driver)) {
+            return $configured;
         }
 
-        $this->driver = $this->provider->getPaymentDriver([
-            'DRIVER' => $this->driverName(),
-        ]);
+        $configured = $this->normalizeDriverName((string) $this->config->get('payment', 'DEFAULT_METHOD', PaymentMethod::default()->value));
 
-        return $this->driver;
+        if ($configured !== '' && $this->supportsMethod($configured, $driver)) {
+            return $configured;
+        }
+
+        return $this->supportedMethods($driver)[0] ?? PaymentMethod::default()->value;
+    }
+
+    private function defaultFlowFor(string $driver): string
+    {
+        $driverSettings = $this->driverSettings($driver);
+        $configured = $this->normalizeDriverName((string) ($driverSettings['DEFAULT_FLOW'] ?? ''));
+
+        if ($configured !== '' && $this->supportsFlow($configured, $driver)) {
+            return $configured;
+        }
+
+        $configured = $this->normalizeDriverName((string) $this->config->get('payment', 'DEFAULT_FLOW', PaymentFlow::default()->value));
+
+        if ($configured !== '' && $this->supportsFlow($configured, $driver)) {
+            return $configured;
+        }
+
+        return $this->supportedFlows($driver)[0] ?? PaymentFlow::default()->value;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function driverSettings(string $driver): array
+    {
+        $drivers = $this->config->get('payment', 'DRIVERS', []);
+
+        if (!is_array($drivers)) {
+            return [];
+        }
+
+        foreach ($drivers as $candidate => $settings) {
+            if ($this->normalizeDriverName((string) $candidate) !== $driver || !is_array($settings)) {
+                continue;
+            }
+
+            return $settings;
+        }
+
+        return [];
+    }
+
+    private function driver(?string $driver = null, bool $allowDisabled = false): PaymentDriverInterface
+    {
+        $resolvedName = $this->resolveDriverName($driver, $allowDisabled);
+
+        if (isset($this->drivers[$resolvedName])) {
+            return $this->drivers[$resolvedName];
+        }
+
+        $this->drivers[$resolvedName] = $this->provider->getPaymentDriver(array_merge(
+            $this->driverSettings($resolvedName),
+            ['DRIVER' => $resolvedName]
+        ));
+
+        return $this->drivers[$resolvedName];
+    }
+
+    private function resolveDriverName(?string $driver = null, bool $allowDisabled = false): string
+    {
+        $resolved = $this->normalizeDriverName($driver ?? $this->driverName());
+
+        if ($resolved === '') {
+            $resolved = 'testing';
+        }
+
+        $supported = $this->provider->getSupportedDrivers();
+
+        if (!in_array($resolved, $supported, true)) {
+            throw new PaymentException(sprintf('Unsupported payment driver [%s].', $resolved));
+        }
+
+        if (!$allowDisabled && !in_array($resolved, $this->availableDrivers(), true)) {
+            throw new PaymentException(sprintf('Payment driver [%s] is not enabled.', $resolved));
+        }
+
+        return $resolved;
+    }
+
+    private function normalizeDriverName(string $driver): string
+    {
+        return $this->toLowerString($this->trimStringValue($driver));
     }
 }

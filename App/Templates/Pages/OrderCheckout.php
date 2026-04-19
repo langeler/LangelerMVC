@@ -43,9 +43,35 @@
         <h2>Payment compatibility</h2>
         <?= $view->renderComponent('DefinitionGrid', [
             'items' => [
+                'Available drivers' => implode(', ', (array) ($payment['available_drivers'] ?? [])),
                 'Supported methods' => implode(', ', (array) ($payment['supported_methods'] ?? [])),
                 'Supported flows' => implode(', ', (array) ($payment['supported_flows'] ?? [])),
             ],
+        ]) ?>
+    </div>
+
+    <div class="section">
+        <h2>Provider catalog</h2>
+        <?= $view->renderComponent('DataTable', [
+            'columns' => [
+                'driver' => 'Driver',
+                'label' => 'Label',
+                'regions' => 'Regions',
+                'methods' => 'Methods',
+                'flows' => 'Flows',
+                'mode' => 'Mode',
+            ],
+            'rows' => array_map(static function (array $provider): array {
+                return [
+                    'driver' => $provider['driver'] ?? '',
+                    'label' => $provider['label'] ?? '',
+                    'regions' => implode(', ', (array) ($provider['regions'] ?? [])),
+                    'methods' => implode(', ', (array) ($provider['methods'] ?? [])),
+                    'flows' => implode(', ', (array) ($provider['flows'] ?? [])),
+                    'mode' => $provider['mode'] ?? '',
+                ];
+            }, is_array($payment['catalog'] ?? null) ? array_values($payment['catalog']) : []),
+            'empty' => 'No payment providers are currently enabled.',
         ]) ?>
     </div>
 </section>

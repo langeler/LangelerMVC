@@ -23,6 +23,7 @@ As of `2026-04-19`, the framework status and architecture documents below are th
 - `SanitationValidationAPI.md`: current schema contract for sanitizers and validators.
 - `DatabaseMatrixTesting.md`: how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
 - `OperationsGuide.md`: health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
+- `PaymentDrivers.md`: first-party payment-driver matrix, supported method/flow taxonomy, and live-mode notes.
 - `UtilitiesTraitsOverview.md`: practical overview of the reusable trait surface.
 - `UtilitiesTraitsReference.md`: generated method-by-method trait reference.
 - `NativeToTraitConsistencyAudit.md`: audit of trait adoption across non-trait classes.

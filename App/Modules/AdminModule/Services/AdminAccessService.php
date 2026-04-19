@@ -294,6 +294,7 @@ class AdminAccessService extends Service
                     'methods' => $this->payments->supportedMethods(),
                     'flows' => $this->payments->supportedFlows(),
                     'capabilities' => $this->payments->capabilities(),
+                    'catalog' => $this->payments->driverCatalog(),
                 ],
                 'health' => $this->health->report(),
                 'audit' => $this->audit->summary(),
@@ -385,6 +386,7 @@ class AdminAccessService extends Service
                     'methods' => $this->payments->supportedMethods(),
                     'flows' => $this->payments->supportedFlows(),
                     'capabilities' => $this->payments->capabilities(),
+                    'catalog' => $this->payments->driverCatalog(),
                 ],
                 'health' => $this->health->report(),
                 'audit' => [

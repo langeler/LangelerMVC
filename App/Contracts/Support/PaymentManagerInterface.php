@@ -14,25 +14,35 @@ interface PaymentManagerInterface
     public function driverName(): string;
 
     /**
+     * @return list<string>
+     */
+    public function availableDrivers(): array;
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function driverCatalog(): array;
+
+    /**
      * @return array<string, mixed>
      */
-    public function capabilities(): array;
+    public function capabilities(?string $driver = null): array;
 
-    public function supports(string $feature): bool;
-
-    /**
-     * @return list<string>
-     */
-    public function supportedMethods(): array;
+    public function supports(string $feature, ?string $driver = null): bool;
 
     /**
      * @return list<string>
      */
-    public function supportedFlows(): array;
+    public function supportedMethods(?string $driver = null): array;
 
-    public function supportsMethod(PaymentMethod|string $method): bool;
+    /**
+     * @return list<string>
+     */
+    public function supportedFlows(?string $driver = null): array;
 
-    public function supportsFlow(PaymentFlow|string $flow): bool;
+    public function supportsMethod(PaymentMethod|string $method, ?string $driver = null): bool;
+
+    public function supportsFlow(PaymentFlow|string $flow, ?string $driver = null): bool;
 
     /**
      * @param array<string, mixed> $metadata
@@ -44,7 +54,8 @@ interface PaymentManagerInterface
         array $metadata = [],
         PaymentMethod|string|null $method = null,
         PaymentFlow|string|null $flow = null,
-        ?string $idempotencyKey = null
+        ?string $idempotencyKey = null,
+        ?string $driver = null
     ): PaymentIntent;
 
     public function authorize(PaymentIntent $intent): PaymentResult;

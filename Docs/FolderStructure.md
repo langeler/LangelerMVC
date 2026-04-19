@@ -60,6 +60,10 @@ Low-level adapters for pluggable infrastructure concerns:
 
 - `Caching/`: concrete cache drivers (`ArrayCache`, `FileCache`, `DatabaseCache`, `RedisCache`, `MemCache`)
 - `Cryptography/`: concrete crypto drivers
+- `Notifications/`: concrete notification channel drivers
+- `Payments/`: concrete payment drivers (`TestingPaymentDriver`, `CardPaymentDriver`, `CryptoPaymentDriver`, `PayPalPaymentDriver`, `KlarnaPaymentDriver`, `SwishPaymentDriver`, `QliroPaymentDriver`, `WalleyPaymentDriver`)
+- `Passkeys/`: concrete passkey drivers
+- `Queue/`: concrete queue drivers
 - `Session/`: concrete file, database, redis, and encrypted session drivers
 
 ### `App/Exceptions`

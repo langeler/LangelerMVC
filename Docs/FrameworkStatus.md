@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (85 tests, 2028 assertions)`
+- Verification result: `OK (86 tests, 2072 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -70,7 +70,8 @@ This document records the current implementation state of LangelerMVC based on t
 - queue manager with sync/database drivers
 - failed-job store
 - notification manager with mail/database channels
-- payment manager with a plug-and-play compatibility/reference driver surface
+- payment manager with a plug-and-play multi-driver compatibility surface
+- first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
 - mail, OTP, passkey/WebAuthn, health, and audit managers
 
 ### Utility Layer
@@ -171,6 +172,7 @@ These framework/platform areas are now implemented rather than planned:
 - queue subsystem and failed-job storage
 - notification subsystem
 - payment abstraction layer
+- provider-specific payment driver coverage for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
 - top-level config surfaces for notifications, queues, payments, and HTTP security
 - passkey/WebAuthn and TOTP support behind framework-native boundaries
 
@@ -218,6 +220,6 @@ For day-to-day framework development:
 LangelerMVC no longer needs missing-core work. The natural next layer is application growth and optional platform breadth, for example:
 
 - additional notification channels
-- additional payment drivers
+- additional payment drivers or project-specific provider adapters
 - application-specific policies, events, and workflows
 - optional developer generators on top of the now-stable console/runtime base

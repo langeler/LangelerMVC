@@ -454,8 +454,9 @@ final class FrameworkCompletionTest extends TestCase
             'password' => 'customer12345',
         ]));
 
-        self::assertContains('wallet', $stack['payments']->supportedMethods());
-        self::assertContains('redirect', $stack['payments']->supportedFlows());
+        self::assertContains('paypal', $stack['payments']->availableDrivers());
+        self::assertContains('wallet', $stack['payments']->supportedMethods('paypal'));
+        self::assertContains('redirect', $stack['payments']->supportedFlows('paypal'));
 
         $checkout = $stack['orderService']->forAction('checkout', [
             'name' => 'Demo Customer',
@@ -464,6 +465,7 @@ final class FrameworkCompletionTest extends TestCase
             'postal_code' => '12345',
             'city' => 'Stockholm',
             'country' => 'Sweden',
+            'payment_driver' => 'paypal',
             'payment_method' => 'wallet',
             'payment_flow' => 'redirect',
             'idempotency_key' => 'checkout-wallet-demo-0001',
@@ -471,6 +473,7 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame(202, $checkout['status']);
         self::assertSame('awaiting_payment_action', $checkout['order']['status']);
+        self::assertSame('paypal', $checkout['order']['payment_driver']);
         self::assertSame('wallet', $checkout['order']['payment_method']);
         self::assertSame('redirect', $checkout['order']['payment_flow']);
         self::assertTrue((bool) ($checkout['order']['payment_customer_action_required'] ?? false));
@@ -483,6 +486,7 @@ final class FrameworkCompletionTest extends TestCase
             'postal_code' => '12345',
             'city' => 'Stockholm',
             'country' => 'Sweden',
+            'payment_driver' => 'paypal',
             'payment_method' => 'wallet',
             'payment_flow' => 'redirect',
             'idempotency_key' => 'checkout-wallet-demo-0001',
@@ -519,6 +523,55 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertGreaterThanOrEqual(2, count($stack['notifications']->databaseNotifications()));
         self::assertGreaterThanOrEqual(2, count($stack['mail']->outbox()));
+    }
+
+    public function testPaymentCatalogExposesFrameworkDriversForSupportedProviders(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+        $catalog = $stack['payments']->driverCatalog();
+
+        self::assertSame(
+            ['testing', 'card', 'crypto', 'paypal', 'klarna', 'swish', 'qliro', 'walley'],
+            $stack['payments']->availableDrivers()
+        );
+        self::assertSame('Credit / Debit Card', $catalog['card']['label']);
+        self::assertContains('SE', $catalog['swish']['regions']);
+        self::assertContains('bnpl', $catalog['klarna']['methods']);
+        self::assertContains('wallet', $catalog['paypal']['methods']);
+        self::assertContains('crypto', $catalog['crypto']['methods']);
+
+        $scenarios = [
+            'card' => ['method' => 'card', 'flow' => 'authorize_capture', 'status' => 'authorized', 'type' => null],
+            'paypal' => ['method' => 'wallet', 'flow' => 'redirect', 'status' => 'requires_action', 'type' => 'redirect'],
+            'klarna' => ['method' => 'bnpl', 'flow' => 'redirect', 'status' => 'requires_action', 'type' => 'klarna_sdk'],
+            'swish' => ['method' => 'local_instant', 'flow' => 'redirect', 'status' => 'requires_action', 'type' => 'swish'],
+            'qliro' => ['method' => 'bnpl', 'flow' => 'redirect', 'status' => 'requires_action', 'type' => 'iframe'],
+            'walley' => ['method' => 'bnpl', 'flow' => 'redirect', 'status' => 'requires_action', 'type' => 'redirect'],
+            'crypto' => ['method' => 'crypto', 'flow' => 'async', 'status' => 'processing', 'type' => 'crypto_invoice'],
+        ];
+
+        foreach ($scenarios as $driver => $scenario) {
+            $intent = $stack['payments']->createIntent(
+                15000,
+                'SEK',
+                'Driver compatibility verification',
+                ['asset' => 'BTC'],
+                $scenario['method'],
+                $scenario['flow'],
+                'compatibility-' . $driver,
+                $driver
+            );
+            $result = $stack['payments']->authorize($intent);
+
+            self::assertTrue($result->successful, 'Expected authorization to succeed for [' . $driver . '].');
+            self::assertSame($driver, $result->driver);
+            self::assertSame($driver, $result->intent->driver);
+            self::assertSame($scenario['status'], $result->intent->status);
+
+            if ($scenario['type'] !== null) {
+                self::assertSame($scenario['type'], $result->intent->nextAction['type'] ?? null);
+            }
+        }
     }
 
     public function testAdminAndCommerceSurfacesExposeCompletedHtmlAndJsonParity(): void
@@ -563,6 +616,8 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('payments', $adminJson['data']['operations']);
         self::assertArrayHasKey('methods', $operations['operations']['payments']);
         self::assertArrayHasKey('flows', $operations['operations']['payments']);
+        self::assertArrayHasKey('catalog', $operations['operations']['payments']);
+        self::assertArrayHasKey('paypal', $operations['operations']['payments']['catalog']);
     }
 
     public function testShopSeededCatalogMediaPointsToTrackedPublicAssets(): void
@@ -654,7 +709,7 @@ final class FrameworkCompletionTest extends TestCase
             'database' => new DatabaseNotificationChannel($database),
             'mail' => new MailNotificationChannel($mail),
         ]);
-        $paymentProvider = new TestPaymentProvider(new TestingPaymentDriver());
+        $paymentProvider = new PaymentProvider();
         $queue = new QueueManager($config, $queueProvider, $failedJobs, $modules, $coreProvider, $errors);
         $notifications = new NotificationManager($config, $notificationProvider, $database, $coreProvider);
         $payments = new PaymentManager($config, $paymentProvider);
@@ -819,6 +874,66 @@ final class FrameworkCompletionTest extends TestCase
             'payment' => [
                 'DRIVER' => 'testing',
                 'CURRENCY' => 'SEK',
+                'DEFAULT_METHOD' => 'card',
+                'DEFAULT_FLOW' => 'authorize_capture',
+                'DRIVERS' => [
+                    'testing' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Testing Reference Driver',
+                        'MODE' => 'reference',
+                        'METHODS' => ['card', 'wallet', 'bank_transfer', 'bnpl', 'local_instant', 'manual', 'crypto'],
+                        'FLOWS' => ['authorize_capture', 'purchase', 'redirect', 'async', 'manual_review'],
+                    ],
+                    'card' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Credit / Debit Card',
+                        'MODE' => 'reference',
+                        'METHODS' => ['card'],
+                        'FLOWS' => ['authorize_capture', 'purchase', 'redirect'],
+                    ],
+                    'crypto' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Crypto',
+                        'MODE' => 'reference',
+                        'METHODS' => ['crypto'],
+                        'FLOWS' => ['async', 'redirect', 'manual_review'],
+                    ],
+                    'paypal' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'PayPal',
+                        'MODE' => 'reference',
+                        'METHODS' => ['wallet', 'card'],
+                        'FLOWS' => ['authorize_capture', 'purchase', 'redirect'],
+                    ],
+                    'klarna' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Klarna',
+                        'MODE' => 'reference',
+                        'METHODS' => ['bnpl'],
+                        'FLOWS' => ['redirect', 'authorize_capture'],
+                    ],
+                    'swish' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Swish',
+                        'MODE' => 'reference',
+                        'METHODS' => ['local_instant'],
+                        'FLOWS' => ['redirect', 'async'],
+                    ],
+                    'qliro' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Qliro',
+                        'MODE' => 'reference',
+                        'METHODS' => ['card', 'bnpl', 'local_instant', 'bank_transfer'],
+                        'FLOWS' => ['redirect', 'authorize_capture'],
+                    ],
+                    'walley' => [
+                        'ENABLED' => true,
+                        'LABEL' => 'Walley',
+                        'MODE' => 'reference',
+                        'METHODS' => ['bnpl'],
+                        'FLOWS' => ['redirect', 'authorize_capture'],
+                    ],
+                ],
             ],
             'queue' => [
                 'DRIVER' => 'database',

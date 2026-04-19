@@ -50,10 +50,19 @@ composer verify:platform
 The framework payment layer is now designed as a gateway-agnostic compatibility surface.
 
 - `PaymentManager` exposes driver capabilities, supported payment method families, and supported payment flows before checkout is attempted.
-- The first-party testing/reference driver supports `card`, `wallet`, `bank_transfer`, `bnpl`, `local_instant`, `manual`, and `crypto` method families.
-- The first-party testing/reference driver supports `authorize_capture`, `purchase`, `redirect`, `async`, and `manual_review` flows.
+- First-party provider drivers now ship for:
+  - `card`
+  - `paypal`
+  - `klarna`
+  - `swish`
+  - `qliro`
+  - `walley`
+  - `crypto`
+  - `testing`
+- The framework payment taxonomy covers `card`, `wallet`, `bank_transfer`, `bnpl`, `local_instant`, `manual`, and `crypto` method families across `authorize_capture`, `purchase`, `redirect`, `async`, and `manual_review` flows.
 - Redirect/customer-action and asynchronous flows can be reconciled through the framework payment manager rather than module-local gateway code.
 - Order records now persist payment method, flow, idempotency key, provider/external/webhook references, and next-action metadata so admin and audit surfaces can inspect them consistently.
+- Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer and configuration boundary so those providers stay plug-and-play from the application/module perspective.
 
 ## Audit Logging
 

@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-19`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (85 tests, 2028 assertions)`
+- `composer test` passes with `OK (86 tests, 2072 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
@@ -23,6 +23,7 @@ As of `2026-04-19`:
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
 - The payment layer now exposes a plug-and-play compatibility surface with driver capability introspection, payment-method and flow discovery, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
+- First-party payment drivers now ship for `Credit / Debit Card`, `PayPal`, `Klarna`, `Swish`, `Qliro`, `Walley`, and `Crypto`, plus the framework testing/reference driver.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -63,10 +64,10 @@ In the current starter slice, `WebModule` follows:
 - `Abstracts/`: reusable framework base classes for data, database, HTTP, and presentation concerns.
 - `Contracts/`: interface surface for the abstractions and core layer, including console, presentation resource, session, and support contracts.
 - `Core/`: framework runtime services such as `App`, `Bootstrap`, `Config`, `Container`, `Database`, `MigrationRunner`, `Router`, `SeedRunner`, and `Session`.
-- `Drivers/`: low-level pluggable adapters. Caching, cryptography, and session drivers are present.
+- `Drivers/`: low-level pluggable adapters for cache, crypto, notifications, payments, passkeys, queueing, and sessions.
 - `Exceptions/`: typed framework exception classes grouped by concern.
 - `Modules/`: application modules. `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party slices.
-- `Providers/`: container/provider wiring for core, cache, crypto, exceptions, and modules.
+- `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, queueing, exceptions, and modules.
 - `Resources/`: source asset workspace that belongs to the application layer.
 - `Templates/`: shared PHP template files used by module views, including layouts, pages, partials, and reusable components.
 - `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
@@ -160,7 +161,17 @@ The GitHub Actions workflow uses isolated service-port mappings for hosted runne
 - `Config/auth.php` contains the framework auth baseline, including RBAC, OTP/TOTP, and passkey/WebAuthn settings.
 - `Config/webmodule.php` controls the current `WebModule` content source and defaults to `CONTENT_SOURCE=database`.
 - `Config/notifications.php`, `Config/queue.php`, `Config/payment.php`, and `Config/http.php` provide the top-level settings for notifications, queue drivers, payment drivers, throttling, and signed URLs.
-- `Config/payment.php` now defines the default payment driver, currency, payment method family, and payment flow. The first-party testing/reference driver currently supports `card`, `wallet`, `bank_transfer`, `bnpl`, `local_instant`, `manual`, and `crypto` method families across `authorize_capture`, `purchase`, `redirect`, `async`, and `manual_review` flows.
+- `Config/payment.php` now defines the default payment driver, currency, payment method family, and payment flow.
+- `Config/payment.php` now ships first-party driver entries for `testing`, `card`, `crypto`, `paypal`, `klarna`, `swish`, `qliro`, and `walley`.
+- The provider-specific payment drivers support the framework payment taxonomy without vendor SDKs in core:
+  - `card`: credit/debit card flows
+  - `paypal`: wallet/card flows
+  - `klarna`: BNPL flows
+  - `swish`: Swedish local-instant flows
+  - `qliro`: card / BNPL / local-instant / bank-transfer flows
+  - `walley`: BNPL flows
+  - `crypto`: BTC/ETH-style crypto invoice and reconciliation flows
+- Live provider execution still depends on merchant credentials, provider onboarding, and environment readiness. The framework ships the driver boundary, capability model, reference behavior, and live configuration surface.
 - Session drivers support `native`, `file`, `database`, and `redis`, with `native` remaining the tracked default.
 - `Config/session.php` also supports `ENCRYPT=true`, which encrypts persisted session payloads at rest through the configured crypto subsystem while keeping legacy plaintext sessions readable during transition.
 - Session files are stored in `Storage/Sessions` by default when using the native/files-backed modes.
@@ -185,6 +196,31 @@ The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` 
 
 The current DB-matrix harness verifies real schema creation, query execution, and repository round-trips for configured non-SQLite drivers. The default framework suite carries the broader module, security, payment, presentation, and operational lifecycle coverage.
 
+## Payment Drivers
+
+LangelerMVC now treats payment providers as first-class framework drivers rather than module-local integrations.
+
+- `testing`: reference/contract driver for regression testing and flow simulation
+- `card`: generic credit/debit card adapter boundary
+- `paypal`: PayPal wallet/card support through the framework payment manager
+- `klarna`: Klarna BNPL-oriented driver
+- `swish`: Swish support for Swedish local-instant checkout flows
+- `qliro`: Qliro support for Swedish/Nordic checkout flows
+- `walley`: Walley support for Nordic BNPL flows
+- `crypto`: crypto invoice/reconciliation support for assets such as BTC/ETH
+
+Each driver is exposed through the same framework surface:
+
+- capability discovery
+- supported payment methods and flows
+- idempotent payment intent creation
+- provider/external/webhook reference persistence
+- redirect/customer-action metadata
+- reconciliation hooks
+- order/admin/health visibility
+
+The framework core stays gateway-agnostic. Live credentials, callbacks, certificates, or merchant onboarding details belong in configuration and deployment, not in module code.
+
 ## Structure Docs
 
 - [`Docs/README.md`](./Docs/README.md): documentation index and reading order.
@@ -195,6 +231,7 @@ The current DB-matrix harness verifies real schema creation, query execution, an
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
 - [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
 - [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
+- [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
 - [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.
@@ -211,6 +248,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - framework-native liveness/readiness/capability reporting and audit logging
 - cache, crypto, SQL/query, migration, and seed subsystems
 - async events, queues, notifications, and a plug-and-play payment compatibility layer
+- plug-and-play payment driver support for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
 - completed HTML + JSON presentation parity across first-party modules
 - a database-backed starter module plus user/admin/shop/cart/order slices
 

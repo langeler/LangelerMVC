@@ -92,7 +92,7 @@ It now also exposes management visibility for:
 - catalog data
 - carts
 - orders
-- queue/notification/event/payment operational state
+- queue/notification/event/payment operational state, including the payment driver catalog
 - framework health/readiness
 - audit-backed diagnostics where safe
 
@@ -124,6 +124,7 @@ It now also exposes management visibility for:
 - checkout orchestration
 - order, order-item, and address persistence
 - payment-method-aware checkout and payment-state lifecycle handling through the framework payment manager
+- payment-driver-aware checkout for PayPal, Klarna, Swish, Qliro, Walley, credit/debit card, crypto, and the testing/reference driver
 - persisted payment flow, idempotency, provider/external/webhook references, and next-action metadata
 - order lifecycle listeners and notifications
 - HTML + JSON parity through presenters, resources, views, and responses

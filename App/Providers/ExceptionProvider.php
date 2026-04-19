@@ -29,6 +29,7 @@ use App\Exceptions\{
     Iterator\IteratorNotFoundException,
     Presentation\PresenterException,
     Presentation\ViewException,
+    Support\PaymentException,
     ContainerException
 };
 use ArgumentCountError;
@@ -138,6 +139,7 @@ class ExceptionProvider extends Container
             'finder'             => FinderException::class,
             'sanitization'       => SanitizationException::class,
             'validation'         => ValidationException::class,
+            'payment'            => PaymentException::class,
 
             // Database-related exceptions
             'database'           => DatabaseException::class,

@@ -98,7 +98,7 @@ These layers are intentionally reusable. Application code is expected to extend 
 - `Caching`: `ArrayCache`, `FileCache`, `DatabaseCache`, `RedisCache`, `MemCache`
 - `Cryptography`: `OpenSSLCrypto`, `SodiumCrypto`
 - `Notifications`: `MailNotificationChannel`, `DatabaseNotificationChannel`
-- `Payments`: `TestingPaymentDriver` as the first-party compatibility/reference driver
+- `Payments`: `TestingPaymentDriver`, `CardPaymentDriver`, `CryptoPaymentDriver`, `PayPalPaymentDriver`, `KlarnaPaymentDriver`, `SwishPaymentDriver`, `QliroPaymentDriver`, `WalleyPaymentDriver`
 - `Queue`: `SyncQueueDriver`, `DatabaseQueueDriver`
 - `Passkeys`: `TestingPasskeyDriver`, `WebAuthnPasskeyDriver`
 - `Session`: `FileSessionDriver`, `DatabaseSessionDriver`, `RedisSessionDriver`, `EncryptedSessionDriver`
@@ -188,7 +188,7 @@ The following areas are implemented as framework-level subsystems today:
 - async events and queues
 - notification subsystem
 - payment abstraction subsystem
-- payment method/flow compatibility introspection, redirect/customer-action handling, and reconciliation support
+- payment method/flow compatibility introspection, redirect/customer-action handling, reconciliation support, and plug-and-play provider drivers for card, PayPal, Klarna, Swish, Qliro, Walley, and crypto flows
 - mail, OTP, and passkey/WebAuthn service boundaries
 - file, finder, iterator, and reflection utilities
 - model and repository foundations
@@ -227,7 +227,7 @@ The most important extension seams today are:
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.
 - **Support Services**: extend authentication, authorization, notifications, and payments on top of the existing manager and provider boundaries.
-- **Payments**: add real drivers later against the now-stable capability contract without pushing vendor SDK concerns into framework core.
+- **Payments**: add project-specific drivers later against the now-stable capability contract without pushing vendor SDK concerns into framework core.
 - **Async**: add listeners, jobs, queue drivers, and failed-job strategies without rewriting runtime or modules.
 
 ## Current Architectural Limits

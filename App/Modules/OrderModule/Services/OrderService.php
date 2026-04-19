@@ -82,7 +82,8 @@ class OrderService extends Service
      */
     private function checkoutForm(): array
     {
-        $defaultIntent = $this->payments->createIntent(0);
+        $defaultDriver = $this->payments->driverName();
+        $defaultIntent = $this->payments->createIntent(0, driver: $defaultDriver);
 
         return [
             'template' => 'OrderCheckout',
@@ -92,9 +93,11 @@ class OrderService extends Service
             'summary' => 'Orders snapshot the current cart and flow through the framework payment and event layers.',
             'cart' => $this->currentCartPayload(),
             'payment' => [
-                'driver' => $this->payments->driverName(),
-                'supported_methods' => $this->payments->supportedMethods(),
-                'supported_flows' => $this->payments->supportedFlows(),
+                'driver' => $defaultDriver,
+                'available_drivers' => $this->payments->availableDrivers(),
+                'catalog' => $this->payments->driverCatalog(),
+                'supported_methods' => $this->payments->supportedMethods($defaultDriver),
+                'supported_flows' => $this->payments->supportedFlows($defaultDriver),
                 'default_method' => $defaultIntent->method,
                 'default_flow' => $defaultIntent->flow,
             ],
@@ -137,15 +140,22 @@ class OrderService extends Service
             return $this->response('Checkout unavailable', 'The current cart does not contain any items.', 422);
         }
 
-        $paymentMethod = $this->resolveRequestedPaymentMethod();
-        $paymentFlow = $this->resolveRequestedPaymentFlow();
+        $requestedDriver = trim((string) ($this->payload['payment_driver'] ?? ''));
+        $paymentDriver = $this->resolveRequestedPaymentDriver();
 
-        if (!$this->payments->supportsMethod($paymentMethod)) {
-            return $this->response('Payment unavailable', 'The selected payment method is not supported by the configured driver.', 422);
+        if ($requestedDriver !== '' && $requestedDriver !== $paymentDriver) {
+            return $this->response('Payment unavailable', 'The selected payment driver is not currently enabled.', 422);
         }
 
-        if (!$this->payments->supportsFlow($paymentFlow)) {
-            return $this->response('Payment unavailable', 'The selected payment flow is not supported by the configured driver.', 422);
+        $paymentMethod = $this->resolveRequestedPaymentMethod($paymentDriver);
+        $paymentFlow = $this->resolveRequestedPaymentFlow($paymentDriver);
+
+        if (!$this->payments->supportsMethod($paymentMethod, $paymentDriver)) {
+            return $this->response('Payment unavailable', 'The selected payment method is not supported by the chosen payment driver.', 422);
+        }
+
+        if (!$this->payments->supportsFlow($paymentFlow, $paymentDriver)) {
+            return $this->response('Payment unavailable', 'The selected payment flow is not supported by the chosen payment driver.', 422);
         }
 
         $idempotencyKey = $this->resolveCheckoutIdempotencyKey((int) $cart->getKey());
@@ -169,7 +179,8 @@ class OrderService extends Service
             ],
             $paymentMethod,
             $paymentFlow,
-            $idempotencyKey
+            $idempotencyKey,
+            $paymentDriver
         );
         $payment = $this->payments->authorize($intent);
         $contactName = (string) ($this->payload['name'] ?? '');
@@ -245,6 +256,7 @@ class OrderService extends Service
         $this->audit->record('order.created', [
             'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
             'order_id' => (string) $order->getKey(),
+            'payment_driver' => $payment->driver,
             'payment_status' => $payment->intent->status,
             'payment_method' => $payment->intent->method,
             'payment_flow' => $payment->intent->flow,
@@ -388,6 +400,7 @@ class OrderService extends Service
         $updated = $this->orders->updateLifecycle($orderId, [
             'status' => $status,
             'payment_status' => $result->intent->status,
+            'payment_driver' => $result->driver,
             'payment_method' => $result->intent->method,
             'payment_flow' => $result->intent->flow,
             'payment_reference' => $result->intent->reference,
@@ -415,6 +428,7 @@ class OrderService extends Service
         $this->audit->record('order.' . $action, [
             'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
             'order_id' => (string) $orderId,
+            'payment_driver' => $result->driver,
             'payment_status' => $result->intent->status,
             'payment_method' => $result->intent->method,
             'payment_flow' => $result->intent->flow,
@@ -494,16 +508,29 @@ class OrderService extends Service
         ];
     }
 
-    private function resolveRequestedPaymentMethod(): PaymentMethod
+    private function resolveRequestedPaymentDriver(): string
     {
-        $requested = $this->payload['payment_method'] ?? $this->payments->createIntent(0)->method;
+        $requested = trim((string) ($this->payload['payment_driver'] ?? ''));
+
+        if ($requested !== '' && in_array($requested, $this->payments->availableDrivers(), true)) {
+            return $requested;
+        }
+
+        return $this->payments->driverName();
+    }
+
+    private function resolveRequestedPaymentMethod(?string $driver = null): PaymentMethod
+    {
+        $resolvedDriver = $driver ?? $this->resolveRequestedPaymentDriver();
+        $requested = $this->payload['payment_method'] ?? $this->payments->createIntent(0, driver: $resolvedDriver)->method;
 
         return PaymentMethod::fromMixed(is_string($requested) ? $requested : null);
     }
 
-    private function resolveRequestedPaymentFlow(): PaymentFlow
+    private function resolveRequestedPaymentFlow(?string $driver = null): PaymentFlow
     {
-        $requested = $this->payload['payment_flow'] ?? $this->payments->createIntent(0)->flow;
+        $resolvedDriver = $driver ?? $this->resolveRequestedPaymentDriver();
+        $requested = $this->payload['payment_flow'] ?? $this->payments->createIntent(0, driver: $resolvedDriver)->flow;
 
         return PaymentFlow::fromMixed(is_string($requested) ? $requested : null);
     }
@@ -549,6 +576,9 @@ class OrderService extends Service
      */
     private function response(string $title, string $message, int $status): array
     {
+        $paymentDriver = $this->resolveRequestedPaymentDriver();
+        $defaultIntent = $this->payments->createIntent(0, driver: $paymentDriver);
+
         return [
             'template' => 'OrderCheckout',
             'status' => $status,
@@ -556,6 +586,16 @@ class OrderService extends Service
             'headline' => $title,
             'summary' => $message,
             'message' => $message,
+            'cart' => $this->currentCartPayload(),
+            'payment' => [
+                'driver' => $paymentDriver,
+                'available_drivers' => $this->payments->availableDrivers(),
+                'catalog' => $this->payments->driverCatalog(),
+                'supported_methods' => $this->payments->supportedMethods($paymentDriver),
+                'supported_flows' => $this->payments->supportedFlows($paymentDriver),
+                'default_method' => $defaultIntent->method,
+                'default_flow' => $defaultIntent->flow,
+            ],
         ];
     }
 

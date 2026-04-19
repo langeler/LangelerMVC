@@ -50,6 +50,13 @@
         "test:mysql": "LANGELER_DB_MATRIX_TARGET=mysql phpunit -c phpunit.db-matrix.xml --testdox",
         "test:pgsql": "LANGELER_DB_MATRIX_TARGET=pgsql phpunit -c phpunit.db-matrix.xml --testdox",
         "test:sqlsrv": "LANGELER_DB_MATRIX_TARGET=sqlsrv phpunit -c phpunit.db-matrix.xml --testdox",
+        "ops:health": "@php console health:check live",
+        "ops:ready": "@php console health:check ready",
+        "ops:audit": "@php console audit:list --limit=25",
+        "verify:platform": [
+            "@test",
+            "@ops:health"
+        ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
         ]

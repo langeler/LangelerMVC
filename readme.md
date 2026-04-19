@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-19`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (81 tests, 1984 assertions)`
+- `composer test` passes with `OK (83 tests, 2000 assertions)`
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
@@ -20,12 +20,13 @@ As of `2026-04-19`:
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
+- The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
 - The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
-- `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
-- `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, and operational health.
+- `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, trusted-device support, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
+- `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, runtime health/readiness, and audit-aware operations visibility.
 - `ShopModule`, `CartModule`, and `OrderModule` now provide the first full commerce stack for catalog, cart, checkout, payment-state handling, and order lifecycle flows with HTML + JSON parity.
 - Mail, OTP, WebAuthn, notifications, queues, and payments are all consumed through framework-native contracts and managers rather than module-local third-party calls.
 
@@ -115,9 +116,29 @@ Point the document root at `Public/` and use [`Public/.htaccess`](./Public/.htac
 
 ```bash
 php console list
+php console health:check
+php console health:check ready
+php console audit:list --limit=25
 php console migrate
 php console seed WebModule
 php console route:list
+```
+
+## Operational Verification
+
+For a clean production-style verification pass, the framework now ships with:
+
+- `composer verify:platform` for the default regression suite plus a health check
+- `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
+- `docker-compose.verify.yml` for local MySQL/PostgreSQL/SQL Server/Redis/Memcached verification
+
+Typical local backend bring-up:
+
+```bash
+docker compose -f docker-compose.verify.yml up -d
+composer test:db-matrix
+composer ops:health
+composer ops:ready
 ```
 
 ## Configuration Notes
@@ -141,6 +162,10 @@ composer test:db-matrix
 composer test:mysql
 composer test:pgsql
 composer test:sqlsrv
+composer ops:health
+composer ops:ready
+composer ops:audit
+composer verify:platform
 ```
 
 The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain available for additional isolated and cross-layer suites when a project needs them.
@@ -154,6 +179,7 @@ The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` 
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
 - [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
+- [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
 - [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.
@@ -164,7 +190,8 @@ LangelerMVC now ships as a complete first-party platform framework with:
 
 - a thin bootstrap/runtime boundary
 - provider-driven composition and lazy infrastructure
-- validated session/auth/RBAC/TOTP/passkey support
+- validated session/auth/RBAC/TOTP/trusted-device/passkey support
+- framework-native liveness/readiness/capability reporting and audit logging
 - cache, crypto, SQL/query, migration, and seed subsystems
 - async events, queues, notifications, and payment abstractions
 - completed HTML + JSON presentation parity across first-party modules

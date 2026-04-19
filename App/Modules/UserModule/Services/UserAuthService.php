@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\UserModule\Services;
 
 use App\Abstracts\Http\Service;
+use App\Contracts\Support\AuditLoggerInterface;
 use App\Core\Config;
 use App\Exceptions\AuthException;
 use App\Modules\UserModule\Models\User;
@@ -54,7 +55,8 @@ class UserAuthService extends Service
         private readonly OtpManager $otpManager,
         private readonly CryptoManager $cryptoManager,
         private readonly Config $config,
-        private readonly ErrorManager $errorManager
+        private readonly ErrorManager $errorManager,
+        private readonly AuditLoggerInterface $audit
     ) {
     }
 
@@ -87,6 +89,7 @@ class UserAuthService extends Service
             'enableOtp' => $this->enableOtp(),
             'verifyOtp' => $this->verifyOtp(),
             'regenerateOtpRecoveryCodes' => $this->regenerateOtpRecoveryCodes(),
+            'revokeTrustedDevices' => $this->revokeTrustedDevices(),
             'disableOtp' => $this->disableOtp(),
             default => $this->page('UserRegister', 'Create account', 'Register the first framework-backed user account.'),
         };
@@ -152,10 +155,11 @@ class UserAuthService extends Service
         }
 
         if ($user->hasOtpEnabled()) {
+            $trustedDeviceBypass = $this->hasTrustedDevice($user);
             $otpCode = isset($this->payload['otp_code']) ? (string) $this->payload['otp_code'] : '';
             $recoveryCode = isset($this->payload['recovery_code']) ? (string) $this->payload['recovery_code'] : '';
 
-            if ($otpCode === '' && $recoveryCode === '') {
+            if (!$trustedDeviceBypass && $otpCode === '' && $recoveryCode === '') {
                 return [
                     'template' => 'UserLogin',
                     'status' => 202,
@@ -167,11 +171,15 @@ class UserAuthService extends Service
                 ];
             }
 
-            $otpVerified = $otpCode !== '' && $this->verifyUserOtpCode($user, $otpCode);
-            $recoveryUsed = !$otpVerified && $recoveryCode !== '' && $this->consumeUserRecoveryCode($user, $recoveryCode);
+            $otpVerified = $trustedDeviceBypass || ($otpCode !== '' && $this->verifyUserOtpCode($user, $otpCode));
+            $recoveryUsed = !$trustedDeviceBypass && !$otpVerified && $recoveryCode !== '' && $this->consumeUserRecoveryCode($user, $recoveryCode);
 
             if (!$otpVerified && !$recoveryUsed) {
                 return $this->errorPage('UserLogin', 'Sign in failed', 'The provided OTP or recovery code is invalid.', 422);
+            }
+
+            if (!$trustedDeviceBypass && (bool) ($this->payload['trust_device'] ?? false)) {
+                $this->rememberTrustedDevice($user);
             }
         }
 
@@ -182,8 +190,12 @@ class UserAuthService extends Service
             'status' => 200,
             'title' => 'Signed in',
             'headline' => 'Authentication successful.',
-            'summary' => 'The session guard has authenticated the current user.',
-            'message' => 'You are now signed in.',
+            'summary' => $user->hasOtpEnabled() && $this->hasTrustedDevice($user)
+                ? 'The session guard authenticated the current user through a previously trusted device or a freshly trusted OTP challenge.'
+                : 'The session guard has authenticated the current user.',
+            'message' => (bool) ($this->payload['trust_device'] ?? false)
+                ? 'You are now signed in and this device has been trusted for future OTP challenges.'
+                : 'You are now signed in.',
             'user' => $this->userData($user),
             'roles' => $this->users->rolesForUser($user->getKey()),
             'permissions' => $this->users->permissionsForUser($user->getKey()),
@@ -352,6 +364,11 @@ class UserAuthService extends Service
             $this->auth->syncUser($fresh, $this->auth->viaRemember());
         }
 
+        $this->audit->record('auth.otp.provisioned', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
+
         return [
             'template' => 'UserStatus',
             'status' => 200,
@@ -397,6 +414,16 @@ class UserAuthService extends Service
             $this->auth->syncUser($fresh, $this->auth->viaRemember());
         }
 
+        if ((bool) ($this->payload['trust_device'] ?? false) && $fresh instanceof User) {
+            $this->rememberTrustedDevice($fresh);
+        }
+
+        $this->audit->record('auth.otp.enabled', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'trusted_device' => (bool) ($this->payload['trust_device'] ?? false),
+        ], 'auth');
+
         return [
             'template' => 'UserStatus',
             'status' => 200,
@@ -430,6 +457,11 @@ class UserAuthService extends Service
             $this->auth->syncUser($fresh, $this->auth->viaRemember());
         }
 
+        $this->audit->record('auth.otp.recovery_regenerated', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
+
         return [
             'template' => 'UserStatus',
             'status' => 200,
@@ -452,11 +484,17 @@ class UserAuthService extends Service
         }
 
         $this->users->saveOtpConfiguration((int) $user->getKey(), null, null, null);
+        $this->revokeTrustedDevicesForUser((int) $user->getKey());
         $fresh = $this->users->find((int) $user->getKey());
 
         if ($fresh instanceof User) {
             $this->auth->syncUser($fresh, $this->auth->viaRemember());
         }
+
+        $this->audit->record('auth.otp.disabled', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
 
         return [
             'template' => 'UserStatus',
@@ -466,6 +504,32 @@ class UserAuthService extends Service
             'summary' => 'The stored OTP secret and recovery codes were removed from the account.',
             'message' => 'You can enable OTP again at any time.',
             'user' => $fresh instanceof User ? $this->userData($fresh) : null,
+            'redirect' => '/users/profile',
+        ];
+    }
+
+    private function revokeTrustedDevices(): array
+    {
+        $user = $this->auth->user();
+
+        if (!$user instanceof User) {
+            return $this->errorPage('UserStatus', 'Trusted devices unavailable', 'You must be signed in to manage trusted devices.', 401);
+        }
+
+        $this->revokeTrustedDevicesForUser((int) $user->getKey());
+        $this->audit->record('auth.otp.trusted_devices.revoked', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
+
+        return [
+            'template' => 'UserStatus',
+            'status' => 200,
+            'title' => 'Trusted devices cleared',
+            'headline' => 'Trusted devices have been revoked.',
+            'summary' => 'Future sign-ins on this or any remembered browser will require OTP again.',
+            'message' => 'Stored trusted-device tokens were removed.',
+            'user' => $this->userData($user),
             'redirect' => '/users/profile',
         ];
     }
@@ -659,5 +723,156 @@ class UserAuthService extends Service
         $cipher = substr($raw, $ivLength);
 
         return $this->cryptoManager->decrypt('symmetric', $cipher, $cipherMethod, $key, $iv);
+    }
+
+    private function trustedDeviceCookieName(): string
+    {
+        return (string) $this->config->get('auth', 'OTP.TRUSTED_DEVICE_COOKIE', 'langelermvc_otp_trusted');
+    }
+
+    private function trustedDeviceDays(): int
+    {
+        return max(1, (int) $this->config->get('auth', 'OTP.TRUSTED_DEVICE_DAYS', 30));
+    }
+
+    private function trustedDeviceType(): string
+    {
+        return 'otp_trusted_device';
+    }
+
+    private function hasTrustedDevice(User $user): bool
+    {
+        $payload = $_COOKIE[$this->trustedDeviceCookieName()] ?? null;
+
+        if (!$this->isString($payload) || $payload === '') {
+            return false;
+        }
+
+        [$id, $token] = array_pad(explode('|', $payload, 2), 2, null);
+
+        if (!$this->isString($id) || !$this->isString($token) || (int) $id !== (int) $user->getKey() || $token === '') {
+            return false;
+        }
+
+        foreach ($this->tokens->activeTokens((int) $user->getKey(), $this->trustedDeviceType()) as $record) {
+            $hash = (string) ($record['token_hash'] ?? '');
+
+            if ($hash === '' || !$this->provider->verifyHash($hash, $token)) {
+                continue;
+            }
+
+            $payloadData = $this->decodeTokenPayload((string) ($record['payload'] ?? ''));
+            $fingerprint = $this->deviceFingerprint();
+
+            if (($payloadData['fingerprint'] ?? $fingerprint) !== $fingerprint) {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function rememberTrustedDevice(User $user): void
+    {
+        $token = bin2hex(random_bytes(32));
+        $hash = $this->provider->hashValue($token);
+        $expiresAt = gmdate('Y-m-d H:i:s', time() + ($this->trustedDeviceDays() * 86400));
+        $payload = [
+            'label' => $this->trustedDeviceLabel(),
+            'fingerprint' => $this->deviceFingerprint(),
+            'trusted_until' => $expiresAt,
+        ];
+
+        $this->tokens->issueToken(
+            (int) $user->getKey(),
+            $this->trustedDeviceType(),
+            $hash,
+            $expiresAt,
+            $this->toJson($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+        );
+
+        $this->queueTrustedDeviceCookie((int) $user->getKey(), $token);
+        $this->audit->record('auth.otp.trusted_device.remembered', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'label' => $payload['label'],
+            'trusted_until' => $expiresAt,
+        ], 'auth');
+    }
+
+    private function revokeTrustedDevicesForUser(int $userId): void
+    {
+        $this->tokens->revokeOutstanding($userId, $this->trustedDeviceType());
+        $this->expireTrustedDeviceCookie();
+    }
+
+    private function queueTrustedDeviceCookie(int $userId, string $token): void
+    {
+        $name = $this->trustedDeviceCookieName();
+        $value = $userId . '|' . $token;
+        $expires = time() + ($this->trustedDeviceDays() * 86400);
+        $_COOKIE[$name] = $value;
+
+        if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg' || headers_sent()) {
+            return;
+        }
+
+        setcookie($name, $value, [
+            'expires' => $expires,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure' => !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off',
+        ]);
+    }
+
+    private function expireTrustedDeviceCookie(): void
+    {
+        $name = $this->trustedDeviceCookieName();
+        unset($_COOKIE[$name]);
+
+        if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg' || headers_sent()) {
+            return;
+        }
+
+        setcookie($name, '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+            'secure' => !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off',
+        ]);
+    }
+
+    private function deviceFingerprint(): string
+    {
+        return hash('sha256', (string) ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
+    }
+
+    private function trustedDeviceLabel(): string
+    {
+        $agent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
+
+        return $agent !== '' ? substr($agent, 0, 120) : 'Trusted browser';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeTokenPayload(string $payload): array
+    {
+        if ($payload === '') {
+            return [];
+        }
+
+        try {
+            $decoded = $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+
+            return is_array($decoded) ? $decoded : [];
+        } catch (\JsonException) {
+            return [];
+        }
     }
 }

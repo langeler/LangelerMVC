@@ -61,10 +61,14 @@
         </form>
         <form method="post" action="/users/otp/verify">
             <label>Current OTP Code<br><input type="text" name="otp_code" inputmode="numeric"></label>
+            <label><input type="checkbox" name="trust_device" value="1"> Trust this device after verification</label>
             <button type="submit">Verify OTP</button>
         </form>
         <form method="post" action="/users/otp/recovery-codes/regenerate">
             <button type="submit">Regenerate recovery codes</button>
+        </form>
+        <form method="post" action="/users/otp/trusted-devices/revoke">
+            <button type="submit">Revoke trusted devices</button>
         </form>
         <form method="post" action="/users/otp/disable">
             <button type="submit">Disable OTP</button>
@@ -72,6 +76,24 @@
         <?php if (!empty($recoveryCodes ?? [])): ?>
             <h3>Recovery codes</h3>
             <?= $view->renderComponent('CodeList', ['items' => $recoveryCodes]) ?>
+        <?php endif; ?>
+        <h3>Trusted devices</h3>
+        <?php if (!empty($trustedDevices ?? [])): ?>
+            <div class="stack">
+                <?php foreach (($trustedDevices ?? []) as $device): ?>
+                    <article class="section">
+                        <?= $view->renderComponent('DefinitionGrid', [
+                            'items' => [
+                                'Device' => $device['payload']['label'] ?? 'Trusted browser',
+                                'Trusted Until' => $device['payload']['trusted_until'] ?? ($device['expires_at'] ?? ''),
+                                'Created At' => $device['created_at'] ?? '',
+                            ],
+                        ]) ?>
+                    </article>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <p>No trusted OTP devices are currently stored.</p>
         <?php endif; ?>
     </div>
 

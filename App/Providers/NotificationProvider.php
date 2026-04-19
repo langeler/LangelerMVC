@@ -19,7 +19,7 @@ class NotificationProvider extends Container
     /**
      * @var array<string, string>
      */
-    private readonly array $channelMap;
+    private array $channelMap;
 
     private bool $servicesRegistered = false;
 

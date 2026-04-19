@@ -56,9 +56,24 @@ class PlatformFoundationTest extends TestCase
         $kernel = $provider->createConsoleKernel();
 
         self::assertInstanceOf(ConsoleKernel::class, $kernel);
+        self::assertArrayHasKey('audit:list', $kernel->commandDescriptions());
+        self::assertArrayHasKey('health:check', $kernel->commandDescriptions());
         self::assertArrayHasKey('migrate', $kernel->commandDescriptions());
         self::assertArrayHasKey('route:list', $kernel->commandDescriptions());
         self::assertArrayHasKey('module:list', $kernel->commandDescriptions());
+    }
+
+    public function testConsoleKernelParsesOptionsForOperationalCommands(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+        $kernel = $provider->createConsoleKernel();
+
+        ob_start();
+        $exitCode = $kernel->run(['console', 'config:show', 'app', '--unused=1']);
+        ob_end_clean();
+
+        self::assertSame(0, $exitCode);
     }
 
     public function testMigrationAndSeedRunnersManageWebModuleSchemaLifecycle(): void

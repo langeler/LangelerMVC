@@ -29,14 +29,14 @@ These are extension points, not application-specific implementations.
 
 ### `App/Contracts`
 
-Interfaces for the abstract and concrete framework surfaces. This layer now also includes console, session, presentation resource, and support-service contracts.
+Interfaces for the abstract and concrete framework surfaces. This layer now also includes console, session, presentation resource, operational, and support-service contracts.
 
 ### `App/Console`
 
 Operational CLI surface for the framework:
 
 - `ConsoleKernel.php`: command registration and argument dispatch
-- `Commands/`: first-party operational commands such as migrations, seeds, routes, cache, config, and module inspection
+- `Commands/`: first-party operational commands such as migrations, seeds, routes, cache, config, module inspection, health checks, audit inspection, queue operations, and notification/event visibility
 
 ### `App/Core`
 
@@ -124,7 +124,7 @@ Shared framework tooling. This is the main reusable backend toolbox and currentl
 - `Handlers/`: focused data/system helper objects
 - `Managers/`: concrete manager implementations and compatibility aliases
 - `Managers/Async/`: event dispatcher, queue manager, and failed-job storage
-- `Managers/Support/`: framework-native mail, notification, OTP, passkey/WebAuthn, and payment service managers
+- `Managers/Support/`: framework-native mail, notification, OTP, passkey/WebAuthn, health, audit, and payment service managers
 - `Query/`: query builder helpers
 - `Sanitation/`: sanitization implementations
 - `Traits/`: reusable low-level behavior
@@ -180,6 +180,10 @@ The web-facing document root:
 - `.htaccess` contains the Apache rewrite and baseline public protections.
 - `assets/` contains public asset directories, including tracked demo storefront images under `assets/images/`.
 
+### `.github/workflows`
+
+Tracked CI automation for framework verification. The repository now ships with a default regression workflow plus supported MySQL/PostgreSQL matrix execution.
+
 ### `Services`
 
 Reserved for cross-application service composition that does not belong to a specific module. The current implementation keeps concrete services inside modules.
@@ -206,6 +210,10 @@ Testing surface:
 
 The first-party framework CLI entrypoint. It boots `bootstrap/console.php` and dispatches the command kernel.
 
+### `docker-compose.verify.yml`
+
+Local backend verification stack for MySQL, PostgreSQL, SQL Server, Redis, and Memcached.
+
 ### `autoload.php`
 
 Legacy fallback autoload helper. It is still tracked, but the primary application bootstrap uses Composer through `bootstrap/app.php`.
@@ -214,3 +222,4 @@ Legacy fallback autoload helper. It is still tracked, but the primary applicatio
 
 - Directory `README.md` files are intentionally kept in extension-oriented folders so the repository can communicate the full implemented architecture without invisible directories.
 - The canonical current documentation entrypoints are `Docs/README.md`, `Docs/ArchitectureOverview.md`, and `Docs/FrameworkStatus.md`.
+- `Docs/OperationsGuide.md` and `Docs/DatabaseMatrixTesting.md` now document the production-style verification and operator-facing runtime surfaces.

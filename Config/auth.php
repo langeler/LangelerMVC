@@ -37,6 +37,8 @@ return [
         'PERIOD' => 30,
         'ALGORITHM' => 'sha1',
         'RECOVERY_CODES' => 8,
+        'TRUSTED_DEVICE_DAYS' => 30,
+        'TRUSTED_DEVICE_COOKIE' => 'langelermvc_otp_trusted',
     ],
     'PASSKEY' => [
         'DRIVER' => 'webauthn',

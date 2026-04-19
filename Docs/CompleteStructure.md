@@ -6,6 +6,9 @@ Placeholder `README.md` files that remain in repeated architecture folders are i
 
 ```text
 LangelerMVC
+├── .github
+│   ├── workflows
+│   │   ├── php.yml
 ├── .env
 ├── .env.example
 ├── .gitignore
@@ -46,9 +49,11 @@ LangelerMVC
 │   │   │   ├── Notification.php
 │   ├── Console
 │   │   ├── Commands
+│   │   │   ├── AuditListCommand.php
 │   │   │   ├── CacheClearCommand.php
 │   │   │   ├── ConfigShowCommand.php
 │   │   │   ├── EventListCommand.php
+│   │   │   ├── HealthCheckCommand.php
 │   │   │   ├── MigrateCommand.php
 │   │   │   ├── MigrateRollbackCommand.php
 │   │   │   ├── MigrateStatusCommand.php
@@ -98,6 +103,8 @@ LangelerMVC
 │   │   ├── Session
 │   │   │   ├── SessionDriverInterface.php
 │   │   ├── Support
+│   │   │   ├── AuditLoggerInterface.php
+│   │   │   ├── HealthManagerInterface.php
 │   │   │   ├── MailerInterface.php
 │   │   │   ├── NotifiableInterface.php
 │   │   │   ├── NotificationChannelInterface.php
@@ -527,6 +534,8 @@ LangelerMVC
 │   │   │   ├── SessionManager.php
 │   │   │   ├── SettingsManager.php
 │   │   │   ├── Support
+│   │   │   │   ├── AuditLogger.php
+│   │   │   │   ├── HealthManager.php
 │   │   │   │   ├── MailManager.php
 │   │   │   │   ├── NotificationManager.php
 │   │   │   │   ├── OtpManager.php
@@ -639,6 +648,7 @@ LangelerMVC
 │   ├── IteratorManager.md
 │   ├── ModulesStructure.md
 │   ├── NativeToTraitConsistencyAudit.md
+│   ├── OperationsGuide.md
 │   ├── README.md
 │   ├── SanitationValidationAPI.md
 │   ├── Untitled 5.rtf
@@ -714,6 +724,7 @@ LangelerMVC
 ├── composer.json
 ├── composer.lock
 ├── console
+├── docker-compose.verify.yml
 ├── logo.jpeg
 ├── phpunit.db-matrix.xml
 ├── phpunit.xml

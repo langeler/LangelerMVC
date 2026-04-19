@@ -19,7 +19,7 @@ class QueueProvider extends Container
     /**
      * @var array<string, string>
      */
-    private readonly array $driverMap;
+    private array $driverMap;
 
     private bool $servicesRegistered = false;
 

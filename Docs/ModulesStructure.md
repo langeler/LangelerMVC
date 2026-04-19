@@ -34,11 +34,11 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 | Module | Status | Notes |
 | --- | --- | --- |
 | `WebModule` | Implemented starter slice | Contains the reference request/controller/service/presenter/view/response pipeline plus `pages` migration, seed, model, repository, and shared templates. |
-| `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, and operations management flows protected by the framework auth/RBAC layer. |
+| `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, health, and operations management flows protected by the framework auth/RBAC layer. |
 | `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, merge-on-login listener, presenters/resources, routes, migrations, seeds, and views. |
 | `OrderModule` | Implemented commerce slice | Contains checkout/order lifecycle services, listeners, notifications, presenters/resources, routes, migrations, seeds, and views. |
 | `ShopModule` | Implemented commerce slice | Contains catalog services, presenters/resources, routes, migrations, seeds, views, and product/category persistence. |
-| `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows. |
+| `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA with trusted devices, and passkey/WebAuthn flows. |
 
 ## `WebModule` Today
 
@@ -71,7 +71,7 @@ By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=datab
 - session-backed authentication
 - password reset and email verification flows
 - role/permission persistence and RBAC checks
-- TOTP-based 2FA with recovery codes
+- TOTP-based 2FA with recovery codes and trusted-device support
 - passkey/WebAuthn registration and sign-in
 - HTML + JSON endpoint parity through the same request/service/presenter/response pipeline
 
@@ -93,6 +93,8 @@ It now also exposes management visibility for:
 - carts
 - orders
 - queue/notification/event/payment operational state
+- framework health/readiness
+- audit-backed diagnostics where safe
 
 ## `ShopModule` Today
 

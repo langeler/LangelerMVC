@@ -161,6 +161,14 @@ class AuthController extends Controller
         return $this->run();
     }
 
+    public function revokeTrustedDevices(): ResponseInterface
+    {
+        $this->action = 'revokeTrustedDevices';
+        $this->template = 'UserStatus';
+
+        return $this->run();
+    }
+
     protected function execute(): mixed
     {
         return $this->authService->forAction($this->action, $this->request->all(), $this->context)->execute();

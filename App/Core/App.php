@@ -6,6 +6,7 @@ namespace App\Core;
 
 use App\Contracts\Http\ResponseInterface;
 use App\Providers\CoreProvider;
+use App\Contracts\Support\HealthManagerInterface;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\{
     CheckerTrait,
@@ -127,6 +128,12 @@ class App
 
     private function dispatchCurrentRequest(): mixed
     {
+        $frameworkHealth = $this->dispatchFrameworkHealthRequest();
+
+        if ($frameworkHealth !== null) {
+            return $frameworkHealth;
+        }
+
         return $this->wrapInTry(
             fn(): mixed => $this->router?->dispatch(
                 $this->resolveRequestUri(),
@@ -179,6 +186,10 @@ class App
 
     private function emitJson(array|JsonSerializable $payload): void
     {
+        if ($this->isHttpContext() && is_array($payload) && isset($payload['status']) && $this->isInt($payload['status'])) {
+            http_response_code((int) $payload['status']);
+        }
+
         $this->sendHeaderIfMissing('Content-Type', 'application/json; charset=UTF-8');
 
         $encoded = $this->toJson(
@@ -229,6 +240,29 @@ class App
         $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
 
         return $this->isString($requestUri) && $requestUri !== '' ? $requestUri : '/';
+    }
+
+    private function dispatchFrameworkHealthRequest(): mixed
+    {
+        $path = parse_url($this->resolveRequestUri(), PHP_URL_PATH);
+
+        if (!$this->isString($path) || !in_array($path, ['/health', '/ready'], true)) {
+            return null;
+        }
+
+        try {
+            $health = $this->coreProvider->getCoreService('health');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$health instanceof HealthManagerInterface) {
+            return null;
+        }
+
+        return $path === '/ready'
+            ? $health->readiness()
+            : $health->liveness();
     }
 
     private function resolveRequestMethod(): string

@@ -13,6 +13,7 @@
         <label>OTP Code (if enabled)<br><input type="text" name="otp_code" inputmode="numeric"></label>
         <label>Recovery Code (if needed)<br><input type="text" name="recovery_code" autocapitalize="characters"></label>
         <label><input type="checkbox" name="remember" value="1"> Remember me</label>
+        <label><input type="checkbox" name="trust_device" value="1"> Trust this device for future OTP challenges</label>
         <button type="submit">Sign in</button>
     </form>
 

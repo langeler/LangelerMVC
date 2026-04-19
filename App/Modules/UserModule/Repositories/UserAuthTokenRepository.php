@@ -66,4 +66,43 @@ class UserAuthTokenRepository extends Repository
 
         $this->db->execute($query['sql'], $query['bindings']);
     }
+
+    public function deleteToken(int $id): bool
+    {
+        $query = $this->db
+            ->dataQuery($this->getTable())
+            ->delete($this->getTable())
+            ->where('id', '=', $id)
+            ->toExecutable();
+
+        return $this->db->execute($query['sql'], $query['bindings']) > 0;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function activeTokenPayloads(int $userId, string $type): array
+    {
+        return array_values(array_map(function (array $record): array {
+            $payload = [];
+
+            if (is_string($record['payload'] ?? null) && $record['payload'] !== '') {
+                try {
+                    $decoded = $this->fromJson((string) $record['payload'], true, 512, JSON_THROW_ON_ERROR);
+                    $payload = is_array($decoded) ? $decoded : [];
+                } catch (\JsonException) {
+                    $payload = [];
+                }
+            }
+
+            return [
+                'id' => (int) ($record['id'] ?? 0),
+                'type' => (string) ($record['type'] ?? ''),
+                'expires_at' => (string) ($record['expires_at'] ?? ''),
+                'used_at' => $record['used_at'] ?? null,
+                'created_at' => (string) ($record['created_at'] ?? ''),
+                'payload' => $payload,
+            ];
+        }, $this->activeTokens($userId, $type)));
+    }
 }

@@ -7,6 +7,7 @@ namespace Tests\Framework;
 use App\Core\App;
 use App\Core\Config;
 use App\Core\Router;
+use App\Contracts\Support\HealthManagerInterface;
 use App\Providers\CoreProvider;
 use App\Providers\ExceptionProvider;
 use App\Utilities\Managers\System\ErrorManager;
@@ -105,6 +106,39 @@ class BootstrapAndAppTest extends TestCase
         );
     }
 
+    public function testAppShortCircuitsFrameworkReadinessEndpointWhenHealthServiceExists(): void
+    {
+        $_SERVER['REQUEST_URI'] = '/ready';
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+
+        $router = $this->createRouter(['status' => 'router']);
+        $health = $this->createStub(HealthManagerInterface::class);
+        $health->method('readiness')->willReturn([
+            'status' => 200,
+            'ready' => true,
+        ]);
+
+        $app = new App(
+            $this->createProvider(
+                $this->createConfig([
+                    'DEBUG' => 'true',
+                    'TIMEZONE' => 'UTC',
+                    'MAINTENANCE' => 'false',
+                ]),
+                $router,
+                $health
+            ),
+            $this->createErrorManager()
+        );
+
+        ob_start();
+        $app->run();
+        $output = ob_get_clean();
+
+        self::assertSame('{"status":200,"ready":true}', $output);
+        self::assertSame([], $router->dispatches);
+    }
+
     private function createConfig(array $appConfig): Config
     {
         return new class($appConfig) extends Config {
@@ -154,15 +188,16 @@ class BootstrapAndAppTest extends TestCase
         };
     }
 
-    private function createProvider(Config $config, Router $router): CoreProvider
+    private function createProvider(Config $config, Router $router, ?HealthManagerInterface $health = null): CoreProvider
     {
         $errorManager = $this->createErrorManager();
 
-        return new class($config, $router, $errorManager) extends CoreProvider {
+        return new class($config, $router, $errorManager, $health) extends CoreProvider {
             public function __construct(
                 private Config $config,
                 private Router $router,
-                private ErrorManager $errorManager
+                private ErrorManager $errorManager,
+                private ?HealthManagerInterface $health = null
             ) {
             }
 
@@ -172,6 +207,7 @@ class BootstrapAndAppTest extends TestCase
                     'config' => $this->config,
                     'router' => $this->router,
                     'errorManager' => $this->errorManager,
+                    'health' => $this->health ?? throw new RuntimeException('Health service unavailable.'),
                     default => throw new RuntimeException("Unsupported core service alias: {$serviceAlias}"),
                 };
             }

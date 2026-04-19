@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\UserModule\Services;
 
 use App\Abstracts\Http\Service;
+use App\Contracts\Support\AuditLoggerInterface;
 use App\Core\Config;
 use App\Exceptions\AuthException;
 use App\Modules\UserModule\Models\User;
+use App\Modules\UserModule\Repositories\UserAuthTokenRepository;
 use App\Modules\UserModule\Repositories\UserPasskeyRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
 use App\Utilities\Managers\Security\AuthManager;
@@ -26,10 +28,12 @@ class UserProfileService extends Service
     public function __construct(
         private readonly UserRepository $users,
         private readonly UserPasskeyRepository $passkeys,
+        private readonly UserAuthTokenRepository $tokens,
         private readonly DatabaseUserProvider $provider,
         private readonly AuthManager $auth,
         private readonly Config $config,
-        private readonly PasskeyManager $passkeyManager
+        private readonly PasskeyManager $passkeyManager,
+        private readonly AuditLoggerInterface $audit
     ) {
     }
 
@@ -67,6 +71,7 @@ class UserProfileService extends Service
             'roles' => $this->users->rolesForUser($user->getKey()),
             'permissions' => $this->users->permissionsForUser($user->getKey()),
             'passkeys' => $this->passkeys->allForUserData((int) $user->getKey()),
+            'trustedDevices' => $this->tokens->activeTokenPayloads((int) $user->getKey(), 'otp_trusted_device'),
             'passkeySupport' => [
                 'driver' => $this->passkeyManager->driverName(),
                 'available' => $this->passkeyManager->supports('flows.registration'),
@@ -96,6 +101,12 @@ class UserProfileService extends Service
             $updated->markAsExisting();
         }
 
+        $this->audit->record('user.profile.updated', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'email_changed' => $emailChanged,
+        ], 'auth');
+
         return [
             'template' => 'UserProfile',
             'status' => 200,
@@ -111,6 +122,7 @@ class UserProfileService extends Service
             'roles' => $this->users->rolesForUser($updated->getKey()),
             'permissions' => $this->users->permissionsForUser($updated->getKey()),
             'passkeys' => $this->passkeys->allForUserData((int) $updated->getKey()),
+            'trustedDevices' => $this->tokens->activeTokenPayloads((int) $updated->getKey(), 'otp_trusted_device'),
             'passkeySupport' => [
                 'driver' => $this->passkeyManager->driverName(),
                 'available' => $this->passkeyManager->supports('flows.registration'),
@@ -133,6 +145,10 @@ class UserProfileService extends Service
 
         $this->users->updatePassword((int) $user->getKey(), $this->provider->hashValue((string) $this->payload['password']));
         $fresh = $this->users->find((int) $user->getKey());
+        $this->audit->record('user.password.changed', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
 
         return [
             'template' => 'UserProfile',
@@ -145,6 +161,7 @@ class UserProfileService extends Service
             'roles' => $this->users->rolesForUser($user->getKey()),
             'permissions' => $this->users->permissionsForUser($user->getKey()),
             'passkeys' => $this->passkeys->allForUserData((int) $user->getKey()),
+            'trustedDevices' => $this->tokens->activeTokenPayloads((int) $user->getKey(), 'otp_trusted_device'),
             'passkeySupport' => [
                 'driver' => $this->passkeyManager->driverName(),
                 'available' => $this->passkeyManager->supports('flows.registration'),

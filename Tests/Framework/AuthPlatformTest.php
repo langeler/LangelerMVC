@@ -14,6 +14,7 @@ use App\Exceptions\AuthException;
 use App\Exceptions\Database\RepositoryException;
 use App\Exceptions\Http\ServiceException;
 use App\Contracts\Async\EventDispatcherInterface;
+use App\Contracts\Support\HealthManagerInterface;
 use App\Drivers\Session\FileSessionDriver;
 use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\CartModule\Migrations\CreateCartTables;
@@ -44,6 +45,7 @@ use App\Utilities\Managers\Security\PasswordBroker;
 use App\Utilities\Managers\Security\PermissionRegistry;
 use App\Utilities\Managers\Security\PolicyResolver;
 use App\Utilities\Managers\Security\SessionGuard;
+use App\Utilities\Managers\Support\AuditLogger;
 use App\Utilities\Managers\Support\MailManager;
 use App\Utilities\Managers\Support\NotificationManager;
 use App\Utilities\Managers\Support\PaymentManager;
@@ -139,7 +141,8 @@ class AuthPlatformTest extends TestCase
             $stack['otp'],
             $stack['crypto'],
             $stack['config'],
-            $stack['errors']
+            $stack['errors'],
+            $stack['audit']
         );
 
         $registered = $service->forAction('register', [
@@ -202,7 +205,8 @@ class AuthPlatformTest extends TestCase
             $stack['otp'],
             $stack['crypto'],
             $stack['config'],
-            $stack['errors']
+            $stack['errors'],
+            $stack['audit']
         );
 
         $provisioned = $service->forAction('enableOtp')->execute();
@@ -266,7 +270,8 @@ class AuthPlatformTest extends TestCase
             $stack['passkeys'],
             $stack['auth'],
             $stack['passkeyManager'],
-            $stack['errors']
+            $stack['errors'],
+            $stack['audit']
         );
 
         $options = $service->forAction('beginRegistration', [
@@ -333,10 +338,12 @@ class AuthPlatformTest extends TestCase
         $service = new UserProfileService(
             $stack['users'],
             $stack['passkeys'],
+            $stack['tokens'],
             $stack['provider'],
             $stack['auth'],
             $stack['config'],
-            $stack['passkeyManager']
+            $stack['passkeyManager'],
+            $stack['audit']
         );
 
         try {
@@ -417,6 +424,8 @@ class AuthPlatformTest extends TestCase
             $this->createStub(NotificationManager::class),
             $this->createStub(PaymentManager::class),
             $this->createStub(EventDispatcherInterface::class),
+            $this->createStub(HealthManagerInterface::class),
+            $stack['audit'],
             $router,
             $stack['config']
         );
@@ -437,6 +446,88 @@ class AuthPlatformTest extends TestCase
         $synced = $service->forAction('syncPermissions', ['permissions' => ['cart.manage']], ['role' => 2])->execute();
         self::assertSame(200, $synced['status']);
         self::assertContains('cart.manage', $stack['roles']->permissionsForRole(2));
+    }
+
+    public function testOtpTrustedDevicesSupportPasswordlessChallengeBypassUntilRevoked(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'PHPUnit Trusted Device Browser';
+
+        $database = $this->makeSqliteDatabase();
+        $modules = $this->makeModuleManagerStub([
+            CreateUserPlatformTables::class,
+            UserPlatformSeed::class,
+        ]);
+        $errors = new ErrorManager(new ExceptionProvider());
+
+        (new MigrationRunner($database, $modules, $errors))->migrate('UserModule');
+        (new SeedRunner($database, $modules, $errors))->run('UserModule');
+
+        $stack = $this->makeAuthStack($database);
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $service = new UserAuthService(
+            $stack['users'],
+            $stack['roles'],
+            $stack['tokens'],
+            $stack['provider'],
+            $stack['auth'],
+            $stack['passwords'],
+            $stack['mail'],
+            $stack['otp'],
+            $stack['crypto'],
+            $stack['config'],
+            $stack['errors'],
+            $stack['audit']
+        );
+
+        $provisioned = $service->forAction('enableOtp')->execute();
+        $code = TOTP::create(
+            $provisioned['otp']['secret'],
+            30,
+            'sha1',
+            6
+        )->now();
+
+        $verified = $service->forAction('verifyOtp', [
+            'otp_code' => $code,
+            'trust_device' => true,
+        ])->execute();
+
+        self::assertSame(200, $verified['status']);
+        self::assertCount(1, $stack['tokens']->activeTokenPayloads(2, 'otp_trusted_device'));
+        self::assertArrayHasKey('langelermvc_otp_trusted', $_COOKIE);
+
+        $stack['auth']->logout();
+
+        $trustedLogin = $service->forAction('login', [
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ])->execute();
+
+        self::assertSame(200, $trustedLogin['status']);
+        self::assertTrue($stack['auth']->check());
+
+        $profile = new UserProfileService(
+            $stack['users'],
+            $stack['passkeys'],
+            $stack['tokens'],
+            $stack['provider'],
+            $stack['auth'],
+            $stack['config'],
+            $stack['passkeyManager'],
+            $stack['audit']
+        );
+        $profilePage = $profile->execute();
+
+        self::assertCount(1, $profilePage['trustedDevices']);
+
+        $revoked = $service->forAction('revokeTrustedDevices')->execute();
+        self::assertSame(200, $revoked['status']);
+        self::assertCount(0, $stack['tokens']->activeTokenPayloads(2, 'otp_trusted_device'));
+        self::assertArrayNotHasKey('langelermvc_otp_trusted', $_COOKIE);
     }
 
     public function testRouterListsNewPlatformRoutesAndShortCircuitsProtectedAdminMiddleware(): void
@@ -541,6 +632,7 @@ class AuthPlatformTest extends TestCase
     /**
      * @return array{
      *   auth: AuthManager,
+     *   audit: AuditLogger,
      *   cache: CacheManager,
      *   config: Config,
      *   crypto: CryptoManager,
@@ -601,6 +693,8 @@ class AuthPlatformTest extends TestCase
                             'PERIOD' => 30,
                             'ALGORITHM' => 'sha1',
                             'RECOVERY_CODES' => 8,
+                            'TRUSTED_DEVICE_DAYS' => 30,
+                            'TRUSTED_DEVICE_COOKIE' => 'langelermvc_otp_trusted',
                         ],
                         'PASSKEY' => [
                             'DRIVER' => 'testing',
@@ -654,6 +748,12 @@ class AuthPlatformTest extends TestCase
                         ],
                         'DATABASE' => [
                             'TABLE' => 'framework_sessions',
+                        ],
+                    ],
+                    'operations' => [
+                        'AUDIT' => [
+                            'ENABLED' => true,
+                            'SUMMARY_LIMIT' => 250,
                         ],
                     ],
                 ];
@@ -727,16 +827,18 @@ class AuthPlatformTest extends TestCase
         $registry = new PermissionRegistry($config);
         $gate = new Gate($guard, $provider, $registry, new PolicyResolver());
         $passwords = new PasswordBroker($config, $provider, $users, $tokens, $crypto, $mail, $errors);
+        $audit = new AuditLogger($database, $config, $errors);
         $events = new class implements EventDispatcherInterface {
             public function listen(string $event, callable|string|array $listener, bool $queued = false, string $queue = 'default'): void {}
             public function subscribe(array $listeners): void {}
             public function dispatch(string|object $event, array $payload = []): array { return []; }
             public function listeners(?string $event = null): array { return []; }
         };
-        $auth = new AuthManager($guard, $gate, $passwords, $provider, $registry, $events);
+        $auth = new AuthManager($guard, $gate, $passwords, $provider, $registry, $events, $audit);
 
         return [
             'auth' => $auth,
+            'audit' => $audit,
             'cache' => $this->createStub(CacheManager::class),
             'config' => $config,
             'crypto' => $crypto,

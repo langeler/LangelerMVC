@@ -46,7 +46,7 @@ Responsibility split:
 - `console` is the operational CLI entrypoint for framework maintenance and inspection commands.
 - `bootstrap/console.php` bridges Composer autoloading into the console kernel bootstrap.
 - `App\Core\Bootstrap` prepares runtime defaults, path registration, installer redirect handling, and environment loading.
-- `App\Core\App` boots core services, applies runtime policy, dispatches the request, and emits the response.
+- `App\Core\App` boots core services, applies runtime policy, exposes framework health endpoints, dispatches the request, and emits the response.
 
 ### Core Runtime
 
@@ -72,9 +72,9 @@ Responsibility split:
 - `ExceptionProvider`: typed exception alias resolution
 - `CacheProvider`: cache driver resolution
 - `CryptoProvider`: crypto driver resolution
+- `QueueProvider`: queue driver resolution
 - `NotificationProvider`: notification channel resolution
 - `PaymentProvider`: payment driver resolution
-- `QueueProvider`: queue driver resolution
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -114,7 +114,7 @@ The driver layer exists so the framework can present a stable API to the rest of
 - `Managers`: concrete system/data services plus compatibility aliases
 - `Managers/Async`: event dispatcher, queue manager, and failed-job storage
 - `Managers/Security`: auth, gate, policy, HTTP signed URL/throttle, and user-provider services
-- `Managers/Support`: framework mail, notification, OTP, passkey/WebAuthn, and payment service managers
+- `Managers/Support`: framework mail, notification, OTP, passkey/WebAuthn, health, audit, and payment service managers
 - `Query`: framework SQL builders
 - `Sanitation`: sanitizer implementations
 - `Validation`: validator implementations
@@ -170,7 +170,9 @@ The following areas are implemented as framework-level subsystems today:
 - configuration and environment override merging
 - routing and module route discovery
 - operational console and command kernel
+- runtime health/readiness/capability reporting
 - migration and seed lifecycle management
+- framework-managed audit logging for sensitive flows
 - session runtime
 - file, database, and redis session driver adapters
 - encrypted persisted session payload support
@@ -203,8 +205,8 @@ Current concrete state:
 - `AdminModule` is the protected management slice.
 - `ShopModule`, `CartModule`, and `OrderModule` complete the first commerce stack.
 - `WebModule` has a controller, request, service, presenter, view, response, model, repository, route file, migration, and seed.
-- `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA, and passkey/WebAuthn flows.
-- `AdminModule` now provides dashboard, user, role/permission, catalog, cart, order, and framework-inspection flows.
+- `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA with trusted devices, and passkey/WebAuthn flows.
+- `AdminModule` now provides dashboard, user, role/permission, catalog, cart, order, health/readiness, and framework-inspection flows.
 - `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
 - `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
 - `OrderModule` provides checkout orchestration, order snapshots, payment-state handling, and lifecycle notifications.

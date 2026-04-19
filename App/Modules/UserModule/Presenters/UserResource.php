@@ -21,6 +21,7 @@ class UserResource extends Resource
             'permissions' => is_array($payload['permissions'] ?? null) ? $payload['permissions'] : [],
             'otp' => is_array($payload['otp'] ?? null) ? $payload['otp'] : [],
             'recoveryCodes' => is_array($payload['recoveryCodes'] ?? null) ? $payload['recoveryCodes'] : [],
+            'trustedDevices' => is_array($payload['trustedDevices'] ?? null) ? $payload['trustedDevices'] : [],
             'passkey' => is_array($payload['passkey'] ?? null) ? $payload['passkey'] : [],
             'passkeys' => is_array($payload['passkeys'] ?? null) ? $payload['passkeys'] : [],
             'passkeySupport' => is_array($payload['passkeySupport'] ?? null) ? $payload['passkeySupport'] : [],

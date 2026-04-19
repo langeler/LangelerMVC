@@ -2,7 +2,7 @@
 
 This folder contains the current LangelerMVC project documentation plus a small set of historical reference files kept in the repository for context.
 
-As of `2026-04-11`, the framework status and architecture documents below are the primary source of truth for what is implemented today.
+As of `2026-04-19`, the framework status and architecture documents below are the primary source of truth for what is implemented today.
 
 ## Start Here
 
@@ -20,6 +20,7 @@ As of `2026-04-11`, the framework status and architecture documents below are th
 
 - `SanitationValidationAPI.md`: current schema contract for sanitizers and validators.
 - `DatabaseMatrixTesting.md`: how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
+- `OperationsGuide.md`: health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - `UtilitiesTraitsOverview.md`: practical overview of the reusable trait surface.
 - `UtilitiesTraitsReference.md`: generated method-by-method trait reference.
 - `NativeToTraitConsistencyAudit.md`: audit of trait adoption across non-trait classes.

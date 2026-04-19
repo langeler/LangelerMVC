@@ -21,6 +21,23 @@ composer test:db-matrix
 composer test:mysql
 composer test:pgsql
 composer test:sqlsrv
+composer ops:health
+```
+
+## Local Backend Stack
+
+The repository now includes `docker-compose.verify.yml` for local production-style verification of:
+
+- MySQL
+- PostgreSQL
+- SQL Server
+- Redis
+- Memcached
+
+Bring the stack up with:
+
+```bash
+docker compose -f docker-compose.verify.yml up -d
 ```
 
 ## Environment Variables
@@ -46,10 +63,10 @@ export LANGELER_SQLSRV_PASSWORD="secret"
 - `phpunit.xml` runs the default framework suite only.
 - `phpunit.db-matrix.xml` runs `Tests/DbMatrix`.
 - `Tests/DbMatrix/DatabaseMatrixHarnessTest.php` only executes for drivers that have DSNs configured.
-- The harness creates a temporary framework-managed table, writes through the repository layer, reads back through both the repository and `DataQuery`, and then removes the table.
+- The harness creates framework-managed tables, exercises migration/seed/query/repository behavior, and then removes temporary state.
 
 ## Notes
 
-- The harness is intentionally local and opt-in. It is designed for framework verification, not CI orchestration.
+- The harness is intentionally local and opt-in for SQL Server and other environment-specific backends. GitHub Actions now covers the default suite plus supported MySQL/PostgreSQL matrix execution.
 - If a driver DSN is not configured, the related harness test is skipped rather than failing the default local workflow.
-- The matrix harness is the intended place to extend future cross-driver verification for migrations, repositories, and query builders as the framework grows.
+- The matrix harness is the intended place to extend future cross-driver verification for migrations, repositories, query builders, queue tables, notification persistence, and session persistence.

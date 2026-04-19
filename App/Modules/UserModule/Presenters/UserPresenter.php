@@ -24,6 +24,7 @@ class UserPresenter extends Presenter
             'form' => is_array($data['form'] ?? null) ? $data['form'] : [],
             'otp' => is_array($data['otp'] ?? null) ? $data['otp'] : [],
             'recoveryCodes' => is_array($data['recoveryCodes'] ?? null) ? $data['recoveryCodes'] : [],
+            'trustedDevices' => is_array($data['trustedDevices'] ?? null) ? $data['trustedDevices'] : [],
             'link' => is_array($data['link'] ?? null) ? $data['link'] : [],
             'passkey' => is_array($data['passkey'] ?? null) ? $data['passkey'] : [],
             'passkeys' => is_array($data['passkeys'] ?? null) ? $data['passkeys'] : [],

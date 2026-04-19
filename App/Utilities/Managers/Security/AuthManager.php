@@ -7,6 +7,7 @@ namespace App\Utilities\Managers\Security;
 use App\Contracts\Async\EventDispatcherInterface;
 use App\Contracts\Auth\AuthenticatableInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
+use App\Contracts\Support\AuditLoggerInterface;
 
 class AuthManager
 {
@@ -16,7 +17,8 @@ class AuthManager
         private readonly PasswordBrokerInterface $passwordBroker,
         private readonly DatabaseUserProvider $provider,
         private readonly PermissionRegistry $permissions,
-        private readonly EventDispatcherInterface $events
+        private readonly EventDispatcherInterface $events,
+        private readonly AuditLoggerInterface $audit
     ) {
     }
 
@@ -71,6 +73,12 @@ class AuthManager
                     'remember' => $remember,
                     'via' => 'credentials',
                 ]);
+                $this->audit->record('auth.login', [
+                    'actor_type' => $user::class,
+                    'actor_id' => (string) $user->getAuthIdentifier(),
+                    'remember' => $remember,
+                    'via' => 'credentials',
+                ], 'auth');
             }
 
             return true;
@@ -80,6 +88,10 @@ class AuthManager
             'email' => isset($credentials['email']) ? (string) $credentials['email'] : '',
             'via' => 'credentials',
         ]);
+        $this->audit->record('auth.failed', [
+            'email' => isset($credentials['email']) ? (string) $credentials['email'] : '',
+            'via' => 'credentials',
+        ], 'auth', 'warning');
 
         return false;
     }
@@ -92,6 +104,12 @@ class AuthManager
             'remember' => $remember,
             'via' => 'manual',
         ]);
+        $this->audit->record('auth.login', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getAuthIdentifier(),
+            'remember' => $remember,
+            'via' => 'manual',
+        ], 'auth');
     }
 
     public function syncUser(AuthenticatableInterface $user, ?bool $remembered = null): void
@@ -109,6 +127,9 @@ class AuthManager
             $this->dispatch('auth.logout', [
                 'user_id' => $identifier,
             ]);
+            $this->audit->record('auth.logout', [
+                'actor_id' => (string) $identifier,
+            ], 'auth');
         }
     }
 

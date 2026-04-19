@@ -20,6 +20,8 @@ use App\Contracts\Async\FailedJobStoreInterface;
 use App\Contracts\Auth\GuardInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
 use App\Contracts\Auth\UserProviderInterface;
+use App\Contracts\Support\AuditLoggerInterface;
+use App\Contracts\Support\HealthManagerInterface;
 use App\Contracts\Support\NotificationManagerInterface;
 use App\Contracts\Support\PaymentManagerInterface;
 use App\Exceptions\ContainerException;
@@ -37,6 +39,8 @@ use App\Utilities\Managers\Security\{
     SessionGuard
 };
 use App\Utilities\Managers\Support\{
+    AuditLogger,
+    HealthManager,
     NotificationManager,
     PasskeyManager,
     PaymentManager
@@ -77,12 +81,14 @@ class CoreProvider extends Container
 
         $this->coreServiceMap = [
             'app'      => App::class,
+            'audit'    => AuditLogger::class,
             'auth'     => AuthManager::class,
             'console'  => ConsoleKernel::class,
             'config'   => Config::class,
             'database' => Database::class,
             'events' => EventDispatcher::class,
             'gate' => Gate::class,
+            'health' => HealthManager::class,
             'httpSecurity' => HttpSecurityManager::class,
             'migrationRunner' => MigrationRunner::class,
             'notifications' => NotificationManager::class,
@@ -134,6 +140,8 @@ class CoreProvider extends Container
                 $this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
                 $this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
                 $this->registerAlias(EventDispatcherInterface::class, EventDispatcher::class);
+                $this->registerAlias(AuditLoggerInterface::class, AuditLogger::class);
+                $this->registerAlias(HealthManagerInterface::class, HealthManager::class);
                 $this->registerAlias(NotificationManagerInterface::class, NotificationManager::class);
                 $this->registerAlias(PaymentManagerInterface::class, PaymentManager::class);
                 $this->registerAlias(FailedJobStoreInterface::class, DatabaseFailedJobStore::class);

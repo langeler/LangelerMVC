@@ -71,6 +71,8 @@ use App\Utilities\Managers\Security\HttpSecurityManager;
 use App\Utilities\Managers\Security\PermissionRegistry;
 use App\Utilities\Managers\Security\PolicyResolver;
 use App\Utilities\Managers\Security\SessionGuard;
+use App\Utilities\Managers\Support\AuditLogger;
+use App\Utilities\Managers\Support\HealthManager;
 use App\Utilities\Managers\Support\MailManager;
 use App\Utilities\Managers\Support\NotificationManager;
 use App\Utilities\Managers\Support\PaymentManager;
@@ -474,6 +476,8 @@ final class FrameworkCompletionTest extends TestCase
         self::assertNotEmpty($orders['orders']);
         self::assertSame(200, $operations['status']);
         self::assertArrayHasKey('queue', $operations['operations']);
+        self::assertArrayHasKey('health', $operations['operations']);
+        self::assertArrayHasKey('audit', $operations['operations']);
         self::assertArrayHasKey('payments', $adminJson['data']['operations']);
     }
 
@@ -571,8 +575,25 @@ final class FrameworkCompletionTest extends TestCase
         $notifications = new NotificationManager($config, $notificationProvider, $database, $coreProvider);
         $payments = new PaymentManager($config, $paymentProvider);
         $events = new EventDispatcher($queue, $modules, $coreProvider, $config);
-        $auth = new AuthManager($guard, $gate, $passwordBroker, $provider, $registry, $events);
-        $cache = $this->makeCacheDouble();
+        $audit = new AuditLogger($database, $config, $errors);
+        $router = $this->makeRouterDouble();
+        $health = new HealthManager(
+            $config,
+            $database,
+            $cache = $this->makeCacheDouble(),
+            $sessionManager,
+            $queue,
+            $notifications,
+            $payments,
+            new \App\Utilities\Managers\Support\PasskeyManager($config, $session, $errors),
+            $mail,
+            new \App\Utilities\Managers\Support\OtpManager($config),
+            $modules,
+            $router,
+            $events,
+            $audit
+        );
+        $auth = new AuthManager($guard, $gate, $passwordBroker, $provider, $registry, $events, $audit);
         $httpSecurity = new HttpSecurityManager($config, $cache);
 
         $users = new UserRepository($database);
@@ -598,7 +619,8 @@ final class FrameworkCompletionTest extends TestCase
             $events,
             $auth,
             $session,
-            $httpSecurity
+            $httpSecurity,
+            $audit
         );
         $adminService = new AdminAccessService(
             $auth,
@@ -617,7 +639,9 @@ final class FrameworkCompletionTest extends TestCase
             $notifications,
             $payments,
             $events,
-            $this->makeRouterDouble(),
+            $health,
+            $audit,
+            $router,
             $config
         );
 
@@ -632,6 +656,8 @@ final class FrameworkCompletionTest extends TestCase
         ]);
         $coreProvider->setResolved(NotificationManagerInterface::class, $notifications);
         $coreProvider->setResolved(QueueManager::class, $queue);
+        $coreProvider->setResolved(AuditLogger::class, $audit);
+        $coreProvider->setResolved(HealthManager::class, $health);
 
         return [
             'adminService' => $adminService,

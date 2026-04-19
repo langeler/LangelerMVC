@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\UserModule\Services;
 
 use App\Abstracts\Http\Service;
+use App\Contracts\Support\AuditLoggerInterface;
 use App\Exceptions\AuthException;
 use App\Modules\UserModule\Models\User;
 use App\Modules\UserModule\Repositories\UserPasskeyRepository;
@@ -41,7 +42,8 @@ class UserPasskeyService extends Service
         private readonly UserPasskeyRepository $passkeys,
         private readonly AuthManager $auth,
         private readonly PasskeyManager $passkeyManager,
-        private readonly ErrorManager $errorManager
+        private readonly ErrorManager $errorManager,
+        private readonly AuditLoggerInterface $audit
     ) {
     }
 
@@ -121,6 +123,12 @@ class UserPasskeyService extends Service
         $credential = (array) ($result['credential'] ?? []);
         $source = is_array($credential['source'] ?? null) ? $credential['source'] : [];
         $stored = $this->passkeys->storeCredential((int) $user->getKey(), $name, $source);
+        $this->audit->record('auth.passkey.registered', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'passkey_id' => (string) $stored->getKey(),
+            'name' => $name,
+        ], 'auth');
 
         return [
             'template' => 'UserStatus',
@@ -214,6 +222,11 @@ class UserPasskeyService extends Service
         $source = is_array($credential['source'] ?? null) ? $credential['source'] : [];
         $this->passkeys->refreshAssertion((int) $record->getKey(), $source);
         $this->auth->login($user, (bool) ($result['context']['remember'] ?? false));
+        $this->audit->record('auth.passkey.authenticated', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'passkey_id' => (string) $record->getKey(),
+        ], 'auth');
 
         return [
             'template' => 'UserStatus',
@@ -234,6 +247,14 @@ class UserPasskeyService extends Service
         $user = $this->currentUser();
         $passkeyId = (int) ($this->context['passkey'] ?? 0);
         $deleted = $passkeyId > 0 && $this->passkeys->deleteForUser((int) $user->getKey(), $passkeyId);
+
+        if ($deleted) {
+            $this->audit->record('auth.passkey.deleted', [
+                'actor_type' => $user::class,
+                'actor_id' => (string) $user->getKey(),
+                'passkey_id' => (string) $passkeyId,
+            ], 'auth');
+        }
 
         return [
             'template' => 'UserProfile',

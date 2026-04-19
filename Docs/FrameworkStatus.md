@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (81 tests, 1984 assertions)`
+- Verification result: `OK (83 tests, 2000 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -18,6 +18,7 @@ This document records the current implementation state of LangelerMVC based on t
 - dedicated bootstrap layer for HTTP and console entrypoints
 - reflection-driven container
 - provider-based service registration and aliasing
+- framework-native liveness/readiness/capability reporting
 - typed exception resolution
 - module discovery and module route loading
 
@@ -70,7 +71,7 @@ This document records the current implementation state of LangelerMVC based on t
 - failed-job store
 - notification manager with mail/database channels
 - payment manager with testing driver
-- mail, OTP, and passkey/WebAuthn managers
+- mail, OTP, passkey/WebAuthn, health, and audit managers
 
 ### Utility Layer
 
@@ -87,6 +88,7 @@ This document records the current implementation state of LangelerMVC based on t
 - `console` entrypoint
 - command kernel
 - migration, seed, route, cache, config, and module commands
+- health and audit inspection commands
 - queue work/retry/failed commands
 - notification inspection command
 - event/listener inspection command
@@ -109,7 +111,7 @@ This document records the current implementation state of LangelerMVC based on t
 - password reset
 - email verification
 - roles, permissions, assignments, and RBAC checks
-- TOTP-based 2FA with recovery codes
+- TOTP-based 2FA with recovery codes and trusted-device support
 - passkey/WebAuthn registration and sign-in
 - HTML + JSON endpoint parity
 
@@ -120,6 +122,14 @@ This document records the current implementation state of LangelerMVC based on t
 - module/config/cache/session visibility
 - catalog/cart/order visibility
 - queue/notification/event/payment operational visibility where safe
+- framework health/readiness/capability visibility
+- audit-aware operational visibility where safe
+
+### Project Packaging And Verification
+
+- composer scripts for regression, DB-matrix, health inspection, audit inspection, and platform verification
+- local backend verification stack through `docker-compose.verify.yml`
+- GitHub Actions workflow for default regression plus supported DB-matrix execution
 
 ### `ShopModule`
 
@@ -166,22 +176,22 @@ These framework/platform areas are now implemented rather than planned:
 
 The framework is in a strong completed state, but a few items remain environment-dependent or are best treated as ongoing hardening rather than missing subsystems:
 
-### 1. Live Database-Matrix Execution
+### 1. Live Environment Breadth
 
-The framework now has a dedicated DB-matrix harness, but live execution against MySQL, PostgreSQL, and SQL Server still depends on local or CI services being available and configured through environment variables.
+The framework now has both a DB-matrix harness and a local backend verification stack, but real execution against MySQL, PostgreSQL, SQL Server, Redis, Memcached, and extension-gated paths still depends on local or CI services being available and configured.
 
 ### 2. Optional Runtime Backends
 
-Redis, Memcache/Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on those PHP extensions and services being installed in the target environment.
+Redis, Memcache/Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on the corresponding PHP extensions and services being installed in the target environment.
 
 ### 3. Auth And Commerce Breadth
 
 The major framework-level auth and commerce flows are implemented. The next gains are hardening and breadth:
 
-- trusted-device / remember-device support for TOTP
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
 - deeper end-to-end tests around queue-backed notifications and payment-state transitions in non-SQLite environments
+- environment-specific operational tuning for audit retention, queue workers, and payment-driver expansion
 
 ## Recommended Ongoing Verification
 
@@ -189,13 +199,14 @@ For day-to-day framework development:
 
 1. Run `composer test`
 2. Run `composer test:db-matrix` when external databases are available
-3. Use the console commands to verify operational flows such as migrations, seeds, routes, and queue handling
+3. Run `composer ops:health`
+4. Run `composer ops:ready` when your backing services are provisioned
+5. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
 
 ## Extension Outlook
 
 LangelerMVC no longer needs missing-core work. The natural next layer is application growth and optional platform breadth, for example:
 
-- richer admin diagnostics and audit surfaces
 - additional notification channels
 - additional payment drivers
 - application-specific policies, events, and workflows

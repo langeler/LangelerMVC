@@ -29,6 +29,7 @@ class UserRequest extends InboundRequest
                 'otp_code' => ['methods' => 'string', 'required' => false],
                 'recovery_code' => ['methods' => 'string', 'required' => false],
                 'passkey_name' => ['methods' => 'string', 'required' => false],
+                'trust_device' => ['methods' => 'string', 'required' => false],
             ],
             default => [],
         };
@@ -48,6 +49,7 @@ class UserRequest extends InboundRequest
                 'password' => ['methods' => 'string', 'rules' => ['notEmpty']],
                 'otp_code' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[0-9]{6}$/']],
                 'recovery_code' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Z0-9-]{6,32}$/i']],
+                'trust_device' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(1|true|on|yes)$/i']],
             ],
             'forgotPassword' => [
                 'email' => ['methods' => 'email'],
@@ -92,6 +94,10 @@ class UserRequest extends InboundRequest
 
         if (isset($data['remember'])) {
             $data['remember'] = filter_var($data['remember'], FILTER_VALIDATE_BOOL);
+        }
+
+        if (isset($data['trust_device'])) {
+            $data['trust_device'] = filter_var($data['trust_device'], FILTER_VALIDATE_BOOL);
         }
 
         return $data;

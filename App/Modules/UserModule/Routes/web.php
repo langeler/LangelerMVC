@@ -23,6 +23,7 @@ return static function (Router $router): void {
     $router->post('/users/otp/enable', AuthController::class, 'enableOtp', ['as' => 'user.otp.enable', 'middleware' => $authMiddleware]);
     $router->post('/users/otp/verify', AuthController::class, 'verifyOtp', ['as' => 'user.otp.verify', 'middleware' => $authMiddleware]);
     $router->post('/users/otp/recovery-codes/regenerate', AuthController::class, 'regenerateOtpRecoveryCodes', ['as' => 'user.otp.recovery.regenerate', 'middleware' => $authMiddleware]);
+    $router->post('/users/otp/trusted-devices/revoke', AuthController::class, 'revokeTrustedDevices', ['as' => 'user.otp.trusted.revoke', 'middleware' => $authMiddleware]);
     $router->post('/users/otp/disable', AuthController::class, 'disableOtp', ['as' => 'user.otp.disable', 'middleware' => $authMiddleware]);
     $router->get('/users/profile', ProfileController::class, 'show', ['as' => 'user.profile', 'middleware' => $authMiddleware]);
     $router->post('/users/profile', ProfileController::class, 'update', ['as' => 'user.profile.update', 'middleware' => $authMiddleware]);
@@ -46,6 +47,7 @@ return static function (Router $router): void {
     $router->post('/api/users/otp/enable', AuthController::class, 'enableOtp', ['as' => 'api.user.otp.enable', 'middleware' => $authMiddleware]);
     $router->post('/api/users/otp/verify', AuthController::class, 'verifyOtp', ['as' => 'api.user.otp.verify', 'middleware' => $authMiddleware]);
     $router->post('/api/users/otp/recovery-codes/regenerate', AuthController::class, 'regenerateOtpRecoveryCodes', ['as' => 'api.user.otp.recovery.regenerate', 'middleware' => $authMiddleware]);
+    $router->post('/api/users/otp/trusted-devices/revoke', AuthController::class, 'revokeTrustedDevices', ['as' => 'api.user.otp.trusted.revoke', 'middleware' => $authMiddleware]);
     $router->post('/api/users/otp/disable', AuthController::class, 'disableOtp', ['as' => 'api.user.otp.disable', 'middleware' => $authMiddleware]);
     $router->post('/api/users/passkeys/register/options', PasskeyController::class, 'registrationOptions', ['as' => 'api.user.passkeys.register.options', 'middleware' => $authMiddleware]);
     $router->post('/api/users/passkeys/register/verify', PasskeyController::class, 'register', ['as' => 'api.user.passkeys.register.verify', 'middleware' => $authMiddleware]);

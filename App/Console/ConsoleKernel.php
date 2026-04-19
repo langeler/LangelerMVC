@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console;
 
+use App\Console\Commands\AuditListCommand;
 use App\Console\Commands\CacheClearCommand;
 use App\Console\Commands\ConfigShowCommand;
 use App\Console\Commands\EventListCommand;
+use App\Console\Commands\HealthCheckCommand;
 use App\Console\Commands\MigrateCommand;
 use App\Console\Commands\MigrateRollbackCommand;
 use App\Console\Commands\MigrateStatusCommand;
@@ -19,11 +21,12 @@ use App\Console\Commands\RouteListCommand;
 use App\Console\Commands\SeedCommand;
 use App\Contracts\Console\CommandInterface;
 use App\Utilities\Traits\ArrayTrait;
+use App\Utilities\Traits\CheckerTrait;
 use App\Utilities\Traits\ManipulationTrait;
 
 class ConsoleKernel
 {
-    use ArrayTrait, ManipulationTrait;
+    use ArrayTrait, CheckerTrait, ManipulationTrait;
 
     /**
      * @var array<string, CommandInterface>
@@ -31,6 +34,7 @@ class ConsoleKernel
     private array $commands = [];
 
     public function __construct(
+        AuditListCommand $auditList,
         MigrateCommand $migrate,
         MigrateStatusCommand $migrateStatus,
         MigrateRollbackCommand $migrateRollback,
@@ -39,6 +43,7 @@ class ConsoleKernel
         CacheClearCommand $cacheClear,
         ConfigShowCommand $configShow,
         ModuleListCommand $moduleList,
+        HealthCheckCommand $healthCheck,
         QueueWorkCommand $queueWork,
         QueueFailedCommand $queueFailed,
         QueueRetryCommand $queueRetry,
@@ -46,6 +51,7 @@ class ConsoleKernel
         NotificationListCommand $notificationList
     ) {
         foreach ([
+            $auditList,
             $migrate,
             $migrateStatus,
             $migrateRollback,
@@ -54,6 +60,7 @@ class ConsoleKernel
             $cacheClear,
             $configShow,
             $moduleList,
+            $healthCheck,
             $queueWork,
             $queueFailed,
             $queueRetry,

@@ -6,6 +6,7 @@ namespace App\Modules\OrderModule\Services;
 
 use App\Abstracts\Http\Service;
 use App\Contracts\Async\EventDispatcherInterface;
+use App\Contracts\Support\AuditLoggerInterface;
 use App\Core\Session;
 use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
@@ -42,7 +43,8 @@ class OrderService extends Service
         private readonly EventDispatcherInterface $events,
         private readonly AuthManager $auth,
         private readonly Session $session,
-        private readonly HttpSecurityManager $httpSecurity
+        private readonly HttpSecurityManager $httpSecurity,
+        private readonly AuditLoggerInterface $audit
     ) {
     }
 
@@ -166,6 +168,12 @@ class OrderService extends Service
         $this->events->dispatch('order.created', [
             'order_id' => (int) $order->getKey(),
         ]);
+        $this->audit->record('order.created', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'order_id' => (string) $order->getKey(),
+            'payment_status' => $payment->intent->status,
+            'total_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
+        ], 'order');
 
         return [
             ...$this->response('Order placed', 'The order has been created and payment authorized by the configured driver.', 201),
@@ -304,6 +312,12 @@ class OrderService extends Service
             default => 'order.cancelled',
         };
         $this->events->dispatch($event, ['order_id' => $orderId]);
+        $this->audit->record('order.' . $action, [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'order_id' => (string) $orderId,
+            'payment_status' => $result->intent->status,
+            'status' => $status,
+        ], 'order');
 
         return [
             ...$this->response('Order updated', ucfirst($action) . ' completed successfully.', 200),

@@ -23,6 +23,11 @@ class AdminPresenter extends Presenter
             'permissions' => is_array($data['permissions'] ?? null) ? $data['permissions'] : [],
             'modules' => is_array($data['modules'] ?? null) ? $data['modules'] : [],
             'system' => is_array($data['system'] ?? null) ? $data['system'] : [],
+            'catalog' => is_array($data['catalog'] ?? null) ? $data['catalog'] : [],
+            'categories' => is_array($data['categories'] ?? null) ? $data['categories'] : [],
+            'carts' => is_array($data['carts'] ?? null) ? $data['carts'] : [],
+            'orders' => is_array($data['orders'] ?? null) ? $data['orders'] : [],
+            'operations' => is_array($data['operations'] ?? null) ? $data['operations'] : [],
         ];
     }
 

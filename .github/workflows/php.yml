@@ -1,0 +1,89 @@
+name: LangelerMVC
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  default-regression:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, intl, dom, pdo_sqlite, sqlite3
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Validate composer metadata
+        run: composer validate --no-check-publish
+
+      - name: Run default regression suite
+        run: composer test
+
+  supported-db-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [mysql, pgsql]
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: langelermvc_test
+          MYSQL_ROOT_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: langelermvc_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d langelermvc_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, intl, dom, pdo_mysql, pdo_pgsql
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run supported DB-matrix target
+        env:
+          LANGELER_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=langelermvc_test
+          LANGELER_MYSQL_USER: root
+          LANGELER_MYSQL_PASSWORD: secret
+          LANGELER_PGSQL_DSN: pgsql:host=127.0.0.1;port=5432;dbname=langelermvc_test
+          LANGELER_PGSQL_USER: postgres
+          LANGELER_PGSQL_PASSWORD: secret
+        run: composer test:${{ matrix.target }}

@@ -6,6 +6,8 @@ namespace App\Modules\AdminModule\Services;
 
 use App\Abstracts\Http\Service;
 use App\Contracts\Async\EventDispatcherInterface;
+use App\Contracts\Support\AuditLoggerInterface;
+use App\Contracts\Support\HealthManagerInterface;
 use App\Core\Config;
 use App\Core\Router;
 use App\Modules\CartModule\Models\Cart;
@@ -56,6 +58,8 @@ class AdminAccessService extends Service
         private readonly NotificationManager $notifications,
         private readonly PaymentManager $payments,
         private readonly EventDispatcherInterface $events,
+        private readonly HealthManagerInterface $health,
+        private readonly AuditLoggerInterface $audit,
         private readonly Router $router,
         private readonly Config $config
     ) {
@@ -108,6 +112,7 @@ class AdminAccessService extends Service
                 'carts' => $this->carts->count([]),
                 'orders' => $this->orders->count([]),
                 'failed_jobs' => count($this->queue->failed()),
+                'audit_events' => (int) ($this->audit->summary()['stored'] ?? 0),
             ],
             'users' => array_slice($this->users->allWithRoles(), 0, 5),
             'roles' => array_slice($this->roles->allWithPermissions(), 0, 5),
@@ -159,6 +164,11 @@ class AdminAccessService extends Service
         }
 
         $this->users->syncRoles($userId, $roleIds);
+        $this->audit->record('admin.user.roles.synced', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'user_id' => (string) $userId,
+            'roles' => $roleIds,
+        ], 'admin');
 
         return [
             'template' => 'AdminUsers',
@@ -224,6 +234,11 @@ class AdminAccessService extends Service
         }
 
         $this->roles->syncPermissions($roleId, $permissionIds);
+        $this->audit->record('admin.role.permissions.synced', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'role_id' => (string) $roleId,
+            'permissions' => $permissionIds,
+        ], 'admin');
 
         return [
             'template' => 'AdminRoles',
@@ -278,6 +293,8 @@ class AdminAccessService extends Service
                     'drivers' => $this->payments->availableDrivers(),
                     'capabilities' => $this->payments->capabilities(),
                 ],
+                'health' => $this->health->report(),
+                'audit' => $this->audit->summary(),
                 'routes' => $this->router->listRoutes(),
             ],
         ];
@@ -364,6 +381,11 @@ class AdminAccessService extends Service
                     'driver' => $this->payments->driverName(),
                     'drivers' => $this->payments->availableDrivers(),
                     'capabilities' => $this->payments->capabilities(),
+                ],
+                'health' => $this->health->report(),
+                'audit' => [
+                    'summary' => $this->audit->summary(),
+                    'recent' => $this->audit->recent(15),
                 ],
             ],
         ];

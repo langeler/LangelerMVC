@@ -2,6 +2,14 @@
 
 This document covers the framework-native operational surfaces that are now part of LangelerMVC itself rather than being left to application-local conventions.
 
+## First-Run Installation
+
+LangelerMVC now ships with a browser-based installation wizard at `Public/install/index.php`.
+
+- When `APP_INSTALLED=false`, `App\Core\Bootstrap` redirects normal HTTP traffic into the installer automatically.
+- The installer prepares storage paths, validates database connectivity, writes `.env`, runs migrations + seeds, and provisions the first administrator account.
+- Manual `.env` editing is still supported, but the intended production-first setup path is now the installer rather than hand-editing config files before first boot.
+
 ## Health Endpoints
 
 LangelerMVC now exposes built-in health endpoints through `App\Core\App`:

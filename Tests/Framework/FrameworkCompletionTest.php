@@ -394,6 +394,21 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('database', $page['page']['source']);
     }
 
+    public function testWebModuleFallsBackCleanlyBeforePagesTableExists(): void
+    {
+        $database = $this->makeSqliteDatabase();
+        $service = new PageService(
+            new PageRepository($database),
+            $this->makeConfig(),
+            new ErrorManager(new ExceptionProvider())
+        );
+
+        $page = $service->forSlug('home')->execute();
+
+        self::assertSame('memory', $page['page']['source']);
+        self::assertSame('LangelerMVC is running.', $page['page']['headline']);
+    }
+
     public function testAuthEventsMergeGuestCartAndOrderLifecycleQueuesNotifications(): void
     {
         $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);

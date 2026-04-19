@@ -17,6 +17,24 @@ use ReflectionMethod;
 
 class BackendArchitectureTest extends TestCase
 {
+    private array $directoriesToDelete = [];
+
+    protected function tearDown(): void
+    {
+        foreach (array_reverse($this->directoriesToDelete) as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+                continue;
+            }
+
+            if (is_dir($path)) {
+                @rmdir($path);
+            }
+        }
+
+        $this->directoriesToDelete = [];
+    }
+
     public function testApplicationPathTraitResolvesFrameworkBaseAndStoragePaths(): void
     {
         $paths = new class {
@@ -51,6 +69,46 @@ class BackendArchitectureTest extends TestCase
         };
 
         self::assertSame(realpath(dirname(__DIR__, 2)), $finder->rootPath());
+    }
+
+    public function testFinderDeterminesProjectRootWithoutEnvMarker(): void
+    {
+        $temporaryRoot = sys_get_temp_dir() . '/langelermvc-finder-' . bin2hex(random_bytes(4));
+
+        foreach ([
+            $temporaryRoot,
+            $temporaryRoot . '/App',
+            $temporaryRoot . '/Config',
+            $temporaryRoot . '/Public',
+        ] as $path) {
+            mkdir($path, 0777, true);
+            $this->directoriesToDelete[] = $path;
+        }
+
+        file_put_contents($temporaryRoot . '/composer.json', '{}');
+        $this->directoriesToDelete[] = $temporaryRoot . '/composer.json';
+
+        $finder = new class(new IteratorManager(), $temporaryRoot) extends FileFinder {
+            public function __construct(IteratorManager $iteratorManager, private readonly string $basePath)
+            {
+                parent::__construct($iteratorManager);
+            }
+
+            protected function frameworkBasePath(): string
+            {
+                return $this->basePath;
+            }
+
+            public function rootPath(): ?string
+            {
+                return $this->root;
+            }
+        };
+
+        self::assertSame(
+            realpath($temporaryRoot) ?: $temporaryRoot,
+            realpath((string) $finder->rootPath()) ?: (string) $finder->rootPath()
+        );
     }
 
     public function testSessionManagerResolvesRelativeSavePathAgainstFrameworkBasePath(): void

@@ -6,8 +6,13 @@ namespace Tests\Framework;
 
 use App\Contracts\Http\ResponseInterface;
 use App\Core\Database;
+use App\Core\MigrationRunner;
 use App\Core\Router;
+use App\Core\SeedRunner;
 use App\Providers\CoreProvider;
+use App\Providers\ExceptionProvider;
+use App\Utilities\Managers\Data\ModuleManager;
+use App\Utilities\Managers\System\ErrorManager;
 use PHPUnit\Framework\TestCase;
 
 class RouterTest extends TestCase
@@ -104,6 +109,58 @@ class RouterTest extends TestCase
         self::assertContains('user.login', $names);
         self::assertContains('user.profile', $names);
         self::assertContains('admin.dashboard', $names);
+        self::assertContains('shop.index', $names);
+        self::assertContains('cart.show', $names);
+        self::assertContains('orders.checkout.form', $names);
+    }
+
+    public function testRouterDispatchesPublicUserFacingHtmlRoutes(): void
+    {
+        $router = $this->resolveRouter();
+
+        foreach (['/users/login', '/users/register', '/users/password/forgot'] as $path) {
+            $response = $router->dispatch($path, 'GET');
+
+            self::assertInstanceOf(ResponseInterface::class, $response);
+            self::assertSame(200, $response->getStatus(), sprintf('Expected [%s] to return 200.', $path));
+            self::assertStringContainsString('<html', $response->toArray()['content'], sprintf('Expected [%s] to render HTML.', $path));
+        }
+    }
+
+    public function testRouterDispatchesStorefrontCartAndCheckoutHtmlRoutes(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+
+        $database = $provider->getCoreService('database');
+        $modules = $provider->resolveClass(ModuleManager::class);
+
+        self::assertInstanceOf(Database::class, $database);
+        self::assertInstanceOf(ModuleManager::class, $modules);
+
+        $errors = new ErrorManager(new ExceptionProvider());
+
+        $database->query('DROP TABLE IF EXISTS pages');
+
+        (new MigrationRunner($database, $modules, $errors))->migrate();
+        (new SeedRunner($database, $modules, $errors))->run();
+
+        $router = $provider->getCoreService('router');
+
+        self::assertInstanceOf(Router::class, $router);
+
+        foreach ([
+            '/shop',
+            '/shop/products/starter-platform-license',
+            '/cart',
+            '/orders/checkout',
+        ] as $path) {
+            $response = $router->dispatch($path, 'GET');
+
+            self::assertInstanceOf(ResponseInterface::class, $response);
+            self::assertSame(200, $response->getStatus(), sprintf('Expected [%s] to return 200.', $path));
+            self::assertStringContainsString('<html', $response->toArray()['content'], sprintf('Expected [%s] to render HTML.', $path));
+        }
     }
 
     private function resolveRouter(): Router

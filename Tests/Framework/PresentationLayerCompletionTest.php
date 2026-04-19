@@ -42,19 +42,19 @@ class PresentationLayerCompletionTest extends TestCase
     public function testViewSupportsDefaultLayoutsSharedTemplateHelpersAndTemplateLookup(): void
     {
         $projectRoot = dirname(__DIR__, 2);
-        $layoutPath = $projectRoot . '/App/Templates/Layouts/CodexPresentationLayout.php';
-        $pagePath = $projectRoot . '/App/Templates/Pages/CodexPresentationPage.php';
-        $partialPath = $projectRoot . '/App/Templates/Partials/CodexPresentationMessage.php';
-        $componentPath = $projectRoot . '/App/Templates/Components/CodexPresentationList.php';
+        $layoutPath = $projectRoot . '/App/Templates/Layouts/CodexPresentationLayout.vide';
+        $pagePath = $projectRoot . '/App/Templates/Pages/CodexPresentationPage.vide';
+        $partialPath = $projectRoot . '/App/Templates/Partials/CodexPresentationMessage.vide';
+        $componentPath = $projectRoot . '/App/Templates/Components/CodexPresentationList.vide';
 
-        file_put_contents($layoutPath, '<article><?= $content ?? "" ?></article>');
-        file_put_contents($partialPath, '<p><?= $view->escape((string) ($message ?? "")) ?></p>');
-        file_put_contents($componentPath, '<ul><?php foreach (($items ?? []) as $item): ?><li><?= $view->escape($item) ?></li><?php endforeach; ?></ul>');
+        file_put_contents($layoutPath, '<article>{!! $content ?? "" !!}</article>');
+        file_put_contents($partialPath, '<p>{{ (string) ($message ?? "") }}</p>');
+        file_put_contents($componentPath, '@php $listItems = $items ?? []; @endphp<ul>@foreach($listItems as $item)<li>{{ $item }}</li>@endforeach</ul>');
         file_put_contents(
             $pagePath,
-            '<?= $view->renderPartial("CodexPresentationMessage", ["message" => $shared ?? ""]) ?>'
-            . '<h1><?= $view->escape((string) ($name ?? "")) ?></h1>'
-            . '<?= $view->renderComponent("CodexPresentationList", ["items" => ["alpha", "beta"]]) ?>'
+            '@include("CodexPresentationMessage", ["message" => $shared ?? ""])'
+            . '<h1>{{ (string) ($name ?? "") }}</h1>'
+            . '@component("CodexPresentationList", ["items" => ["alpha", "beta"]])'
         );
 
         $this->pathsToDelete = [$layoutPath, $pagePath, $partialPath, $componentPath];

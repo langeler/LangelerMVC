@@ -211,7 +211,7 @@ Current concrete state:
 - `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
 - `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
 - `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, payment-state handling, reconciliation hooks, and lifecycle notifications.
-- Shared templates currently live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components`.
+- Shared templates now live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components` with `.vide` as the canonical native template extension. `.lmv` and `.php` remain supported as compatibility fallbacks.
 
 This means the framework now has both a completed platform base and a real first-party application surface exercising it.
 

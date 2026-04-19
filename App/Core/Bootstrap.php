@@ -54,8 +54,8 @@ class Bootstrap
     {
         $this->registerPaths();
         $this->configureRuntimeDefaults();
-        $this->redirectToInstallerIfNeeded();
         $this->loadEnvironment();
+        $this->redirectToInstallerIfNeeded();
 
         return new CoreProvider();
     }
@@ -89,14 +89,24 @@ class Bootstrap
             return;
         }
 
-        $installerDirectory = $this->publicPath . DIRECTORY_SEPARATOR . 'install';
+        $installerScript = $this->publicPath . DIRECTORY_SEPARATOR . 'install' . DIRECTORY_SEPARATOR . 'index.php';
 
-        if (!is_dir($installerDirectory)) {
+        if (!is_file($installerScript)) {
             return;
         }
 
-        header('Location: ' . $this->buildInstallerUrl());
-        exit;
+        $installerRequest = $this->isInstallerRequest();
+        $installed = $this->isApplicationInstalled();
+
+        if (!$installed && !$installerRequest) {
+            header('Location: ' . $this->buildInstallerUrl());
+            exit;
+        }
+
+        if ($installed && $installerRequest) {
+            header('Location: ' . $this->buildApplicationUrl());
+            exit;
+        }
     }
 
     private function loadEnvironment(): void
@@ -121,6 +131,24 @@ class Bootstrap
         return ($normalizedDirectory !== '' ? '/' . $normalizedDirectory : '') . '/install/index.php';
     }
 
+    private function buildApplicationUrl(): string
+    {
+        $scriptDirectory = dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'));
+        $normalizedDirectory = $this->trimString(
+            $this->replaceText('\\', '/', $scriptDirectory),
+            '/'
+        );
+
+        if ($this->endsWith($normalizedDirectory, '/install')) {
+            $normalizedDirectory = $this->trimString(
+                (string) ($this->replaceByPattern('#/install$#', '', $normalizedDirectory) ?? $normalizedDirectory),
+                '/'
+            );
+        }
+
+        return ($normalizedDirectory !== '' ? '/' . $normalizedDirectory : '') . '/';
+    }
+
     private function definePathConstant(string $name, string $value): void
     {
         if (!defined($name)) {
@@ -142,5 +170,23 @@ class Bootstrap
     private function isHttpContext(): bool
     {
         return PHP_SAPI !== 'cli' && PHP_SAPI !== 'phpdbg';
+    }
+
+    private function isInstallerRequest(): bool
+    {
+        $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+        $path = parse_url($uri, PHP_URL_PATH);
+
+        return is_string($path) && str_contains($path, '/install');
+    }
+
+    private function isApplicationInstalled(): bool
+    {
+        $value = $_ENV['APP_INSTALLED']
+            ?? $_SERVER['APP_INSTALLED']
+            ?? getenv('APP_INSTALLED')
+            ?? false;
+
+        return filter_var($value, FILTER_VALIDATE_BOOL);
     }
 }

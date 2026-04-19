@@ -82,7 +82,7 @@ abstract class Finder
     {
         // Define required files and directories as markers for identifying the project root
         $this->markers = [
-            'files' => ['composer.json', '.env', 'composer.lock'],
+            'files' => ['composer.json'],
             'directories' => ['App', 'Config', 'Public'],
         ];
 

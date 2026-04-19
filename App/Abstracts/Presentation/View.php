@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Presentation;
 
+use App\Contracts\Presentation\TemplateEngineInterface;
 use App\Contracts\Presentation\ViewInterface;
 use App\Exceptions\Data\FinderException;
 use App\Exceptions\Presentation\ViewException;
@@ -11,6 +12,7 @@ use App\Utilities\Finders\DirectoryFinder;
 use App\Utilities\Finders\FileFinder;
 use App\Utilities\Managers\CacheManager;
 use App\Utilities\Managers\FileManager;
+use App\Utilities\Managers\Presentation\TemplateEngine;
 use App\Utilities\Sanitation\PatternSanitizer;
 use App\Utilities\Traits\ApplicationPathTrait;
 use App\Utilities\Traits\ArrayTrait;
@@ -43,9 +45,11 @@ abstract class View implements ViewInterface
 	protected string $resourceExt = 'php';
 	protected string $theme = 'default';
 	protected ?string $defaultLayout = null;
+	protected array $templateExtensions = ['vide', 'lmv', 'php'];
 
 	private string $resourcesPath;
 	private string $templatesPath;
+    private TemplateEngineInterface $templateEngine;
 
 	/**
 	 * @var array<string, string>
@@ -58,10 +62,12 @@ abstract class View implements ViewInterface
 		private CacheManager $cache,
 		private FileManager $fileManager,
 		private PatternSanitizer $sanitizer,
-		private PatternValidator $validator
+		private PatternValidator $validator,
+        ?TemplateEngineInterface $templateEngine = null
 	) {
 		$this->resourcesPath = $this->resolveBasePath('Resources');
 		$this->templatesPath = $this->resolveBasePath('Templates');
+        $this->templateEngine = $templateEngine ?? new TemplateEngine($this->fileManager);
 	}
 
 	public function setDefaultLayout(string $layout): static
@@ -242,12 +248,13 @@ abstract class View implements ViewInterface
 		return $this->wrapInTry(function () use ($path, $data): string {
 			$variables = $this->replaceElements($this->globals, $data);
 			$view = $this;
+            $renderPath = $this->templateEngine->resolveRenderablePath($path);
 
 			ob_start();
 
 			try {
 				extract($variables, EXTR_SKIP);
-				$result = include $path;
+				$result = include $renderPath;
 			} catch (\Throwable $exception) {
 				ob_end_clean();
 				throw $exception;
@@ -310,7 +317,7 @@ abstract class View implements ViewInterface
 			'component' => $this->resolveDirectory($this->templatesPath, 'Components', 'Template'),
 		};
 
-		return $this->resolveFilePath($directory, $template, $this->templateExt, $normalizedType);
+		return $this->resolveTemplateFilePath($directory, $template, $normalizedType);
 	}
 
 	private function resolveFilePath(string $basePath, string $fileName, ?string $ext = null, string $label = 'file'): string
@@ -335,6 +342,41 @@ abstract class View implements ViewInterface
 
 		return $this->resolvedPaths[$cacheKey];
 	}
+
+    private function resolveTemplateFilePath(string $basePath, string $fileName, string $label): string
+    {
+        $normalizedName = $this->normalizeTemplateName($fileName, $label);
+        $extensions = array_values(array_unique(array_filter(
+            $this->templateExtensions(),
+            static fn(string $extension): bool => $extension !== ''
+        )));
+
+        foreach ($extensions as $extension) {
+            $path = $basePath . DIRECTORY_SEPARATOR . $normalizedName . '.' . $extension;
+
+            if ($this->fileManager->fileExists($path)) {
+                return $this->normalizePath($path);
+            }
+        }
+
+        throw new FinderException(
+            ucfirst($label) . " '{$normalizedName}' not found in '{$basePath}'."
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function templateExtensions(): array
+    {
+        $configured = $this->templateExtensions;
+
+        if ($this->templateExt !== '' && !in_array($this->templateExt, $configured, true)) {
+            $configured[] = $this->templateExt;
+        }
+
+        return $configured;
+    }
 
 	private function normalizeTemplateType(string $type): string
 	{

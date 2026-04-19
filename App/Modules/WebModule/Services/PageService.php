@@ -57,6 +57,10 @@ class PageService extends Service
             return $this->defaultPage($slug);
         }
 
+        if (!$this->pages->tableExists()) {
+            return $this->defaultPage($slug);
+        }
+
         try {
             $page = $this->pages->findOneBy([
                 'slug' => $slug,

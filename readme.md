@@ -27,7 +27,7 @@ As of `2026-04-19`:
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
-- The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
+- The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, a framework-native `.vide` template engine, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, trusted-device support, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
 - `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, runtime health/readiness, and audit-aware operations visibility.
@@ -69,7 +69,7 @@ In the current starter slice, `WebModule` follows:
 - `Modules/`: application modules. `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party slices.
 - `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, queueing, exceptions, and modules.
 - `Resources/`: source asset workspace that belongs to the application layer.
-- `Templates/`: shared PHP template files used by module views, including layouts, pages, partials, and reusable components.
+- `Templates/`: shared native `.vide` template files used by module views, including layouts, pages, partials, and reusable components. `.lmv` and `.php` remain readable as compatibility fallbacks.
 - `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
 
 ### Other Root Folders
@@ -78,6 +78,7 @@ In the current starter slice, `WebModule` follows:
 - `Data/`: standalone SQL reference files kept as reference material beside the framework-managed migration system.
 - `Docs/`: current architecture and structure docs, plus older reference materials kept in the repository.
 - `Public/`: the public document root, front controller, Apache config, and public asset folders, including tracked storefront demo imagery.
+- `Public/install/index.php`: the installer entrypoint for first-run setup.
 - `console`: the first-party CLI entrypoint for operational framework commands.
 - `Services/`: workspace for cross-application service composition outside a specific module.
 - `Storage/`: cache, logs, secure keys, sessions, and uploads.
@@ -99,10 +100,21 @@ For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Do
 git clone https://github.com/langeler/LangelerMVC.git
 cd LangelerMVC
 composer install
-cp .env.example .env
+php -S 127.0.0.1:8000 -t Public Public/index.php
 ```
 
-Adjust `.env` values as needed for your environment. The framework can boot without a live database connection, but database-backed modules will of course require valid DB settings.
+Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). If the framework is not installed yet, `App\Core\Bootstrap` automatically redirects to the built-in installation wizard at `/install/index.php`.
+
+The installer wizard now handles:
+
+- application name, URL, locale, and runtime defaults
+- database driver and connection setup
+- storage preparation
+- migration + seed execution
+- administrator provisioning
+- default database-backed `WebModule` setup
+
+Manual `.env` editing is still supported, and `.env.example` remains the tracked baseline, but the intended production-first setup path is now the installer wizard rather than editing config files before first boot.
 
 ## Running The Project
 
@@ -111,6 +123,8 @@ Adjust `.env` values as needed for your environment. The framework can boot with
 ```bash
 php -S 127.0.0.1:8000 -t Public Public/index.php
 ```
+
+If the application is not installed yet, the first request opens the installer wizard automatically.
 
 ### Apache
 

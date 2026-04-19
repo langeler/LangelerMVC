@@ -25,11 +25,11 @@ class OrderController extends Controller
     public function __construct(
         private readonly OrderRequest $orderRequest,
         OrderResponse $response,
-        private readonly OrderService $service,
+        private readonly OrderService $orderService,
         OrderPresenter $presenter,
         OrderView $view
     ) {
-        parent::__construct($orderRequest, $response, $service, $presenter, $view);
+        parent::__construct($orderRequest, $response, $orderService, $presenter, $view);
     }
 
     public function checkoutForm(): ResponseInterface
@@ -96,7 +96,7 @@ class OrderController extends Controller
 
     protected function execute(): mixed
     {
-        return $this->service->forAction($this->action, $this->request->all(), $this->context)->execute();
+        return $this->orderService->forAction($this->action, $this->request->all(), $this->context)->execute();
     }
 
     protected function finalize(mixed $result): ResponseInterface

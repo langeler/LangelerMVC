@@ -25,11 +25,11 @@ class CartController extends Controller
     public function __construct(
         private readonly CartRequest $cartRequest,
         CartResponse $response,
-        private readonly CartService $service,
+        private readonly CartService $cartService,
         CartPresenter $presenter,
         CartView $view
     ) {
-        parent::__construct($cartRequest, $response, $service, $presenter, $view);
+        parent::__construct($cartRequest, $response, $cartService, $presenter, $view);
     }
 
     public function show(): ResponseInterface
@@ -66,7 +66,7 @@ class CartController extends Controller
 
     protected function execute(): mixed
     {
-        return $this->service->forAction($this->action, $this->request->all(), $this->context)->execute();
+        return $this->cartService->forAction($this->action, $this->request->all(), $this->context)->execute();
     }
 
     protected function finalize(mixed $result): ResponseInterface

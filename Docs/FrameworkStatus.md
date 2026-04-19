@@ -39,6 +39,7 @@ This document records the current implementation state of LangelerMVC based on t
 - presenter abstraction with export helpers
 - resource and resource-collection abstractions with meta/links/pagination support
 - view abstraction with shared layout/page/partial/component rendering
+- framework-native `.vide` template engine with `.lmv` and `.php` compatibility fallbacks
 - HTML + JSON negotiation through one controller pipeline
 
 ### Validation And Sanitization
@@ -132,6 +133,7 @@ This document records the current implementation state of LangelerMVC based on t
 - composer scripts for regression, DB-matrix, health inspection, audit inspection, and platform verification
 - local backend verification stack through `docker-compose.verify.yml`
 - GitHub Actions workflow for default regression plus supported DB-matrix execution
+- first-run installer wizard through `Public/install/index.php` with bootstrap redirect handling and guided environment/database/admin provisioning
 
 ### `ShopModule`
 

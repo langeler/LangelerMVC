@@ -303,11 +303,23 @@ public function __construct(
              );
          }
 
-         if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
-             return $this->reflectionManager->getParameterDefaultValue($parameter);
-         }
+         try {
+             return $this->resolveInstance($type->getName());
+         } catch (\Throwable $exception) {
+             if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+                 return $this->reflectionManager->getParameterDefaultValue($parameter);
+             }
 
-         return $this->resolveInstance($type->getName());
+             if ($type->allowsNull()) {
+                 return null;
+             }
+
+             throw new ContainerException(
+                 "Cannot resolve parameter [{$this->reflectionManager->getParameterName($parameter)}].",
+                 0,
+                 $exception
+             );
+         }
      }
 
      /**
@@ -319,16 +331,20 @@ public function __construct(
       */
      protected function resolveUnionParameter(ReflectionParameter $parameter, ReflectionUnionType $type): mixed
      {
-         if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
-             return $this->reflectionManager->getParameterDefaultValue($parameter);
-         }
-
          foreach ($type->getTypes() as $namedType) {
              if (!$namedType instanceof ReflectionNamedType || $this->reflectionManager->isBuiltinType($namedType)) {
                  continue;
              }
 
-             return $this->resolveInstance($namedType->getName());
+             try {
+                 return $this->resolveInstance($namedType->getName());
+             } catch (\Throwable) {
+                 continue;
+             }
+         }
+
+         if ($this->reflectionManager->isParameterDefaultValueAvailable($parameter)) {
+             return $this->reflectionManager->getParameterDefaultValue($parameter);
          }
 
          if ($type->allowsNull()) {

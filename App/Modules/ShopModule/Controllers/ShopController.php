@@ -25,11 +25,11 @@ class ShopController extends Controller
     public function __construct(
         private readonly ShopRequest $shopRequest,
         ShopResponse $response,
-        private readonly CatalogService $service,
+        private readonly CatalogService $catalogService,
         ShopPresenter $presenter,
         ShopView $view
     ) {
-        parent::__construct($shopRequest, $response, $service, $presenter, $view);
+        parent::__construct($shopRequest, $response, $catalogService, $presenter, $view);
     }
 
     public function index(): ResponseInterface
@@ -52,7 +52,7 @@ class ShopController extends Controller
 
     protected function execute(): mixed
     {
-        return $this->service->forAction($this->action, $this->context)->execute();
+        return $this->catalogService->forAction($this->action, $this->context)->execute();
     }
 
     protected function finalize(mixed $result): ResponseInterface

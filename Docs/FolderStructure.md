@@ -111,14 +111,16 @@ Source asset workspace that belongs to the application layer rather than the pub
 
 ### `App/Templates`
 
-Shared PHP templates used by concrete view classes. The framework now uses:
+Shared native `.vide` templates used by concrete view classes. The framework now uses:
 
-- `Layouts/WebShell.php`
-- `Layouts/UserShell.php`
-- `Layouts/AdminShell.php`
+- `Layouts/WebShell.vide`
+- `Layouts/UserShell.vide`
+- `Layouts/AdminShell.vide`
 - module pages under `Pages/`
 - reusable shared fragments under `Partials/`
 - reusable shared building blocks under `Components/`
+
+`.lmv` and `.php` templates remain supported as compatibility fallbacks, but `.vide` is now the canonical framework-native presentation surface.
 
 ### `App/Utilities`
 

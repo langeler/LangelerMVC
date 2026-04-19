@@ -27,7 +27,7 @@ This structure is intentionally repeated across modules so the application layer
 - `App\Providers\ModuleProvider` registers module classes and aliases them for container resolution.
 - `App\Core\Router` loads route files from module `Routes/` folders and dispatches controller actions from there.
 
-Shared templates currently live in `App/Templates`, so modules can use a common presentation surface with shared layouts, partials, and components without duplicating markup primitives across modules.
+Shared templates currently live in `App/Templates`, so modules can use a common presentation surface with shared layouts, partials, and components without duplicating markup primitives across modules. `.vide` is now the canonical native template extension for that shared layer.
 
 ## Current Module Status
 
@@ -56,11 +56,11 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 
 It currently renders starter content through shared templates:
 
-- `App/Templates/Layouts/WebShell.php`
-- `App/Templates/Pages/Home.php`
-- `App/Templates/Pages/NotFound.php`
-- `App/Templates/Partials/PageIntro.php`
-- `App/Templates/Components/BadgeList.php`
+- `App/Templates/Layouts/WebShell.vide`
+- `App/Templates/Pages/Home.vide`
+- `App/Templates/Pages/NotFound.vide`
+- `App/Templates/Partials/PageIntro.vide`
+- `App/Templates/Components/BadgeList.vide`
 
 By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=database`. The seeded `pages` table is now the normal starter path, while memory-backed content remains an explicit fallback/testing mode.
 

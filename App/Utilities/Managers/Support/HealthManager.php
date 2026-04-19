@@ -112,6 +112,8 @@ class HealthManager implements HealthManagerInterface
             'payments' => [
                 'driver' => $this->payments->driverName(),
                 'drivers' => $this->payments->availableDrivers(),
+                'methods' => $this->payments->supportedMethods(),
+                'flows' => $this->payments->supportedFlows(),
                 'capabilities' => $this->payments->capabilities(),
             ],
             'mail' => [
@@ -227,6 +229,8 @@ class HealthManager implements HealthManagerInterface
         return [
             'ok' => $this->payments->availableDrivers() !== [],
             'driver' => $this->payments->driverName(),
+            'methods' => $this->payments->supportedMethods(),
+            'flows' => $this->payments->supportedFlows(),
         ];
     }
 

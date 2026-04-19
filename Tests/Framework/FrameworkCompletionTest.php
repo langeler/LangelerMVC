@@ -426,6 +426,8 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame(201, $checkout['status']);
         self::assertSame('placed', $checkout['order']['status']);
+        self::assertSame('card', $checkout['order']['payment_method']);
+        self::assertSame('authorize_capture', $checkout['order']['payment_flow']);
         self::assertSame(1, count($stack['queue']->pending('notifications')));
 
         while ($stack['queue']->work('notifications', 1) > 0) {
@@ -437,6 +439,86 @@ final class FrameworkCompletionTest extends TestCase
         $orderJson = (new OrderResource($checkout))->toArray();
         self::assertSame('OrderModule', $orderJson['meta']['module']);
         self::assertSame('placed', $orderJson['data']['order']['status']);
+    }
+
+    public function testPaymentCompatibilitySurfaceSupportsRedirectReconciliationAndIdempotentCheckout(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        self::assertContains('wallet', $stack['payments']->supportedMethods());
+        self::assertContains('redirect', $stack['payments']->supportedFlows());
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'payment_method' => 'wallet',
+            'payment_flow' => 'redirect',
+            'idempotency_key' => 'checkout-wallet-demo-0001',
+        ])->execute();
+
+        self::assertSame(202, $checkout['status']);
+        self::assertSame('awaiting_payment_action', $checkout['order']['status']);
+        self::assertSame('wallet', $checkout['order']['payment_method']);
+        self::assertSame('redirect', $checkout['order']['payment_flow']);
+        self::assertTrue((bool) ($checkout['order']['payment_customer_action_required'] ?? false));
+        self::assertSame('redirect', $checkout['order']['payment_next_action']['type'] ?? null);
+
+        $duplicate = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'payment_method' => 'wallet',
+            'payment_flow' => 'redirect',
+            'idempotency_key' => 'checkout-wallet-demo-0001',
+        ])->execute();
+
+        self::assertSame(200, $duplicate['status']);
+        self::assertSame($checkout['order']['id'], $duplicate['order']['id']);
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $reconciled = $stack['orderService']->forAction('reconcile', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $reconciled['status']);
+        self::assertSame('authorized', $reconciled['order']['payment_status']);
+        self::assertSame('placed', $reconciled['order']['status']);
+        self::assertSame([], $reconciled['order']['payment_next_action']);
+
+        $captured = $stack['orderService']->forAction('capture', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $captured['status']);
+        self::assertSame('captured', $captured['order']['payment_status']);
+        self::assertSame('processing', $captured['order']['status']);
+
+        while ($stack['queue']->work('notifications', 1) > 0) {
+        }
+
+        self::assertGreaterThanOrEqual(2, count($stack['notifications']->databaseNotifications()));
+        self::assertGreaterThanOrEqual(2, count($stack['mail']->outbox()));
     }
 
     public function testAdminAndCommerceSurfacesExposeCompletedHtmlAndJsonParity(): void
@@ -479,6 +561,8 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('health', $operations['operations']);
         self::assertArrayHasKey('audit', $operations['operations']);
         self::assertArrayHasKey('payments', $adminJson['data']['operations']);
+        self::assertArrayHasKey('methods', $operations['operations']['payments']);
+        self::assertArrayHasKey('flows', $operations['operations']['payments']);
     }
 
     public function testShopSeededCatalogMediaPointsToTrackedPublicAssets(): void

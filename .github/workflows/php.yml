@@ -17,7 +17,7 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
-          extensions: mbstring, intl, dom, pdo_sqlite, sqlite3
+          extensions: ctype, dom, filter, iconv, intl, mbstring, openssl, pdo_sqlite, sqlite3, tokenizer, xml, xmlwriter
           tools: composer:v2
 
       - name: Install dependencies
@@ -25,6 +25,9 @@ jobs:
 
       - name: Validate composer metadata
         run: composer validate --no-check-publish
+
+      - name: Check platform requirements
+        run: composer check-platform-reqs
 
       - name: Run default regression suite
         run: composer test
@@ -43,7 +46,7 @@ jobs:
           MYSQL_DATABASE: langelermvc_test
           MYSQL_ROOT_PASSWORD: secret
         ports:
-          - 3306:3306
+          - 3307:3306
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret"
           --health-interval=10s
@@ -56,7 +59,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: secret
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd="pg_isready -U postgres -d langelermvc_test"
           --health-interval=10s
@@ -72,18 +75,97 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
-          extensions: mbstring, intl, dom, pdo_mysql, pdo_pgsql
+          extensions: ctype, dom, filter, iconv, intl, mbstring, openssl, pdo_mysql, pdo_pgsql, tokenizer, xml, xmlwriter
           tools: composer:v2
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run supported DB-matrix target
+      - name: Validate composer metadata
+        run: composer validate --no-check-publish
+
+      - name: Check platform requirements
+        run: composer check-platform-reqs
+
+      - name: Print selected DB target
+        run: |
+          echo "DB matrix target: ${{ matrix.target }}"
+          php -r 'echo "PHP=", PHP_VERSION, PHP_EOL; echo "Extensions=", implode(",", get_loaded_extensions()), PHP_EOL;'
+
+      - name: Wait for MySQL service
+        if: matrix.target == 'mysql'
         env:
-          LANGELER_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=langelermvc_test
+          LANGELER_MYSQL_DSN: mysql:host=127.0.0.1;port=3307;dbname=langelermvc_test
           LANGELER_MYSQL_USER: root
           LANGELER_MYSQL_PASSWORD: secret
-          LANGELER_PGSQL_DSN: pgsql:host=127.0.0.1;port=5432;dbname=langelermvc_test
+        run: |
+          php -r '
+          $dsn = getenv("LANGELER_MYSQL_DSN");
+          $user = getenv("LANGELER_MYSQL_USER");
+          $password = getenv("LANGELER_MYSQL_PASSWORD");
+          for ($attempt = 1; $attempt <= 30; $attempt++) {
+              try {
+                  new PDO($dsn, $user, $password);
+                  fwrite(STDOUT, "MySQL ready on attempt {$attempt}\n");
+                  exit(0);
+              } catch (Throwable $exception) {
+                  fwrite(STDOUT, "Waiting for MySQL ({$attempt}/30): " . $exception->getMessage() . "\n");
+                  sleep(2);
+              }
+          }
+          fwrite(STDERR, "MySQL did not become ready in time.\n");
+          exit(1);
+          '
+
+      - name: Wait for PostgreSQL service
+        if: matrix.target == 'pgsql'
+        env:
+          LANGELER_PGSQL_DSN: pgsql:host=127.0.0.1;port=5433;dbname=langelermvc_test
+          LANGELER_PGSQL_USER: postgres
+          LANGELER_PGSQL_PASSWORD: secret
+        run: |
+          php -r '
+          $dsn = getenv("LANGELER_PGSQL_DSN");
+          $user = getenv("LANGELER_PGSQL_USER");
+          $password = getenv("LANGELER_PGSQL_PASSWORD");
+          for ($attempt = 1; $attempt <= 30; $attempt++) {
+              try {
+                  new PDO($dsn, $user, $password);
+                  fwrite(STDOUT, "PostgreSQL ready on attempt {$attempt}\n");
+                  exit(0);
+              } catch (Throwable $exception) {
+                  fwrite(STDOUT, "Waiting for PostgreSQL ({$attempt}/30): " . $exception->getMessage() . "\n");
+                  sleep(2);
+              }
+          }
+          fwrite(STDERR, "PostgreSQL did not become ready in time.\n");
+          exit(1);
+          '
+
+      - name: Run supported DB-matrix target
+        env:
+          LANGELER_MYSQL_DSN: mysql:host=127.0.0.1;port=3307;dbname=langelermvc_test
+          LANGELER_MYSQL_USER: root
+          LANGELER_MYSQL_PASSWORD: secret
+          LANGELER_PGSQL_DSN: pgsql:host=127.0.0.1;port=5433;dbname=langelermvc_test
           LANGELER_PGSQL_USER: postgres
           LANGELER_PGSQL_PASSWORD: secret
         run: composer test:${{ matrix.target }}
+
+      - name: Dump MySQL container logs on failure
+        if: failure() && matrix.target == 'mysql'
+        run: docker logs ${{ job.services.mysql.id }} > mysql-service.log
+
+      - name: Dump PostgreSQL container logs on failure
+        if: failure() && matrix.target == 'pgsql'
+        run: docker logs ${{ job.services.postgres.id }} > pgsql-service.log
+
+      - name: Upload DB service logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-service-logs-${{ matrix.target }}
+          path: |
+            mysql-service.log
+            pgsql-service.log
+          if-no-files-found: ignore

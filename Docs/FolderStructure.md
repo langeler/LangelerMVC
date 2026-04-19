@@ -182,7 +182,15 @@ The web-facing document root:
 
 ### `.github/workflows`
 
-Tracked CI automation for framework verification. The repository now ships with a default regression workflow plus supported MySQL/PostgreSQL matrix execution.
+Tracked CI automation for framework verification. The repository now ships with a default regression workflow plus supported MySQL/PostgreSQL matrix execution, explicit service readiness waits, and DB service log artifacts on matrix failures.
+
+### `CONTRIBUTING.md`
+
+Contributor workflow, verification expectations, and coding standards for framework changes.
+
+### `SECURITY.md`
+
+Supported-version and vulnerability disclosure guidance for the framework.
 
 ### `Services`
 

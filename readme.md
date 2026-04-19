@@ -11,7 +11,9 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-19`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (83 tests, 2000 assertions)`
+- `composer test` passes with `OK (85 tests, 2028 assertions)`
+- `composer ops:health` returns a healthy liveness response
+- `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
@@ -20,6 +22,7 @@ As of `2026-04-19`:
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
+- The payment layer now exposes a plug-and-play compatibility surface with driver capability introspection, payment-method and flow discovery, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -131,6 +134,7 @@ For a clean production-style verification pass, the framework now ships with:
 - `composer verify:platform` for the default regression suite plus a health check
 - `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
 - `docker-compose.verify.yml` for local MySQL/PostgreSQL/SQL Server/Redis/Memcached verification
+- workflow-level platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on CI failures
 
 Typical local backend bring-up:
 
@@ -141,6 +145,14 @@ composer ops:health
 composer ops:ready
 ```
 
+For local compose-based verification, use the standard service ports exposed by `docker-compose.verify.yml`:
+
+- MySQL: `3306`
+- PostgreSQL: `5432`
+- SQL Server: `1433`
+
+The GitHub Actions workflow uses isolated service-port mappings for hosted runners and prints the selected DB target before executing the matrix job.
+
 ## Configuration Notes
 
 - `.env` provides environment-specific overrides.
@@ -148,6 +160,7 @@ composer ops:ready
 - `Config/auth.php` contains the framework auth baseline, including RBAC, OTP/TOTP, and passkey/WebAuthn settings.
 - `Config/webmodule.php` controls the current `WebModule` content source and defaults to `CONTENT_SOURCE=database`.
 - `Config/notifications.php`, `Config/queue.php`, `Config/payment.php`, and `Config/http.php` provide the top-level settings for notifications, queue drivers, payment drivers, throttling, and signed URLs.
+- `Config/payment.php` now defines the default payment driver, currency, payment method family, and payment flow. The first-party testing/reference driver currently supports `card`, `wallet`, `bank_transfer`, `bnpl`, `local_instant`, `manual`, and `crypto` method families across `authorize_capture`, `purchase`, `redirect`, `async`, and `manual_review` flows.
 - Session drivers support `native`, `file`, `database`, and `redis`, with `native` remaining the tracked default.
 - `Config/session.php` also supports `ENCRYPT=true`, which encrypts persisted session payloads at rest through the configured crypto subsystem while keeping legacy plaintext sessions readable during transition.
 - Session files are stored in `Storage/Sessions` by default when using the native/files-backed modes.
@@ -170,6 +183,8 @@ composer verify:platform
 
 The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain available for additional isolated and cross-layer suites when a project needs them.
 
+The current DB-matrix harness verifies real schema creation, query execution, and repository round-trips for configured non-SQLite drivers. The default framework suite carries the broader module, security, payment, presentation, and operational lifecycle coverage.
+
 ## Structure Docs
 
 - [`Docs/README.md`](./Docs/README.md): documentation index and reading order.
@@ -183,6 +198,8 @@ The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` 
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
 - [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): contributor workflow, verification expectations, and coding standards for framework changes.
+- [`SECURITY.md`](./SECURITY.md): supported versions and responsible vulnerability disclosure guidance.
 
 ## Platform Status
 
@@ -193,7 +210,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - validated session/auth/RBAC/TOTP/trusted-device/passkey support
 - framework-native liveness/readiness/capability reporting and audit logging
 - cache, crypto, SQL/query, migration, and seed subsystems
-- async events, queues, notifications, and payment abstractions
+- async events, queues, notifications, and a plug-and-play payment compatibility layer
 - completed HTML + JSON presentation parity across first-party modules
 - a database-backed starter module plus user/admin/shop/cart/order slices
 

@@ -14,7 +14,15 @@ final class PaymentIntent implements \JsonSerializable
         public readonly string $currency = 'SEK',
         public readonly string $description = '',
         public readonly array $metadata = [],
+        public readonly string $method = 'card',
+        public readonly string $flow = 'authorize_capture',
         public readonly ?string $reference = null,
+        public readonly ?string $providerReference = null,
+        public readonly ?string $externalReference = null,
+        public readonly ?string $idempotencyKey = null,
+        public readonly ?string $webhookReference = null,
+        public readonly array $nextAction = [],
+        public readonly bool $customerActionRequired = false,
         public readonly string $status = 'pending',
         public readonly int $authorizedAmount = 0,
         public readonly int $capturedAmount = 0,
@@ -29,7 +37,15 @@ final class PaymentIntent implements \JsonSerializable
             (string) ($payload['currency'] ?? 'SEK'),
             (string) ($payload['description'] ?? ''),
             is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [],
+            PaymentMethod::fromMixed(isset($payload['method']) ? (string) $payload['method'] : null)->value,
+            PaymentFlow::fromMixed(isset($payload['flow']) ? (string) $payload['flow'] : null)->value,
             isset($payload['reference']) ? (string) $payload['reference'] : null,
+            isset($payload['providerReference']) ? (string) $payload['providerReference'] : (isset($payload['provider_reference']) ? (string) $payload['provider_reference'] : null),
+            isset($payload['externalReference']) ? (string) $payload['externalReference'] : (isset($payload['external_reference']) ? (string) $payload['external_reference'] : null),
+            isset($payload['idempotencyKey']) ? (string) $payload['idempotencyKey'] : (isset($payload['idempotency_key']) ? (string) $payload['idempotency_key'] : null),
+            isset($payload['webhookReference']) ? (string) $payload['webhookReference'] : (isset($payload['webhook_reference']) ? (string) $payload['webhook_reference'] : null),
+            is_array($payload['nextAction'] ?? null) ? $payload['nextAction'] : (is_array($payload['next_action'] ?? null) ? $payload['next_action'] : []),
+            (bool) ($payload['customerActionRequired'] ?? $payload['customer_action_required'] ?? false),
             (string) ($payload['status'] ?? 'pending'),
             (int) ($payload['authorizedAmount'] ?? $payload['authorized_amount'] ?? 0),
             (int) ($payload['capturedAmount'] ?? $payload['captured_amount'] ?? 0),
@@ -44,7 +60,15 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->method,
+            $this->flow,
             $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
             $status,
             $this->authorizedAmount,
             $this->capturedAmount,
@@ -59,7 +83,137 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->method,
+            $this->flow,
             $reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
+            $this->status,
+            $this->authorizedAmount,
+            $this->capturedAmount,
+            $this->refundedAmount
+        );
+    }
+
+    public function withMethod(PaymentMethod|string $method): self
+    {
+        return new self(
+            $this->amount,
+            $this->currency,
+            $this->description,
+            $this->metadata,
+            PaymentMethod::fromMixed($method)->value,
+            $this->flow,
+            $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
+            $this->status,
+            $this->authorizedAmount,
+            $this->capturedAmount,
+            $this->refundedAmount
+        );
+    }
+
+    public function withFlow(PaymentFlow|string $flow): self
+    {
+        return new self(
+            $this->amount,
+            $this->currency,
+            $this->description,
+            $this->metadata,
+            $this->method,
+            PaymentFlow::fromMixed($flow)->value,
+            $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
+            $this->status,
+            $this->authorizedAmount,
+            $this->capturedAmount,
+            $this->refundedAmount
+        );
+    }
+
+    public function withReferences(
+        ?string $reference = null,
+        ?string $providerReference = null,
+        ?string $externalReference = null,
+        ?string $webhookReference = null
+    ): self {
+        return new self(
+            $this->amount,
+            $this->currency,
+            $this->description,
+            $this->metadata,
+            $this->method,
+            $this->flow,
+            $reference ?? $this->reference,
+            $providerReference ?? $this->providerReference,
+            $externalReference ?? $this->externalReference,
+            $this->idempotencyKey,
+            $webhookReference ?? $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
+            $this->status,
+            $this->authorizedAmount,
+            $this->capturedAmount,
+            $this->refundedAmount
+        );
+    }
+
+    public function withIdempotencyKey(?string $idempotencyKey): self
+    {
+        return new self(
+            $this->amount,
+            $this->currency,
+            $this->description,
+            $this->metadata,
+            $this->method,
+            $this->flow,
+            $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
+            $this->status,
+            $this->authorizedAmount,
+            $this->capturedAmount,
+            $this->refundedAmount
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $nextAction
+     */
+    public function withNextAction(array $nextAction = [], ?bool $customerActionRequired = null): self
+    {
+        return new self(
+            $this->amount,
+            $this->currency,
+            $this->description,
+            $this->metadata,
+            $this->method,
+            $this->flow,
+            $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $nextAction,
+            $customerActionRequired ?? $this->customerActionRequired,
             $this->status,
             $this->authorizedAmount,
             $this->capturedAmount,
@@ -74,7 +228,15 @@ final class PaymentIntent implements \JsonSerializable
             $this->currency,
             $this->description,
             $this->metadata,
+            $this->method,
+            $this->flow,
             $this->reference,
+            $this->providerReference,
+            $this->externalReference,
+            $this->idempotencyKey,
+            $this->webhookReference,
+            $this->nextAction,
+            $this->customerActionRequired,
             $status ?? $this->status,
             $authorizedAmount ?? $this->authorizedAmount,
             $capturedAmount ?? $this->capturedAmount,
@@ -102,7 +264,15 @@ final class PaymentIntent implements \JsonSerializable
             'currency' => $this->currency,
             'description' => $this->description,
             'metadata' => $this->metadata,
+            'method' => $this->method,
+            'flow' => $this->flow,
             'reference' => $this->reference,
+            'providerReference' => $this->providerReference,
+            'externalReference' => $this->externalReference,
+            'idempotencyKey' => $this->idempotencyKey,
+            'webhookReference' => $this->webhookReference,
+            'nextAction' => $this->nextAction,
+            'customerActionRequired' => $this->customerActionRequired,
             'status' => $this->status,
             'authorizedAmount' => $this->authorizedAmount,
             'capturedAmount' => $this->capturedAmount,

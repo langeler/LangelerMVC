@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (83 tests, 2000 assertions)`
+- Verification result: `OK (85 tests, 2028 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -70,7 +70,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue manager with sync/database drivers
 - failed-job store
 - notification manager with mail/database channels
-- payment manager with testing driver
+- payment manager with a plug-and-play compatibility/reference driver surface
 - mail, OTP, passkey/WebAuthn, health, and audit managers
 
 ### Utility Layer
@@ -92,6 +92,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue work/retry/failed commands
 - notification inspection command
 - event/listener inspection command
+- GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure
 
 ## Implemented First-Party Modules
 
@@ -156,7 +157,8 @@ This document records the current implementation state of LangelerMVC based on t
 - order, order-item, and order-address persistence
 - cart snapshotting into orders
 - order status and payment-state lifecycles
-- payment manager integration through the testing driver
+- payment-method-aware checkout with persisted payment flow, idempotency, provider/external/webhook references, and reconciliation support
+- payment manager integration through the first-party compatibility/reference driver
 - order lifecycle notifications and listeners
 - HTML + JSON parity
 
@@ -192,6 +194,14 @@ The major framework-level auth and commerce flows are implemented. The next gain
 - broader real-world policy coverage as applications grow
 - deeper end-to-end tests around queue-backed notifications and payment-state transitions in non-SQLite environments
 - environment-specific operational tuning for audit retention, queue workers, and payment-driver expansion
+
+### 4. CI And Environment Breadth
+
+The repository now includes a stronger GitHub Actions workflow for the default regression suite plus supported MySQL/PostgreSQL matrix execution. The remaining step is repeated live execution on hosted runners and in provisioned local environments:
+
+- GitHub-hosted MySQL/PostgreSQL verification against the updated workflow
+- SQL Server verification through the documented local/container path
+- Redis, Memcached, and Imagick verification where the corresponding services/extensions are available
 
 ## Recommended Ongoing Verification
 

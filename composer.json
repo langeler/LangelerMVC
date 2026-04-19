@@ -74,7 +74,7 @@
         "project": {
             "github": "https://github.com/langeler/LangelerMVC",
             "description": "LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles.",
-            "status": "Runtime, console, migrations/seeds, session/auth/RBAC, TOTP/passkeys, cache, crypto, SQL/query, async, notifications, payments, presentation, admin, WebModule, ShopModule, CartModule, and OrderModule are implemented and regression-tested; DB-matrix harness is available for MySQL/PostgreSQL/SQL Server verification.",
+            "status": "Runtime, console, migrations/seeds, session/auth/RBAC, TOTP/passkeys, cache, crypto, SQL/query, async, notifications, payment compatibility flows, presentation, admin, WebModule, ShopModule, CartModule, and OrderModule are implemented and regression-tested; DB-matrix harness is available for MySQL/PostgreSQL/SQL Server verification.",
             "topics": [
                 "php",
                 "mvc",

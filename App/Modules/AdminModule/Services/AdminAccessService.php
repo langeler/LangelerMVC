@@ -291,6 +291,8 @@ class AdminAccessService extends Service
                 'payments' => [
                     'driver' => $this->payments->driverName(),
                     'drivers' => $this->payments->availableDrivers(),
+                    'methods' => $this->payments->supportedMethods(),
+                    'flows' => $this->payments->supportedFlows(),
                     'capabilities' => $this->payments->capabilities(),
                 ],
                 'health' => $this->health->report(),
@@ -380,6 +382,8 @@ class AdminAccessService extends Service
                 'payments' => [
                     'driver' => $this->payments->driverName(),
                     'drivers' => $this->payments->availableDrivers(),
+                    'methods' => $this->payments->supportedMethods(),
+                    'flows' => $this->payments->supportedFlows(),
                     'capabilities' => $this->payments->capabilities(),
                 ],
                 'health' => $this->health->report(),

@@ -12,6 +12,8 @@
             'contact_email' => 'Email',
             'status' => 'Status',
             'payment_status' => 'Payment',
+            'payment_method' => 'Method',
+            'payment_flow' => 'Flow',
             'payment_driver' => 'Driver',
             'total' => 'Total',
         ],

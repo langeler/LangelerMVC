@@ -40,6 +40,14 @@ Bring the stack up with:
 docker compose -f docker-compose.verify.yml up -d
 ```
 
+`docker-compose.verify.yml` exposes the standard local ports:
+
+- MySQL: `3306`
+- PostgreSQL: `5432`
+- SQL Server: `1433`
+
+The GitHub Actions workflow uses hosted-service port mappings (`3307` for MySQL and `5433` for PostgreSQL) inside the CI job so service setup stays deterministic on runners.
+
 ## Environment Variables
 
 Set the DSN and optional credentials for the drivers you want to verify:
@@ -63,10 +71,11 @@ export LANGELER_SQLSRV_PASSWORD="secret"
 - `phpunit.xml` runs the default framework suite only.
 - `phpunit.db-matrix.xml` runs `Tests/DbMatrix`.
 - `Tests/DbMatrix/DatabaseMatrixHarnessTest.php` only executes for drivers that have DSNs configured.
-- The harness creates framework-managed tables, exercises migration/seed/query/repository behavior, and then removes temporary state.
+- The harness creates framework-managed tables, exercises schema/query/repository round-trips, and then removes temporary state.
 
 ## Notes
 
 - The harness is intentionally local and opt-in for SQL Server and other environment-specific backends. GitHub Actions now covers the default suite plus supported MySQL/PostgreSQL matrix execution.
 - If a driver DSN is not configured, the related harness test is skipped rather than failing the default local workflow.
+- The GitHub Actions workflow now prints the selected matrix target, waits explicitly for MySQL/PostgreSQL readiness, and uploads DB service logs on failures to make CI diagnosis less opaque.
 - The matrix harness is the intended place to extend future cross-driver verification for migrations, repositories, query builders, queue tables, notification persistence, and session persistence.

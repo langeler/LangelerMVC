@@ -98,7 +98,7 @@ These layers are intentionally reusable. Application code is expected to extend 
 - `Caching`: `ArrayCache`, `FileCache`, `DatabaseCache`, `RedisCache`, `MemCache`
 - `Cryptography`: `OpenSSLCrypto`, `SodiumCrypto`
 - `Notifications`: `MailNotificationChannel`, `DatabaseNotificationChannel`
-- `Payments`: `TestingPaymentDriver`
+- `Payments`: `TestingPaymentDriver` as the first-party compatibility/reference driver
 - `Queue`: `SyncQueueDriver`, `DatabaseQueueDriver`
 - `Passkeys`: `TestingPasskeyDriver`, `WebAuthnPasskeyDriver`
 - `Session`: `FileSessionDriver`, `DatabaseSessionDriver`, `RedisSessionDriver`, `EncryptedSessionDriver`
@@ -188,6 +188,7 @@ The following areas are implemented as framework-level subsystems today:
 - async events and queues
 - notification subsystem
 - payment abstraction subsystem
+- payment method/flow compatibility introspection, redirect/customer-action handling, and reconciliation support
 - mail, OTP, and passkey/WebAuthn service boundaries
 - file, finder, iterator, and reflection utilities
 - model and repository foundations
@@ -209,7 +210,7 @@ Current concrete state:
 - `AdminModule` now provides dashboard, user, role/permission, catalog, cart, order, health/readiness, and framework-inspection flows.
 - `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
 - `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
-- `OrderModule` provides checkout orchestration, order snapshots, payment-state handling, and lifecycle notifications.
+- `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, payment-state handling, reconciliation hooks, and lifecycle notifications.
 - Shared templates currently live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components`.
 
 This means the framework now has both a completed platform base and a real first-party application surface exercising it.
@@ -226,6 +227,7 @@ The most important extension seams today are:
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.
 - **Support Services**: extend authentication, authorization, notifications, and payments on top of the existing manager and provider boundaries.
+- **Payments**: add real drivers later against the now-stable capability contract without pushing vendor SDK concerns into framework core.
 - **Async**: add listeners, jobs, queue drivers, and failed-job strategies without rewriting runtime or modules.
 
 ## Current Architectural Limits

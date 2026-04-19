@@ -36,7 +36,7 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 | `WebModule` | Implemented starter slice | Contains the reference request/controller/service/presenter/view/response pipeline plus `pages` migration, seed, model, repository, and shared templates. |
 | `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, health, and operations management flows protected by the framework auth/RBAC layer. |
 | `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, merge-on-login listener, presenters/resources, routes, migrations, seeds, and views. |
-| `OrderModule` | Implemented commerce slice | Contains checkout/order lifecycle services, listeners, notifications, presenters/resources, routes, migrations, seeds, and views. |
+| `OrderModule` | Implemented commerce slice | Contains payment-method-aware checkout/order lifecycle services, listeners, notifications, presenters/resources, routes, migrations, seeds, and views. |
 | `ShopModule` | Implemented commerce slice | Contains catalog services, presenters/resources, routes, migrations, seeds, views, and product/category persistence. |
 | `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA with trusted devices, and passkey/WebAuthn flows. |
 
@@ -123,7 +123,8 @@ It now also exposes management visibility for:
 
 - checkout orchestration
 - order, order-item, and address persistence
-- payment-state lifecycle handling through the framework payment manager
+- payment-method-aware checkout and payment-state lifecycle handling through the framework payment manager
+- persisted payment flow, idempotency, provider/external/webhook references, and next-action metadata
 - order lifecycle listeners and notifications
 - HTML + JSON parity through presenters, resources, views, and responses
 

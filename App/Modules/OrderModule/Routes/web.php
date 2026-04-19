@@ -14,6 +14,7 @@ return static function (Router $router): void {
     $router->post('/orders/{order:\\d+}/capture', OrderController::class, 'capture', ['as' => 'orders.capture', 'middleware' => $authMiddleware]);
     $router->post('/orders/{order:\\d+}/cancel', OrderController::class, 'cancel', ['as' => 'orders.cancel', 'middleware' => $authMiddleware]);
     $router->post('/orders/{order:\\d+}/refund', OrderController::class, 'refund', ['as' => 'orders.refund', 'middleware' => $authMiddleware]);
+    $router->post('/orders/{order:\\d+}/reconcile', OrderController::class, 'reconcile', ['as' => 'orders.reconcile', 'middleware' => $authMiddleware]);
 
     $router->post('/api/orders/checkout', OrderController::class, 'checkout', ['as' => 'api.orders.checkout']);
     $router->get('/api/orders', OrderController::class, 'index', ['as' => 'api.orders.index', 'middleware' => $authMiddleware]);
@@ -21,4 +22,5 @@ return static function (Router $router): void {
     $router->post('/api/orders/{order:\\d+}/capture', OrderController::class, 'capture', ['as' => 'api.orders.capture', 'middleware' => $authMiddleware]);
     $router->post('/api/orders/{order:\\d+}/cancel', OrderController::class, 'cancel', ['as' => 'api.orders.cancel', 'middleware' => $authMiddleware]);
     $router->post('/api/orders/{order:\\d+}/refund', OrderController::class, 'refund', ['as' => 'api.orders.refund', 'middleware' => $authMiddleware]);
+    $router->post('/api/orders/{order:\\d+}/reconcile', OrderController::class, 'reconcile', ['as' => 'api.orders.reconcile', 'middleware' => $authMiddleware]);
 };

@@ -8,7 +8,9 @@ use App\Contracts\Support\PaymentDriverInterface;
 use App\Contracts\Support\PaymentManagerInterface;
 use App\Core\Config;
 use App\Providers\PaymentProvider;
+use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
+use App\Support\Payments\PaymentMethod;
 use App\Support\Payments\PaymentResult;
 use App\Utilities\Traits\ManipulationTrait;
 
@@ -50,13 +52,49 @@ class PaymentManager implements PaymentManagerInterface
         return $this->driver()->supports($feature);
     }
 
-    public function createIntent(int $amount, ?string $currency = null, string $description = '', array $metadata = []): PaymentIntent
+    public function supportedMethods(): array
     {
+        return $this->driver()->supportedMethods();
+    }
+
+    public function supportedFlows(): array
+    {
+        return $this->driver()->supportedFlows();
+    }
+
+    public function supportsMethod(PaymentMethod|string $method): bool
+    {
+        return $this->driver()->supportsMethod($method);
+    }
+
+    public function supportsFlow(PaymentFlow|string $flow): bool
+    {
+        return $this->driver()->supportsFlow($flow);
+    }
+
+    public function createIntent(
+        int $amount,
+        ?string $currency = null,
+        string $description = '',
+        array $metadata = [],
+        PaymentMethod|string|null $method = null,
+        PaymentFlow|string|null $flow = null,
+        ?string $idempotencyKey = null
+    ): PaymentIntent {
+        $resolvedMethod = PaymentMethod::fromMixed($method ?? (string) $this->config->get('payment', 'DEFAULT_METHOD', PaymentMethod::default()->value));
+        $resolvedFlow = PaymentFlow::fromMixed($flow ?? (string) $this->config->get('payment', 'DEFAULT_FLOW', PaymentFlow::default()->value));
+
         return new PaymentIntent(
             $amount,
             $currency ?? (string) $this->config->get('payment', 'CURRENCY', 'SEK'),
             $description,
-            $metadata
+            $metadata,
+            $resolvedMethod->value,
+            $resolvedFlow->value,
+            null,
+            null,
+            null,
+            $idempotencyKey
         );
     }
 
@@ -78,6 +116,11 @@ class PaymentManager implements PaymentManagerInterface
     public function refund(PaymentIntent $intent, ?int $amount = null, ?string $reason = null): PaymentResult
     {
         return $this->driver()->refund($intent, $amount, $reason);
+    }
+
+    public function reconcile(PaymentIntent $intent, array $payload = []): PaymentResult
+    {
+        return $this->driver()->reconcile($intent, $payload);
     }
 
     private function driver(): PaymentDriverInterface

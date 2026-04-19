@@ -17,11 +17,28 @@
                 'Order number' => $order['order_number'] ?? '',
                 'Status' => $order['status'] ?? '',
                 'Payment status' => $order['payment_status'] ?? '',
+                'Payment method' => $order['payment_method'] ?? '',
+                'Payment flow' => $order['payment_flow'] ?? '',
                 'Payment reference' => $order['payment_reference'] ?? '',
+                'Provider reference' => $order['payment_provider_reference'] ?? '',
                 'Total' => $order['total'] ?? '',
             ],
         ]) ?>
     </div>
+
+    <?php if (!empty($order['payment_next_action']) && is_array($order['payment_next_action'])): ?>
+        <div class="section">
+            <h2>Payment next action</h2>
+            <?= $view->renderComponent('DefinitionGrid', [
+                'items' => array_map(
+                    static fn(mixed $value): string => is_scalar($value) || $value === null
+                        ? (string) $value
+                        : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                    $order['payment_next_action']
+                ),
+            ]) ?>
+        </div>
+    <?php endif; ?>
 
     <div class="section">
         <h2>Items</h2>

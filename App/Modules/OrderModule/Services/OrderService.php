@@ -14,7 +14,9 @@ use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
+use App\Support\Payments\PaymentMethod;
 use App\Utilities\Managers\Security\AuthManager;
 use App\Utilities\Managers\Security\HttpSecurityManager;
 use App\Utilities\Managers\Support\PaymentManager;
@@ -70,6 +72,7 @@ class OrderService extends Service
             'capture' => $this->capture((int) ($this->context['order'] ?? 0)),
             'cancel' => $this->cancel((int) ($this->context['order'] ?? 0)),
             'refund' => $this->refund((int) ($this->context['order'] ?? 0)),
+            'reconcile' => $this->reconcile((int) ($this->context['order'] ?? 0)),
             default => $this->checkoutForm(),
         };
     }
@@ -79,6 +82,8 @@ class OrderService extends Service
      */
     private function checkoutForm(): array
     {
+        $defaultIntent = $this->payments->createIntent(0);
+
         return [
             'template' => 'OrderCheckout',
             'status' => 200,
@@ -86,6 +91,13 @@ class OrderService extends Service
             'headline' => 'Review and place your order',
             'summary' => 'Orders snapshot the current cart and flow through the framework payment and event layers.',
             'cart' => $this->currentCartPayload(),
+            'payment' => [
+                'driver' => $this->payments->driverName(),
+                'supported_methods' => $this->payments->supportedMethods(),
+                'supported_flows' => $this->payments->supportedFlows(),
+                'default_method' => $defaultIntent->method,
+                'default_flow' => $defaultIntent->flow,
+            ],
         ];
     }
 
@@ -104,6 +116,20 @@ class OrderService extends Service
             return $this->response('Checkout throttled', 'Too many checkout attempts. Please wait before trying again.', 429);
         }
 
+        $requestedIdempotencyKey = trim((string) ($this->payload['idempotency_key'] ?? ''));
+
+        if ($requestedIdempotencyKey !== '') {
+            $existing = $this->orders->findByPaymentIdempotencyKey($requestedIdempotencyKey);
+
+            if ($existing !== null) {
+                return [
+                    ...$this->response('Order already created', 'This checkout request has already been processed.', 200),
+                    'order' => $this->orderPayload((int) $existing->getKey()),
+                    'redirect' => '/orders/' . (int) $existing->getKey(),
+                ];
+            }
+        }
+
         $cart = $this->currentCart();
         $cartPayload = $this->currentCartPayload();
 
@@ -111,14 +137,44 @@ class OrderService extends Service
             return $this->response('Checkout unavailable', 'The current cart does not contain any items.', 422);
         }
 
+        $paymentMethod = $this->resolveRequestedPaymentMethod();
+        $paymentFlow = $this->resolveRequestedPaymentFlow();
+
+        if (!$this->payments->supportsMethod($paymentMethod)) {
+            return $this->response('Payment unavailable', 'The selected payment method is not supported by the configured driver.', 422);
+        }
+
+        if (!$this->payments->supportsFlow($paymentFlow)) {
+            return $this->response('Payment unavailable', 'The selected payment flow is not supported by the configured driver.', 422);
+        }
+
+        $idempotencyKey = $this->resolveCheckoutIdempotencyKey((int) $cart->getKey());
+        $existing = $this->orders->findByPaymentIdempotencyKey($idempotencyKey);
+
+        if ($existing !== null) {
+            return [
+                ...$this->response('Order already created', 'This checkout request has already been processed.', 200),
+                'order' => $this->orderPayload((int) $existing->getKey()),
+                'redirect' => '/orders/' . (int) $existing->getKey(),
+            ];
+        }
+
         $intent = $this->payments->createIntent(
             (int) ($cartPayload['subtotal_minor'] ?? 0),
             (string) ($cartPayload['currency'] ?? 'SEK'),
-            'Order checkout'
+            'Order checkout',
+            [
+                'cart_id' => (int) $cart->getKey(),
+                'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
+            ],
+            $paymentMethod,
+            $paymentFlow,
+            $idempotencyKey
         );
         $payment = $this->payments->authorize($intent);
         $contactName = (string) ($this->payload['name'] ?? '');
         $contactEmail = (string) ($this->payload['email'] ?? '');
+        $orderStatus = $this->orderStatusForIntent($payment->intent);
 
         $order = $this->orders->create([
             'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
@@ -126,13 +182,24 @@ class OrderService extends Service
             'order_number' => $this->orders->nextOrderNumber(),
             'contact_name' => $contactName,
             'contact_email' => $contactEmail,
-            'status' => 'placed',
+            'status' => $orderStatus,
             'payment_status' => $payment->intent->status,
             'payment_driver' => $payment->driver,
+            'payment_method' => $payment->intent->method,
+            'payment_flow' => $payment->intent->flow,
             'payment_reference' => $payment->intent->reference,
+            'payment_provider_reference' => $payment->intent->providerReference,
+            'payment_external_reference' => $payment->intent->externalReference,
+            'payment_webhook_reference' => $payment->intent->webhookReference,
+            'payment_idempotency_key' => $payment->intent->idempotencyKey,
+            'payment_customer_action_required' => $payment->intent->customerActionRequired,
             'currency' => (string) ($cartPayload['currency'] ?? 'SEK'),
             'subtotal_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
             'total_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
+            'payment_next_action' => $this->toJson(
+                $payment->intent->nextAction,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ),
             'payment_intent' => $this->toJson(
                 $payment->intent->toArray(),
                 JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
@@ -168,15 +235,29 @@ class OrderService extends Service
         $this->events->dispatch('order.created', [
             'order_id' => (int) $order->getKey(),
         ]);
+
+        if ($payment->intent->status === 'captured') {
+            $this->events->dispatch('order.paid', [
+                'order_id' => (int) $order->getKey(),
+            ]);
+        }
+
         $this->audit->record('order.created', [
             'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
             'order_id' => (string) $order->getKey(),
             'payment_status' => $payment->intent->status,
+            'payment_method' => $payment->intent->method,
+            'payment_flow' => $payment->intent->flow,
+            'payment_idempotency_key' => $payment->intent->idempotencyKey,
             'total_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
         ], 'order');
 
         return [
-            ...$this->response('Order placed', 'The order has been created and payment authorized by the configured driver.', 201),
+            ...$this->response(
+                'Order placed',
+                $this->checkoutMessageForIntent($payment->intent),
+                $this->responseStatusForIntent($payment->intent)
+            ),
             'order' => $this->orderPayload((int) $order->getKey()),
             'redirect' => '/orders/' . (int) $order->getKey(),
         ];
@@ -271,6 +352,18 @@ class OrderService extends Service
     /**
      * @return array<string, mixed>
      */
+    private function reconcile(int $orderId): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->response('Forbidden', 'Payment reconciliation requires the order.manage permission.', 403);
+        }
+
+        return $this->transitionPayment($orderId, 'reconcile');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function transitionPayment(int $orderId, string $action): array
     {
         $order = $this->orders->find($orderId);
@@ -283,6 +376,7 @@ class OrderService extends Service
         $result = match ($action) {
             'capture' => $this->payments->capture($intent),
             'refund' => $this->payments->refund($intent),
+            'reconcile' => $this->payments->reconcile($intent, $this->payload),
             default => $this->payments->cancel($intent),
         };
 
@@ -290,32 +384,40 @@ class OrderService extends Service
             return $this->response('Payment transition failed', $result->message, 422);
         }
 
-        $status = match ($action) {
-            'capture' => 'processing',
-            'refund' => 'refunded',
-            default => 'cancelled',
-        };
-
+        $status = $this->orderStatusForIntent($result->intent);
         $updated = $this->orders->updateLifecycle($orderId, [
             'status' => $status,
             'payment_status' => $result->intent->status,
+            'payment_method' => $result->intent->method,
+            'payment_flow' => $result->intent->flow,
             'payment_reference' => $result->intent->reference,
+            'payment_provider_reference' => $result->intent->providerReference,
+            'payment_external_reference' => $result->intent->externalReference,
+            'payment_webhook_reference' => $result->intent->webhookReference,
+            'payment_idempotency_key' => $result->intent->idempotencyKey,
+            'payment_customer_action_required' => $result->intent->customerActionRequired,
+            'payment_next_action' => $this->toJson(
+                $result->intent->nextAction,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ),
             'payment_intent' => $this->toJson(
                 $result->intent->toArray(),
                 JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
             ),
         ]);
 
-        $event = match ($action) {
-            'capture' => 'order.paid',
-            'refund' => 'order.refunded',
-            default => 'order.cancelled',
-        };
-        $this->events->dispatch($event, ['order_id' => $orderId]);
+        $event = $this->eventForPaymentTransition($action, $result->intent);
+
+        if ($event !== null) {
+            $this->events->dispatch($event, ['order_id' => $orderId]);
+        }
+
         $this->audit->record('order.' . $action, [
             'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
             'order_id' => (string) $orderId,
             'payment_status' => $result->intent->status,
+            'payment_method' => $result->intent->method,
+            'payment_flow' => $result->intent->flow,
             'status' => $status,
         ], 'order');
 
@@ -392,6 +494,35 @@ class OrderService extends Service
         ];
     }
 
+    private function resolveRequestedPaymentMethod(): PaymentMethod
+    {
+        $requested = $this->payload['payment_method'] ?? $this->payments->createIntent(0)->method;
+
+        return PaymentMethod::fromMixed(is_string($requested) ? $requested : null);
+    }
+
+    private function resolveRequestedPaymentFlow(): PaymentFlow
+    {
+        $requested = $this->payload['payment_flow'] ?? $this->payments->createIntent(0)->flow;
+
+        return PaymentFlow::fromMixed(is_string($requested) ? $requested : null);
+    }
+
+    private function resolveCheckoutIdempotencyKey(int $cartId): string
+    {
+        $requested = trim((string) ($this->payload['idempotency_key'] ?? ''));
+
+        if ($requested !== '') {
+            return $requested;
+        }
+
+        if ($this->auth->check()) {
+            return sprintf('checkout:user:%d:cart:%d', (int) $this->auth->id(), $cartId);
+        }
+
+        return sprintf('checkout:guest:%s:cart:%d', $this->sessionCartKey(), $cartId);
+    }
+
     private function sessionCartKey(): string
     {
         $this->session->start();
@@ -440,5 +571,44 @@ class OrderService extends Service
         }
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function orderStatusForIntent(PaymentIntent $intent): string
+    {
+        return match ($intent->status) {
+            'captured' => 'processing',
+            'partially_refunded', 'refunded' => 'refunded',
+            'cancelled' => 'cancelled',
+            'requires_action' => 'awaiting_payment_action',
+            'processing', 'pending_review' => 'pending_payment',
+            default => 'placed',
+        };
+    }
+
+    private function responseStatusForIntent(PaymentIntent $intent): int
+    {
+        return in_array($intent->status, ['requires_action', 'processing', 'pending_review'], true) ? 202 : 201;
+    }
+
+    private function checkoutMessageForIntent(PaymentIntent $intent): string
+    {
+        return match ($intent->status) {
+            'requires_action' => 'The order has been created and is waiting for a customer payment action.',
+            'processing' => 'The order has been created and is waiting for asynchronous payment confirmation.',
+            'pending_review' => 'The order has been created and is waiting for manual payment review.',
+            'captured' => 'The order has been created and payment completed immediately.',
+            default => 'The order has been created and payment authorized by the configured driver.',
+        };
+    }
+
+    private function eventForPaymentTransition(string $action, PaymentIntent $intent): ?string
+    {
+        return match ($action) {
+            'capture' => 'order.paid',
+            'refund' => 'order.refunded',
+            'cancel' => 'order.cancelled',
+            'reconcile' => $intent->status === 'captured' ? 'order.paid' : null,
+            default => null,
+        };
     }
 }

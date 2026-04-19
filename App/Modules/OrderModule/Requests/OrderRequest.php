@@ -29,6 +29,9 @@ class OrderRequest extends InboundRequest
                 'city' => ['methods' => 'string'],
                 'country' => ['methods' => 'string'],
                 'phone' => ['methods' => 'string', 'required' => false],
+                'payment_method' => ['methods' => 'string', 'required' => false],
+                'payment_flow' => ['methods' => 'string', 'required' => false],
+                'idempotency_key' => ['methods' => 'string', 'required' => false],
             ],
             default => [],
         };
@@ -44,6 +47,9 @@ class OrderRequest extends InboundRequest
                 'postal_code' => ['methods' => 'string', 'rules' => ['notEmpty']],
                 'city' => ['methods' => 'string', 'rules' => ['notEmpty']],
                 'country' => ['methods' => 'string', 'rules' => ['notEmpty']],
+                'payment_method' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(card|wallet|bank_transfer|bnpl|local_instant|manual|crypto)$/']],
+                'payment_flow' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(authorize_capture|purchase|redirect|async|manual_review)$/']],
+                'idempotency_key' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z0-9._:-]{8,191}$/']],
             ],
             default => [],
         };

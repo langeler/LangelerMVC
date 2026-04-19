@@ -128,6 +128,12 @@ class UserAuthService extends Service
             $this->auth->login($fresh, (bool) ($this->payload['remember'] ?? false));
         }
 
+        $this->audit->record('auth.registered', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'email' => (string) $user->getAttribute('email'),
+        ], 'auth');
+
         return [
             'template' => 'UserStatus',
             'status' => 201,
@@ -184,6 +190,12 @@ class UserAuthService extends Service
         }
 
         $this->auth->login($user, (bool) ($this->payload['remember'] ?? false));
+        $this->audit->record('auth.logged_in', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+            'trusted_device' => $user->hasOtpEnabled() && $this->hasTrustedDevice($user),
+            'remember' => (bool) ($this->payload['remember'] ?? false),
+        ], 'auth');
 
         return [
             'template' => 'UserStatus',
@@ -205,7 +217,15 @@ class UserAuthService extends Service
 
     private function logout(): array
     {
+        $user = $this->auth->user();
         $this->auth->logout();
+
+        if ($user instanceof User) {
+            $this->audit->record('auth.logged_out', [
+                'actor_type' => $user::class,
+                'actor_id' => (string) $user->getKey(),
+            ], 'auth');
+        }
 
         return [
             'template' => 'UserStatus',
@@ -221,6 +241,12 @@ class UserAuthService extends Service
     private function sendPasswordReset(): array
     {
         $sent = $this->passwordBroker->sendResetLink((string) ($this->payload['email'] ?? ''));
+
+        if ($sent) {
+            $this->audit->record('auth.password_reset.requested', [
+                'email' => (string) ($this->payload['email'] ?? ''),
+            ], 'auth');
+        }
 
         return [
             'template' => 'UserStatus',
@@ -273,6 +299,11 @@ class UserAuthService extends Service
             return $this->errorPage('UserPasswordReset', 'Reset failed', 'The reset token is invalid or expired.', 422);
         }
 
+        $this->audit->record('auth.password_reset.completed', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
+
         return [
             'template' => 'UserStatus',
             'status' => 200,
@@ -304,6 +335,10 @@ class UserAuthService extends Service
 
         $this->users->markEmailVerified((int) $user->getKey());
         $fresh = $this->users->find((int) $user->getKey());
+        $this->audit->record('auth.email_verified', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
 
         return [
             'template' => 'UserStatus',
@@ -325,6 +360,10 @@ class UserAuthService extends Service
         }
 
         $this->sendVerificationMail($user);
+        $this->audit->record('auth.email_verification_resent', [
+            'actor_type' => $user::class,
+            'actor_id' => (string) $user->getKey(),
+        ], 'auth');
 
         return [
             'template' => 'UserStatus',

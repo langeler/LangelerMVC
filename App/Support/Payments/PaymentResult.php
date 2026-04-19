@@ -15,6 +15,7 @@ final class PaymentResult implements \JsonSerializable
         public readonly PaymentIntent $intent,
         public readonly string $driver,
         public readonly string $message = '',
+        public readonly ?string $status = null,
         public readonly array $metadata = []
     ) {
     }
@@ -29,6 +30,7 @@ final class PaymentResult implements \JsonSerializable
             'action' => $this->action,
             'driver' => $this->driver,
             'message' => $this->message,
+            'status' => $this->status,
             'intent' => $this->intent->toArray(),
             'metadata' => $this->metadata,
         ];

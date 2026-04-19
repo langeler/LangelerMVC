@@ -83,6 +83,7 @@ class OrderLifecycleNotificationListener implements ListenerInterface
             'order_number' => $summary['order_number'],
             'status' => $summary['status'],
             'payment_status' => $summary['payment_status'],
+            'payment_method' => $summary['payment_method'],
             'total' => $summary['total'],
         ]);
 

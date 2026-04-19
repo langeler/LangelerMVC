@@ -15,7 +15,7 @@ These routes are handled before normal router dispatch when the `health` core se
 
 - `live`: runtime availability, PHP version, SAPI, and application identity
 - `ready`: database, cache, session, queue, notification, payment, mail, passkey, and audit checks
-- `capabilities`: available drivers, enabled features, registered modules, and event/listener visibility
+- `capabilities`: available drivers, enabled features, registered modules, event/listener visibility, and payment method/flow compatibility
 
 ## Console Operations
 
@@ -45,13 +45,23 @@ composer ops:audit
 composer verify:platform
 ```
 
+## Payment Operations
+
+The framework payment layer is now designed as a gateway-agnostic compatibility surface.
+
+- `PaymentManager` exposes driver capabilities, supported payment method families, and supported payment flows before checkout is attempted.
+- The first-party testing/reference driver supports `card`, `wallet`, `bank_transfer`, `bnpl`, `local_instant`, `manual`, and `crypto` method families.
+- The first-party testing/reference driver supports `authorize_capture`, `purchase`, `redirect`, `async`, and `manual_review` flows.
+- Redirect/customer-action and asynchronous flows can be reconciled through the framework payment manager rather than module-local gateway code.
+- Order records now persist payment method, flow, idempotency key, provider/external/webhook references, and next-action metadata so admin and audit surfaces can inspect them consistently.
+
 ## Audit Logging
 
 The framework now ships with a built-in audit logger backed by the `framework_audit_log` table.
 
 Current first-party audit events include:
 
-- authentication sign-in/sign-out and failed sign-in
+- authentication registration, sign-in/sign-out, password-reset, and email-verification lifecycle events
 - OTP enable/disable, recovery regeneration, and trusted-device actions
 - passkey registration, authentication, and deletion
 - role and permission synchronization from the admin surface
@@ -105,5 +115,8 @@ GitHub Actions now provides:
 
 - default regression coverage through `.github/workflows/php.yml`
 - supported DB-matrix coverage for MySQL and PostgreSQL in CI
+- explicit composer metadata/platform checks before regression or matrix execution
+- PHP-side readiness waits for hosted MySQL/PostgreSQL services
+- target diagnostics and DB service log artifacts on failure
 
 SQL Server verification remains part of the local/containerized workflow because hosted runner support can vary more across environments than the framework code itself.

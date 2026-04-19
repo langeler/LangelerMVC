@@ -86,6 +86,14 @@ class OrderController extends Controller
         return $this->run();
     }
 
+    public function reconcile(string $order): ResponseInterface
+    {
+        $this->action = 'reconcile';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
     protected function execute(): mixed
     {
         return $this->service->forAction($this->action, $this->request->all(), $this->context)->execute();

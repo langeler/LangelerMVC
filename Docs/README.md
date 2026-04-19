@@ -7,6 +7,8 @@ As of `2026-04-19`, the framework status and architecture documents below are th
 ## Start Here
 
 - `../readme.md`: project overview, installation, run commands, and quick links into the documentation set.
+- `../CONTRIBUTING.md`: contributor workflow, verification expectations, and coding standards for framework work.
+- `../SECURITY.md`: supported versions and responsible vulnerability disclosure guidance.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.
 

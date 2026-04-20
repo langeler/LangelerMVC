@@ -745,7 +745,19 @@ final class FrameworkCompletionTest extends TestCase
             $modules,
             $router,
             $events,
-            $audit
+            $audit,
+            new class implements \App\Contracts\Support\FrameworkDoctorInterface {
+                public function inspect(bool $strict = false): array
+                {
+                    return [
+                        'status' => 200,
+                        'healthy' => true,
+                        'errors' => [],
+                        'warnings' => [],
+                        'checks' => [],
+                    ];
+                }
+            }
         );
         $auth = new AuthManager($guard, $gate, $passwordBroker, $provider, $registry, $events, $audit);
         $httpSecurity = new HttpSecurityManager($config, $cache);

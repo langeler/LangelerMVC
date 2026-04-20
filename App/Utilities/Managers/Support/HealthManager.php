@@ -6,6 +6,7 @@ namespace App\Utilities\Managers\Support;
 
 use App\Contracts\Async\EventDispatcherInterface;
 use App\Contracts\Support\AuditLoggerInterface;
+use App\Contracts\Support\FrameworkDoctorInterface;
 use App\Contracts\Support\HealthManagerInterface;
 use App\Core\Config;
 use App\Core\Database;
@@ -32,7 +33,8 @@ class HealthManager implements HealthManagerInterface
         private readonly ModuleManager $modules,
         private readonly Router $router,
         private readonly EventDispatcherInterface $events,
-        private readonly AuditLoggerInterface $audit
+        private readonly AuditLoggerInterface $audit,
+        private readonly FrameworkDoctorInterface $doctor
     ) {
     }
 
@@ -65,6 +67,7 @@ class HealthManager implements HealthManagerInterface
             'mail' => $this->mailCheck(),
             'passkeys' => $this->passkeyCheck(),
             'audit' => $this->auditCheck(),
+            'framework' => $this->frameworkCheck(),
         ];
 
         $ready = !in_array(false, array_map(
@@ -269,6 +272,21 @@ class HealthManager implements HealthManagerInterface
         return [
             'ok' => (bool) ($summary['enabled'] ?? false),
             'summary' => $summary,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function frameworkCheck(): array
+    {
+        $report = $this->doctor->inspect(false);
+
+        return [
+            'ok' => (bool) ($report['healthy'] ?? false),
+            'status' => (int) ($report['status'] ?? 503),
+            'errors' => is_array($report['errors'] ?? null) ? $report['errors'] : [],
+            'warnings' => is_array($report['warnings'] ?? null) ? $report['warnings'] : [],
         ];
     }
 }

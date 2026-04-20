@@ -8,10 +8,12 @@ use App\Console\Commands\AuditListCommand;
 use App\Console\Commands\CacheClearCommand;
 use App\Console\Commands\ConfigShowCommand;
 use App\Console\Commands\EventListCommand;
+use App\Console\Commands\FrameworkDoctorCommand;
 use App\Console\Commands\HealthCheckCommand;
 use App\Console\Commands\MigrateCommand;
 use App\Console\Commands\MigrateRollbackCommand;
 use App\Console\Commands\MigrateStatusCommand;
+use App\Console\Commands\ModuleMakeCommand;
 use App\Console\Commands\ModuleListCommand;
 use App\Console\Commands\NotificationListCommand;
 use App\Console\Commands\QueueFailedCommand;
@@ -42,7 +44,9 @@ class ConsoleKernel
         RouteListCommand $routeList,
         CacheClearCommand $cacheClear,
         ConfigShowCommand $configShow,
+        FrameworkDoctorCommand $frameworkDoctor,
         ModuleListCommand $moduleList,
+        ModuleMakeCommand $moduleMake,
         HealthCheckCommand $healthCheck,
         QueueWorkCommand $queueWork,
         QueueFailedCommand $queueFailed,
@@ -59,7 +63,9 @@ class ConsoleKernel
             $routeList,
             $cacheClear,
             $configShow,
+            $frameworkDoctor,
             $moduleList,
+            $moduleMake,
             $healthCheck,
             $queueWork,
             $queueFailed,

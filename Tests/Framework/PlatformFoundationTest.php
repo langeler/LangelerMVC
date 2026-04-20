@@ -37,6 +37,7 @@ use PDO;
 class PlatformFoundationTest extends TestCase
 {
     private array $pathsToDelete = [];
+    private array $directoriesToDelete = [];
 
     protected function tearDown(): void
     {
@@ -46,7 +47,12 @@ class PlatformFoundationTest extends TestCase
             }
         }
 
+        foreach ($this->directoriesToDelete as $path) {
+            $this->removeDirectory($path);
+        }
+
         $this->pathsToDelete = [];
+        $this->directoriesToDelete = [];
     }
 
     public function testConsoleKernelExposesOperationalCommands(): void
@@ -61,6 +67,8 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('migrate', $kernel->commandDescriptions());
         self::assertArrayHasKey('route:list', $kernel->commandDescriptions());
         self::assertArrayHasKey('module:list', $kernel->commandDescriptions());
+        self::assertArrayHasKey('module:make', $kernel->commandDescriptions());
+        self::assertArrayHasKey('framework:doctor', $kernel->commandDescriptions());
     }
 
     public function testConsoleKernelParsesOptionsForOperationalCommands(): void
@@ -74,6 +82,33 @@ class PlatformFoundationTest extends TestCase
         ob_end_clean();
 
         self::assertSame(0, $exitCode);
+    }
+
+    public function testConsoleKernelScaffoldsNewModuleAndRunsFrameworkDoctor(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+        $kernel = $provider->createConsoleKernel();
+
+        $moduleSeed = strtoupper(bin2hex(random_bytes(3)));
+        $moduleName = 'Spec' . $moduleSeed;
+        $moduleFolder = dirname(__DIR__, 2) . '/App/Modules/' . $moduleName . 'Module';
+        $this->directoriesToDelete[] = $moduleFolder;
+
+        ob_start();
+        $makeExit = $kernel->run(['console', 'module:make', $moduleName, '--quiet=1']);
+        ob_end_clean();
+
+        self::assertSame(0, $makeExit);
+        self::assertDirectoryExists($moduleFolder);
+        self::assertFileExists($moduleFolder . '/Routes/web.php');
+        self::assertFileExists($moduleFolder . '/Controllers/' . $moduleName . 'Controller.php');
+
+        ob_start();
+        $doctorExit = $kernel->run(['console', 'framework:doctor', '--quiet=1']);
+        ob_end_clean();
+
+        self::assertSame(0, $doctorExit);
     }
 
     public function testMigrationAndSeedRunnersManageWebModuleSchemaLifecycle(): void
@@ -268,6 +303,36 @@ class PlatformFoundationTest extends TestCase
             new ErrorManager(new ExceptionProvider()),
             new PDO('sqlite::memory:')
         );
+    }
+
+    private function removeDirectory(string $path): void
+    {
+        if (!is_dir($path)) {
+            return;
+        }
+
+        $items = scandir($path);
+
+        if (!is_array($items)) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $target = $path . DIRECTORY_SEPARATOR . $item;
+
+            if (is_dir($target)) {
+                $this->removeDirectory($target);
+                continue;
+            }
+
+            @unlink($target);
+        }
+
+        @rmdir($path);
     }
 
     /**

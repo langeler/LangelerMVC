@@ -136,8 +136,11 @@ Point the document root at `Public/` and use [`Public/.htaccess`](./Public/.htac
 php console list
 php console health:check
 php console health:check ready
+php console framework:doctor
+php console framework:doctor --strict
 php console audit:list --limit=25
 php console migrate
+php console module:make Blog
 php console seed WebModule
 php console route:list
 ```

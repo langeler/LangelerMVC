@@ -22,7 +22,7 @@ These routes are handled before normal router dispatch when the `health` core se
 ### What They Report
 
 - `live`: runtime availability, PHP version, SAPI, and application identity
-- `ready`: database, cache, session, queue, notification, payment, mail, passkey, and audit checks
+- `ready`: database, cache, session, queue, notification, payment, mail, passkey, audit, and framework-structure checks
 - `capabilities`: available drivers, enabled features, registered modules, event/listener visibility, and payment method/flow compatibility
 
 ## Console Operations
@@ -33,8 +33,11 @@ The current first-party operational commands include:
 php console list
 php console health:check
 php console health:check ready
+php console framework:doctor
+php console framework:doctor --strict
 php console audit:list --limit=25
 php console migrate
+php console module:make Blog
 php console seed
 php console route:list
 php console queue:work notifications

@@ -21,6 +21,7 @@ use App\Contracts\Auth\GuardInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
 use App\Contracts\Auth\UserProviderInterface;
 use App\Contracts\Support\AuditLoggerInterface;
+use App\Contracts\Support\FrameworkDoctorInterface;
 use App\Contracts\Support\HealthManagerInterface;
 use App\Contracts\Support\NotificationManagerInterface;
 use App\Contracts\Support\PaymentManagerInterface;
@@ -40,6 +41,7 @@ use App\Utilities\Managers\Security\{
 };
 use App\Utilities\Managers\Support\{
     AuditLogger,
+    FrameworkDoctor,
     HealthManager,
     NotificationManager,
     PasskeyManager,
@@ -86,6 +88,7 @@ class CoreProvider extends Container
             'console'  => ConsoleKernel::class,
             'config'   => Config::class,
             'database' => Database::class,
+            'doctor' => FrameworkDoctor::class,
             'events' => EventDispatcher::class,
             'gate' => Gate::class,
             'health' => HealthManager::class,
@@ -141,6 +144,7 @@ class CoreProvider extends Container
                 $this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
                 $this->registerAlias(EventDispatcherInterface::class, EventDispatcher::class);
                 $this->registerAlias(AuditLoggerInterface::class, AuditLogger::class);
+                $this->registerAlias(FrameworkDoctorInterface::class, FrameworkDoctor::class);
                 $this->registerAlias(HealthManagerInterface::class, HealthManager::class);
                 $this->registerAlias(NotificationManagerInterface::class, NotificationManager::class);
                 $this->registerAlias(PaymentManagerInterface::class, PaymentManager::class);

@@ -168,6 +168,8 @@ class MailManager implements MailerInterface
 
         if (is_array($message['reply_to'] ?? null)) {
             $mailer->addReplyTo((string) $message['reply_to']['address'], (string) ($message['reply_to']['name'] ?? ''));
+        } elseif (($replyTo = $this->normalizeReplyTo()) !== null) {
+            $mailer->addReplyTo($replyTo['address'], $replyTo['name']);
         }
 
         return $mailer->send();
@@ -179,10 +181,13 @@ class MailManager implements MailerInterface
     private function normalizeFrom(): array
     {
         $from = (string) $this->config->get('mail', 'FROM', 'no-reply@example.com');
-        $name = (string) $this->config->get('app', 'NAME', 'LangelerMVC');
+        $configuredName = trim((string) $this->config->get('mail', 'FROM_NAME', ''));
+        $name = $configuredName !== ''
+            ? $configuredName
+            : (string) $this->config->get('app', 'NAME', 'LangelerMVC');
 
         if ($this->match('/^"?(.*?)"?\s*<([^>]+)>$/', $from, $matches) === 1) {
-            return [(string) $matches[2], (string) $matches[1]];
+            return [(string) $matches[2], $configuredName !== '' ? $configuredName : (string) $matches[1]];
         }
 
         if (str_contains($from, '@')) {
@@ -190,6 +195,31 @@ class MailManager implements MailerInterface
         }
 
         return ['no-reply@example.com', $name];
+    }
+
+    /**
+     * @return array{address:string,name:string}|null
+     */
+    private function normalizeReplyTo(): ?array
+    {
+        $replyTo = trim((string) $this->config->get('mail', 'REPLY', $this->config->get('mail', 'REPLY_TO', '')));
+
+        if ($replyTo === '') {
+            return null;
+        }
+
+        $name = trim((string) $this->config->get('mail', 'FROM_NAME', $this->config->get('app', 'NAME', 'LangelerMVC')));
+
+        if ($this->match('/^"?(.*?)"?\s*<([^>]+)>$/', $replyTo, $matches) === 1) {
+            return [
+                'address' => (string) $matches[2],
+                'name' => trim((string) $matches[1]) !== '' ? (string) $matches[1] : $name,
+            ];
+        }
+
+        return str_contains($replyTo, '@')
+            ? ['address' => $replyTo, 'name' => $name]
+            : null;
     }
 
     private function frameworkLogPath(string $file): string

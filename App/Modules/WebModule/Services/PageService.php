@@ -102,6 +102,30 @@ class PageService extends Service
     private function defaultPage(string $slug): array
     {
         return match ($slug) {
+            'about' => [
+                'slug' => 'about',
+                'title' => 'About LangelerMVC',
+                'headline' => 'A modular production framework.',
+                'summary' => 'LangelerMVC keeps request, service, presenter, view, and response responsibilities explicit across each module boundary.',
+                'body' => 'The framework ships with concrete Web, User, Shop, Cart, and Order modules so teams can extend real production slices instead of scaffolding from an empty shell.',
+                'source' => 'memory',
+                'callToAction' => [
+                    'label' => 'Review the architecture page',
+                    'href' => '/pages/architecture',
+                ],
+            ],
+            'architecture' => [
+                'slug' => 'architecture',
+                'title' => 'Framework Architecture',
+                'headline' => 'Layered by design and ready for extension.',
+                'summary' => 'Every first-party module runs through the same MVC lifecycle, shared support managers, and pluggable service contracts.',
+                'body' => 'The framework now exposes installer-backed runtime configuration, framework diagnostics, module scaffolding, and production-ready starter modules without bypassing the native backend abstractions.',
+                'source' => 'memory',
+                'callToAction' => [
+                    'label' => 'Return Home',
+                    'href' => '/',
+                ],
+            ],
             'not-found' => [
                 'slug' => 'not-found',
                 'title' => 'Page Not Found',

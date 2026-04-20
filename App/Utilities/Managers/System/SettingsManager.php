@@ -61,6 +61,70 @@ class SettingsManager
     private array $data = [];
 
     /**
+     * Environment aliases for config keys whose runtime names contain nested or
+     * compound segments that do not map 1:1 from underscore-separated env vars.
+     *
+     * @var array<string, array{file:string, path:list<string>}>
+     */
+    private const ENVIRONMENT_ALIASES = [
+        'APP_FALLBACK_LOCALE' => ['file' => 'app', 'path' => ['FALLBACK']],
+        'AUTH_VERIFY_EMAIL' => ['file' => 'auth', 'path' => ['VERIFY_EMAIL']],
+        'AUTH_EMAIL_VERIFY_EXPIRES' => ['file' => 'auth', 'path' => ['EMAIL_VERIFY_EXPIRES']],
+        'AUTH_PASSWORD_RESET_EXPIRES' => ['file' => 'auth', 'path' => ['PASSWORD_RESET_EXPIRES']],
+        'AUTH_REMEMBER_ME_DAYS' => ['file' => 'auth', 'path' => ['REMEMBER_ME_DAYS']],
+        'AUTH_DEFAULT_ROLE' => ['file' => 'auth', 'path' => ['DEFAULT_ROLE']],
+        'AUTH_ADMIN_ROLE' => ['file' => 'auth', 'path' => ['ADMIN_ROLE']],
+        'AUTH_OTP_TRUSTED_DEVICE_DAYS' => ['file' => 'auth', 'path' => ['OTP', 'TRUSTED_DEVICE_DAYS']],
+        'AUTH_OTP_TRUSTED_DEVICE_COOKIE' => ['file' => 'auth', 'path' => ['OTP', 'TRUSTED_DEVICE_COOKIE']],
+        'AUTH_PASSKEY_RP_ID' => ['file' => 'auth', 'path' => ['PASSKEY', 'RP_ID']],
+        'AUTH_PASSKEY_RP_NAME' => ['file' => 'auth', 'path' => ['PASSKEY', 'RP_NAME']],
+        'AUTH_PASSKEY_ALLOW_SUBDOMAINS' => ['file' => 'auth', 'path' => ['PASSKEY', 'ALLOW_SUBDOMAINS']],
+        'AUTH_PASSKEY_CHALLENGE_TTL' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_TTL']],
+        'AUTH_PASSKEY_CHALLENGE_BYTES' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_BYTES']],
+        'AUTH_PASSKEY_RESIDENT_KEY' => ['file' => 'auth', 'path' => ['PASSKEY', 'RESIDENT_KEY']],
+        'CACHE_FILE_PATH' => ['file' => 'cache', 'path' => ['FILE']],
+        'CACHE_MAX_ITEMS' => ['file' => 'cache', 'path' => ['MAX_ITEMS']],
+        'CACHE_REDIS_HOST' => ['file' => 'cache', 'path' => ['REDIS_HOST']],
+        'CACHE_REDIS_PORT' => ['file' => 'cache', 'path' => ['REDIS_PORT']],
+        'CACHE_REDIS_TIMEOUT' => ['file' => 'cache', 'path' => ['REDIS_TIMEOUT']],
+        'CACHE_REDIS_PASSWORD' => ['file' => 'cache', 'path' => ['REDIS_PASSWORD']],
+        'CACHE_REDIS_DATABASE' => ['file' => 'cache', 'path' => ['REDIS_DATABASE']],
+        'CACHE_MEMCACHED_HOST' => ['file' => 'cache', 'path' => ['MEMCACHE_HOST']],
+        'CACHE_MEMCACHED_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT']],
+        'CACHE_MEMCACHE_HOST' => ['file' => 'cache', 'path' => ['MEMCACHE_HOST']],
+        'CACHE_MEMCACHE_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT']],
+        'DB_POOL_SIZE' => ['file' => 'db', 'path' => ['POOL']],
+        'DB_RETRY_DELAY' => ['file' => 'db', 'path' => ['RETRY']],
+        'DB_SSL_MODE' => ['file' => 'db', 'path' => ['SSL']],
+        'ENCRYPTION_HASH_ALGO' => ['file' => 'encryption', 'path' => ['HASH_ALGORITHM']],
+        'ENCRYPTION_PBKDF2_ITERATIONS' => ['file' => 'encryption', 'path' => ['PBKDF2_ITERATIONS']],
+        'ENCRYPTION_OPENSSL_CIPHER' => ['file' => 'encryption', 'path' => ['OPENSSL_CIPHER']],
+        'ENCRYPTION_OPENSSL_KEY' => ['file' => 'encryption', 'path' => ['OPENSSL_KEY']],
+        'ENCRYPTION_SODIUM_KEY' => ['file' => 'encryption', 'path' => ['SODIUM_KEY']],
+        'FEATURE_VERIFY_EMAIL' => ['file' => 'feature', 'path' => ['VERIFY']],
+        'FEATURE_2FA' => ['file' => 'feature', 'path' => ['2FA']],
+        'HTTP_SIGNED_URL_KEY' => ['file' => 'http', 'path' => ['SIGNED_URL', 'KEY']],
+        'HTTP_THROTTLE_MAX_ATTEMPTS' => ['file' => 'http', 'path' => ['THROTTLE', 'MAX_ATTEMPTS']],
+        'HTTP_THROTTLE_DECAY_SECONDS' => ['file' => 'http', 'path' => ['THROTTLE', 'DECAY_SECONDS']],
+        'MAIL_FROM_ADDRESS' => ['file' => 'mail', 'path' => ['FROM']],
+        'MAIL_FROM_NAME' => ['file' => 'mail', 'path' => ['FROM_NAME']],
+        'MAIL_REPLY_TO' => ['file' => 'mail', 'path' => ['REPLY']],
+        'MAIL_LOG_ENABLED' => ['file' => 'mail', 'path' => ['LOG']],
+        'NOTIFICATIONS_DEFAULT_CHANNELS' => ['file' => 'notifications', 'path' => ['DEFAULT_CHANNELS']],
+        'NOTIFICATIONS_QUEUE_NAME' => ['file' => 'notifications', 'path' => ['QUEUE_NAME']],
+        'PAYMENT_DEFAULT_METHOD' => ['file' => 'payment', 'path' => ['DEFAULT_METHOD']],
+        'PAYMENT_DEFAULT_FLOW' => ['file' => 'payment', 'path' => ['DEFAULT_FLOW']],
+        'QUEUE_DEFAULT_QUEUE' => ['file' => 'queue', 'path' => ['DEFAULT_QUEUE']],
+        'QUEUE_RETRY_AFTER' => ['file' => 'queue', 'path' => ['RETRY_AFTER']],
+        'SESSION_EXPIRE_ON_CLOSE' => ['file' => 'session', 'path' => ['EXPIRE_ON_CLOSE']],
+        'SESSION_SAVE_PATH' => ['file' => 'session', 'path' => ['SAVE', 'PATH']],
+        'SESSION_SECURE_COOKIE' => ['file' => 'session', 'path' => ['COOKIE', 'SECURE']],
+        'SESSION_HTTPONLY_COOKIE' => ['file' => 'session', 'path' => ['COOKIE', 'HTTPONLY']],
+        'SESSION_SAME_SITE' => ['file' => 'session', 'path' => ['COOKIE', 'SAME_SITE']],
+        'WEBMODULE_CONTENT_SOURCE' => ['file' => 'webmodule', 'path' => ['CONTENT_SOURCE']],
+    ];
+
+    /**
      * Invalid config files captured during discovery.
      *
      * @var array<string, string>
@@ -387,7 +451,7 @@ class SettingsManager
      * Parses a .env file into a flat key/value map.
      *
      * @param string $envFile
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function parseEnvFile(string $envFile): array
     {
@@ -416,7 +480,7 @@ class SettingsManager
     /**
      * Groups raw environment variables by config file prefix and nested key path.
      *
-     * @param array<string, string> $variables
+     * @param array<string, mixed> $variables
      * @return array<string, array>
      */
     private function groupEnvironmentByConfig(array $variables): array
@@ -424,23 +488,68 @@ class SettingsManager
         $grouped = [];
 
         foreach ($variables as $key => $value) {
-            $segments = $this->getValues($this->filter($this->splitString('_', $key), fn($segment) => $segment !== ''));
+            $target = $this->resolveEnvironmentTarget($key);
 
-            if ($this->countElements($segments) < 2) {
+            if ($target === null) {
                 continue;
             }
 
-            $file = $this->toLowerString((string) array_shift($segments));
-
-            if (!isset($this->files[$file])) {
-                continue;
-            }
-
-            $path = $this->map(fn(string $segment): string => $this->toUpperString($segment), $segments);
-            $this->setNestedValue($grouped[$file], $path, $this->normalizeScalarValue($value));
+            $this->setNestedValue(
+                $grouped[$target['file']],
+                $target['path'],
+                $this->normalizeScalarValue($value)
+            );
         }
 
         return $grouped;
+    }
+
+    /**
+     * Resolves an environment variable name into its target config file/path.
+     *
+     * @param string $key
+     * @return array{file:string, path:list<string>}|null
+     */
+    private function resolveEnvironmentTarget(string $key): ?array
+    {
+        $normalizedKey = $this->toUpperString($this->trimString($key));
+
+        if ($normalizedKey === '') {
+            return null;
+        }
+
+        if (isset(self::ENVIRONMENT_ALIASES[$normalizedKey])) {
+            $alias = self::ENVIRONMENT_ALIASES[$normalizedKey];
+            $file = $this->toLowerString((string) ($alias['file'] ?? ''));
+            $path = $this->map(
+                fn(string $segment): string => $this->toUpperString($segment),
+                (array) ($alias['path'] ?? [])
+            );
+
+            return $file !== '' && $path !== [] && isset($this->files[$file])
+                ? ['file' => $file, 'path' => $path]
+                : null;
+        }
+
+        $segments = $this->getValues($this->filter(
+            $this->splitString('_', $normalizedKey),
+            fn($segment) => $segment !== ''
+        ));
+
+        if ($this->countElements($segments) < 2) {
+            return null;
+        }
+
+        $file = $this->toLowerString((string) array_shift($segments));
+
+        if (!isset($this->files[$file])) {
+            return null;
+        }
+
+        return [
+            'file' => $file,
+            'path' => $this->map(fn(string $segment): string => $this->toUpperString($segment), $segments),
+        ];
     }
 
     /**
@@ -512,11 +621,22 @@ class SettingsManager
     /**
      * Normalizes scalar config values by trimming whitespace, comments, and quotes.
      *
-     * @param string $value
-     * @return string
+     * Boolean-ish strings are converted to native booleans so downstream config
+     * consumers can safely cast values without treating `'false'` as truthy.
+     *
+     * @param mixed $value
+     * @return mixed
      */
-    private function normalizeScalarValue(string $value): string
+    private function normalizeScalarValue(mixed $value): mixed
     {
+        if ($value === null || $this->isBool($value) || $this->isInt($value) || $this->isFloat($value)) {
+            return $value;
+        }
+
+        if (!$this->isString($value)) {
+            return $value;
+        }
+
         $trimmed = $this->trimString($value);
 
         if ($trimmed === '') {
@@ -527,10 +647,25 @@ class SettingsManager
         $lastChar = $this->substringString($trimmed, -1);
 
         if (($firstChar === '"' && $lastChar === '"') || ($firstChar === "'" && $lastChar === "'")) {
-            return $this->substringString($trimmed, 1, -1);
+            $trimmed = $this->substringString($trimmed, 1, -1);
+        } else {
+            $trimmed = $this->trimString((string) ($this->patternReplace('/\s+#.*$/', '', $trimmed) ?? $trimmed));
         }
 
-        return $this->trimString((string) ($this->patternReplace('/\s+#.*$/', '', $trimmed) ?? $trimmed));
+        if ($this->toLowerString($trimmed) === 'null') {
+            return null;
+        }
+
+        $boolean = filter_var($trimmed, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if (
+            $boolean !== null
+            && $this->match('/^(true|false|on|off|yes|no|1|0)$/i', $trimmed) === 1
+        ) {
+            return $boolean;
+        }
+
+        return $trimmed;
     }
 
     /**

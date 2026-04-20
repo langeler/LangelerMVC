@@ -64,8 +64,26 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertFalse($status['installed']);
         self::assertTrue($status['storageWritable']);
         self::assertTrue($status['databaseWritable']);
+        self::assertTrue($status['environmentWritable']);
         self::assertContains('testing', $status['paymentDrivers']);
         self::assertContains('klarna', $status['paymentDrivers']);
+        self::assertContains('WebModule', $status['modules']);
+        self::assertContains('database', $status['contentSources']);
+    }
+
+    public function testInstallerWizardGeneratesProductionReadySecretsAndDerivedDefaults(): void
+    {
+        $wizard = new InstallerWizard(new FileManager());
+        $defaults = $wizard->defaults();
+
+        self::assertStringStartsWith('base64:', $defaults['ENCRYPTION_KEY']);
+        self::assertStringStartsWith('base64:', $defaults['ENCRYPTION_OPENSSL_KEY']);
+        self::assertStringStartsWith('base64:', $defaults['ENCRYPTION_SODIUM_KEY']);
+        self::assertNotSame('langelermvc-signed-url', $defaults['HTTP_SIGNED_URL_KEY']);
+        self::assertSame('LangelerMVC', $defaults['AUTH_PASSKEY_RP_NAME']);
+        self::assertSame('localhost', $defaults['AUTH_PASSKEY_RP_ID']);
+        self::assertSame('http://localhost', $defaults['AUTH_PASSKEY_ORIGINS']);
+        self::assertSame('no-reply@langelermvc.test', $defaults['MAIL_FROM_ADDRESS']);
     }
 
     public function testInstallerAndModuleViewsExposeProductionTemplates(): void
@@ -93,6 +111,8 @@ final class InstallerAndViewCoverageTest extends TestCase
         ]);
 
         self::assertStringContainsString('Install LangelerMVC', $installerOutput);
+        self::assertStringContainsString('Security & Identity', $installerOutput);
+        self::assertStringContainsString('Installation Plan', $installerOutput);
         self::assertStringContainsString('Payment Compatibility', $installerOutput);
 
         $matrix = [

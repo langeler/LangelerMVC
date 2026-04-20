@@ -382,7 +382,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame(3, (int) $database->fetchColumn('SELECT COUNT(*) FROM products'));
         self::assertSame(1, (int) $database->fetchColumn('SELECT COUNT(*) FROM carts'));
         self::assertSame(1, (int) $database->fetchColumn('SELECT COUNT(*) FROM orders'));
-        self::assertSame(2, (int) $database->fetchColumn('SELECT COUNT(*) FROM pages'));
+        self::assertSame(4, (int) $database->fetchColumn('SELECT COUNT(*) FROM pages'));
 
         $pageService = new PageService(
             new PageRepository($database),

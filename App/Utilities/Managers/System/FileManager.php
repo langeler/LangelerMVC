@@ -224,7 +224,7 @@ class FileManager
 	public function createDirectory(string $pathname, int $mode = 0777, bool $recursive = false): bool
 	{
 		try {
-			return $this->getFileInfo($pathname)?->isDir() ?: mkdir($pathname, $mode, $recursive);
+			return $this->getFileInfo($pathname)?->isDir() ?: @mkdir($pathname, $mode, $recursive);
 		} catch (Throwable) {
 			return false;
 		}

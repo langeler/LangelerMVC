@@ -40,6 +40,15 @@ class HomeController extends Controller
         return $this->run();
     }
 
+    public function page(string $slug): ResponseInterface
+    {
+        $this->slug = trim($slug) !== '' ? trim($slug) : 'home';
+        $this->template = 'Home';
+        $this->status = 200;
+
+        return $this->run();
+    }
+
     public function notFound(): ResponseInterface
     {
         $this->slug = 'not-found';

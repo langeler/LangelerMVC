@@ -17,6 +17,29 @@ final class InstallerWizard
 {
     use ApplicationPathTrait;
 
+    private const SUPPORTED_DATABASE_DRIVERS = ['sqlite', 'mysql', 'pgsql', 'sqlsrv'];
+    private const SUPPORTED_SESSION_DRIVERS = ['native', 'file', 'database', 'redis'];
+    private const SUPPORTED_CACHE_DRIVERS = ['array', 'file', 'database', 'redis', 'memcache'];
+    private const SUPPORTED_MAIL_DRIVERS = ['array', 'log', 'smtp', 'sendmail', 'mail'];
+    private const SUPPORTED_QUEUE_DRIVERS = ['sync', 'database'];
+    private const SUPPORTED_CONTENT_SOURCES = ['database', 'memory'];
+    private const SUPPORTED_PAYMENT_DRIVERS = ['testing', 'card', 'paypal', 'klarna', 'swish', 'qliro', 'walley', 'crypto'];
+    private const SUPPORTED_PAYMENT_METHODS = ['card', 'wallet', 'bank_transfer', 'bnpl', 'local_instant', 'manual', 'crypto'];
+    private const SUPPORTED_PAYMENT_FLOWS = ['authorize_capture', 'purchase', 'redirect', 'async', 'manual_review'];
+
+    /**
+     * @var list<string>
+     */
+    private const BOOLEAN_FIELDS = [
+        'APP_DEBUG',
+        'AUTH_VERIFY_EMAIL',
+        'CACHE_ENABLED',
+        'MAIL_LOG_ENABLED',
+        'SESSION_EXPIRE_ON_CLOSE',
+        'SESSION_SECURE_COOKIE',
+        'SESSION_HTTPONLY_COOKIE',
+    ];
+
     private string $basePath;
 
     public function __construct(
@@ -31,35 +54,8 @@ final class InstallerWizard
      */
     public function defaults(): array
     {
-        $defaults = array_replace($this->templateEnvironment(), [
-            'APP_NAME' => 'LangelerMVC',
-            'APP_ENV' => 'production',
-            'APP_DEBUG' => 'false',
-            'APP_INSTALLED' => 'false',
-            'APP_URL' => 'http://localhost',
-            'APP_TIMEZONE' => 'Europe/Stockholm',
-            'APP_LOCALE' => 'en',
-            'APP_FALLBACK_LOCALE' => 'en',
-            'DB_CONNECTION' => 'sqlite',
-            'DB_HOST' => '127.0.0.1',
-            'DB_PORT' => '3306',
-            'DB_DATABASE' => 'Storage/Database/langelermvc.sqlite',
-            'DB_USERNAME' => '',
-            'DB_PASSWORD' => '',
-            'SESSION_DRIVER' => 'database',
-            'CACHE_DRIVER' => 'file',
-            'MAIL_MAILER' => 'array',
-            'MAIL_HOST' => 'smtp.mailtrap.io',
-            'MAIL_PORT' => '2525',
-            'MAIL_USERNAME' => '',
-            'MAIL_PASSWORD' => '',
-            'MAIL_ENCRYPTION' => 'tls',
-            'MAIL_FROM_ADDRESS' => 'no-reply@langelermvc.test',
-            'MAIL_REPLY_TO' => 'no-reply@langelermvc.test',
-            'WEBMODULE_CONTENT_SOURCE' => 'database',
-            'FEATURE_VERIFY_EMAIL' => 'true',
-            'FEATURE_2FA' => 'true',
-        ]);
+        $defaults = array_replace($this->templateEnvironment(), $this->baseDefaults());
+        $defaults = $this->synchronizeDefaults($defaults);
 
         $defaults['ADMIN_NAME'] = 'Platform Administrator';
         $defaults['ADMIN_EMAIL'] = 'admin@langelermvc.test';
@@ -82,21 +78,33 @@ final class InstallerWizard
     {
         $storage = $this->storagePath();
         $databaseDirectory = $this->storagePath('Database');
+        $environmentDirectory = dirname($this->envPath());
+        $appUrl = (string) ($this->defaults()['APP_URL'] ?? 'http://localhost');
 
         return [
             'php' => PHP_VERSION,
             'installed' => $this->isInstalled(),
             'storageWritable' => $this->isWritablePath($storage),
             'databaseWritable' => $this->isWritablePath($databaseDirectory),
+            'environmentWritable' => $this->isWritablePath($environmentDirectory),
+            'httpsRecommended' => str_starts_with(strtolower($appUrl), 'https://'),
             'extensions' => [
                 'pdo' => extension_loaded('pdo'),
                 'openssl' => extension_loaded('openssl'),
+                'sodium' => extension_loaded('sodium'),
                 'intl' => extension_loaded('intl'),
                 'mbstring' => extension_loaded('mbstring'),
                 'redis' => extension_loaded('redis'),
                 'memcached' => extension_loaded('memcached'),
             ],
-            'paymentDrivers' => ['testing', 'card', 'paypal', 'klarna', 'swish', 'qliro', 'walley', 'crypto'],
+            'modules' => $this->moduleInstallOrder(),
+            'databaseDrivers' => self::SUPPORTED_DATABASE_DRIVERS,
+            'sessionDrivers' => self::SUPPORTED_SESSION_DRIVERS,
+            'cacheDrivers' => self::SUPPORTED_CACHE_DRIVERS,
+            'mailDrivers' => self::SUPPORTED_MAIL_DRIVERS,
+            'queueDrivers' => self::SUPPORTED_QUEUE_DRIVERS,
+            'contentSources' => self::SUPPORTED_CONTENT_SOURCES,
+            'paymentDrivers' => self::SUPPORTED_PAYMENT_DRIVERS,
         ];
     }
 
@@ -143,6 +151,7 @@ final class InstallerWizard
             'environment' => $environment,
             'migrated' => $migrated,
             'seeded' => $seeded,
+            'modules' => $this->moduleInstallOrder(),
             'admin' => $admin,
             'login' => [
                 'html' => '/users/login',
@@ -162,15 +171,21 @@ final class InstallerWizard
             $payload
         ));
 
-        $data['APP_DEBUG'] = $this->booleanValue($payload['APP_DEBUG'] ?? $data['APP_DEBUG']) ? 'true' : 'false';
-        $data['FEATURE_VERIFY_EMAIL'] = $this->booleanValue($payload['FEATURE_VERIFY_EMAIL'] ?? $data['FEATURE_VERIFY_EMAIL']) ? 'true' : 'false';
-        $data['FEATURE_2FA'] = $this->booleanValue($payload['FEATURE_2FA'] ?? $data['FEATURE_2FA']) ? 'true' : 'false';
+        foreach (self::BOOLEAN_FIELDS as $key) {
+            $data[$key] = $this->booleanValue($payload[$key] ?? $data[$key] ?? false) ? 'true' : 'false';
+        }
 
-        if ($data['DB_CONNECTION'] === 'sqlite' && $data['DB_DATABASE'] === '') {
+        $data['APP_URL'] = rtrim((string) ($data['APP_URL'] ?? ''), '/');
+        $data['APP_LOCALE'] = strtolower((string) ($data['APP_LOCALE'] ?? 'en'));
+        $data['APP_FALLBACK_LOCALE'] = strtolower((string) ($data['APP_FALLBACK_LOCALE'] ?? 'en'));
+        $data['PAYMENT_CURRENCY'] = strtoupper((string) ($data['PAYMENT_CURRENCY'] ?? 'SEK'));
+        $data['MAIL_FROM_NAME'] = trim((string) ($data['MAIL_FROM_NAME'] ?? ''));
+
+        if (($data['DB_CONNECTION'] ?? '') === 'sqlite' && ($data['DB_DATABASE'] ?? '') === '') {
             $data['DB_DATABASE'] = 'Storage/Database/langelermvc.sqlite';
         }
 
-        return $data;
+        return $this->synchronizeDefaults($data);
     }
 
     /**
@@ -198,6 +213,10 @@ final class InstallerWizard
             throw new \InvalidArgumentException('Application URL must be a valid absolute URL.');
         }
 
+        if (!in_array($data['APP_TIMEZONE'], timezone_identifiers_list(), true)) {
+            throw new \InvalidArgumentException('Timezone must be a valid PHP timezone identifier.');
+        }
+
         if (filter_var($data['ADMIN_EMAIL'], FILTER_VALIDATE_EMAIL) === false) {
             throw new \InvalidArgumentException('Administrator email must be a valid email address.');
         }
@@ -206,20 +225,80 @@ final class InstallerWizard
             throw new \InvalidArgumentException('Administrator password must be at least 8 characters long.');
         }
 
-        if (!in_array($data['DB_CONNECTION'], ['sqlite', 'mysql', 'pgsql', 'sqlsrv'], true)) {
+        if (!in_array($data['DB_CONNECTION'], self::SUPPORTED_DATABASE_DRIVERS, true)) {
             throw new \InvalidArgumentException('Unsupported database driver selected.');
         }
 
-        if (!in_array($data['SESSION_DRIVER'], ['native', 'file', 'database', 'redis'], true)) {
+        if (!in_array($data['SESSION_DRIVER'], self::SUPPORTED_SESSION_DRIVERS, true)) {
             throw new \InvalidArgumentException('Unsupported session driver selected.');
         }
 
-        if (!in_array($data['CACHE_DRIVER'], ['array', 'file', 'database', 'redis', 'memcache'], true)) {
+        if (!in_array($data['CACHE_DRIVER'], self::SUPPORTED_CACHE_DRIVERS, true)) {
             throw new \InvalidArgumentException('Unsupported cache driver selected.');
         }
 
-        if (!in_array($data['MAIL_MAILER'], ['array', 'smtp'], true)) {
+        if (!in_array($data['MAIL_MAILER'], self::SUPPORTED_MAIL_DRIVERS, true)) {
             throw new \InvalidArgumentException('Unsupported mail driver selected.');
+        }
+
+        if (!in_array($data['QUEUE_DRIVER'], self::SUPPORTED_QUEUE_DRIVERS, true)) {
+            throw new \InvalidArgumentException('Unsupported queue driver selected.');
+        }
+
+        if (!in_array($data['WEBMODULE_CONTENT_SOURCE'], self::SUPPORTED_CONTENT_SOURCES, true)) {
+            throw new \InvalidArgumentException('Unsupported WebModule content source selected.');
+        }
+
+        if (!in_array($data['PAYMENT_DRIVER'], self::SUPPORTED_PAYMENT_DRIVERS, true)) {
+            throw new \InvalidArgumentException('Unsupported payment driver selected.');
+        }
+
+        if (!in_array($data['PAYMENT_DEFAULT_METHOD'], self::SUPPORTED_PAYMENT_METHODS, true)) {
+            throw new \InvalidArgumentException('Unsupported payment method selected.');
+        }
+
+        if (!in_array($data['PAYMENT_DEFAULT_FLOW'], self::SUPPORTED_PAYMENT_FLOWS, true)) {
+            throw new \InvalidArgumentException('Unsupported payment flow selected.');
+        }
+
+        if (!in_array($data['ENCRYPTION_TYPE'], ['openssl', 'sodium'], true)) {
+            throw new \InvalidArgumentException('Unsupported encryption driver selected.');
+        }
+
+        foreach ([
+            'MAIL_FROM_ADDRESS' => 'mail from address',
+            'MAIL_REPLY_TO' => 'mail reply-to address',
+        ] as $key => $label) {
+            if (($data[$key] ?? '') !== '' && filter_var($data[$key], FILTER_VALIDATE_EMAIL) === false) {
+                throw new \InvalidArgumentException(sprintf('The %s must be a valid email address.', $label));
+            }
+        }
+
+        foreach ([
+            'DB_PORT' => 'database port',
+            'DB_TIMEOUT' => 'database timeout',
+            'DB_POOL_SIZE' => 'database pool size',
+            'MAIL_PORT' => 'mail port',
+            'SESSION_LIFETIME' => 'session lifetime',
+            'CACHE_TTL' => 'cache TTL',
+            'QUEUE_RETRY_AFTER' => 'queue retry-after',
+            'HTTP_THROTTLE_MAX_ATTEMPTS' => 'throttle max attempts',
+            'HTTP_THROTTLE_DECAY_SECONDS' => 'throttle decay seconds',
+            'AUTH_REMEMBER_ME_DAYS' => 'remember me days',
+            'AUTH_OTP_TRUSTED_DEVICE_DAYS' => 'trusted device days',
+            'ENCRYPTION_PBKDF2_ITERATIONS' => 'PBKDF2 iterations',
+        ] as $key => $label) {
+            if (($data[$key] ?? '') !== '' && (!ctype_digit((string) $data[$key]) || (int) $data[$key] < 0)) {
+                throw new \InvalidArgumentException(sprintf('The %s must be a non-negative integer.', $label));
+            }
+        }
+
+        if (($data['PAYMENT_CURRENCY'] ?? '') === '' || preg_match('/^[A-Z]{3}$/', $data['PAYMENT_CURRENCY']) !== 1) {
+            throw new \InvalidArgumentException('Payment currency must be a 3-letter ISO currency code.');
+        }
+
+        if (($data['AUTH_PASSKEY_ORIGINS'] ?? '') !== '' && filter_var($data['AUTH_PASSKEY_ORIGINS'], FILTER_VALIDATE_URL) === false) {
+            throw new \InvalidArgumentException('Passkey origin must be a valid absolute URL.');
         }
 
         if (in_array($data['CACHE_DRIVER'], ['redis'], true) && !extension_loaded('redis')) {
@@ -233,6 +312,14 @@ final class InstallerWizard
         if ($data['SESSION_DRIVER'] === 'redis' && !extension_loaded('redis')) {
             throw new \InvalidArgumentException('The Redis session driver requires the redis PHP extension.');
         }
+
+        if ($data['ENCRYPTION_TYPE'] === 'openssl' && !extension_loaded('openssl')) {
+            throw new \InvalidArgumentException('The OpenSSL encryption driver requires the openssl PHP extension.');
+        }
+
+        if ($data['ENCRYPTION_TYPE'] === 'sodium' && !extension_loaded('sodium')) {
+            throw new \InvalidArgumentException('The Sodium encryption driver requires the sodium PHP extension.');
+        }
     }
 
     /**
@@ -245,9 +332,18 @@ final class InstallerWizard
             $this->storagePath('Cache'),
             $this->storagePath('Sessions'),
             $this->storagePath('Database'),
+            $this->storagePath('Logs'),
         ];
 
-        foreach ($paths as $path) {
+        if (($data['SESSION_SAVE_PATH'] ?? '') !== '') {
+            $paths[] = $this->resolveProjectPath($data['SESSION_SAVE_PATH'], $this->storagePath('Sessions'));
+        }
+
+        if (($data['CACHE_FILE_PATH'] ?? '') !== '') {
+            $paths[] = $this->resolveProjectPath($data['CACHE_FILE_PATH'], $this->storagePath('Cache'));
+        }
+
+        foreach (array_unique($paths) as $path) {
             if (!$this->files->isDirectory($path) && !$this->files->createDirectory($path, 0777, true)) {
                 throw new \RuntimeException(sprintf('Unable to create required storage directory [%s].', $path));
             }
@@ -297,7 +393,11 @@ final class InstallerWizard
         };
 
         try {
-            new \PDO($dsn, $data['DB_USERNAME'] !== '' ? $data['DB_USERNAME'] : null, $data['DB_PASSWORD'] !== '' ? $data['DB_PASSWORD'] : null);
+            new \PDO(
+                $dsn,
+                $data['DB_USERNAME'] !== '' ? $data['DB_USERNAME'] : null,
+                $data['DB_PASSWORD'] !== '' ? $data['DB_PASSWORD'] : null
+            );
         } catch (\Throwable $exception) {
             throw new \RuntimeException('Unable to connect using the provided database settings: ' . $exception->getMessage(), 0, $exception);
         }
@@ -309,30 +409,21 @@ final class InstallerWizard
      */
     private function buildEnvironment(array $data): array
     {
-        $environment = $this->templateEnvironment();
+        $environment = array_replace($this->templateEnvironment(), $this->baseDefaults(), $data);
 
-        foreach ($data as $key => $value) {
-            if (!str_starts_with($key, 'ADMIN_')) {
-                $environment[$key] = $value;
+        foreach (array_keys($environment) as $key) {
+            if (str_starts_with($key, 'ADMIN_')) {
+                unset($environment[$key]);
             }
         }
 
+        $environment = $this->synchronizeDefaults($environment);
         $environment['APP_INSTALLED'] = 'true';
         $environment['APP_MAINTENANCE'] = 'false';
-        $environment['CACHE_ENABLED'] = 'true';
-        $environment['PAYMENT_DRIVER'] = $environment['PAYMENT_DRIVER'] ?? 'testing';
-        $environment['WEBMODULE_CONTENT_SOURCE'] = 'database';
         $environment['DB_DATABASE'] = $data['DB_CONNECTION'] === 'sqlite'
             ? $this->resolveSqlitePath($data['DB_DATABASE'])
             : $data['DB_DATABASE'];
-
-        if (($environment['MAIL_FROM_ADDRESS'] ?? '') === '') {
-            $environment['MAIL_FROM_ADDRESS'] = 'no-reply@langelermvc.test';
-        }
-
-        if (($environment['MAIL_REPLY_TO'] ?? '') === '') {
-            $environment['MAIL_REPLY_TO'] = $environment['MAIL_FROM_ADDRESS'];
-        }
+        $environment['FEATURE_VERIFY_EMAIL'] = $environment['AUTH_VERIFY_EMAIL'];
 
         return $environment;
     }
@@ -344,15 +435,123 @@ final class InstallerWizard
     {
         $contents = [];
         $groups = [
-            'APPLICATION' => ['APP_NAME', 'APP_ENV', 'APP_DEBUG', 'APP_INSTALLED', 'APP_URL', 'APP_TIMEZONE', 'APP_LOCALE', 'APP_FALLBACK_LOCALE', 'APP_VERSION', 'APP_MAINTENANCE', 'APP_LOG_LEVEL', 'APP_LOG_CHANNEL'],
-            'DATABASE' => ['DB_CONNECTION', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD', 'DB_CHARSET', 'DB_COLLATION', 'DB_POOLING', 'DB_POOL_SIZE', 'DB_FAILOVER', 'DB_TIMEOUT', 'DB_RETRY_DELAY', 'DB_SSL_MODE', 'DB_REPLICATION'],
-            'MAIL' => ['MAIL_MAILER', 'MAIL_HOST', 'MAIL_PORT', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME', 'MAIL_REPLY_TO', 'MAIL_CC', 'MAIL_BCC', 'MAIL_QUEUE', 'MAIL_LOG_ENABLED'],
-            'SESSION' => ['SESSION_DRIVER', 'SESSION_NAME', 'SESSION_LIFETIME', 'SESSION_EXPIRE_ON_CLOSE', 'SESSION_SECURE_COOKIE', 'SESSION_HTTPONLY_COOKIE', 'SESSION_SAME_SITE', 'SESSION_SAVE_PATH'],
-            'CACHE' => ['CACHE_ENABLED', 'CACHE_DRIVER', 'CACHE_PREFIX', 'CACHE_TTL', 'CACHE_COMPRESSION', 'CACHE_SERIALIZATION', 'CACHE_ENCRYPT', 'CACHE_REDIS_HOST', 'CACHE_REDIS_PORT', 'CACHE_REDIS_PASSWORD', 'CACHE_REDIS_DATABASE', 'CACHE_MEMCACHED_HOST', 'CACHE_MEMCACHED_PORT', 'CACHE_FILE_PATH'],
-            'ENCRYPTION' => ['ENCRYPTION_ENABLED', 'ENCRYPTION_TYPE', 'ENCRYPTION_KEY', 'ENCRYPTION_CIPHER', 'ENCRYPTION_HASH_ALGO', 'ENCRYPTION_HASH_ROUNDS', 'ENCRYPTION_OPENSSL_KEY', 'ENCRYPTION_OPENSSL_CIPHER', 'ENCRYPTION_SODIUM_KEY'],
-            'FEATURES' => ['FEATURE_VERIFY_EMAIL', 'FEATURE_2FA'],
-            'PAYMENTS' => ['PAYMENT_DRIVER'],
-            'WEBMODULE' => ['WEBMODULE_CONTENT_SOURCE'],
+            'APPLICATION' => [
+                'APP_NAME',
+                'APP_ENV',
+                'APP_DEBUG',
+                'APP_INSTALLED',
+                'APP_URL',
+                'APP_TIMEZONE',
+                'APP_LOCALE',
+                'APP_FALLBACK_LOCALE',
+                'APP_VERSION',
+                'APP_MAINTENANCE',
+                'APP_LOG_LEVEL',
+                'APP_LOG_CHANNEL',
+            ],
+            'DATABASE' => [
+                'DB_CONNECTION',
+                'DB_HOST',
+                'DB_PORT',
+                'DB_DATABASE',
+                'DB_USERNAME',
+                'DB_PASSWORD',
+                'DB_CHARSET',
+                'DB_COLLATION',
+                'DB_POOLING',
+                'DB_POOL_SIZE',
+                'DB_FAILOVER',
+                'DB_TIMEOUT',
+                'DB_RETRY_DELAY',
+                'DB_SSL_MODE',
+                'DB_REPLICATION',
+            ],
+            'QUEUE' => [
+                'QUEUE_DRIVER',
+                'QUEUE_DEFAULT_QUEUE',
+                'QUEUE_RETRY_AFTER',
+            ],
+            'MAIL' => [
+                'MAIL_MAILER',
+                'MAIL_HOST',
+                'MAIL_PORT',
+                'MAIL_USERNAME',
+                'MAIL_PASSWORD',
+                'MAIL_ENCRYPTION',
+                'MAIL_FROM_ADDRESS',
+                'MAIL_FROM_NAME',
+                'MAIL_REPLY_TO',
+                'MAIL_CC',
+                'MAIL_BCC',
+                'MAIL_QUEUE',
+                'MAIL_LOG_ENABLED',
+            ],
+            'SESSION' => [
+                'SESSION_DRIVER',
+                'SESSION_NAME',
+                'SESSION_LIFETIME',
+                'SESSION_EXPIRE_ON_CLOSE',
+                'SESSION_SECURE_COOKIE',
+                'SESSION_HTTPONLY_COOKIE',
+                'SESSION_SAME_SITE',
+                'SESSION_SAVE_PATH',
+            ],
+            'CACHE' => [
+                'CACHE_ENABLED',
+                'CACHE_DRIVER',
+                'CACHE_PREFIX',
+                'CACHE_TTL',
+                'CACHE_COMPRESSION',
+                'CACHE_SERIALIZATION',
+                'CACHE_ENCRYPT',
+                'CACHE_MAX_ITEMS',
+                'CACHE_REDIS_HOST',
+                'CACHE_REDIS_PORT',
+                'CACHE_REDIS_PASSWORD',
+                'CACHE_REDIS_DATABASE',
+                'CACHE_MEMCACHED_HOST',
+                'CACHE_MEMCACHED_PORT',
+                'CACHE_FILE_PATH',
+            ],
+            'ENCRYPTION' => [
+                'ENCRYPTION_ENABLED',
+                'ENCRYPTION_TYPE',
+                'ENCRYPTION_KEY',
+                'ENCRYPTION_CIPHER',
+                'ENCRYPTION_HASH_ALGO',
+                'ENCRYPTION_PBKDF2_ITERATIONS',
+                'ENCRYPTION_OPENSSL_KEY',
+                'ENCRYPTION_OPENSSL_CIPHER',
+                'ENCRYPTION_SODIUM_KEY',
+            ],
+            'HTTP' => [
+                'HTTP_SIGNED_URL_KEY',
+                'HTTP_THROTTLE_MAX_ATTEMPTS',
+                'HTTP_THROTTLE_DECAY_SECONDS',
+            ],
+            'AUTH' => [
+                'AUTH_VERIFY_EMAIL',
+                'AUTH_EMAIL_VERIFY_EXPIRES',
+                'AUTH_PASSWORD_RESET_EXPIRES',
+                'AUTH_REMEMBER_ME_DAYS',
+                'AUTH_OTP_TRUSTED_DEVICE_DAYS',
+                'AUTH_PASSKEY_RP_ID',
+                'AUTH_PASSKEY_RP_NAME',
+                'AUTH_PASSKEY_ORIGINS',
+            ],
+            'FEATURES' => [
+                'FEATURE_VERIFY_EMAIL',
+                'FEATURE_2FA',
+            ],
+            'PAYMENTS' => [
+                'PAYMENT_DRIVER',
+                'PAYMENT_CURRENCY',
+                'PAYMENT_DEFAULT_METHOD',
+                'PAYMENT_DEFAULT_FLOW',
+            ],
+            'WEBMODULE' => [
+                'WEBMODULE_CONTENT_SOURCE',
+            ],
         ];
 
         foreach ($groups as $title => $keys) {
@@ -489,6 +688,171 @@ final class InstallerWizard
     /**
      * @return array<string, string>
      */
+    private function baseDefaults(): array
+    {
+        return [
+            'APP_NAME' => 'LangelerMVC',
+            'APP_ENV' => 'production',
+            'APP_DEBUG' => 'false',
+            'APP_INSTALLED' => 'false',
+            'APP_URL' => 'http://localhost',
+            'APP_TIMEZONE' => 'Europe/Stockholm',
+            'APP_LOCALE' => 'en',
+            'APP_FALLBACK_LOCALE' => 'en',
+            'APP_VERSION' => '1.0.0',
+            'APP_MAINTENANCE' => 'false',
+            'APP_LOG_LEVEL' => 'info',
+            'APP_LOG_CHANNEL' => 'daily',
+            'DB_CONNECTION' => 'sqlite',
+            'DB_HOST' => '127.0.0.1',
+            'DB_PORT' => '3306',
+            'DB_DATABASE' => 'Storage/Database/langelermvc.sqlite',
+            'DB_USERNAME' => '',
+            'DB_PASSWORD' => '',
+            'DB_CHARSET' => 'utf8mb4',
+            'DB_COLLATION' => 'utf8mb4_unicode_ci',
+            'DB_POOLING' => 'false',
+            'DB_POOL_SIZE' => '10',
+            'DB_FAILOVER' => '',
+            'DB_TIMEOUT' => '30',
+            'DB_RETRY_DELAY' => '2000',
+            'DB_SSL_MODE' => 'prefer',
+            'DB_REPLICATION' => 'false',
+            'QUEUE_DRIVER' => 'sync',
+            'QUEUE_DEFAULT_QUEUE' => 'default',
+            'QUEUE_RETRY_AFTER' => '60',
+            'MAIL_MAILER' => 'array',
+            'MAIL_HOST' => 'smtp.mailtrap.io',
+            'MAIL_PORT' => '2525',
+            'MAIL_USERNAME' => '',
+            'MAIL_PASSWORD' => '',
+            'MAIL_ENCRYPTION' => 'tls',
+            'MAIL_FROM_ADDRESS' => '',
+            'MAIL_FROM_NAME' => '',
+            'MAIL_REPLY_TO' => '',
+            'MAIL_CC' => '',
+            'MAIL_BCC' => '',
+            'MAIL_QUEUE' => 'false',
+            'MAIL_LOG_ENABLED' => 'true',
+            'SESSION_DRIVER' => 'database',
+            'SESSION_NAME' => 'langelermvc_session',
+            'SESSION_LIFETIME' => '120',
+            'SESSION_EXPIRE_ON_CLOSE' => 'false',
+            'SESSION_SECURE_COOKIE' => 'false',
+            'SESSION_HTTPONLY_COOKIE' => 'true',
+            'SESSION_SAME_SITE' => 'lax',
+            'SESSION_SAVE_PATH' => 'Storage/Sessions',
+            'CACHE_ENABLED' => 'true',
+            'CACHE_DRIVER' => 'file',
+            'CACHE_PREFIX' => 'langelermvc_cache',
+            'CACHE_TTL' => '3600',
+            'CACHE_COMPRESSION' => 'true',
+            'CACHE_SERIALIZATION' => 'php',
+            'CACHE_ENCRYPT' => 'false',
+            'CACHE_MAX_ITEMS' => '0',
+            'CACHE_REDIS_HOST' => '127.0.0.1',
+            'CACHE_REDIS_PORT' => '6379',
+            'CACHE_REDIS_PASSWORD' => '',
+            'CACHE_REDIS_DATABASE' => '0',
+            'CACHE_MEMCACHED_HOST' => '127.0.0.1',
+            'CACHE_MEMCACHED_PORT' => '11211',
+            'CACHE_FILE_PATH' => 'Storage/Cache',
+            'ENCRYPTION_ENABLED' => 'true',
+            'ENCRYPTION_TYPE' => 'openssl',
+            'ENCRYPTION_KEY' => '',
+            'ENCRYPTION_CIPHER' => 'AES-256-CBC',
+            'ENCRYPTION_HASH_ALGO' => 'sha256',
+            'ENCRYPTION_PBKDF2_ITERATIONS' => '100000',
+            'ENCRYPTION_OPENSSL_KEY' => '',
+            'ENCRYPTION_OPENSSL_CIPHER' => 'AES-256-CBC',
+            'ENCRYPTION_SODIUM_KEY' => '',
+            'HTTP_SIGNED_URL_KEY' => '',
+            'HTTP_THROTTLE_MAX_ATTEMPTS' => '5',
+            'HTTP_THROTTLE_DECAY_SECONDS' => '60',
+            'AUTH_VERIFY_EMAIL' => 'true',
+            'AUTH_EMAIL_VERIFY_EXPIRES' => '1440',
+            'AUTH_PASSWORD_RESET_EXPIRES' => '60',
+            'AUTH_REMEMBER_ME_DAYS' => '30',
+            'AUTH_OTP_TRUSTED_DEVICE_DAYS' => '30',
+            'AUTH_PASSKEY_RP_ID' => '',
+            'AUTH_PASSKEY_RP_NAME' => '',
+            'AUTH_PASSKEY_ORIGINS' => '',
+            'FEATURE_VERIFY_EMAIL' => 'true',
+            'FEATURE_2FA' => 'true',
+            'PAYMENT_DRIVER' => 'testing',
+            'PAYMENT_CURRENCY' => 'SEK',
+            'PAYMENT_DEFAULT_METHOD' => 'card',
+            'PAYMENT_DEFAULT_FLOW' => 'authorize_capture',
+            'WEBMODULE_CONTENT_SOURCE' => 'database',
+        ];
+    }
+
+    /**
+     * @param array<string, string> $environment
+     * @return array<string, string>
+     */
+    private function synchronizeDefaults(array $environment): array
+    {
+        $appName = trim((string) ($environment['APP_NAME'] ?? 'LangelerMVC'));
+        $appUrl = trim((string) ($environment['APP_URL'] ?? 'http://localhost'));
+        $host = $this->resolveHostFromUrl($appUrl);
+        $secureByUrl = str_starts_with(strtolower($appUrl), 'https://');
+
+        if (($environment['MAIL_FROM_NAME'] ?? '') === '') {
+            $environment['MAIL_FROM_NAME'] = $appName;
+        }
+
+        if (($environment['MAIL_FROM_ADDRESS'] ?? '') === '') {
+            $environment['MAIL_FROM_ADDRESS'] = 'no-reply@' . $this->defaultMailDomain($host);
+        }
+
+        if (($environment['MAIL_REPLY_TO'] ?? '') === '') {
+            $environment['MAIL_REPLY_TO'] = $environment['MAIL_FROM_ADDRESS'];
+        }
+
+        if (($environment['SESSION_SECURE_COOKIE'] ?? '') === '' || $this->isPlaceholderValue($environment['SESSION_SECURE_COOKIE'] ?? '')) {
+            $environment['SESSION_SECURE_COOKIE'] = $secureByUrl ? 'true' : 'false';
+        }
+
+        if (($environment['AUTH_PASSKEY_RP_ID'] ?? '') === '') {
+            $environment['AUTH_PASSKEY_RP_ID'] = $host;
+        }
+
+        if (($environment['AUTH_PASSKEY_RP_NAME'] ?? '') === '') {
+            $environment['AUTH_PASSKEY_RP_NAME'] = $appName;
+        }
+
+        if (($environment['AUTH_PASSKEY_ORIGINS'] ?? '') === '') {
+            $environment['AUTH_PASSKEY_ORIGINS'] = $appUrl;
+        }
+
+        $environment['ENCRYPTION_KEY'] = $this->resolveGeneratedSecret(
+            (string) ($environment['ENCRYPTION_KEY'] ?? ''),
+            32,
+            ['YourGlobalEncryptionKeyHere', 'S0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0s=']
+        );
+        $environment['ENCRYPTION_OPENSSL_KEY'] = $this->resolveGeneratedSecret(
+            (string) ($environment['ENCRYPTION_OPENSSL_KEY'] ?? ''),
+            32,
+            ['YourOpenSSLEncryptionKeyHere', 'S0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0s=']
+        );
+        $environment['ENCRYPTION_SODIUM_KEY'] = $this->resolveGeneratedSecret(
+            (string) ($environment['ENCRYPTION_SODIUM_KEY'] ?? ''),
+            32,
+            ['YourSodiumKeyHere', 'U1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1NTU1M=']
+        );
+        $environment['HTTP_SIGNED_URL_KEY'] = $this->resolveGeneratedHexSecret(
+            (string) ($environment['HTTP_SIGNED_URL_KEY'] ?? ''),
+            32,
+            ['langelermvc-signed-url']
+        );
+
+        return $environment;
+    }
+
+    /**
+     * @return array<string, string>
+     */
     private function readEnvironment(string $path): array
     {
         $contents = $this->files->readContents($path);
@@ -555,6 +919,89 @@ final class InstallerWizard
         }
 
         return $this->basePath . DIRECTORY_SEPARATOR . ltrim($path, '\\/');
+    }
+
+    private function resolveProjectPath(string $path, string $fallback): string
+    {
+        $trimmed = trim($path);
+
+        if ($trimmed === '') {
+            return $fallback;
+        }
+
+        if (str_starts_with($trimmed, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\\/]/', $trimmed) === 1) {
+            return $trimmed;
+        }
+
+        return $this->basePath . DIRECTORY_SEPARATOR . ltrim($trimmed, '\\/');
+    }
+
+    private function resolveHostFromUrl(string $url): string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (is_string($host) && trim($host) !== '') {
+            return trim($host);
+        }
+
+        return 'localhost';
+    }
+
+    private function defaultMailDomain(string $host): string
+    {
+        $normalized = strtolower(trim($host));
+
+        return match (true) {
+            $normalized === '',
+            $normalized === 'localhost',
+            $normalized === '127.0.0.1' => 'langelermvc.test',
+            default => $normalized,
+        };
+    }
+
+    /**
+     * @param list<string> $placeholderFragments
+     */
+    private function resolveGeneratedSecret(string $value, int $bytes, array $placeholderFragments): string
+    {
+        return $this->shouldGenerateSecret($value, $placeholderFragments)
+            ? 'base64:' . base64_encode(random_bytes($bytes))
+            : $value;
+    }
+
+    /**
+     * @param list<string> $placeholderFragments
+     */
+    private function resolveGeneratedHexSecret(string $value, int $bytes, array $placeholderFragments): string
+    {
+        return $this->shouldGenerateSecret($value, $placeholderFragments)
+            ? bin2hex(random_bytes($bytes))
+            : $value;
+    }
+
+    /**
+     * @param list<string> $placeholderFragments
+     */
+    private function shouldGenerateSecret(string $value, array $placeholderFragments): bool
+    {
+        $trimmed = trim($value);
+
+        if ($trimmed === '') {
+            return true;
+        }
+
+        foreach ($placeholderFragments as $fragment) {
+            if ($fragment !== '' && str_contains($trimmed, $fragment)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isPlaceholderValue(string $value): bool
+    {
+        return trim($value) === '';
     }
 
     private function booleanValue(mixed $value): bool

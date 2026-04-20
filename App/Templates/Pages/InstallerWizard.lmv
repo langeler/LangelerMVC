@@ -1,17 +1,37 @@
 <section class="layout">
     @php
         $debugEnabled = ($form['APP_DEBUG'] ?? 'false') === 'true';
-        $verifyEmailEnabled = ($form['FEATURE_VERIFY_EMAIL'] ?? 'true') === 'true';
-        $twoFactorEnabled = ($form['FEATURE_2FA'] ?? 'true') === 'true';
+        $verifyEmailEnabled = ($form['AUTH_VERIFY_EMAIL'] ?? 'true') === 'true';
+        $cacheEnabled = ($form['CACHE_ENABLED'] ?? 'true') === 'true';
+        $mailLogEnabled = ($form['MAIL_LOG_ENABLED'] ?? 'true') === 'true';
+        $sessionExpireOnClose = ($form['SESSION_EXPIRE_ON_CLOSE'] ?? 'false') === 'true';
+        $sessionSecureCookie = ($form['SESSION_SECURE_COOKIE'] ?? 'false') === 'true';
+        $sessionHttpOnlyCookie = ($form['SESSION_HTTPONLY_COOKIE'] ?? 'true') === 'true';
         $dbConnection = $form['DB_CONNECTION'] ?? '';
         $sessionDriver = $form['SESSION_DRIVER'] ?? '';
         $cacheDriver = $form['CACHE_DRIVER'] ?? '';
-        $mailer = $form['MAIL_MAILER'] ?? '';
+        $mailDriver = $form['MAIL_MAILER'] ?? '';
+        $queueDriver = $form['QUEUE_DRIVER'] ?? '';
+        $contentSource = $form['WEBMODULE_CONTENT_SOURCE'] ?? '';
+        $paymentDriver = $form['PAYMENT_DRIVER'] ?? '';
+        $paymentMethod = $form['PAYMENT_DEFAULT_METHOD'] ?? '';
+        $paymentFlow = $form['PAYMENT_DEFAULT_FLOW'] ?? '';
+        $encryptionType = $form['ENCRYPTION_TYPE'] ?? '';
+        $sessionSameSite = strtolower((string) ($form['SESSION_SAME_SITE'] ?? ''));
         $isInstalled = (bool) ($status['installed'] ?? false);
         $storageWritable = (bool) ($status['storageWritable'] ?? false);
         $databaseWritable = (bool) ($status['databaseWritable'] ?? false);
+        $environmentWritable = (bool) ($status['environmentWritable'] ?? false);
+        $httpsRecommended = (bool) ($status['httpsRecommended'] ?? false);
         $extensions = $status['extensions'] ?? [];
+        $modules = $status['modules'] ?? [];
         $paymentDrivers = $status['paymentDrivers'] ?? [];
+        $databaseDrivers = $status['databaseDrivers'] ?? [];
+        $sessionDrivers = $status['sessionDrivers'] ?? [];
+        $cacheDrivers = $status['cacheDrivers'] ?? [];
+        $mailDrivers = $status['mailDrivers'] ?? [];
+        $queueDrivers = $status['queueDrivers'] ?? [];
+        $contentSources = $status['contentSources'] ?? [];
     @endphp
     <div class="stack">
         @if($errors !== [])
@@ -29,8 +49,8 @@
             <div class="notice success">
                 <strong>Installation completed successfully.</strong>
                 <p>
-                    The framework environment was written, the first-party modules were migrated and seeded,
-                    and the administrator account is ready to sign in.
+                    The installer wrote the runtime environment, provisioned the first-party module schema,
+                    seeded the starter data set, and created the primary administrator account.
                 </p>
             </div>
         @endif
@@ -38,14 +58,14 @@
         <section class="panel">
             <div class="section-head">
                 <h2>Installer Wizard</h2>
-                <p>Choose the environment and service settings you want LangelerMVC to write and provision for you.</p>
+                <p>Write a production-ready `.env`, integrate the framework subsystems, and provision a usable application baseline in one pass.</p>
             </div>
 
             <form method="post" action="">
                 <section>
                     <div class="section-head">
                         <h3>Application</h3>
-                        <p>These values define the runtime identity, base URL, and default locale/timezone policy.</p>
+                        <p>These values define the runtime identity, locale policy, and the public origin that auth, signing, and passkeys rely on.</p>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -64,18 +84,23 @@
                             <label for="APP_LOCALE">Locale</label>
                             <input id="APP_LOCALE" name="APP_LOCALE" type="text" value="{{ $form['APP_LOCALE'] ?? '' }}">
                         </div>
+                        <div class="field">
+                            <label for="APP_FALLBACK_LOCALE">Fallback Locale</label>
+                            <input id="APP_FALLBACK_LOCALE" name="APP_FALLBACK_LOCALE" type="text" value="{{ $form['APP_FALLBACK_LOCALE'] ?? '' }}">
+                        </div>
                     </div>
                     <div class="field-inline">
+                        <input type="hidden" name="APP_DEBUG" value="false">
                         <label><input type="checkbox" name="APP_DEBUG" value="true" @if($debugEnabled) checked @endif> Enable debug mode during setup</label>
-                        <label><input type="checkbox" name="FEATURE_VERIFY_EMAIL" value="true" @if($verifyEmailEnabled) checked @endif> Require email verification</label>
-                        <label><input type="checkbox" name="FEATURE_2FA" value="true" @if($twoFactorEnabled) checked @endif> Enable TOTP / 2FA support</label>
+                        <input type="hidden" name="AUTH_VERIFY_EMAIL" value="false">
+                        <label><input type="checkbox" name="AUTH_VERIFY_EMAIL" value="true" @if($verifyEmailEnabled) checked @endif> Require email verification for new users</label>
                     </div>
                 </section>
 
                 <section>
                     <div class="section-head">
                         <h3>Database</h3>
-                        <p>The installer validates the connection before it writes the environment and provisions schema/data.</p>
+                        <p>The installer validates the connection before it writes the environment and runs the schema lifecycle.</p>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -85,7 +110,7 @@
                                     <option value="{{ $value }}" @if($dbConnection === $value) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>
-                            <small>SQLite is the quickest local path; the other drivers stay first-class supported.</small>
+                            <small>SQLite is the fastest first install; the other drivers stay fully supported.</small>
                         </div>
                         <div class="field">
                             <label for="DB_DATABASE">Database / File</label>
@@ -107,13 +132,25 @@
                             <label for="DB_PASSWORD">Password</label>
                             <input id="DB_PASSWORD" name="DB_PASSWORD" type="password" value="{{ $form['DB_PASSWORD'] ?? '' }}">
                         </div>
+                        <div class="field">
+                            <label for="DB_TIMEOUT">Timeout (seconds)</label>
+                            <input id="DB_TIMEOUT" name="DB_TIMEOUT" type="text" value="{{ $form['DB_TIMEOUT'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="DB_POOL_SIZE">Pool Size</label>
+                            <input id="DB_POOL_SIZE" name="DB_POOL_SIZE" type="text" value="{{ $form['DB_POOL_SIZE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="DB_SSL_MODE">SSL Mode</label>
+                            <input id="DB_SSL_MODE" name="DB_SSL_MODE" type="text" value="{{ $form['DB_SSL_MODE'] ?? '' }}">
+                        </div>
                     </div>
                 </section>
 
                 <section>
                     <div class="section-head">
                         <h3>Runtime Services</h3>
-                        <p>Choose the framework-native drivers you want to start with. The wizard recommends defaults that work well from a fresh install.</p>
+                        <p>These are the framework-native transport and persistence drivers the modules will use immediately after install.</p>
                     </div>
                     <div class="field-grid">
                         <div class="field">
@@ -121,6 +158,22 @@
                             <select id="SESSION_DRIVER" name="SESSION_DRIVER">
                                 @foreach(['database' => 'Database', 'native' => 'Native PHP', 'file' => 'File', 'redis' => 'Redis'] as $value => $label)
                                     <option value="{{ $value }}" @if($sessionDriver === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="SESSION_LIFETIME">Session Lifetime (minutes)</label>
+                            <input id="SESSION_LIFETIME" name="SESSION_LIFETIME" type="text" value="{{ $form['SESSION_LIFETIME'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="SESSION_SAVE_PATH">Session Storage Path</label>
+                            <input id="SESSION_SAVE_PATH" name="SESSION_SAVE_PATH" type="text" value="{{ $form['SESSION_SAVE_PATH'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="SESSION_SAME_SITE">Session SameSite</label>
+                            <select id="SESSION_SAME_SITE" name="SESSION_SAME_SITE">
+                                @foreach(['lax' => 'Lax', 'strict' => 'Strict', 'none' => 'None'] as $value => $label)
+                                    <option value="{{ $value }}" @if($sessionSameSite === $value) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -133,10 +186,57 @@
                             </select>
                         </div>
                         <div class="field">
+                            <label for="CACHE_PREFIX">Cache Prefix</label>
+                            <input id="CACHE_PREFIX" name="CACHE_PREFIX" type="text" value="{{ $form['CACHE_PREFIX'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="CACHE_TTL">Cache TTL (seconds)</label>
+                            <input id="CACHE_TTL" name="CACHE_TTL" type="text" value="{{ $form['CACHE_TTL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="CACHE_FILE_PATH">Cache File Path</label>
+                            <input id="CACHE_FILE_PATH" name="CACHE_FILE_PATH" type="text" value="{{ $form['CACHE_FILE_PATH'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="QUEUE_DRIVER">Queue Driver</label>
+                            <select id="QUEUE_DRIVER" name="QUEUE_DRIVER">
+                                @foreach(['sync' => 'Sync', 'database' => 'Database'] as $value => $label)
+                                    <option value="{{ $value }}" @if($queueDriver === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="QUEUE_DEFAULT_QUEUE">Default Queue</label>
+                            <input id="QUEUE_DEFAULT_QUEUE" name="QUEUE_DEFAULT_QUEUE" type="text" value="{{ $form['QUEUE_DEFAULT_QUEUE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="QUEUE_RETRY_AFTER">Queue Retry After</label>
+                            <input id="QUEUE_RETRY_AFTER" name="QUEUE_RETRY_AFTER" type="text" value="{{ $form['QUEUE_RETRY_AFTER'] ?? '' }}">
+                        </div>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="SESSION_EXPIRE_ON_CLOSE" value="false">
+                        <label><input type="checkbox" name="SESSION_EXPIRE_ON_CLOSE" value="true" @if($sessionExpireOnClose) checked @endif> Expire sessions when the browser closes</label>
+                        <input type="hidden" name="SESSION_SECURE_COOKIE" value="false">
+                        <label><input type="checkbox" name="SESSION_SECURE_COOKIE" value="true" @if($sessionSecureCookie) checked @endif> Mark session cookies as secure</label>
+                        <input type="hidden" name="SESSION_HTTPONLY_COOKIE" value="false">
+                        <label><input type="checkbox" name="SESSION_HTTPONLY_COOKIE" value="true" @if($sessionHttpOnlyCookie) checked @endif> Mark session cookies as HTTP only</label>
+                        <input type="hidden" name="CACHE_ENABLED" value="false">
+                        <label><input type="checkbox" name="CACHE_ENABLED" value="true" @if($cacheEnabled) checked @endif> Enable application caching</label>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="section-head">
+                        <h3>Mail & Notifications</h3>
+                        <p>Configure the outgoing mail transport and the sender identity the auth and notification layers will use.</p>
+                    </div>
+                    <div class="field-grid">
+                        <div class="field">
                             <label for="MAIL_MAILER">Mail Driver</label>
                             <select id="MAIL_MAILER" name="MAIL_MAILER">
-                                @foreach(['array' => 'Array / Development', 'smtp' => 'SMTP'] as $value => $label)
-                                    <option value="{{ $value }}" @if($mailer === $value) selected @endif>{{ $label }}</option>
+                                @foreach(['array' => 'Array / Development', 'log' => 'Log Driver', 'smtp' => 'SMTP', 'sendmail' => 'Sendmail', 'mail' => 'PHP Mail'] as $value => $label)
+                                    <option value="{{ $value }}" @if($mailDriver === $value) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -161,8 +261,135 @@
                             <input id="MAIL_PASSWORD" name="MAIL_PASSWORD" type="password" value="{{ $form['MAIL_PASSWORD'] ?? '' }}">
                         </div>
                         <div class="field">
+                            <label for="MAIL_FROM_NAME">From Name</label>
+                            <input id="MAIL_FROM_NAME" name="MAIL_FROM_NAME" type="text" value="{{ $form['MAIL_FROM_NAME'] ?? '' }}">
+                        </div>
+                        <div class="field">
                             <label for="MAIL_FROM_ADDRESS">From Address</label>
                             <input id="MAIL_FROM_ADDRESS" name="MAIL_FROM_ADDRESS" type="email" value="{{ $form['MAIL_FROM_ADDRESS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="MAIL_REPLY_TO">Reply-To</label>
+                            <input id="MAIL_REPLY_TO" name="MAIL_REPLY_TO" type="email" value="{{ $form['MAIL_REPLY_TO'] ?? '' }}">
+                        </div>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="MAIL_LOG_ENABLED" value="false">
+                        <label><input type="checkbox" name="MAIL_LOG_ENABLED" value="true" @if($mailLogEnabled) checked @endif> Mirror outgoing messages into the framework mail log</label>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="section-head">
+                        <h3>Security & Identity</h3>
+                        <p>The installer generates fresh framework secrets and lets you tune cookie policy, signed URLs, passkeys, and remember-device behavior.</p>
+                    </div>
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="ENCRYPTION_TYPE">Encryption Driver</label>
+                            <select id="ENCRYPTION_TYPE" name="ENCRYPTION_TYPE">
+                                @foreach(['openssl' => 'OpenSSL', 'sodium' => 'Sodium'] as $value => $label)
+                                    <option value="{{ $value }}" @if($encryptionType === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="ENCRYPTION_KEY">Shared Encryption Key</label>
+                            <input id="ENCRYPTION_KEY" name="ENCRYPTION_KEY" type="text" value="{{ $form['ENCRYPTION_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="ENCRYPTION_OPENSSL_KEY">OpenSSL Key</label>
+                            <input id="ENCRYPTION_OPENSSL_KEY" name="ENCRYPTION_OPENSSL_KEY" type="text" value="{{ $form['ENCRYPTION_OPENSSL_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="ENCRYPTION_SODIUM_KEY">Sodium Key</label>
+                            <input id="ENCRYPTION_SODIUM_KEY" name="ENCRYPTION_SODIUM_KEY" type="text" value="{{ $form['ENCRYPTION_SODIUM_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="ENCRYPTION_HASH_ALGO">Hash Algorithm</label>
+                            <input id="ENCRYPTION_HASH_ALGO" name="ENCRYPTION_HASH_ALGO" type="text" value="{{ $form['ENCRYPTION_HASH_ALGO'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="ENCRYPTION_PBKDF2_ITERATIONS">PBKDF2 Iterations</label>
+                            <input id="ENCRYPTION_PBKDF2_ITERATIONS" name="ENCRYPTION_PBKDF2_ITERATIONS" type="text" value="{{ $form['ENCRYPTION_PBKDF2_ITERATIONS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="HTTP_SIGNED_URL_KEY">Signed URL Key</label>
+                            <input id="HTTP_SIGNED_URL_KEY" name="HTTP_SIGNED_URL_KEY" type="text" value="{{ $form['HTTP_SIGNED_URL_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="HTTP_THROTTLE_MAX_ATTEMPTS">Throttle Max Attempts</label>
+                            <input id="HTTP_THROTTLE_MAX_ATTEMPTS" name="HTTP_THROTTLE_MAX_ATTEMPTS" type="text" value="{{ $form['HTTP_THROTTLE_MAX_ATTEMPTS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="HTTP_THROTTLE_DECAY_SECONDS">Throttle Decay (seconds)</label>
+                            <input id="HTTP_THROTTLE_DECAY_SECONDS" name="HTTP_THROTTLE_DECAY_SECONDS" type="text" value="{{ $form['HTTP_THROTTLE_DECAY_SECONDS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="AUTH_REMEMBER_ME_DAYS">Remember Me Days</label>
+                            <input id="AUTH_REMEMBER_ME_DAYS" name="AUTH_REMEMBER_ME_DAYS" type="text" value="{{ $form['AUTH_REMEMBER_ME_DAYS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="AUTH_OTP_TRUSTED_DEVICE_DAYS">Trusted Device Days</label>
+                            <input id="AUTH_OTP_TRUSTED_DEVICE_DAYS" name="AUTH_OTP_TRUSTED_DEVICE_DAYS" type="text" value="{{ $form['AUTH_OTP_TRUSTED_DEVICE_DAYS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="AUTH_PASSKEY_RP_ID">Passkey RP ID</label>
+                            <input id="AUTH_PASSKEY_RP_ID" name="AUTH_PASSKEY_RP_ID" type="text" value="{{ $form['AUTH_PASSKEY_RP_ID'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="AUTH_PASSKEY_RP_NAME">Passkey RP Name</label>
+                            <input id="AUTH_PASSKEY_RP_NAME" name="AUTH_PASSKEY_RP_NAME" type="text" value="{{ $form['AUTH_PASSKEY_RP_NAME'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="AUTH_PASSKEY_ORIGINS">Passkey Origin</label>
+                            <input id="AUTH_PASSKEY_ORIGINS" name="AUTH_PASSKEY_ORIGINS" type="url" value="{{ $form['AUTH_PASSKEY_ORIGINS'] ?? '' }}">
+                            <small>Use the primary browser origin that will register and authenticate passkeys.</small>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="section-head">
+                        <h3>Commerce & Content</h3>
+                        <p>Set the default content source for the WebModule and the commerce defaults the Shop and Order layers will boot with.</p>
+                    </div>
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="WEBMODULE_CONTENT_SOURCE">WebModule Content Source</label>
+                            <select id="WEBMODULE_CONTENT_SOURCE" name="WEBMODULE_CONTENT_SOURCE">
+                                @foreach(['database' => 'Database', 'memory' => 'In-memory fallback'] as $value => $label)
+                                    <option value="{{ $value }}" @if($contentSource === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_DRIVER">Default Payment Driver</label>
+                            <select id="PAYMENT_DRIVER" name="PAYMENT_DRIVER">
+                                @foreach(['testing' => 'Testing', 'card' => 'Card', 'paypal' => 'PayPal', 'klarna' => 'Klarna', 'swish' => 'Swish', 'qliro' => 'Qliro', 'walley' => 'Walley', 'crypto' => 'Crypto'] as $value => $label)
+                                    <option value="{{ $value }}" @if($paymentDriver === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CURRENCY">Currency</label>
+                            <input id="PAYMENT_CURRENCY" name="PAYMENT_CURRENCY" type="text" value="{{ $form['PAYMENT_CURRENCY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_DEFAULT_METHOD">Default Payment Method</label>
+                            <select id="PAYMENT_DEFAULT_METHOD" name="PAYMENT_DEFAULT_METHOD">
+                                @foreach(['card' => 'Card', 'wallet' => 'Wallet', 'bank_transfer' => 'Bank Transfer', 'bnpl' => 'Buy Now Pay Later', 'local_instant' => 'Local Instant', 'manual' => 'Manual', 'crypto' => 'Crypto'] as $value => $label)
+                                    <option value="{{ $value }}" @if($paymentMethod === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_DEFAULT_FLOW">Default Payment Flow</label>
+                            <select id="PAYMENT_DEFAULT_FLOW" name="PAYMENT_DEFAULT_FLOW">
+                                @foreach(['authorize_capture' => 'Authorize + Capture', 'purchase' => 'Purchase', 'redirect' => 'Redirect', 'async' => 'Async', 'manual_review' => 'Manual Review'] as $value => $label)
+                                    <option value="{{ $value }}" @if($paymentFlow === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </section>
@@ -191,7 +418,7 @@
 
                 <div class="actions">
                     <button class="button" type="submit">Install LangelerMVC</button>
-                    <span class="muted">This writes `.env`, runs migrations + seeds, and provisions the starter platform automatically.</span>
+                    <span class="muted">This writes `.env`, runs migrations + seeds, provisions core modules, and prepares the administrator login surface automatically.</span>
                 </div>
             </form>
         </section>
@@ -201,12 +428,18 @@
         <section class="panel">
             <div class="section-head">
                 <h2>Environment Check</h2>
-                <p>The installer shows the current runtime readiness before it writes anything.</p>
+                <p>The installer surfaces the current runtime readiness before it writes anything.</p>
             </div>
             <div class="status-grid">
                 <article class="status-card">
                     <strong>PHP Runtime</strong>
                     <span class="status-ok">{{ $status['php'] ?? '' }}</span>
+                </article>
+                <article class="status-card">
+                    <strong>Environment Writable</strong>
+                    <span class="@if($environmentWritable)status-ok@else status-bad @endif">
+                        @if($environmentWritable) Ready @else Check permissions @endif
+                    </span>
                 </article>
                 <article class="status-card">
                     <strong>Storage Writable</strong>
@@ -226,6 +459,12 @@
                         @if($isInstalled) Yes @else No @endif
                     </span>
                 </article>
+                <article class="status-card">
+                    <strong>HTTPS Recommended</strong>
+                    <span class="@if($httpsRecommended)status-ok@else status-bad @endif">
+                        @if($httpsRecommended) Ready @else Update APP_URL before go-live @endif
+                    </span>
+                </article>
             </div>
             <ul class="summary-list" style="margin-top:18px;">
                 @foreach($extensions as $extension => $loaded)
@@ -241,8 +480,45 @@
 
         <section class="panel">
             <div class="section-head">
+                <h2>Installation Plan</h2>
+                <p>The wizard provisions every first-party module and the framework service surface those modules depend on.</p>
+            </div>
+            <ul class="summary-list">
+                <li>
+                    <span>Modules</span>
+                    <span>{{ implode(', ', $modules) }}</span>
+                </li>
+                <li>
+                    <span>Database Drivers</span>
+                    <span>{{ implode(', ', $databaseDrivers) }}</span>
+                </li>
+                <li>
+                    <span>Session Drivers</span>
+                    <span>{{ implode(', ', $sessionDrivers) }}</span>
+                </li>
+                <li>
+                    <span>Cache Drivers</span>
+                    <span>{{ implode(', ', $cacheDrivers) }}</span>
+                </li>
+                <li>
+                    <span>Mail Drivers</span>
+                    <span>{{ implode(', ', $mailDrivers) }}</span>
+                </li>
+                <li>
+                    <span>Queue Drivers</span>
+                    <span>{{ implode(', ', $queueDrivers) }}</span>
+                </li>
+                <li>
+                    <span>Content Sources</span>
+                    <span>{{ implode(', ', $contentSources) }}</span>
+                </li>
+            </ul>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
                 <h2>Payment Compatibility</h2>
-                <p>The installer keeps the framework on the first-party testing driver by default, while the platform already supports the live payment surfaces below.</p>
+                <p>The installer defaults to the first-party testing driver, while the framework already exposes the full payment driver registry below.</p>
             </div>
             <div class="provider-grid">
                 @foreach($paymentDrivers as $driver)
@@ -250,9 +526,9 @@
                         <strong>{{ strtoupper((string) $driver) }}</strong>
                         <span class="muted">
                             @if($driver === 'testing')
-                                Recommended for first install and local verification.
+                                Recommended for the first install and local verification.
                             @else
-                                Available through the framework payment driver registry after credentials are configured.
+                                Available through the framework payment registry after credentials are configured.
                             @endif
                         </span>
                     </article>
@@ -263,14 +539,30 @@
         @if($result !== null)
             <section class="panel">
                 <div class="section-head">
-                    <h2>Installation Summary</h2>
-                    <p>Your starter platform is now provisioned and ready to use.</p>
+                    <h2>Provisioned Platform</h2>
+                    <p>The installer has already wired the database, seeded the modules, and created the administrator account.</p>
                 </div>
                 <ul class="summary-list">
-                    <li><span>Administrator Email</span><span>{{ $result['admin']['email'] ?? '' }}</span></li>
-                    <li><span>Login Route</span><span>{{ $result['login']['html'] ?? '' }}</span></li>
-                    <li><span>API Login Route</span><span>{{ $result['login']['api'] ?? '' }}</span></li>
-                    <li><span>Seeded Modules</span><span>{{ implode(', ', array_keys($result['seeded'] ?? [])) }}</span></li>
+                    <li>
+                        <span>Migrated Modules</span>
+                        <span>{{ implode(', ', array_keys($result['migrated'] ?? [])) }}</span>
+                    </li>
+                    <li>
+                        <span>Seeded Modules</span>
+                        <span>{{ implode(', ', array_keys($result['seeded'] ?? [])) }}</span>
+                    </li>
+                    <li>
+                        <span>Administrator</span>
+                        <span>{{ ($result['admin']['email'] ?? '') }}</span>
+                    </li>
+                    <li>
+                        <span>HTML Login</span>
+                        <span>{{ ($result['login']['html'] ?? '') }}</span>
+                    </li>
+                    <li>
+                        <span>API Login</span>
+                        <span>{{ ($result['login']['api'] ?? '') }}</span>
+                    </li>
                 </ul>
             </section>
         @endif

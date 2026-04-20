@@ -36,6 +36,18 @@ class PageSeed extends Seed
                 'content' => 'The requested route could not be resolved by the framework router.',
                 'is_published' => 1,
             ],
+            [
+                'slug' => 'about',
+                'title' => 'About LangelerMVC',
+                'content' => 'The framework ships with concrete modules, layered services, and native presentation tooling so teams can move directly into production-oriented extension work.',
+                'is_published' => 1,
+            ],
+            [
+                'slug' => 'architecture',
+                'title' => 'Framework Architecture',
+                'content' => 'Installer-backed runtime config, first-party modules, shared managers, and presentation resources now align around the same plug-and-play production lifecycle.',
+                'is_published' => 1,
+            ],
         ];
     }
 }

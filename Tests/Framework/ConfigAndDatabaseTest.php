@@ -57,6 +57,35 @@ class ConfigAndDatabaseTest extends TestCase
         self::assertSame('LangelerMVC Test Suite', $config->get('app', 'NAME'));
     }
 
+    public function testConfigSupportsInstallerEnvironmentAliasesAndTypedBooleans(): void
+    {
+        $this->setEnvironmentOverride('SESSION_SECURE_COOKIE', 'false');
+        $this->setEnvironmentOverride('SESSION_HTTPONLY_COOKIE', 'false');
+        $this->setEnvironmentOverride('CACHE_FILE_PATH', 'Storage/Cache/Installer');
+        $this->setEnvironmentOverride('AUTH_VERIFY_EMAIL', 'false');
+        $this->setEnvironmentOverride('AUTH_PASSKEY_RP_ID', 'example.test');
+        $this->setEnvironmentOverride('MAIL_REPLY_TO', 'support@example.test');
+        $this->setEnvironmentOverride('HTTP_SIGNED_URL_KEY', 'signed-url-secret');
+        $this->setEnvironmentOverride('PAYMENT_DEFAULT_METHOD', 'wallet');
+        $this->setEnvironmentOverride('PAYMENT_DEFAULT_FLOW', 'redirect');
+        $this->setEnvironmentOverride('WEBMODULE_CONTENT_SOURCE', 'memory');
+        $this->setEnvironmentOverride('QUEUE_DEFAULT_QUEUE', 'framework');
+
+        $config = $this->resolveConfig();
+
+        self::assertFalse($config->get('session', 'COOKIE.SECURE'));
+        self::assertFalse($config->get('session', 'COOKIE.HTTPONLY'));
+        self::assertSame('Storage/Cache/Installer', $config->get('cache', 'FILE'));
+        self::assertFalse($config->get('auth', 'VERIFY_EMAIL'));
+        self::assertSame('example.test', $config->get('auth', 'PASSKEY.RP_ID'));
+        self::assertSame('support@example.test', $config->get('mail', 'REPLY'));
+        self::assertSame('signed-url-secret', $config->get('http', 'SIGNED_URL.KEY'));
+        self::assertSame('wallet', $config->get('payment', 'DEFAULT_METHOD'));
+        self::assertSame('redirect', $config->get('payment', 'DEFAULT_FLOW'));
+        self::assertSame('memory', $config->get('webmodule', 'CONTENT_SOURCE'));
+        self::assertSame('framework', $config->get('queue', 'DEFAULT_QUEUE'));
+    }
+
     public function testDatabaseServiceResolvesWithoutConnecting(): void
     {
         $provider = new CoreProvider();

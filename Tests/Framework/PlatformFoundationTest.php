@@ -127,7 +127,7 @@ class PlatformFoundationTest extends TestCase
         self::assertSame('up', $migrations->status('WebModule')[0]['batch'] > 0 ? 'up' : 'pending');
 
         self::assertSame(['PageSeed'], $seeds->run('WebModule'));
-        self::assertSame(2, (int) $database->fetchColumn('SELECT COUNT(*) FROM pages'));
+        self::assertSame(4, (int) $database->fetchColumn('SELECT COUNT(*) FROM pages'));
 
         self::assertSame(['CreatePagesTable'], $migrations->rollback(1, 'WebModule'));
         self::assertFalse($database->fetchColumn("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'pages'"));

@@ -20,12 +20,17 @@ class RouterTest extends TestCase
     private array $postBackup = [];
     private array $getBackup = [];
     private array $envBackup = [];
+    private array $serverBackup = [];
     private ?string $sqliteTestDatabasePath = null;
 
     protected function setUp(): void
     {
         $this->postBackup = $_POST;
         $this->getBackup = $_GET;
+        $this->serverBackup = [
+            'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? null,
+            'HTTP_ACCEPT' => $_SERVER['HTTP_ACCEPT'] ?? null,
+        ];
         $this->envBackup = [
             'DB_CONNECTION' => getenv('DB_CONNECTION') !== false ? (string) getenv('DB_CONNECTION') : null,
             'DB_DATABASE' => getenv('DB_DATABASE') !== false ? (string) getenv('DB_DATABASE') : null,
@@ -78,11 +83,21 @@ class RouterTest extends TestCase
             $_SERVER[$key] = $value;
         }
 
+        foreach ($this->serverBackup as $key => $value) {
+            if ($value === null) {
+                unset($_SERVER[$key]);
+                continue;
+            }
+
+            $_SERVER[$key] = $value;
+        }
+
         if ($this->sqliteTestDatabasePath !== null && file_exists($this->sqliteTestDatabasePath)) {
             @unlink($this->sqliteTestDatabasePath);
         }
 
         $this->sqliteTestDatabasePath = null;
+        $this->serverBackup = [];
     }
 
     public function testRouterDispatchesHomeRouteFromModuleRouteFile(): void
@@ -133,6 +148,35 @@ class RouterTest extends TestCase
         self::assertContains('shop.index', $names);
         self::assertContains('cart.show', $names);
         self::assertContains('orders.checkout.form', $names);
+        self::assertContains('web.page', $names);
+        self::assertContains('api.web.page', $names);
+    }
+
+    public function testRouterDispatchesDynamicWebModulePagesForHtmlAndApi(): void
+    {
+        putenv('WEBMODULE_CONTENT_SOURCE=database');
+        $_ENV['WEBMODULE_CONTENT_SOURCE'] = 'database';
+        $_SERVER['WEBMODULE_CONTENT_SOURCE'] = 'database';
+
+        $router = $this->resolveRouter();
+
+        self::assertSame('/pages/about', $router->route('web.page', ['slug' => 'about']));
+
+        $html = $router->dispatch('/pages/about', 'GET');
+
+        self::assertInstanceOf(ResponseInterface::class, $html);
+        self::assertSame(200, $html->getStatus());
+        self::assertStringContainsString('About LangelerMVC', $html->toArray()['content']);
+
+        $_SERVER['REQUEST_URI'] = '/api/pages/about';
+        $_SERVER['HTTP_ACCEPT'] = 'application/json';
+        $api = $router->dispatch('/api/pages/about', 'GET');
+
+        self::assertInstanceOf(ResponseInterface::class, $api);
+        self::assertSame(200, $api->getStatus());
+        self::assertSame('application/json; charset=UTF-8', $api->getHeaders()['content-type']);
+        self::assertStringContainsString('"about"', $api->toArray()['content']);
+        self::assertStringContainsString('"About LangelerMVC"', $api->toArray()['content']);
     }
 
     public function testRouterDispatchesPublicUserFacingHtmlRoutes(): void
@@ -194,6 +238,7 @@ class RouterTest extends TestCase
             $database->query('CREATE TABLE IF NOT EXISTS pages (id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL, title TEXT NOT NULL, content TEXT, is_published INTEGER NOT NULL DEFAULT 1, created_at TEXT NULL, updated_at TEXT NULL)');
             $database->execute('INSERT INTO pages (slug, title, content, is_published) VALUES (?, ?, ?, ?)', ['home', 'LangelerMVC is running.', 'The starter WebModule page is now stored in the framework database layer.', 1]);
             $database->execute('INSERT INTO pages (slug, title, content, is_published) VALUES (?, ?, ?, ?)', ['not-found', 'Route not found.', 'The requested route could not be resolved by the framework router.', 1]);
+            $database->execute('INSERT INTO pages (slug, title, content, is_published) VALUES (?, ?, ?, ?)', ['about', 'About LangelerMVC', 'The framework ships with concrete modules and native presentation layers for production extension work.', 1]);
         }
 
         return $provider->getCoreService('router');

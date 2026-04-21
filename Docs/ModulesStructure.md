@@ -34,10 +34,10 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 | Module | Status | Notes |
 | --- | --- | --- |
 | `WebModule` | Implemented starter slice | Contains the reference request/controller/service/presenter/view/response pipeline plus `pages` migration, seed, model, repository, and shared templates. |
-| `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, health, and operations management flows protected by the framework auth/RBAC layer. |
-| `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, merge-on-login listener, presenters/resources, routes, migrations, seeds, and views. |
+| `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, health, and operations management flows protected by the framework auth/RBAC layer. It intentionally orchestrates existing module/runtime persistence instead of owning a separate admin data model. |
+| `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, cart-merge notifications, presenters/resources, routes, migrations, seeds, and views. |
 | `OrderModule` | Implemented commerce slice | Contains payment-method-aware checkout/order lifecycle services, listeners, notifications, presenters/resources, routes, migrations, seeds, and views. |
-| `ShopModule` | Implemented commerce slice | Contains catalog services, presenters/resources, routes, migrations, seeds, views, and product/category persistence. |
+| `ShopModule` | Implemented commerce slice | Contains catalog services, catalog lifecycle listeners/notifications, presenters/resources, routes, migrations, seeds, views, and product/category persistence. |
 | `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA with trusted devices, and passkey/WebAuthn flows. |
 
 ## `WebModule` Today
@@ -96,6 +96,8 @@ It now also exposes management visibility for:
 - framework health/readiness
 - audit-backed diagnostics where safe
 
+`AdminModule` intentionally does not own separate migrations, models, repositories, or seeds. It is the operator-facing orchestration surface over framework and domain state that already lives in the corresponding runtime and business modules.
+
 ## `ShopModule` Today
 
 `ShopModule` now provides the first catalog/business slice and demonstrates:
@@ -103,6 +105,7 @@ It now also exposes management visibility for:
 - product and category persistence
 - module-managed migrations and seeds
 - catalog listing/detail flows
+- module-native catalog activity listeners and notifications for admin-driven catalog changes
 - tracked public product artwork served from `Public/assets/images`
 - publish-state and pricing handling
 - HTML + JSON parity through presenters, resources, views, and responses
@@ -114,6 +117,7 @@ It now also exposes management visibility for:
 - guest and authenticated cart persistence
 - session-backed cart identity
 - merge-on-login behavior wired through framework auth events
+- cart-merge notifications emitted through the framework notification layer
 - totals calculation in services
 - HTML + JSON parity through the framework presentation pipeline
 

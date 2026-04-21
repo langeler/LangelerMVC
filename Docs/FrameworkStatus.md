@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (104 tests, 2460 assertions)`
+- Verification result: `OK (104 tests, 2470 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -128,6 +128,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue/notification/event/payment operational visibility where safe
 - framework health/readiness/capability visibility
 - audit-aware operational visibility where safe
+- intentional orchestration-only posture for persistence: admin reuses the runtime and domain repositories it manages instead of introducing separate admin-owned tables/models
 
 ### Project Packaging And Verification
 
@@ -142,6 +143,7 @@ This document records the current implementation state of LangelerMVC based on t
 - catalog listing/detail flows
 - tracked public demo product imagery under `Public/assets/images`
 - pricing and publish-state handling
+- catalog lifecycle notifications for admin-driven product/category saves
 - HTML + JSON parity through presenter/resource/view/response layers
 - module migrations and seeds
 
@@ -151,6 +153,7 @@ This document records the current implementation state of LangelerMVC based on t
 - session-backed cart identity
 - persistent cart storage
 - merge-on-login behavior through auth events
+- cart-merge notifications delivered through the framework notification subsystem
 - item add/update/remove flows
 - totals calculation in services
 - HTML + JSON parity

@@ -374,8 +374,9 @@ class AdminAccessService extends Service
             'description' => trim((string) ($this->payload['description'] ?? '')),
             'is_published' => !empty($this->payload['is_published']) ? 1 : 0,
         ];
+        $isUpdate = $existing !== null;
 
-        if ($existing !== null) {
+        if ($isUpdate) {
             $this->categories->update($categoryId, $attributes);
         } else {
             $existing = $this->categories->create($attributes);
@@ -388,6 +389,16 @@ class AdminAccessService extends Service
             'slug' => $slug,
             'published' => (bool) $attributes['is_published'],
         ], 'admin');
+        $this->events->dispatch('shop.category.saved', [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'entity' => 'category',
+            'entity_id' => $categoryId,
+            'action' => $isUpdate ? 'updated' : 'created',
+            'name' => $name,
+            'slug' => $slug,
+            'state' => (bool) $attributes['is_published'] ? 'published' : 'draft',
+            'message' => sprintf('Category "%s" was saved in the admin catalog.', $name),
+        ]);
 
         return [
             ...$this->catalogResponse(
@@ -475,8 +486,9 @@ class AdminAccessService extends Service
             'stock' => max(0, (int) ($this->payload['stock'] ?? 0)),
             'media' => $this->toJson($media, JSON_THROW_ON_ERROR),
         ];
+        $isUpdate = $existing !== null;
 
-        if ($existing !== null) {
+        if ($isUpdate) {
             $this->products->update($productId, $attributes);
         } else {
             $existing = $this->products->create($attributes);
@@ -491,6 +503,16 @@ class AdminAccessService extends Service
             'visibility' => $attributes['visibility'],
             'stock' => (int) $attributes['stock'],
         ], 'admin');
+        $this->events->dispatch('shop.product.saved', [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'entity' => 'product',
+            'entity_id' => $productId,
+            'action' => $isUpdate ? 'updated' : 'created',
+            'name' => $name,
+            'slug' => $slug,
+            'state' => (string) $attributes['visibility'],
+            'message' => sprintf('Product "%s" was saved in the admin catalog.', $name),
+        ]);
 
         return [
             ...$this->catalogResponse(

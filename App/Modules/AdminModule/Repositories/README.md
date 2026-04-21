@@ -2,4 +2,6 @@
 
 This directory is part of the implemented `AdminModule` module contract. Persistence adapters that isolate module data access.
 
-No concrete files are required here right now, but the folder remains tracked so the module layout stays explicit and ready for extension.
+`AdminModule` currently composes the repositories owned by the runtime, identity, catalog, cart, and order subsystems.
+
+That is intentional: admin flows inspect and manage existing application state rather than introduce a second persistence layer just for the operator console.

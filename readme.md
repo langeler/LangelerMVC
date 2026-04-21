@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-21`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (104 tests, 2460 assertions)`
+- `composer test` passes with `OK (104 tests, 2470 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
@@ -32,7 +32,8 @@ As of `2026-04-21`:
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, trusted-device support, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
 - `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, runtime health/readiness, and audit-aware operations visibility.
-- `ShopModule`, `CartModule`, and `OrderModule` now provide the first full commerce stack for catalog, cart, checkout, payment-state handling, and order lifecycle flows with HTML + JSON parity.
+- `AdminModule` intentionally remains orchestration-first on persistence: it manages existing framework and domain state instead of introducing a duplicate admin-owned data model.
+- `ShopModule`, `CartModule`, and `OrderModule` now provide the first full commerce stack for catalog, cart, checkout, payment-state handling, order lifecycle flows, cart-merge notifications, and catalog activity notifications with HTML + JSON parity.
 - Mail, OTP, WebAuthn, notifications, queues, and payments are all consumed through framework-native contracts and managers rather than module-local third-party calls.
 
 ## Design Goals

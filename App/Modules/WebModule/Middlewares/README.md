@@ -2,4 +2,6 @@
 
 This directory is part of the implemented `WebModule` module contract. Module-specific middleware that runs before or around controller execution.
 
-No concrete files are required here right now, but the folder remains tracked so the module layout stays explicit and ready for extension.
+`WebModule` does not currently require dedicated route middleware.
+
+Installer redirects are handled by the bootstrap layer, route misses are handled by the WebModule fallback controller/service path, and starter-page resolution stays inside the page service so the reference slice remains simple and explicit.

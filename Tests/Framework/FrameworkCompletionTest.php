@@ -35,6 +35,7 @@ use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\OrderModule\Seeds\OrderSeed;
 use App\Modules\OrderModule\Services\OrderService;
+use App\Modules\ShopModule\Listeners\CatalogActivityNotificationListener;
 use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Modules\ShopModule\Presenters\ShopResource;
 use App\Modules\ShopModule\Repositories\CategoryRepository;
@@ -429,6 +430,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertNotNull($userCart);
         self::assertSame(2, (int) ($stack['cartItems']->summaryForCart((int) $userCart?->getKey())[0]['quantity'] ?? 0));
         self::assertNull($stack['carts']->findActiveBySessionKey((string) ($_SESSION['cart']['session_key'] ?? '__missing__')));
+        $loginNotifications = $stack['notifications']->databaseNotifications(2);
+        self::assertCount(1, $loginNotifications);
+        self::assertSame(2, (int) ($loginNotifications[0]['data']['merged_items'] ?? 0));
+        self::assertStringContainsString('merged into your account cart', (string) ($loginNotifications[0]['data']['message'] ?? ''));
 
         $checkout = $stack['orderService']->forAction('checkout', [
             'name' => 'Demo Customer',
@@ -448,7 +453,7 @@ final class FrameworkCompletionTest extends TestCase
         while ($stack['queue']->work('notifications', 1) > 0) {
         }
 
-        self::assertSame(1, count($stack['notifications']->databaseNotifications()));
+        self::assertSame(2, count($stack['notifications']->databaseNotifications()));
         self::assertCount(1, $stack['mail']->outbox());
 
         $orderJson = (new OrderResource($checkout))->toArray();
@@ -720,6 +725,7 @@ final class FrameworkCompletionTest extends TestCase
         }
 
         self::assertGreaterThan(0, $createdCategoryId);
+        self::assertSame(1, count($stack['queue']->pending('notifications')));
 
         $createdProduct = $stack['adminService']->forAction('saveProduct', [
             'category_id' => $createdCategoryId,
@@ -741,6 +747,17 @@ final class FrameworkCompletionTest extends TestCase
                 true
             )
         );
+        self::assertSame(2, count($stack['queue']->pending('notifications')));
+
+        while ($stack['queue']->work('notifications', 1) > 0) {
+        }
+
+        $adminNotifications = $stack['notifications']->databaseNotifications(1);
+        self::assertCount(2, $adminNotifications);
+        self::assertSame('shop.category.saved', $adminNotifications[0]['data']['event'] ?? null);
+        self::assertSame('created', $adminNotifications[0]['data']['action'] ?? null);
+        self::assertSame('shop.product.saved', $adminNotifications[1]['data']['event'] ?? null);
+        self::assertSame('created', $adminNotifications[1]['data']['action'] ?? null);
 
         $orderDetail = $stack['adminService']->forAction('order', [], [
             'order' => (int) ($orders['orders'][0]['id'] ?? 0),
@@ -786,6 +803,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateCartTables::class,
             CreateOrderTables::class,
             MergeCartOnLoginListener::class,
+            CatalogActivityNotificationListener::class,
             OrderLifecycleNotificationListener::class,
         ];
 
@@ -931,7 +949,15 @@ final class FrameworkCompletionTest extends TestCase
         );
 
         $modules->setResolved([
-            MergeCartOnLoginListener::class => new MergeCartOnLoginListener($cartService),
+            MergeCartOnLoginListener::class => new MergeCartOnLoginListener(
+                $cartService,
+                $notifications,
+                $users
+            ),
+            CatalogActivityNotificationListener::class => new CatalogActivityNotificationListener(
+                $notifications,
+                $users
+            ),
             OrderLifecycleNotificationListener::class => new OrderLifecycleNotificationListener(
                 $notifications,
                 $orders,

@@ -61,24 +61,26 @@ class CartService extends Service
     /**
      * Used by the auth login listener to merge a guest cart into the active user cart.
      */
-    public function mergeGuestCartToUser(int $userId): void
+    public function mergeGuestCartToUser(int $userId): array
     {
         $guestKey = $this->guestSessionKey(false);
 
         if ($guestKey === null || $guestKey === '') {
-            return;
+            return ['merged' => false, 'guest_cart_id' => null, 'user_cart_id' => null, 'merged_items' => 0];
         }
 
         $guestCart = $this->carts->findActiveBySessionKey($guestKey);
 
         if (!$guestCart instanceof Cart) {
-            return;
+            return ['merged' => false, 'guest_cart_id' => null, 'user_cart_id' => null, 'merged_items' => 0];
         }
 
         $userCart = $this->carts->findActiveByUserId($userId)
             ?? $this->carts->createUserCart($userId, (string) ($guestCart->getAttribute('currency') ?? 'SEK'));
+        $mergedItems = 0;
 
         foreach ($this->items->forCart((int) $guestCart->getKey()) as $item) {
+            $mergedItems += (int) ($item->getAttribute('quantity') ?? 1);
             $this->items->addOrIncrement((int) $userCart->getKey(), [
                 'id' => (int) ($item->getAttribute('product_id') ?? 0),
                 'name' => (string) ($item->getAttribute('product_name') ?? ''),
@@ -90,6 +92,13 @@ class CartService extends Service
 
         $this->carts->deleteModel($guestCart);
         $this->session->forget('cart.session_key');
+
+        return [
+            'merged' => true,
+            'guest_cart_id' => (int) $guestCart->getKey(),
+            'user_cart_id' => (int) $userCart->getKey(),
+            'merged_items' => $mergedItems,
+        ];
     }
 
     /**

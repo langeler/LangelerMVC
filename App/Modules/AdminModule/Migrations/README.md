@@ -2,4 +2,6 @@
 
 This directory is part of the implemented `AdminModule` module contract. Database migrations owned by the module schema lifecycle.
 
-No concrete files are required here right now, but the folder remains tracked so the module layout stays explicit and ready for extension.
+`AdminModule` is intentionally orchestration-first and does not currently own standalone schema tables.
+
+Its dashboards and management flows operate on framework-level state plus the persistence layers owned by `UserModule`, `ShopModule`, `CartModule`, `OrderModule`, notifications, queues, and audit storage.

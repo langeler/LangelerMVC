@@ -78,6 +78,40 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function saveCategory(): ResponseInterface
+    {
+        $this->adminRequest->forScenario('saveCategory');
+        $this->action = 'saveCategory';
+
+        return $this->run();
+    }
+
+    public function updateCategory(string $category): ResponseInterface
+    {
+        $this->adminRequest->forScenario('saveCategory');
+        $this->action = 'updateCategory';
+        $this->context = ['category' => (int) $category];
+
+        return $this->run();
+    }
+
+    public function saveProduct(): ResponseInterface
+    {
+        $this->adminRequest->forScenario('saveProduct');
+        $this->action = 'saveProduct';
+
+        return $this->run();
+    }
+
+    public function updateProduct(string $product): ResponseInterface
+    {
+        $this->adminRequest->forScenario('saveProduct');
+        $this->action = 'updateProduct';
+        $this->context = ['product' => (int) $product];
+
+        return $this->run();
+    }
+
     public function carts(): ResponseInterface
     {
         $this->action = 'carts';
@@ -88,6 +122,14 @@ class AdminController extends Controller
     public function orders(): ResponseInterface
     {
         $this->action = 'orders';
+
+        return $this->run();
+    }
+
+    public function order(string $order): ResponseInterface
+    {
+        $this->action = 'order';
+        $this->context = ['order' => (int) $order];
 
         return $this->run();
     }
@@ -117,6 +159,11 @@ class AdminController extends Controller
             return parent::finalize($result);
         }
 
-        return $this->respondWithPresentation($result, 'AdminDashboard', AdminResource::class, ['X-Module' => 'AdminModule']);
+        return $this->respondWithPresentation(
+            $result,
+            (string) ($result['template'] ?? 'AdminDashboard'),
+            AdminResource::class,
+            ['X-Module' => 'AdminModule']
+        );
     }
 }

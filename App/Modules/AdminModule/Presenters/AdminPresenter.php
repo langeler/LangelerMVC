@@ -24,9 +24,13 @@ class AdminPresenter extends Presenter
             'modules' => is_array($data['modules'] ?? null) ? $data['modules'] : [],
             'system' => is_array($data['system'] ?? null) ? $data['system'] : [],
             'catalog' => is_array($data['catalog'] ?? null) ? $data['catalog'] : [],
+            'catalog_metrics' => is_array($data['catalog_metrics'] ?? null) ? $data['catalog_metrics'] : [],
+            'category_form' => is_array($data['category_form'] ?? null) ? $data['category_form'] : [],
+            'product_form' => is_array($data['product_form'] ?? null) ? $data['product_form'] : [],
             'categories' => is_array($data['categories'] ?? null) ? $data['categories'] : [],
             'carts' => is_array($data['carts'] ?? null) ? $data['carts'] : [],
             'orders' => is_array($data['orders'] ?? null) ? $data['orders'] : [],
+            'order' => is_array($data['order'] ?? null) ? $data['order'] : [],
             'operations' => is_array($data['operations'] ?? null) ? $data['operations'] : [],
         ];
     }

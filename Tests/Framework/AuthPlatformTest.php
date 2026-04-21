@@ -417,6 +417,8 @@ class AuthPlatformTest extends TestCase
             $this->createStub(\App\Modules\CartModule\Repositories\CartRepository::class),
             $this->createStub(\App\Modules\CartModule\Repositories\CartItemRepository::class),
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderRepository::class),
+            $this->createStub(\App\Modules\OrderModule\Repositories\OrderItemRepository::class),
+            $this->createStub(\App\Modules\OrderModule\Repositories\OrderAddressRepository::class),
             $moduleManager,
             $cache,
             $stack['sessionManager'],

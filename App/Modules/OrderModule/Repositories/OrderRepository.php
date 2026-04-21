@@ -122,6 +122,8 @@ class OrderRepository extends Repository
 
         return [
             'id' => (int) $order->getKey(),
+            'user_id' => (int) ($order->getAttribute('user_id') ?? 0),
+            'cart_id' => (int) ($order->getAttribute('cart_id') ?? 0),
             'order_number' => (string) ($order->getAttribute('order_number') ?? ''),
             'contact_name' => (string) ($order->getAttribute('contact_name') ?? ''),
             'contact_email' => (string) ($order->getAttribute('contact_email') ?? ''),
@@ -143,6 +145,8 @@ class OrderRepository extends Repository
             'total' => $this->formatMoneyMinor((int) ($order->getAttribute('total_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
             'payment_next_action' => $nextAction,
             'payment_intent' => $intent,
+            'created_at' => (string) ($order->getAttribute('created_at') ?? ''),
+            'updated_at' => (string) ($order->getAttribute('updated_at') ?? ''),
         ];
     }
 }

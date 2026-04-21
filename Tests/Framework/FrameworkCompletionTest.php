@@ -676,10 +676,14 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame(200, $catalogAdmin['status']);
         self::assertNotEmpty($catalogAdmin['catalog']);
+        self::assertArrayHasKey('category_form', $catalogAdmin);
+        self::assertArrayHasKey('product_form', $catalogAdmin);
+        self::assertArrayHasKey('catalog_metrics', $catalogAdmin);
         self::assertSame(200, $cartsAdmin['status']);
         self::assertNotEmpty($cartsAdmin['carts']);
         self::assertSame(200, $orders['status']);
         self::assertNotEmpty($orders['orders']);
+        self::assertNotEmpty($orders['orders'][0]['view_path'] ?? '');
         self::assertSame(200, $operations['status']);
         self::assertArrayHasKey('queue', $operations['operations']);
         self::assertArrayHasKey('health', $operations['operations']);
@@ -689,6 +693,63 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('flows', $operations['operations']['payments']);
         self::assertArrayHasKey('catalog', $operations['operations']['payments']);
         self::assertArrayHasKey('paypal', $operations['operations']['payments']['catalog']);
+
+        $createdCategory = $stack['adminService']->forAction('saveCategory', [
+            'name' => 'Operations Blueprints',
+            'slug' => 'operations-blueprints',
+            'description' => 'Admin-created category.',
+            'is_published' => '1',
+        ])->execute();
+
+        self::assertSame(200, $createdCategory['status']);
+        self::assertTrue(
+            in_array(
+                'operations-blueprints',
+                array_map(static fn(array $category): string => (string) ($category['slug'] ?? ''), $createdCategory['categories']),
+                true
+            )
+        );
+
+        $createdCategoryId = 0;
+
+        foreach ((array) $createdCategory['categories'] as $category) {
+            if (($category['slug'] ?? '') === 'operations-blueprints') {
+                $createdCategoryId = (int) ($category['id'] ?? 0);
+                break;
+            }
+        }
+
+        self::assertGreaterThan(0, $createdCategoryId);
+
+        $createdProduct = $stack['adminService']->forAction('saveProduct', [
+            'category_id' => $createdCategoryId,
+            'name' => 'Operations Runbook',
+            'slug' => 'operations-runbook',
+            'description' => 'Admin-created product.',
+            'price_minor' => 12900,
+            'currency' => 'SEK',
+            'visibility' => 'draft',
+            'stock' => 5,
+            'media' => '/assets/images/starter-platform-license.svg',
+        ])->execute();
+
+        self::assertSame(200, $createdProduct['status']);
+        self::assertTrue(
+            in_array(
+                'operations-runbook',
+                array_map(static fn(array $product): string => (string) ($product['slug'] ?? ''), $createdProduct['catalog']),
+                true
+            )
+        );
+
+        $orderDetail = $stack['adminService']->forAction('order', [], [
+            'order' => (int) ($orders['orders'][0]['id'] ?? 0),
+        ])->execute();
+
+        self::assertSame(200, $orderDetail['status']);
+        self::assertSame($orders['orders'][0]['order_number'] ?? null, $orderDetail['order']['order_number'] ?? null);
+        self::assertNotEmpty($orderDetail['order']['items']);
+        self::assertArrayHasKey('public_view', $orderDetail['order']['actions']);
     }
 
     public function testShopSeededCatalogMediaPointsToTrackedPublicAssets(): void
@@ -854,6 +915,8 @@ final class FrameworkCompletionTest extends TestCase
             $carts,
             $cartItems,
             $orders,
+            $orderItems,
+            $addresses,
             $modules,
             $cache,
             $sessionManager,

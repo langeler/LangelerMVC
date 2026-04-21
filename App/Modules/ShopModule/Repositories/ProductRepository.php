@@ -104,7 +104,19 @@ class ProductRepository extends Repository
     {
         $query = $this->db
             ->dataQuery($this->getTable())
-            ->select(['products.id', 'products.name', 'products.slug', 'products.visibility', 'products.price_minor', 'products.currency', 'products.stock', 'categories.name AS category_name'])
+            ->select([
+                'products.id',
+                'products.category_id',
+                'products.name',
+                'products.slug',
+                'products.description',
+                'products.visibility',
+                'products.price_minor',
+                'products.currency',
+                'products.stock',
+                'products.media',
+                'categories.name AS category_name',
+            ])
             ->joinTable(
                 'categories',
                 [['products.category_id', '=', ['column' => 'categories.id']]],
@@ -118,10 +130,18 @@ class ProductRepository extends Repository
                 'id' => (int) ($row['id'] ?? 0),
                 'name' => (string) ($row['name'] ?? ''),
                 'slug' => (string) ($row['slug'] ?? ''),
+                'description' => (string) ($row['description'] ?? ''),
+                'category_id' => (int) ($row['category_id'] ?? 0),
                 'visibility' => (string) ($row['visibility'] ?? ''),
+                'price_minor' => (int) ($row['price_minor'] ?? 0),
+                'currency' => (string) ($row['currency'] ?? 'SEK'),
                 'price' => $this->formatMoneyMinor((int) ($row['price_minor'] ?? 0), (string) ($row['currency'] ?? 'SEK')),
                 'stock' => (int) ($row['stock'] ?? 0),
                 'category' => (string) ($row['category_name'] ?? ''),
+                'media' => $this->decodeMedia((string) ($row['media'] ?? '[]')),
+                'media_input' => implode(', ', $this->decodeMedia((string) ($row['media'] ?? '[]'))),
+                'storefront_path' => '/shop/products/' . (string) ($row['slug'] ?? ''),
+                'update_path' => '/admin/catalog/products/' . (int) ($row['id'] ?? 0) . '/update',
             ];
         }, $this->db->fetchAll($query['sql'], $query['bindings']));
     }

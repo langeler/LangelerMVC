@@ -23,9 +23,13 @@ class AdminResource extends Resource
             'modules' => is_array($payload['modules'] ?? null) ? $payload['modules'] : [],
             'system' => is_array($payload['system'] ?? null) ? $payload['system'] : [],
             'catalog' => is_array($payload['catalog'] ?? null) ? $payload['catalog'] : [],
+            'catalog_metrics' => is_array($payload['catalog_metrics'] ?? null) ? $payload['catalog_metrics'] : [],
+            'category_form' => is_array($payload['category_form'] ?? null) ? $payload['category_form'] : [],
+            'product_form' => is_array($payload['product_form'] ?? null) ? $payload['product_form'] : [],
             'categories' => is_array($payload['categories'] ?? null) ? $payload['categories'] : [],
             'carts' => is_array($payload['carts'] ?? null) ? $payload['carts'] : [],
             'orders' => is_array($payload['orders'] ?? null) ? $payload['orders'] : [],
+            'order' => is_array($payload['order'] ?? null) ? $payload['order'] : [],
             'operations' => is_array($payload['operations'] ?? null) ? $payload['operations'] : [],
         ];
     }

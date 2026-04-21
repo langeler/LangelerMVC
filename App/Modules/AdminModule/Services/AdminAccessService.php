@@ -11,6 +11,9 @@ use App\Contracts\Support\HealthManagerInterface;
 use App\Core\Config;
 use App\Core\Router;
 use App\Modules\CartModule\Models\Cart;
+use App\Modules\OrderModule\Models\Order;
+use App\Modules\OrderModule\Repositories\OrderAddressRepository;
+use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
@@ -51,6 +54,8 @@ class AdminAccessService extends Service
         private readonly CartRepository $carts,
         private readonly CartItemRepository $cartItems,
         private readonly OrderRepository $orders,
+        private readonly OrderItemRepository $orderItems,
+        private readonly OrderAddressRepository $orderAddresses,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
@@ -86,8 +91,13 @@ class AdminAccessService extends Service
             'roles' => $this->rolesPage(),
             'syncPermissions' => $this->syncPermissions(),
             'catalog' => $this->catalogPage(),
+            'saveCategory' => $this->saveCategory(),
+            'updateCategory' => $this->saveCategory((int) ($this->context['category'] ?? 0)),
+            'saveProduct' => $this->saveProduct(),
+            'updateProduct' => $this->saveProduct((int) ($this->context['product'] ?? 0)),
             'carts' => $this->cartsPage(),
             'orders' => $this->ordersPage(),
+            'order' => $this->orderPage((int) ($this->context['order'] ?? 0)),
             'system' => $this->systemPage(),
             'operations' => $this->operationsPage(),
             default => $this->dashboard(),
@@ -309,14 +319,188 @@ class AdminAccessService extends Service
             return $this->forbidden('AdminCatalog', 'Catalog administration requires the shop.catalog.manage permission.');
         }
 
+        return $this->catalogResponse();
+    }
+
+    private function saveCategory(int $categoryId = 0): array
+    {
+        if (!$this->auth->hasPermission('shop.catalog.manage')) {
+            return $this->forbidden('AdminCatalog', 'Catalog administration requires the shop.catalog.manage permission.');
+        }
+
+        $existing = $categoryId > 0 ? $this->categories->find($categoryId) : null;
+
+        if ($categoryId > 0 && $existing === null) {
+            return $this->catalogResponse(
+                title: 'Category not found',
+                headline: 'Unable to update category',
+                summary: 'The requested category could not be resolved.',
+                status: 404,
+                message: 'Choose another category record and try again.',
+                categoryForm: $this->payload
+            );
+        }
+
+        $name = trim((string) ($this->payload['name'] ?? ''));
+        $slug = $this->normalizeSlug((string) ($this->payload['slug'] ?? ''), $name);
+
+        if ($name === '' || $slug === '') {
+            return $this->catalogResponse(
+                title: 'Category update failed',
+                headline: 'Category details are incomplete',
+                summary: 'Provide at least a category name so the admin catalog can generate a stable slug.',
+                status: 422,
+                message: 'Category name and slug are required.',
+                categoryForm: $this->payload
+            );
+        }
+
+        $collision = $this->categories->findBySlug($slug);
+
+        if ($collision !== null && (int) $collision->getKey() !== $categoryId) {
+            return $this->catalogResponse(
+                title: 'Category update failed',
+                headline: 'Category slug is already in use',
+                summary: 'Choose a different category slug before saving.',
+                status: 422,
+                message: 'Category slugs must remain unique across the catalog.',
+                categoryForm: $this->payload
+            );
+        }
+
+        $attributes = [
+            'name' => $name,
+            'slug' => $slug,
+            'description' => trim((string) ($this->payload['description'] ?? '')),
+            'is_published' => !empty($this->payload['is_published']) ? 1 : 0,
+        ];
+
+        if ($existing !== null) {
+            $this->categories->update($categoryId, $attributes);
+        } else {
+            $existing = $this->categories->create($attributes);
+            $categoryId = (int) $existing->getKey();
+        }
+
+        $this->audit->record('admin.catalog.category.saved', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'category_id' => (string) $categoryId,
+            'slug' => $slug,
+            'published' => (bool) $attributes['is_published'],
+        ], 'admin');
+
         return [
-            'template' => 'AdminCatalog',
-            'status' => 200,
-            'title' => 'Catalog administration',
-            'headline' => 'Shop catalog management',
-            'summary' => 'Inspect products and categories through the completed shop module repositories.',
-            'categories' => $this->categories->publishedSummaries(),
-            'catalog' => $this->products->adminCatalog(),
+            ...$this->catalogResponse(
+                title: 'Catalog administration',
+                headline: 'Category saved',
+                summary: 'Category details were stored through the framework repository layer.',
+                status: 200,
+                message: 'Category changes saved successfully.'
+            ),
+            'redirect' => '/admin/catalog',
+        ];
+    }
+
+    private function saveProduct(int $productId = 0): array
+    {
+        if (!$this->auth->hasPermission('shop.catalog.manage')) {
+            return $this->forbidden('AdminCatalog', 'Catalog administration requires the shop.catalog.manage permission.');
+        }
+
+        $existing = $productId > 0 ? $this->products->find($productId) : null;
+
+        if ($productId > 0 && $existing === null) {
+            return $this->catalogResponse(
+                title: 'Product not found',
+                headline: 'Unable to update product',
+                summary: 'The requested product could not be resolved.',
+                status: 404,
+                message: 'Choose another product record and try again.',
+                productForm: $this->payload
+            );
+        }
+
+        $categoryId = max(0, (int) ($this->payload['category_id'] ?? 0));
+        $category = $categoryId > 0 ? $this->categories->find($categoryId) : null;
+
+        if ($category === null) {
+            return $this->catalogResponse(
+                title: 'Product update failed',
+                headline: 'A valid category is required',
+                summary: 'Associate each product with a stored category before saving.',
+                status: 422,
+                message: 'The selected category could not be found.',
+                productForm: $this->payload
+            );
+        }
+
+        $name = trim((string) ($this->payload['name'] ?? ''));
+        $slug = $this->normalizeSlug((string) ($this->payload['slug'] ?? ''), $name);
+
+        if ($name === '' || $slug === '') {
+            return $this->catalogResponse(
+                title: 'Product update failed',
+                headline: 'Product details are incomplete',
+                summary: 'Provide at least a product name so the admin catalog can generate a stable slug.',
+                status: 422,
+                message: 'Product name and slug are required.',
+                productForm: $this->payload
+            );
+        }
+
+        $collision = $this->products->findBySlug($slug);
+
+        if ($collision !== null && (int) $collision->getKey() !== $productId) {
+            return $this->catalogResponse(
+                title: 'Product update failed',
+                headline: 'Product slug is already in use',
+                summary: 'Choose a different product slug before saving.',
+                status: 422,
+                message: 'Product slugs must remain unique across the catalog.',
+                productForm: $this->payload
+            );
+        }
+
+        $media = $this->normalizeMediaList((string) ($this->payload['media'] ?? ''));
+        $attributes = [
+            'category_id' => $categoryId,
+            'name' => $name,
+            'slug' => $slug,
+            'description' => trim((string) ($this->payload['description'] ?? '')),
+            'price_minor' => max(0, (int) ($this->payload['price_minor'] ?? 0)),
+            'currency' => strtoupper(trim((string) ($this->payload['currency'] ?? 'SEK'))),
+            'visibility' => in_array((string) ($this->payload['visibility'] ?? 'published'), ['draft', 'published'], true)
+                ? (string) ($this->payload['visibility'] ?? 'published')
+                : 'published',
+            'stock' => max(0, (int) ($this->payload['stock'] ?? 0)),
+            'media' => $this->toJson($media, JSON_THROW_ON_ERROR),
+        ];
+
+        if ($existing !== null) {
+            $this->products->update($productId, $attributes);
+        } else {
+            $existing = $this->products->create($attributes);
+            $productId = (int) $existing->getKey();
+        }
+
+        $this->audit->record('admin.catalog.product.saved', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'product_id' => (string) $productId,
+            'category_id' => (string) $categoryId,
+            'slug' => $slug,
+            'visibility' => $attributes['visibility'],
+            'stock' => (int) $attributes['stock'],
+        ], 'admin');
+
+        return [
+            ...$this->catalogResponse(
+                title: 'Catalog administration',
+                headline: 'Product saved',
+                summary: 'Product details were stored through the framework repository layer.',
+                status: 200,
+                message: 'Product changes saved successfully.'
+            ),
+            'redirect' => '/admin/catalog',
         ];
     }
 
@@ -342,14 +526,34 @@ class AdminAccessService extends Service
             return $this->forbidden('AdminOrders', 'Order inspection requires the order.manage permission.');
         }
 
-        return [
-            'template' => 'AdminOrders',
-            'status' => 200,
-            'title' => 'Order administration',
-            'headline' => 'Order lifecycle visibility',
-            'summary' => 'Review order snapshots and payment lifecycle state from the completed order module.',
-            'orders' => $this->orders->allSummary(),
-        ];
+        return $this->ordersResponse();
+    }
+
+    private function orderPage(int $orderId): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Order inspection requires the order.manage permission.');
+        }
+
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return $this->ordersResponse(
+                title: 'Order not found',
+                headline: 'Unable to load the requested order',
+                summary: 'Choose a valid order from the administrative order list.',
+                status: 404,
+                message: 'The requested order could not be found.'
+            );
+        }
+
+        return $this->ordersResponse(
+            title: 'Order administration',
+            headline: 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
+            summary: 'Detailed order lifecycle, stored addresses, and available management actions.',
+            status: 200,
+            order: $this->adminOrderDetail($order)
+        );
     }
 
     private function operationsPage(): array
@@ -395,6 +599,240 @@ class AdminAccessService extends Service
                 ],
             ],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $categoryForm
+     * @param array<string, mixed> $productForm
+     * @return array<string, mixed>
+     */
+    private function catalogResponse(
+        string $title = 'Catalog administration',
+        string $headline = 'Shop catalog management',
+        string $summary = 'Inspect and manage categories and products through the completed shop module repositories.',
+        int $status = 200,
+        string $message = '',
+        array $categoryForm = [],
+        array $productForm = []
+    ): array {
+        $categories = $this->categories->adminSummaries();
+        $catalog = $this->products->adminCatalog();
+
+        return [
+            'template' => 'AdminCatalog',
+            'status' => $status,
+            'title' => $title,
+            'headline' => $headline,
+            'summary' => $summary,
+            'message' => $message,
+            'categories' => $categories,
+            'catalog' => $catalog,
+            'catalog_metrics' => $this->catalogMetrics($categories, $catalog),
+            'category_form' => $this->categoryFormPayload($categoryForm),
+            'product_form' => $this->productFormPayload($productForm, $categories),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @return array<string, mixed>
+     */
+    private function ordersResponse(
+        string $title = 'Order administration',
+        string $headline = 'Order lifecycle visibility',
+        string $summary = 'Review order snapshots and payment lifecycle state from the completed order module.',
+        int $status = 200,
+        string $message = '',
+        array $order = []
+    ): array {
+        return [
+            'template' => 'AdminOrders',
+            'status' => $status,
+            'title' => $title,
+            'headline' => $headline,
+            'summary' => $summary,
+            'message' => $message,
+            'orders' => $this->adminOrderSummaries(),
+            'order' => $order,
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $categories
+     * @param list<array<string, mixed>> $catalog
+     * @return array<string, int>
+     */
+    private function catalogMetrics(array $categories, array $catalog): array
+    {
+        return [
+            'categories' => count($categories),
+            'published_categories' => count(array_filter($categories, static fn(array $category): bool => !empty($category['is_published']))),
+            'products' => count($catalog),
+            'published_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'published')),
+            'draft_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'draft')),
+            'out_of_stock' => count(array_filter($catalog, static fn(array $product): bool => (int) ($product['stock'] ?? 0) <= 0)),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function categoryFormPayload(array $input = []): array
+    {
+        return [
+            'name' => trim((string) ($input['name'] ?? '')),
+            'slug' => trim((string) ($input['slug'] ?? '')),
+            'description' => trim((string) ($input['description'] ?? '')),
+            'is_published' => array_key_exists('is_published', $input) ? !empty($input['is_published']) : true,
+            'store_path' => '/admin/catalog/categories',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param list<array<string, mixed>> $categories
+     * @return array<string, mixed>
+     */
+    private function productFormPayload(array $input = [], array $categories = []): array
+    {
+        $defaultCategoryId = (int) ($categories[0]['id'] ?? 0);
+
+        return [
+            'category_id' => max(0, (int) ($input['category_id'] ?? $defaultCategoryId)),
+            'name' => trim((string) ($input['name'] ?? '')),
+            'slug' => trim((string) ($input['slug'] ?? '')),
+            'description' => trim((string) ($input['description'] ?? '')),
+            'price_minor' => max(0, (int) ($input['price_minor'] ?? 0)),
+            'currency' => strtoupper(trim((string) ($input['currency'] ?? 'SEK'))),
+            'visibility' => in_array((string) ($input['visibility'] ?? 'published'), ['draft', 'published'], true)
+                ? (string) ($input['visibility'] ?? 'published')
+                : 'published',
+            'stock' => max(0, (int) ($input['stock'] ?? 0)),
+            'media' => trim((string) ($input['media'] ?? '')),
+            'store_path' => '/admin/catalog/products',
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function adminOrderSummaries(): array
+    {
+        return array_map(function (array $order): array {
+            $id = (int) ($order['id'] ?? 0);
+            $reference = trim((string) ($order['payment_reference'] ?? ''));
+
+            return [
+                ...$order,
+                'view_path' => '/admin/orders/' . $id,
+                'public_path' => '/orders/' . $id,
+                'return_path' => $reference !== '' ? '/orders/complete/' . $reference : '/orders/complete',
+            ];
+        }, $this->orders->allSummary());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function adminOrderDetail(Order $order): array
+    {
+        $summary = $this->orders->mapSummary($order);
+        $currency = (string) ($summary['currency'] ?? 'SEK');
+        $orderId = (int) $order->getKey();
+        $reference = trim((string) ($summary['payment_reference'] ?? ''));
+
+        return [
+            ...$summary,
+            'items' => array_map(function (array $item) use ($currency): array {
+                return [
+                    ...$item,
+                    'unit_price' => $this->formatMoneyMinor((int) ($item['unit_price_minor'] ?? 0), $currency),
+                    'line_total' => $this->formatMoneyMinor((int) ($item['line_total_minor'] ?? 0), $currency),
+                ];
+            }, $this->orderItems->summaryForOrder($orderId)),
+            'addresses' => $this->orderAddresses->summaryForOrder($orderId),
+            'actions' => $this->adminOrderActions($summary),
+            'view_path' => '/admin/orders/' . $orderId,
+            'public_path' => '/orders/' . $orderId,
+            'return_path' => $reference !== '' ? '/orders/complete/' . $reference : '/orders/complete',
+            'cancelled_path' => $reference !== '' ? '/orders/cancelled/' . $reference : '/orders/cancelled',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @return array<string, string>
+     */
+    private function adminOrderActions(array $order): array
+    {
+        $actions = [];
+        $orderId = (int) ($order['id'] ?? 0);
+        $paymentStatus = (string) ($order['payment_status'] ?? '');
+        $nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];
+        $reference = trim((string) ($order['payment_reference'] ?? ''));
+
+        if ($orderId <= 0) {
+            return $actions;
+        }
+
+        $actions['public_view'] = '/orders/' . $orderId;
+        $actions['admin_view'] = '/admin/orders/' . $orderId;
+
+        if ($reference !== '') {
+            $actions['complete_return'] = '/orders/complete/' . $reference;
+            $actions['cancelled_return'] = '/orders/cancelled/' . $reference;
+        }
+
+        if (($nextAction['url'] ?? '') !== '') {
+            $actions['continue_payment'] = (string) $nextAction['url'];
+        }
+
+        if (in_array($paymentStatus, ['authorized', 'partially_captured'], true)) {
+            $actions['capture'] = '/orders/' . $orderId . '/capture';
+        }
+
+        if (in_array($paymentStatus, ['authorized', 'requires_action', 'processing', 'pending_review'], true)) {
+            $actions['reconcile'] = '/orders/' . $orderId . '/reconcile';
+        }
+
+        if (in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {
+            $actions['refund'] = '/orders/' . $orderId . '/refund';
+        }
+
+        if (!in_array($paymentStatus, ['cancelled', 'refunded'], true)) {
+            $actions['cancel'] = '/orders/' . $orderId . '/cancel';
+        }
+
+        return $actions;
+    }
+
+    private function normalizeSlug(string $candidate, string $fallback = ''): string
+    {
+        $seed = trim($candidate) !== '' ? $candidate : $fallback;
+        $seed = strtolower(trim($seed));
+        $seed = preg_replace('/[^a-z0-9]+/', '-', $seed) ?? '';
+
+        return trim($seed, '-');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizeMediaList(string $input): array
+    {
+        $normalized = str_replace(["\r\n", "\r"], "\n", trim($input));
+
+        if ($normalized === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[\n,]+/', $normalized) ?: [];
+
+        return array_values(array_filter(array_map(
+            static fn(string $item): string => trim($item),
+            $parts
+        ), static fn(string $item): bool => $item !== ''));
     }
 
     /**

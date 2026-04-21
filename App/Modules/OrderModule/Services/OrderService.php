@@ -67,6 +67,8 @@ class OrderService extends Service
     {
         return match ($this->action) {
             'checkout' => $this->checkout(),
+            'completeReturn' => $this->completeReturn((string) ($this->context['reference'] ?? '')),
+            'cancelledReturn' => $this->cancelledReturn((string) ($this->context['reference'] ?? '')),
             'orders' => $this->ordersPage(),
             'showOrder' => $this->showOrder((int) ($this->context['order'] ?? 0)),
             'capture' => $this->capture((int) ($this->context['order'] ?? 0)),
@@ -83,7 +85,6 @@ class OrderService extends Service
     private function checkoutForm(): array
     {
         $defaultDriver = $this->payments->driverName();
-        $defaultIntent = $this->payments->createIntent(0, driver: $defaultDriver);
 
         return [
             'template' => 'OrderCheckout',
@@ -92,15 +93,9 @@ class OrderService extends Service
             'headline' => 'Review and place your order',
             'summary' => 'Orders snapshot the current cart and flow through the framework payment and event layers.',
             'cart' => $this->currentCartPayload(),
-            'payment' => [
-                'driver' => $defaultDriver,
-                'available_drivers' => $this->payments->availableDrivers(),
-                'catalog' => $this->payments->driverCatalog(),
-                'supported_methods' => $this->payments->supportedMethods($defaultDriver),
-                'supported_flows' => $this->payments->supportedFlows($defaultDriver),
-                'default_method' => $defaultIntent->method,
-                'default_flow' => $defaultIntent->flow,
-            ],
+            'payment' => $this->paymentPayload($defaultDriver),
+            'checkout' => $this->checkoutPayload($defaultDriver),
+            'lookup' => $this->lookupPayload(),
         ];
     }
 
@@ -128,7 +123,7 @@ class OrderService extends Service
                 return [
                     ...$this->response('Order already created', 'This checkout request has already been processed.', 200),
                     'order' => $this->orderPayload((int) $existing->getKey()),
-                    'redirect' => '/orders/' . (int) $existing->getKey(),
+                    'redirect' => $this->redirectPathForOrder($existing),
                 ];
             }
         }
@@ -165,7 +160,7 @@ class OrderService extends Service
             return [
                 ...$this->response('Order already created', 'This checkout request has already been processed.', 200),
                 'order' => $this->orderPayload((int) $existing->getKey()),
-                'redirect' => '/orders/' . (int) $existing->getKey(),
+                'redirect' => $this->redirectPathForOrder($existing),
             ];
         }
 
@@ -243,6 +238,11 @@ class OrderService extends Service
         ]);
 
         $this->carts->updateStatus((int) $cart->getKey(), 'checked_out');
+
+        if (!$this->auth->check()) {
+            $this->session->forget('cart.session_key');
+        }
+
         $this->events->dispatch('order.created', [
             'order_id' => (int) $order->getKey(),
         ]);
@@ -271,7 +271,7 @@ class OrderService extends Service
                 $this->responseStatusForIntent($payment->intent)
             ),
             'order' => $this->orderPayload((int) $order->getKey()),
-            'redirect' => '/orders/' . (int) $order->getKey(),
+            'redirect' => $this->redirectPathForOrder($order),
         ];
     }
 
@@ -284,13 +284,21 @@ class OrderService extends Service
             return $this->response('Authentication required', 'Sign in to review your orders.', 401);
         }
 
+        $orders = array_map(
+            fn(array $order): array => [
+                ...$order,
+                'view_path' => '/orders/' . (int) ($order['id'] ?? 0),
+            ],
+            $this->orders->forUserSummary((int) $this->auth->id())
+        );
+
         return [
             'template' => 'OrderList',
             'status' => 200,
             'title' => 'Orders',
             'headline' => 'Your order history',
             'summary' => 'Order data stays available through the repository and presentation layers.',
-            'orders' => $this->orders->forUserSummary((int) $this->auth->id()),
+            'orders' => $orders,
         ];
     }
 
@@ -316,7 +324,32 @@ class OrderService extends Service
             'headline' => 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
             'summary' => 'Detailed order information rendered from the completed order module.',
             'order' => $this->orderPayload($orderId),
+            'lookup' => $this->lookupPayload(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function completeReturn(string $reference): array
+    {
+        return $this->returnPage(
+            'Payment return received',
+            'The payment provider returned control to the storefront.',
+            $reference
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function cancelledReturn(string $reference): array
+    {
+        return $this->returnPage(
+            'Payment flow cancelled',
+            'The payment flow was cancelled or interrupted before completion.',
+            $reference
+        );
     }
 
     /**
@@ -438,21 +471,21 @@ class OrderService extends Service
         return [
             ...$this->response('Order updated', ucfirst($action) . ' completed successfully.', 200),
             'order' => $this->orderPayload((int) $updated->getKey()),
-            'redirect' => '/orders/' . (int) $updated->getKey(),
+            'redirect' => $this->redirectPathForOrder($updated),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function orderPayload(int $orderId): array
+    private function orderPayload(int $orderId, bool $includeSensitive = true): array
     {
         $order = $this->orders->find($orderId);
         $summary = $order !== null ? $this->orders->mapSummary($order) : [];
         $items = $this->orderItems->summaryForOrder($orderId);
         $addresses = $this->addresses->summaryForOrder($orderId);
 
-        return [
+        $payload = [
             ...$summary,
             'items' => array_map(function (array $item) use ($summary): array {
                 return [
@@ -461,8 +494,15 @@ class OrderService extends Service
                     'line_total' => $this->formatMoneyMinor((int) ($item['line_total_minor'] ?? 0), (string) ($summary['currency'] ?? 'SEK')),
                 ];
             }, $items),
-            'addresses' => $addresses,
+            'addresses' => $includeSensitive ? $addresses : [],
+            'actions' => $includeSensitive ? $this->orderActions($summary) : $this->publicOrderActions($summary),
         ];
+
+        if (!$includeSensitive) {
+            unset($payload['contact_name'], $payload['contact_email']);
+        }
+
+        return $payload;
     }
 
     private function currentCart(): Cart
@@ -577,7 +617,6 @@ class OrderService extends Service
     private function response(string $title, string $message, int $status): array
     {
         $paymentDriver = $this->resolveRequestedPaymentDriver();
-        $defaultIntent = $this->payments->createIntent(0, driver: $paymentDriver);
 
         return [
             'template' => 'OrderCheckout',
@@ -587,15 +626,9 @@ class OrderService extends Service
             'summary' => $message,
             'message' => $message,
             'cart' => $this->currentCartPayload(),
-            'payment' => [
-                'driver' => $paymentDriver,
-                'available_drivers' => $this->payments->availableDrivers(),
-                'catalog' => $this->payments->driverCatalog(),
-                'supported_methods' => $this->payments->supportedMethods($paymentDriver),
-                'supported_flows' => $this->payments->supportedFlows($paymentDriver),
-                'default_method' => $defaultIntent->method,
-                'default_flow' => $defaultIntent->flow,
-            ],
+            'payment' => $this->paymentPayload($paymentDriver),
+            'checkout' => $this->checkoutPayload($paymentDriver),
+            'lookup' => $this->lookupPayload(),
         ];
     }
 
@@ -650,5 +683,218 @@ class OrderService extends Service
             'reconcile' => $intent->status === 'captured' ? 'order.paid' : null,
             default => null,
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paymentPayload(string $paymentDriver): array
+    {
+        $defaultIntent = $this->payments->createIntent(0, driver: $paymentDriver);
+
+        return [
+            'driver' => $paymentDriver,
+            'available_drivers' => $this->payments->availableDrivers(),
+            'catalog' => $this->payments->driverCatalog(),
+            'supported_methods' => $this->payments->supportedMethods($paymentDriver),
+            'supported_flows' => $this->payments->supportedFlows($paymentDriver),
+            'default_method' => $defaultIntent->method,
+            'default_flow' => $defaultIntent->flow,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function checkoutPayload(string $paymentDriver): array
+    {
+        $defaultIntent = $this->payments->createIntent(0, driver: $paymentDriver);
+
+        return [
+            'name' => trim((string) ($this->payload['name'] ?? '')),
+            'email' => trim((string) ($this->payload['email'] ?? '')),
+            'line_one' => trim((string) ($this->payload['line_one'] ?? '')),
+            'line_two' => trim((string) ($this->payload['line_two'] ?? '')),
+            'postal_code' => trim((string) ($this->payload['postal_code'] ?? '')),
+            'city' => trim((string) ($this->payload['city'] ?? '')),
+            'country' => trim((string) ($this->payload['country'] ?? 'SE')),
+            'phone' => trim((string) ($this->payload['phone'] ?? '')),
+            'payment_driver' => $paymentDriver,
+            'payment_method' => (string) ($this->payload['payment_method'] ?? $defaultIntent->method),
+            'payment_flow' => (string) ($this->payload['payment_flow'] ?? $defaultIntent->flow),
+            'idempotency_key' => trim((string) ($this->payload['idempotency_key'] ?? '')),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function lookupPayload(): array
+    {
+        return [
+            'complete_url' => '/orders/complete',
+            'cancelled_url' => '/orders/cancelled',
+            'orders_url' => '/orders',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function returnPage(string $title, string $summary, string $reference): array
+    {
+        $order = $this->locateReturnOrder($reference);
+
+        if ($order === null) {
+            return [
+                'template' => 'OrderDetail',
+                'status' => 200,
+                'title' => $title,
+                'headline' => $title,
+                'summary' => $summary,
+                'message' => 'Sign in or revisit the storefront with a valid order/payment reference to inspect the order lifecycle.',
+                'order' => [],
+                'lookup' => $this->lookupPayload(),
+            ];
+        }
+
+        $orderPayload = $this->orderPayload((int) $order->getKey(), false);
+
+        return [
+            'template' => 'OrderDetail',
+            'status' => 200,
+            'title' => $title,
+            'headline' => 'Order ' . (string) ($orderPayload['order_number'] ?? ''),
+            'summary' => $summary,
+            'message' => $this->returnMessageForOrder($orderPayload, $title),
+            'order' => $orderPayload,
+            'lookup' => $this->lookupPayload(),
+        ];
+    }
+
+    private function locateReturnOrder(string $reference): ?\App\Modules\OrderModule\Models\Order
+    {
+        $candidates = array_values(array_filter(array_unique([
+            trim($reference),
+            trim((string) ($this->payload['reference'] ?? '')),
+            trim((string) ($this->payload['payment_reference'] ?? '')),
+            trim((string) ($this->payload['provider_reference'] ?? '')),
+            trim((string) ($this->payload['external_reference'] ?? '')),
+            trim((string) ($this->payload['webhook_reference'] ?? '')),
+            trim((string) ($this->payload['order_number'] ?? '')),
+        ])));
+
+        foreach ($candidates as $candidate) {
+            $order = $this->orders->findByReference($candidate);
+
+            if ($order !== null) {
+                return $order;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @return array<string, string>
+     */
+    private function orderActions(array $order): array
+    {
+        $actions = [];
+        $orderId = (int) ($order['id'] ?? 0);
+        $ownerId = 0;
+        $paymentStatus = (string) ($order['payment_status'] ?? '');
+        $nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];
+
+        if ($orderId <= 0) {
+            return $actions;
+        }
+
+        if ($this->auth->check()) {
+            $stored = $this->orders->find($orderId);
+            $ownerId = (int) ($stored?->getAttribute('user_id') ?? 0);
+        }
+
+        if ($this->auth->check() && $this->canAccessOrder($orderId, $ownerId)) {
+            $actions['view'] = '/orders/' . $orderId;
+        }
+
+        if (($nextAction['url'] ?? '') !== '') {
+            $actions['continue_payment'] = (string) $nextAction['url'];
+        }
+
+        if ($this->auth->hasPermission('order.manage')) {
+            if (in_array($paymentStatus, ['authorized', 'partially_captured'], true)) {
+                $actions['capture'] = '/orders/' . $orderId . '/capture';
+            }
+
+            if (in_array($paymentStatus, ['authorized', 'requires_action', 'processing', 'pending_review'], true)) {
+                $actions['reconcile'] = '/orders/' . $orderId . '/reconcile';
+            }
+
+            if (in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {
+                $actions['refund'] = '/orders/' . $orderId . '/refund';
+            }
+        }
+
+        if (
+            ($this->auth->hasPermission('order.manage') || ($this->auth->check() && $this->canAccessOrder($orderId, $ownerId)))
+            && !in_array($paymentStatus, ['cancelled', 'refunded'], true)
+        ) {
+            $actions['cancel'] = '/orders/' . $orderId . '/cancel';
+        }
+
+        return $actions;
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @return array<string, string>
+     */
+    private function publicOrderActions(array $order): array
+    {
+        $actions = [];
+        $nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];
+
+        if (($nextAction['url'] ?? '') !== '') {
+            $actions['continue_payment'] = (string) $nextAction['url'];
+        }
+
+        return $actions;
+    }
+
+    private function returnMessageForOrder(array $order, string $title): string
+    {
+        $paymentStatus = (string) ($order['payment_status'] ?? '');
+
+        if (str_contains(strtolower($title), 'cancelled')) {
+            return $paymentStatus === 'cancelled'
+                ? 'The order has been marked as cancelled in the framework payment lifecycle.'
+                : 'The payment flow was interrupted before completion. You can retry checkout when ready.';
+        }
+
+        return match ($paymentStatus) {
+            'captured' => 'Payment completed successfully and the order is now moving through fulfillment.',
+            'requires_action' => 'The provider returned to the storefront, but the order still requires a follow-up payment action.',
+            'processing', 'pending_review' => 'The order has been created and is waiting for asynchronous confirmation or review.',
+            default => 'The storefront received the provider return and kept the order available for follow-up.',
+        };
+    }
+
+    private function redirectPathForOrder(\App\Modules\OrderModule\Models\Order $order): string
+    {
+        $orderId = (int) $order->getKey();
+        $ownerId = (int) ($order->getAttribute('user_id') ?? 0);
+
+        if ($this->auth->check() && $this->canAccessOrder($orderId, $ownerId)) {
+            return '/orders/' . $orderId;
+        }
+
+        $reference = trim((string) ($order->getAttribute('payment_reference') ?? ''));
+
+        return $reference !== ''
+            ? '/orders/complete/' . $reference
+            : '/orders/complete';
     }
 }

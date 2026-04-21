@@ -491,6 +491,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('paypal', $checkout['order']['payment_driver']);
         self::assertSame('wallet', $checkout['order']['payment_method']);
         self::assertSame('redirect', $checkout['order']['payment_flow']);
+        self::assertSame('/orders/' . $checkout['order']['id'], $checkout['redirect']);
         self::assertTrue((bool) ($checkout['order']['payment_customer_action_required'] ?? false));
         self::assertSame('redirect', $checkout['order']['payment_next_action']['type'] ?? null);
 
@@ -509,6 +510,7 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame(200, $duplicate['status']);
         self::assertSame($checkout['order']['id'], $duplicate['order']['id']);
+        self::assertSame('/orders/' . $duplicate['order']['id'], $duplicate['redirect']);
 
         $stack['auth']->logout();
         self::assertTrue($stack['auth']->attempt([
@@ -538,6 +540,60 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertGreaterThanOrEqual(2, count($stack['notifications']->databaseNotifications()));
         self::assertGreaterThanOrEqual(2, count($stack['mail']->outbox()));
+    }
+
+    public function testGuestCheckoutUsesPublicReturnSurfaceAndExposesPaymentLookupPayload(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        $form = $stack['orderService']->forAction('checkoutForm')->execute();
+        $formJson = (new OrderResource($form))->toArray();
+
+        self::assertSame(200, $form['status']);
+        self::assertSame('testing', $form['payment']['driver']);
+        self::assertContains('paypal', $form['payment']['available_drivers']);
+        self::assertSame('/orders/complete', $form['lookup']['complete_url']);
+        self::assertSame('/orders/cancelled', $form['lookup']['cancelled_url']);
+        self::assertArrayHasKey('payment', $formJson['data']);
+        self::assertArrayHasKey('checkout', $formJson['data']);
+        self::assertArrayHasKey('lookup', $formJson['data']);
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Guest Customer',
+            'email' => 'guest@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'payment_driver' => 'paypal',
+            'payment_method' => 'wallet',
+            'payment_flow' => 'redirect',
+            'idempotency_key' => 'guest-public-return-0001',
+        ])->execute();
+
+        $reference = (string) ($checkout['order']['payment_reference'] ?? '');
+
+        self::assertSame(202, $checkout['status']);
+        self::assertNotSame('', $reference);
+        self::assertSame('/orders/complete/' . $reference, $checkout['redirect']);
+
+        $returned = $stack['orderService']->forAction('completeReturn', [], [
+            'reference' => $reference,
+        ])->execute();
+
+        self::assertSame(200, $returned['status']);
+        self::assertSame($checkout['order']['order_number'], $returned['order']['order_number']);
+        self::assertSame([], $returned['order']['addresses']);
+        self::assertArrayNotHasKey('contact_email', $returned['order']);
+        self::assertSame(
+            $checkout['order']['payment_next_action']['url'] ?? null,
+            $returned['order']['actions']['continue_payment'] ?? null
+        );
+        self::assertSame('/orders', $returned['lookup']['orders_url']);
     }
 
     public function testPaymentCatalogExposesFrameworkDriversForSupportedProviders(): void

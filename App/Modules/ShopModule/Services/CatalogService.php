@@ -38,25 +38,64 @@ class CatalogService extends Service
     {
         return match ($this->action) {
             'product' => $this->product((string) ($this->context['slug'] ?? '')),
-            default => $this->catalog((int) ($this->context['page'] ?? 1)),
+            'category' => $this->catalog($this->catalogFilters(), (string) ($this->context['category_slug'] ?? '')),
+            default => $this->catalog($this->catalogFilters()),
         };
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function catalog(int $page): array
+    private function catalog(array $filters = [], ?string $categorySlug = null): array
     {
-        $pagination = $this->products->paginatePublished(12, max(1, $page));
+        $category = $categorySlug !== null && $categorySlug !== ''
+            ? $this->categories->findPublishedBySlug($categorySlug)
+            : null;
+
+        if ($categorySlug !== null && $categorySlug !== '' && $category === null) {
+            return [
+                'template' => 'ShopCatalog',
+                'status' => 404,
+                'title' => 'Category not found',
+                'headline' => 'The requested category is not available.',
+                'summary' => 'Browse another published category or clear the storefront filters to continue.',
+                'products' => [],
+                'categories' => $this->categories->publishedSummaries(),
+                'category' => null,
+                'filters' => $this->filtersPayload($filters, $categorySlug),
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 12,
+                    'total' => 0,
+                ],
+            ];
+        }
+
+        if ($category !== null) {
+            $filters['category_id'] = (int) $category->getKey();
+        }
+
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $pagination = $this->products->paginatePublishedCatalog($filters, 12, $page);
+        $categoryData = $category !== null ? $this->categories->mapCategoryData($category, $categorySlug) : null;
+        $title = $categoryData !== null
+            ? (string) ($categoryData['name'] ?? 'Shop category')
+            : 'Shop catalog';
+        $summary = $categoryData !== null
+            ? (string) ($categoryData['description'] ?? 'Published products for the selected category.')
+            : 'Database-backed categories and products rendered through the framework storefront pipeline.';
 
         return [
             'template' => 'ShopCatalog',
             'status' => 200,
-            'title' => 'Shop catalog',
-            'headline' => 'Browse the storefront catalog',
-            'summary' => 'Database-backed categories and products rendered through the framework storefront pipeline.',
+            'title' => $title,
+            'headline' => $categoryData !== null ? 'Browse ' . $title : 'Browse the storefront catalog',
+            'summary' => $summary,
             'products' => $pagination['data'],
-            'categories' => $this->categories->publishedSummaries(),
+            'categories' => $this->categories->publishedSummaries($categorySlug),
+            'category' => $categoryData,
+            'filters' => $this->filtersPayload($filters, $categorySlug),
             'pagination' => [
                 'current_page' => $pagination['current_page'],
                 'last_page' => $pagination['last_page'],
@@ -81,11 +120,16 @@ class CatalogService extends Service
                 'headline' => 'The requested product is not available.',
                 'summary' => 'ShopModule keeps product lookup inside the framework repository layer.',
                 'product' => [],
+                'category' => null,
                 'related' => [],
             ];
         }
 
         $productData = $this->products->mapProductData($product);
+        $category = $this->categories->find((int) $productData['category_id']);
+        $categoryData = $category instanceof \App\Modules\ShopModule\Models\Category
+            ? $this->categories->mapCategoryData($category)
+            : null;
 
         return [
             'template' => 'ShopProduct',
@@ -94,10 +138,44 @@ class CatalogService extends Service
             'headline' => (string) $productData['name'],
             'summary' => 'Product details resolved from the database-backed catalog.',
             'product' => $productData,
+            'category' => $categoryData,
             'related' => $this->products->relatedPublished(
                 (int) $productData['category_id'],
                 (int) $productData['id']
             ),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function catalogFilters(): array
+    {
+        return [
+            'q' => trim((string) ($this->context['q'] ?? '')),
+            'availability' => (string) ($this->context['availability'] ?? 'all'),
+            'sort' => (string) ($this->context['sort'] ?? 'newest'),
+            'page' => max(1, (int) ($this->context['page'] ?? 1)),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return array<string, mixed>
+     */
+    private function filtersPayload(array $filters, ?string $categorySlug = null): array
+    {
+        $basePath = $categorySlug !== null && $categorySlug !== ''
+            ? '/shop/categories/' . $categorySlug
+            : '/shop';
+
+        return [
+            'form_action' => $basePath,
+            'clear_url' => $basePath,
+            'q' => trim((string) ($filters['q'] ?? '')),
+            'availability' => (string) ($filters['availability'] ?? 'all'),
+            'sort' => (string) ($filters['sort'] ?? 'newest'),
+            'page' => max(1, (int) ($filters['page'] ?? 1)),
         ];
     }
 }

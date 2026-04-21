@@ -117,6 +117,8 @@ class RouterTest extends TestCase
         $response = $router->dispatch('/missing', 'GET');
 
         self::assertSame('/', $router->route('home'));
+        self::assertSame('/shop/categories/framework-tools', $router->route('shop.category', ['slug' => 'framework-tools']));
+        self::assertSame('/orders/complete/demo-reference', $router->route('orders.complete.reference', ['reference' => 'demo-reference']));
         self::assertInstanceOf(ResponseInterface::class, $response);
         self::assertSame(404, $response->getStatus());
         self::assertStringContainsString('Route not found.', $response->toArray()['content']);
@@ -146,8 +148,14 @@ class RouterTest extends TestCase
         self::assertContains('user.profile', $names);
         self::assertContains('admin.dashboard', $names);
         self::assertContains('shop.index', $names);
+        self::assertContains('shop.category', $names);
+        self::assertContains('api.shop.category', $names);
         self::assertContains('cart.show', $names);
         self::assertContains('orders.checkout.form', $names);
+        self::assertContains('orders.complete', $names);
+        self::assertContains('orders.cancelled', $names);
+        self::assertContains('api.orders.complete', $names);
+        self::assertContains('api.orders.cancelled', $names);
         self::assertContains('web.page', $names);
         self::assertContains('api.web.page', $names);
     }
@@ -214,18 +222,49 @@ class RouterTest extends TestCase
 
         self::assertInstanceOf(Router::class, $router);
 
-        foreach ([
-            '/shop',
-            '/shop/products/starter-platform-license',
-            '/cart',
-            '/orders/checkout',
-        ] as $path) {
-            $response = $router->dispatch($path, 'GET');
+        $catalog = $router->dispatch('/shop', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $catalog);
+        self::assertSame(200, $catalog->getStatus());
+        self::assertStringContainsString('<html', $catalog->toArray()['content']);
+        self::assertStringContainsString('/shop/categories/framework-tools', $catalog->toArray()['content']);
+        self::assertStringContainsString('name="availability"', $catalog->toArray()['content']);
 
-            self::assertInstanceOf(ResponseInterface::class, $response);
-            self::assertSame(200, $response->getStatus(), sprintf('Expected [%s] to return 200.', $path));
-            self::assertStringContainsString('<html', $response->toArray()['content'], sprintf('Expected [%s] to render HTML.', $path));
-        }
+        $category = $router->dispatch('/shop/categories/framework-tools', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $category);
+        self::assertSame(200, $category->getStatus());
+        self::assertStringContainsString('<html', $category->toArray()['content']);
+        self::assertStringContainsString('Framework Tools', $category->toArray()['content']);
+        self::assertStringContainsString('action="/cart/items"', $category->toArray()['content']);
+
+        $product = $router->dispatch('/shop/products/starter-platform-license', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $product);
+        self::assertSame(200, $product->getStatus());
+        self::assertStringContainsString('<html', $product->toArray()['content']);
+        self::assertStringContainsString('action="/cart/items"', $product->toArray()['content']);
+
+        $cart = $router->dispatch('/cart', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $cart);
+        self::assertSame(200, $cart->getStatus());
+        self::assertStringContainsString('<html', $cart->toArray()['content']);
+        self::assertStringContainsString('Browse the storefront catalog', $cart->toArray()['content']);
+
+        $checkout = $router->dispatch('/orders/checkout', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $checkout);
+        self::assertSame(200, $checkout->getStatus());
+        self::assertStringContainsString('<html', $checkout->toArray()['content']);
+        self::assertStringContainsString('Checkout unavailable', $checkout->toArray()['content']);
+
+        $complete = $router->dispatch('/orders/complete', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $complete);
+        self::assertSame(200, $complete->getStatus());
+        self::assertStringContainsString('<html', $complete->toArray()['content']);
+        self::assertStringContainsString('Payment return received', $complete->toArray()['content']);
+
+        $cancelled = $router->dispatch('/orders/cancelled/demo-reference', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $cancelled);
+        self::assertSame(200, $cancelled->getStatus());
+        self::assertStringContainsString('<html', $cancelled->toArray()['content']);
+        self::assertStringContainsString('Payment flow cancelled', $cancelled->toArray()['content']);
     }
 
     private function resolveRouter(): Router

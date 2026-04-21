@@ -159,8 +159,18 @@ class TestingPaymentDriver implements PaymentDriverInterface
 
     public function cancel(PaymentIntent $intent, ?string $reason = null): PaymentResult
     {
-        if (!in_array($intent->status, ['pending', 'authorized'], true)) {
-            return new PaymentResult(false, 'cancel', $intent, $this->driverName(), 'Only pending or authorized payments can be cancelled.', $intent->status);
+        if (
+            !in_array($intent->status, ['pending', 'authorized', 'requires_action', 'processing', 'pending_review'], true)
+            || $intent->capturedAmount > 0
+        ) {
+            return new PaymentResult(
+                false,
+                'cancel',
+                $intent,
+                $this->driverName(),
+                'Only uncaptured payments can be cancelled.',
+                $intent->status
+            );
         }
 
         $resolved = $intent

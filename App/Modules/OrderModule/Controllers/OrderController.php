@@ -94,6 +94,22 @@ class OrderController extends Controller
         return $this->run();
     }
 
+    public function complete(string $reference = ''): ResponseInterface
+    {
+        $this->action = 'completeReturn';
+        $this->context = ['reference' => $reference];
+
+        return $this->run();
+    }
+
+    public function cancelled(string $reference = ''): ResponseInterface
+    {
+        $this->action = 'cancelledReturn';
+        $this->context = ['reference' => $reference];
+
+        return $this->run();
+    }
+
     protected function execute(): mixed
     {
         return $this->orderService->forAction($this->action, $this->request->all(), $this->context)->execute();

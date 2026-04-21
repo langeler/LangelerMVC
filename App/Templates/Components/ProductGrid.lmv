@@ -25,7 +25,9 @@ if ($products === []) {
         $slug = (string) ($entry['slug'] ?? '');
         $description = (string) ($entry['description'] ?? '');
         $price = (string) ($entry['price'] ?? '');
-        $stock = (string) ($entry['stock'] ?? '');
+        $stock = (int) ($entry['stock'] ?? 0);
+        $availability = (string) ($entry['availability'] ?? ($stock > 0 ? 'In stock' : 'Out of stock'));
+        $isInStock = (bool) ($entry['is_in_stock'] ?? ($stock > 0));
         ?>
         <article class="product-card">
             <?php if ($primaryMedia !== ''): ?>
@@ -35,9 +37,7 @@ if ($products === []) {
             <?php endif; ?>
 
             <div class="product-card__body">
-                <?php if ($stock !== ''): ?>
-                    <p class="product-card__eyebrow">Stock <?= $view->escape($stock) ?></p>
-                <?php endif; ?>
+                <p class="product-card__eyebrow"><?= $view->escape($availability) ?><?php if ($stock > 0): ?> · <?= $view->escape($stock) ?> available<?php endif; ?></p>
 
                 <<?= $headingTag ?> class="product-card__title"><?= $view->escape($name) ?></<?= $headingTag ?>>
 
@@ -57,6 +57,21 @@ if ($products === []) {
 
                 <?php if ($slug !== ''): ?>
                     <a class="product-card__link" href="/shop/products/<?= $view->escape($slug) ?>">View product</a>
+                <?php endif; ?>
+
+                <?php if ($slug !== ''): ?>
+                    <?php if ($isInStock): ?>
+                        <form method="post" action="/cart/items">
+                            <input type="hidden" name="slug" value="<?= $view->escape($slug) ?>">
+                            <label>
+                                Qty
+                                <input type="number" name="quantity" min="1" value="1">
+                            </label>
+                            <button type="submit">Add to cart</button>
+                        </form>
+                    <?php else: ?>
+                        <p class="product-card__summary">This product is currently unavailable for new orders.</p>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </article>

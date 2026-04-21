@@ -33,21 +33,33 @@ class ProductRepository extends Repository
      */
     public function paginatePublished(int $perPage = 12, int $page = 1): array
     {
+        return $this->paginatePublishedCatalog([], $perPage, $page);
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     * @return array{data:list<array<string,mixed>>,total:int,per_page:int,current_page:int,last_page:int}
+     */
+    public function paginatePublishedCatalog(array $filters = [], int $perPage = 12, int $page = 1): array
+    {
         $perPage = max(1, $perPage);
         $page = max(1, $page);
         $offset = ($page - 1) * $perPage;
 
-        $countQuery = $this->db
+        $countQueryBuilder = $this->db
             ->dataQuery($this->getTable())
-            ->select(['COUNT(*) AS aggregate'])
-            ->where('visibility', '=', 'published')
-            ->toExecutable();
+            ->select(['COUNT(*) AS aggregate']);
 
-        $dataQuery = $this->db
+        $dataQueryBuilder = $this->db
             ->dataQuery($this->getTable())
-            ->select(['*'])
-            ->where('visibility', '=', 'published')
-            ->orderBy('id')
+            ->select(['*']);
+
+        $this->applyCatalogFilters($countQueryBuilder, $filters);
+        $this->applyCatalogFilters($dataQueryBuilder, $filters);
+        $this->applyCatalogSorting($dataQueryBuilder, (string) ($filters['sort'] ?? 'newest'));
+
+        $countQuery = $countQueryBuilder->toExecutable();
+        $dataQuery = $dataQueryBuilder
             ->limit($perPage)
             ->offset($offset)
             ->toExecutable();
@@ -119,6 +131,8 @@ class ProductRepository extends Repository
      */
     public function mapProductData(Product $product): array
     {
+        $stock = (int) ($product->getAttribute('stock') ?? 0);
+
         return [
             'id' => (int) $product->getKey(),
             'category_id' => (int) ($product->getAttribute('category_id') ?? 0),
@@ -129,9 +143,47 @@ class ProductRepository extends Repository
             'currency' => (string) ($product->getAttribute('currency') ?? 'SEK'),
             'price' => $this->formatMoneyMinor((int) ($product->getAttribute('price_minor') ?? 0), (string) ($product->getAttribute('currency') ?? 'SEK')),
             'visibility' => (string) ($product->getAttribute('visibility') ?? 'draft'),
-            'stock' => (int) ($product->getAttribute('stock') ?? 0),
+            'stock' => $stock,
+            'is_in_stock' => $stock > 0,
+            'availability' => $stock > 0 ? 'In stock' : 'Out of stock',
             'media' => $this->decodeMedia((string) ($product->getAttribute('media') ?? '[]')),
         ];
+    }
+
+    /**
+     * @param object $query
+     * @param array<string, mixed> $filters
+     */
+    private function applyCatalogFilters(object $query, array $filters): void
+    {
+        $query->where('visibility', '=', 'published');
+
+        if ((int) ($filters['category_id'] ?? 0) > 0) {
+            $query->where('category_id', '=', (int) $filters['category_id']);
+        }
+
+        $search = trim((string) ($filters['q'] ?? ''));
+
+        if ($search !== '') {
+            $query->where('name', 'LIKE', '%' . $search . '%');
+        }
+
+        match ((string) ($filters['availability'] ?? 'all')) {
+            'in_stock' => $query->where('stock', '>', 0),
+            'out_of_stock' => $query->where('stock', '<=', 0),
+            default => null,
+        };
+    }
+
+    private function applyCatalogSorting(object $query, string $sort): void
+    {
+        match ($sort) {
+            'oldest' => $query->orderBy('id', 'ASC'),
+            'name' => $query->orderBy('name', 'ASC'),
+            'price_low' => $query->orderBy('price_minor', 'ASC'),
+            'price_high' => $query->orderBy('price_minor', 'DESC'),
+            default => $query->orderBy('id', 'DESC'),
+        };
     }
 
     /**

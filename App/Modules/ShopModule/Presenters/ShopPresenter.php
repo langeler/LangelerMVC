@@ -20,6 +20,8 @@ class ShopPresenter extends Presenter
             'products' => is_array($data['products'] ?? null) ? $data['products'] : [],
             'product' => is_array($data['product'] ?? null) ? $data['product'] : [],
             'categories' => is_array($data['categories'] ?? null) ? $data['categories'] : [],
+            'category' => is_array($data['category'] ?? null) ? $data['category'] : [],
+            'filters' => is_array($data['filters'] ?? null) ? $data['filters'] : [],
             'related' => is_array($data['related'] ?? null) ? $data['related'] : [],
             'pagination' => is_array($data['pagination'] ?? null) ? $data['pagination'] : [],
         ];

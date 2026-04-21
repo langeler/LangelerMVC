@@ -34,9 +34,28 @@ class ShopController extends Controller
 
     public function index(): ResponseInterface
     {
+        $this->shopRequest->forScenario('catalog');
         $this->action = 'catalog';
         $this->context = [
             'page' => (int) ($this->request->input('page', 1) ?? 1),
+            'q' => (string) ($this->request->input('q', '') ?? ''),
+            'availability' => (string) ($this->request->input('availability', 'all') ?? 'all'),
+            'sort' => (string) ($this->request->input('sort', 'newest') ?? 'newest'),
+        ];
+
+        return $this->run();
+    }
+
+    public function category(string $slug): ResponseInterface
+    {
+        $this->shopRequest->forScenario('catalog');
+        $this->action = 'category';
+        $this->context = [
+            'category_slug' => $slug,
+            'page' => (int) ($this->request->input('page', 1) ?? 1),
+            'q' => (string) ($this->request->input('q', '') ?? ''),
+            'availability' => (string) ($this->request->input('availability', 'all') ?? 'all'),
+            'sort' => (string) ($this->request->input('sort', 'newest') ?? 'newest'),
         ];
 
         return $this->run();

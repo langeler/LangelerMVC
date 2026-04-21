@@ -18,22 +18,44 @@ class CategoryRepository extends Repository
         return $category instanceof Category ? $category : null;
     }
 
+    public function findPublishedBySlug(string $slug): ?Category
+    {
+        $category = $this->findOneBy([
+            'slug' => $slug,
+            'is_published' => ['>' => 0],
+        ]);
+
+        return $category instanceof Category ? $category : null;
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
-    public function publishedSummaries(): array
+    public function publishedSummaries(?string $activeSlug = null): array
     {
         return array_map(
-            static fn(Category $category): array => [
-                'id' => (int) $category->getKey(),
-                'name' => (string) $category->getAttribute('name'),
-                'slug' => (string) $category->getAttribute('slug'),
-                'description' => (string) ($category->getAttribute('description') ?? ''),
-            ],
+            fn(Category $category): array => $this->mapCategoryData($category, $activeSlug),
             array_values(array_filter(
                 $this->findBy(['is_published' => ['>' => 0]]),
                 static fn(mixed $category): bool => $category instanceof Category
             ))
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function mapCategoryData(Category $category, ?string $activeSlug = null): array
+    {
+        $slug = (string) $category->getAttribute('slug');
+
+        return [
+            'id' => (int) $category->getKey(),
+            'name' => (string) $category->getAttribute('name'),
+            'slug' => $slug,
+            'description' => (string) ($category->getAttribute('description') ?? ''),
+            'is_active' => $activeSlug !== null && $activeSlug !== '' && strcasecmp($activeSlug, $slug) === 0,
+            'url' => '/shop/categories/' . $slug,
+        ];
     }
 }

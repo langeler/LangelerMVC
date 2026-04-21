@@ -18,6 +18,9 @@ class OrderPresenter extends Presenter
             'summary' => (string) ($data['summary'] ?? ''),
             'message' => (string) ($data['message'] ?? ''),
             'cart' => is_array($data['cart'] ?? null) ? $data['cart'] : [],
+            'payment' => is_array($data['payment'] ?? null) ? $data['payment'] : [],
+            'checkout' => is_array($data['checkout'] ?? null) ? $data['checkout'] : [],
+            'lookup' => is_array($data['lookup'] ?? null) ? $data['lookup'] : [],
             'order' => is_array($data['order'] ?? null) ? $data['order'] : [],
             'orders' => is_array($data['orders'] ?? null) ? $data['orders'] : [],
         ];

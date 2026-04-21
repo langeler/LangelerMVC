@@ -19,6 +19,8 @@ class ShopResource extends Resource
             'products' => is_array($payload['products'] ?? null) ? $payload['products'] : [],
             'product' => is_array($payload['product'] ?? null) ? $payload['product'] : [],
             'categories' => is_array($payload['categories'] ?? null) ? $payload['categories'] : [],
+            'category' => is_array($payload['category'] ?? null) ? $payload['category'] : [],
+            'filters' => is_array($payload['filters'] ?? null) ? $payload['filters'] : [],
             'related' => is_array($payload['related'] ?? null) ? $payload['related'] : [],
             'pagination' => is_array($payload['pagination'] ?? null) ? $payload['pagination'] : [],
         ];

@@ -11,6 +11,31 @@ class OrderRepository extends Repository
 {
     protected string $modelClass = Order::class;
 
+    public function findByReference(string $reference): ?Order
+    {
+        $reference = trim($reference);
+
+        if ($reference === '') {
+            return null;
+        }
+
+        foreach ([
+            'payment_reference',
+            'payment_provider_reference',
+            'payment_external_reference',
+            'payment_webhook_reference',
+            'order_number',
+        ] as $column) {
+            $order = $this->findOneBy([$column => $reference]);
+
+            if ($order instanceof Order) {
+                return $order;
+            }
+        }
+
+        return null;
+    }
+
     public function findByPaymentIdempotencyKey(string $idempotencyKey): ?Order
     {
         if ($idempotencyKey === '') {

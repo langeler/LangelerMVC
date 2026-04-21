@@ -1,16 +1,18 @@
-<?php $orders = is_array($orders ?? null) ? $orders : []; ?>
+@php
+    $orders = is_array($orders ?? null) ? $orders : [];
+@endphp
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'OrderModule',
         'headline' => $headline ?? 'Orders',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
     <div class="section">
         <h2>Order history</h2>
-        <?php if ($orders === []): ?>
+        @if($orders === [])
             <p>No orders have been created yet.</p>
-        <?php else: ?>
+        @else
             <table class="data-table">
                 <thead>
                     <tr>
@@ -22,24 +24,26 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($orders as $order): ?>
-                        <?php $entry = is_array($order) ? $order : []; ?>
+                    @foreach($orders as $order)
+                        @php
+                            $entry = is_array($order) ? $order : [];
+                        @endphp
                         <tr>
-                            <td><?= $view->escape((string) ($entry['order_number'] ?? '')) ?></td>
-                            <td><?= $view->escape((string) ($entry['status'] ?? '')) ?></td>
-                            <td><?= $view->escape((string) ($entry['payment_status'] ?? '')) ?></td>
-                            <td><?= $view->escape((string) ($entry['total'] ?? '')) ?></td>
+                            <td>{{ (string) ($entry['order_number'] ?? '') }}</td>
+                            <td>{{ (string) ($entry['status'] ?? '') }}</td>
+                            <td>{{ (string) ($entry['payment_status'] ?? '') }}</td>
+                            <td>{{ (string) ($entry['total'] ?? '') }}</td>
                             <td>
-                                <?php if (!empty($entry['view_path'])): ?>
-                                    <a href="<?= $view->escape((string) $entry['view_path']) ?>">Open order</a>
-                                <?php else: ?>
+                                @if(!empty($entry['view_path']))
+                                    <a href="{{ (string) $entry['view_path'] }}">Open order</a>
+                                @else
                                     <span>Unavailable</span>
-                                <?php endif; ?>
+                                @endif
                             </td>
                         </tr>
-                    <?php endforeach; ?>
+                    @endforeach
                 </tbody>
             </table>
-        <?php endif; ?>
+        @endif
     </div>
 </section>

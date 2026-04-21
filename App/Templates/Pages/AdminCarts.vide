@@ -1,11 +1,11 @@
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'AdminModule',
         'headline' => $headline ?? 'Carts',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
-    <?= $view->renderComponent('DataTable', [
+    @component('DataTable', [
         'columns' => [
             'id' => 'ID',
             'user_id' => 'User',
@@ -17,5 +17,5 @@
         ],
         'rows' => is_array($carts ?? null) ? $carts : [],
         'empty' => 'No carts are available.',
-    ]) ?>
+    ])
 </section>

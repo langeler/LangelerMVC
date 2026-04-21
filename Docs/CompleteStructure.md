@@ -4,6 +4,8 @@ This indexed tree reflects the current repository structure and excludes only `.
 
 Placeholder `README.md` files that remain in repeated architecture folders are intentional and help keep the full framework shape visible in the repository.
 
+Inside `App/Templates`, the tree highlights the canonical native `.vide` templates. Compatibility `.lmv` and `.php` counterparts are intentionally omitted there to keep the presentation surface readable.
+
 ```text
 LangelerMVC
 ├── .github
@@ -465,45 +467,47 @@ LangelerMVC
 │   │   │   ├── PaymentResult.php
 │   ├── Templates
 │   │   ├── Components
-│   │   │   ├── BadgeList.php
-│   │   │   ├── CodeList.php
-│   │   │   ├── DataTable.php
-│   │   │   ├── DefinitionGrid.php
-│   │   │   ├── LinkList.php
-│   │   │   ├── ProductGrid.php
+│   │   │   ├── BadgeList.vide
+│   │   │   ├── CodeList.vide
+│   │   │   ├── DataTable.vide
+│   │   │   ├── DefinitionGrid.vide
+│   │   │   ├── LinkList.vide
+│   │   │   ├── ProductGrid.vide
 │   │   │   ├── README.md
 │   │   ├── Layouts
-│   │   │   ├── AdminShell.php
-│   │   │   ├── UserShell.php
-│   │   │   ├── WebShell.php
+│   │   │   ├── AdminShell.vide
+│   │   │   ├── InstallerShell.vide
+│   │   │   ├── UserShell.vide
+│   │   │   ├── WebShell.vide
 │   │   ├── Pages
-│   │   │   ├── AdminCarts.php
-│   │   │   ├── AdminCatalog.php
-│   │   │   ├── AdminDashboard.php
-│   │   │   ├── AdminOperations.php
-│   │   │   ├── AdminOrders.php
-│   │   │   ├── AdminRoles.php
-│   │   │   ├── AdminSystem.php
-│   │   │   ├── AdminUsers.php
-│   │   │   ├── CartPage.php
-│   │   │   ├── Home.php
-│   │   │   ├── NotFound.php
-│   │   │   ├── OrderCheckout.php
-│   │   │   ├── OrderDetail.php
-│   │   │   ├── OrderList.php
-│   │   │   ├── ShopCatalog.php
-│   │   │   ├── ShopProduct.php
-│   │   │   ├── UserLogin.php
-│   │   │   ├── UserPasswordForgot.php
-│   │   │   ├── UserPasswordReset.php
-│   │   │   ├── UserProfile.php
-│   │   │   ├── UserRegister.php
-│   │   │   ├── UserStatus.php
+│   │   │   ├── AdminCarts.vide
+│   │   │   ├── AdminCatalog.vide
+│   │   │   ├── AdminDashboard.vide
+│   │   │   ├── AdminOperations.vide
+│   │   │   ├── AdminOrders.vide
+│   │   │   ├── AdminRoles.vide
+│   │   │   ├── AdminSystem.vide
+│   │   │   ├── AdminUsers.vide
+│   │   │   ├── CartPage.vide
+│   │   │   ├── Home.vide
+│   │   │   ├── InstallerWizard.vide
+│   │   │   ├── NotFound.vide
+│   │   │   ├── OrderCheckout.vide
+│   │   │   ├── OrderDetail.vide
+│   │   │   ├── OrderList.vide
+│   │   │   ├── ShopCatalog.vide
+│   │   │   ├── ShopProduct.vide
+│   │   │   ├── UserLogin.vide
+│   │   │   ├── UserPasswordForgot.vide
+│   │   │   ├── UserPasswordReset.vide
+│   │   │   ├── UserProfile.vide
+│   │   │   ├── UserRegister.vide
+│   │   │   ├── UserStatus.vide
 │   │   ├── Partials
-│   │   │   ├── PageIntro.php
-│   │   │   ├── PanelMeta.php
+│   │   │   ├── PageIntro.vide
+│   │   │   ├── PanelMeta.vide
 │   │   │   ├── README.md
-│   │   │   ├── StatusMessage.php
+│   │   │   ├── StatusMessage.vide
 │   ├── Utilities
 │   │   ├── Finders
 │   │   │   ├── DirectoryFinder.php

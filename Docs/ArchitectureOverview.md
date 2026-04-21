@@ -182,6 +182,7 @@ The following areas are implemented as framework-level subsystems today:
 - HTTP/MVC abstraction layer
 - presentation resource / negotiated JSON layer
 - completed view/presenter/template layer with shared layouts, partials, and components
+- canonical `.vide` templates authored in native directives rather than embedded raw PHP
 - database layer and SQL/query builders
 - cache subsystem
 - crypto subsystem
@@ -211,7 +212,7 @@ Current concrete state:
 - `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
 - `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
 - `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, payment-state handling, reconciliation hooks, and lifecycle notifications.
-- Shared templates now live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components` with `.vide` as the canonical native template extension. `.lmv` and `.php` remain supported as compatibility fallbacks.
+- Shared templates now live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components` with `.vide` as the canonical native template extension. `.lmv` and `.php` remain supported as compatibility fallbacks, but the first-party `.vide` tree is now maintained without raw PHP tags in source.
 
 This means the framework now has both a completed platform base and a real first-party application surface exercising it.
 

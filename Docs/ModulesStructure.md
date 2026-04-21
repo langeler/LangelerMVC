@@ -27,7 +27,7 @@ This structure is intentionally repeated across modules so the application layer
 - `App\Providers\ModuleProvider` registers module classes and aliases them for container resolution.
 - `App\Core\Router` loads route files from module `Routes/` folders and dispatches controller actions from there.
 
-Shared templates currently live in `App/Templates`, so modules can use a common presentation surface with shared layouts, partials, and components without duplicating markup primitives across modules. `.vide` is now the canonical native template extension for that shared layer.
+Shared templates currently live in `App/Templates`, so modules can use a common presentation surface with shared layouts, partials, and components without duplicating markup primitives across modules. `.vide` is now the canonical native template extension for that shared layer, and the first-party `.vide` sources are now maintained without raw PHP tags.
 
 ## Current Module Status
 

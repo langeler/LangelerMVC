@@ -8,10 +8,10 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 
 ## Verification Snapshot
 
-As of `2026-04-19`:
+As of `2026-04-21`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (86 tests, 2072 assertions)`
+- `composer test` passes with `OK (104 tests, 2460 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
@@ -28,6 +28,7 @@ As of `2026-04-19`:
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
 - The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, a framework-native `.vide` template engine, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
+- The canonical `.vide` template tree is now authored fully in native directives without raw PHP tags, with regression coverage enforcing that standard across first-party templates.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, trusted-device support, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
 - `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, runtime health/readiness, and audit-aware operations visibility.
@@ -113,6 +114,7 @@ The installer wizard now handles:
 - migration + seed execution
 - administrator provisioning
 - default database-backed `WebModule` setup
+- payment driver, method-family, and flow defaults for the first commerce-ready baseline
 
 Manual `.env` editing is still supported, and `.env.example` remains the tracked baseline, but the intended production-first setup path is now the installer wizard rather than editing config files before first boot.
 
@@ -247,8 +249,10 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
 - [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
+- [`Docs/InstallationWizard.md`](./Docs/InstallationWizard.md): first-run installer flow, configuration coverage, and post-install expectations.
 - [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.
+- [`Docs/PresentationTemplating.md`](./Docs/PresentationTemplating.md): canonical `.vide` template authoring, supported directives, and rendering flow.
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
 - [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.

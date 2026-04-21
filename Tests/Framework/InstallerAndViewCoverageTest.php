@@ -147,6 +147,13 @@ final class InstallerAndViewCoverageTest extends TestCase
                     sprintf('Expected a native .vide counterpart for [%s].', basename($phpTemplate))
                 );
             }
+
+            foreach (glob($directory . '/*.lmv') ?: [] as $legacyTemplate) {
+                self::assertFileExists(
+                    substr($legacyTemplate, 0, -4) . '.vide',
+                    sprintf('Expected a native .vide counterpart for [%s].', basename($legacyTemplate))
+                );
+            }
         }
     }
 

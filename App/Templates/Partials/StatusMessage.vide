@@ -1,12 +1,9 @@
-<?php
-
+@php
 $messageText = (string) ($message ?? '');
 $tone = (string) ($tone ?? 'info');
-
-if ($messageText === '') {
-    return;
-}
-?>
-<div class="message message--<?= $view->escape($tone) ?>">
-    <strong><?= $view->escape($messageText) ?></strong>
-</div>
+@endphp
+@if($messageText !== '')
+    <div class="message message--{{ $tone }}">
+        <strong>{{ $messageText }}</strong>
+    </div>
+@endif

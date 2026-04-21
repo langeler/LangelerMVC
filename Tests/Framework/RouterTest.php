@@ -121,7 +121,8 @@ class RouterTest extends TestCase
         self::assertSame('/orders/complete/demo-reference', $router->route('orders.complete.reference', ['reference' => 'demo-reference']));
         self::assertInstanceOf(ResponseInterface::class, $response);
         self::assertSame(404, $response->getStatus());
-        self::assertStringContainsString('Route not found.', $response->toArray()['content']);
+        self::assertStringContainsString('<html', $response->toArray()['content']);
+        self::assertStringContainsString('Return Home', $response->toArray()['content']);
     }
 
     public function testRouterUsesProvidedDispatchMethodInsteadOfSuperglobalOverride(): void
@@ -271,6 +272,85 @@ class RouterTest extends TestCase
         self::assertSame(200, $cancelled->getStatus());
         self::assertStringContainsString('<html', $cancelled->toArray()['content']);
         self::assertStringContainsString('Payment flow cancelled', $cancelled->toArray()['content']);
+    }
+
+    public function testRouterDispatchesOrderReturnPagesForSeededReferences(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+
+        $database = $provider->getCoreService('database');
+        $modules = $provider->resolveClass(ModuleManager::class);
+
+        self::assertInstanceOf(Database::class, $database);
+        self::assertInstanceOf(ModuleManager::class, $modules);
+
+        $errors = new ErrorManager(new ExceptionProvider());
+
+        (new MigrationRunner($database, $modules, $errors))->migrate();
+        (new SeedRunner($database, $modules, $errors))->run();
+
+        $router = $provider->getCoreService('router');
+
+        self::assertInstanceOf(Router::class, $router);
+
+        $complete = $router->dispatch('/orders/complete/demo-seed-order', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $complete);
+        self::assertSame(200, $complete->getStatus());
+        self::assertStringContainsString('<html', $complete->toArray()['content']);
+        self::assertStringContainsString('Order', $complete->toArray()['content']);
+        self::assertStringContainsString('Payment return received', $complete->toArray()['content']);
+
+        $cancelled = $router->dispatch('/orders/cancelled/demo-seed-order', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $cancelled);
+        self::assertSame(200, $cancelled->getStatus());
+        self::assertStringContainsString('<html', $cancelled->toArray()['content']);
+        self::assertStringContainsString('Order', $cancelled->toArray()['content']);
+        self::assertStringContainsString('Payment flow cancelled', $cancelled->toArray()['content']);
+    }
+
+    public function testRouterDispatchesPublicStorefrontApisAsJson(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+
+        $database = $provider->getCoreService('database');
+        $modules = $provider->resolveClass(ModuleManager::class);
+
+        self::assertInstanceOf(Database::class, $database);
+        self::assertInstanceOf(ModuleManager::class, $modules);
+
+        $errors = new ErrorManager(new ExceptionProvider());
+
+        (new MigrationRunner($database, $modules, $errors))->migrate();
+        (new SeedRunner($database, $modules, $errors))->run();
+
+        $router = $provider->getCoreService('router');
+
+        self::assertInstanceOf(Router::class, $router);
+
+        $_SERVER['HTTP_ACCEPT'] = 'application/json';
+
+        $_SERVER['REQUEST_URI'] = '/api/shop';
+        $catalog = $router->dispatch('/api/shop', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $catalog);
+        self::assertSame(200, $catalog->getStatus());
+        self::assertSame('application/json; charset=UTF-8', $catalog->getHeaders()['content-type']);
+        self::assertStringContainsString('"products"', $catalog->toArray()['content']);
+
+        $_SERVER['REQUEST_URI'] = '/api/cart';
+        $cart = $router->dispatch('/api/cart', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $cart);
+        self::assertSame(200, $cart->getStatus());
+        self::assertSame('application/json; charset=UTF-8', $cart->getHeaders()['content-type']);
+        self::assertStringContainsString('"cart"', $cart->toArray()['content']);
+
+        $_SERVER['REQUEST_URI'] = '/api/orders/complete/demo-seed-order';
+        $orderReturn = $router->dispatch('/api/orders/complete/demo-seed-order', 'GET');
+        self::assertInstanceOf(ResponseInterface::class, $orderReturn);
+        self::assertSame(200, $orderReturn->getStatus());
+        self::assertSame('application/json; charset=UTF-8', $orderReturn->getHeaders()['content-type']);
+        self::assertStringContainsString('"Payment return received"', $orderReturn->toArray()['content']);
     }
 
     private function resolveRouter(): Router

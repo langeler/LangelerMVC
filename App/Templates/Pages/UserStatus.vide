@@ -1,39 +1,39 @@
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'UserModule',
         'headline' => $headline ?? 'Status',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
-    <?= $view->renderPartial('StatusMessage', ['message' => $message ?? '']) ?>
+    @include('StatusMessage', ['message' => $message ?? ''])
 
-    <?php if (is_array($user ?? null)): ?>
-        <?= $view->renderComponent('DefinitionGrid', [
+    @if(is_array($user ?? null))
+        @component('DefinitionGrid', [
             'items' => [
                 'User' => $user['email'] ?? '',
             ],
-        ]) ?>
-    <?php endif; ?>
+        ])
+    @endif
 
-    <?php if (is_array($otp ?? null) && ($otp['uri'] ?? '') !== ''): ?>
+    @if(is_array($otp ?? null) && ($otp['uri'] ?? '') !== '')
         <div class="section">
             <h2>Provisioning URI</h2>
-            <?= $view->renderComponent('CodeList', ['items' => [$otp['uri']]]) ?>
+            @component('CodeList', ['items' => [$otp['uri']]])
         </div>
-    <?php endif; ?>
+    @endif
 
-    <?php if (!empty($recoveryCodes ?? [])): ?>
+    @if(!empty($recoveryCodes ?? []))
         <div class="section">
             <h2>Recovery Codes</h2>
-            <?= $view->renderComponent('CodeList', ['items' => $recoveryCodes]) ?>
+            @component('CodeList', ['items' => $recoveryCodes])
         </div>
-    <?php endif; ?>
+    @endif
 
-    <?= $view->renderComponent('LinkList', [
+    @component('LinkList', [
         'links' => [
             ['href' => '/users/profile', 'label' => 'Profile'],
             ['href' => '/users/login', 'label' => 'Sign in'],
             ['href' => '/users/register', 'label' => 'Register'],
         ],
-    ]) ?>
+    ])
 </section>

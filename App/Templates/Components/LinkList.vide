@@ -1,15 +1,13 @@
-<?php
-
+@php
 $links = is_array($links ?? null) ? $links : [];
-
-if ($links === []) {
-    return;
-}
-?>
-<nav class="link-list" aria-label="<?= $view->escape((string) ($label ?? 'Related links')) ?>">
-    <?php foreach ($links as $link): ?>
-        <?php if (is_array($link) && ($link['href'] ?? '') !== '' && ($link['label'] ?? '') !== ''): ?>
-            <a href="<?= $view->escape((string) $link['href']) ?>"><?= $view->escape((string) $link['label']) ?></a>
-        <?php endif; ?>
-    <?php endforeach; ?>
-</nav>
+$label = (string) ($label ?? 'Related links');
+@endphp
+@if($links !== [])
+    <nav class="link-list" aria-label="{{ $label }}">
+        @foreach($links as $link)
+            @if(is_array($link) && ($link['href'] ?? '') !== '' && ($link['label'] ?? '') !== '')
+                <a href="{{ (string) $link['href'] }}">{{ (string) $link['label'] }}</a>
+            @endif
+        @endforeach
+    </nav>
+@endif

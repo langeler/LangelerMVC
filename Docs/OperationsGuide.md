@@ -8,7 +8,10 @@ LangelerMVC now ships with a browser-based installation wizard at `Public/instal
 
 - When `APP_INSTALLED=false`, `App\Core\Bootstrap` redirects normal HTTP traffic into the installer automatically.
 - The installer prepares storage paths, validates database connectivity, writes `.env`, runs migrations + seeds, and provisions the first administrator account.
+- The installer also configures first-party payment defaults and the database-backed `WebModule` starter baseline.
 - Manual `.env` editing is still supported, but the intended production-first setup path is now the installer rather than hand-editing config files before first boot.
+
+For the full first-run walkthrough, see `InstallationWizard.md`.
 
 ## Health Endpoints
 

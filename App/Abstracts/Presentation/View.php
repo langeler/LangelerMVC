@@ -41,7 +41,7 @@ abstract class View implements ViewInterface
 	use TypeCheckerTrait;
 
 	protected array $globals = [];
-	protected string $templateExt = 'php';
+	protected string $templateExt = 'vide';
 	protected string $resourceExt = 'php';
 	protected string $theme = 'default';
 	protected ?string $defaultLayout = null;

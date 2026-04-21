@@ -14,6 +14,7 @@ final class TemplateEngine implements TemplateEngineInterface
     use ApplicationPathTrait;
 
     private const NATIVE_EXTENSIONS = ['vide', 'lmv'];
+    private const COMPILER_VERSION = '3';
 
     private string $cachePath;
 
@@ -64,21 +65,30 @@ final class TemplateEngine implements TemplateEngineInterface
         $compiled = $template;
 
         $compiled = preg_replace('/\{\{\-\-.*?\-\-\}\}/s', '', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@include\s*\(\s*(.+?)\s*\)/', '<?= $view->renderPartial(...(array) [${1}]); ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@component\s*\(\s*(.+?)\s*\)/', '<?= $view->renderComponent(...(array) [${1}]); ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@asset\s*\(\s*(.+?)\s*\)/', '<?= $view->renderAsset(...(array) [${1}]); ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@if\s*\((.+?)\)/', '<?php if (${1}): ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@elseif\s*\((.+?)\)/', '<?php elseif (${1}): ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'include', static fn(string $expression): string => "<?= \$view->renderPartial(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'component', static fn(string $expression): string => "<?= \$view->renderComponent(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'asset', static fn(string $expression): string => "<?= \$view->renderAsset(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'isset', static fn(string $expression): string => "<?php if (isset({$expression})): ?>");
+        $compiled = preg_replace('/\@endisset\b/', '<?php endif; ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'empty', static fn(string $expression): string => "<?php if (empty({$expression})): ?>");
+        $compiled = preg_replace('/\@endempty\b/', '<?php endif; ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'if', static fn(string $expression): string => "<?php if ({$expression}): ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'elseif', static fn(string $expression): string => "<?php elseif ({$expression}): ?>");
         $compiled = preg_replace('/\@else\b/', '<?php else: ?>', $compiled) ?? $compiled;
         $compiled = preg_replace('/\@endif\b/', '<?php endif; ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@foreach\s*\((.+?)\)/', '<?php foreach (${1}): ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'foreach', static fn(string $expression): string => "<?php foreach ({$expression}): ?>");
         $compiled = preg_replace('/\@endforeach\b/', '<?php endforeach; ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@for\s*\((.+?)\)/', '<?php for (${1}): ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'for', static fn(string $expression): string => "<?php for ({$expression}): ?>");
         $compiled = preg_replace('/\@endfor\b/', '<?php endfor; ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@while\s*\((.+?)\)/', '<?php while (${1}): ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'while', static fn(string $expression): string => "<?php while ({$expression}): ?>");
         $compiled = preg_replace('/\@endwhile\b/', '<?php endwhile; ?>', $compiled) ?? $compiled;
-        $compiled = preg_replace('/\@unless\s*\((.+?)\)/', '<?php if (!(${1})): ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'unless', static fn(string $expression): string => "<?php if (!({$expression})): ?>");
         $compiled = preg_replace('/\@endunless\b/', '<?php endif; ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'checked', static fn(string $expression): string => "<?= ({$expression}) ? ' checked' : '' ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'selected', static fn(string $expression): string => "<?= ({$expression}) ? ' selected' : '' ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'disabled', static fn(string $expression): string => "<?= ({$expression}) ? ' disabled' : '' ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'readonly', static fn(string $expression): string => "<?= ({$expression}) ? ' readonly' : '' ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'required', static fn(string $expression): string => "<?= ({$expression}) ? ' required' : '' ?>");
         $compiled = preg_replace('/\@php\b/', '<?php ', $compiled) ?? $compiled;
         $compiled = preg_replace('/\@endphp\b/', ' ?>', $compiled) ?? $compiled;
         $compiled = preg_replace('/\{!!\s*(.+?)\s*!!\}/s', '<?= (string) (${1}); ?>', $compiled) ?? $compiled;
@@ -94,9 +104,28 @@ final class TemplateEngine implements TemplateEngineInterface
 
     private function compiledPath(string $templatePath): string
     {
-        $hash = sha1($templatePath);
+        $hash = sha1(self::COMPILER_VERSION . ':' . $templatePath);
         $file = pathinfo($templatePath, PATHINFO_FILENAME) . '-' . $hash . '.php';
 
         return $this->cachePath . DIRECTORY_SEPARATOR . $file;
+    }
+
+    /**
+     * @param callable(string): string $callback
+     */
+    private function replaceExpressionDirective(string $template, string $directive, callable $callback): string
+    {
+        $pattern = sprintf('/@%s\s*(\((?:[^()]++|(?1))*\))/', preg_quote($directive, '/'));
+
+        return preg_replace_callback(
+            $pattern,
+            static function (array $matches) use ($callback): string {
+                $wrappedExpression = $matches[1] ?? '()';
+                $expression = substr($wrappedExpression, 1, -1);
+
+                return $callback($expression);
+            },
+            $template
+        ) ?? $template;
     }
 }

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $view->escape((string) ($title ?? $appName ?? 'LangelerMVC')) ?></title>
-    <meta name="description" content="<?= $view->escape((string) ($metaDescription ?? $summary ?? '')) ?>">
+    <title>{{ (string) ($title ?? $appName ?? 'LangelerMVC') }}</title>
+    <meta name="description" content="{{ (string) ($metaDescription ?? $summary ?? '') }}">
     <style>
         :root {
             color-scheme: light;
@@ -305,20 +305,20 @@
     <div class="shell">
         <header class="header">
             <div class="brand">
-                <strong><?= $view->escape((string) ($appName ?? 'LangelerMVC')) ?></strong>
-                <span><?= $view->escape((string) ($moduleName ?? 'UserModule')) ?> identity platform</span>
+                <strong>{{ (string) ($appName ?? 'LangelerMVC') }}</strong>
+                <span>{{ (string) ($moduleName ?? 'UserModule') }} identity platform</span>
             </div>
-            <span>Version <?= $view->escape((string) ($appVersion ?? '1.0.0')) ?></span>
+            <span>Version {{ (string) ($appVersion ?? '1.0.0') }}</span>
         </header>
         <main class="panel">
-            <?= $content ?? '' ?>
-            <?= $view->renderPartial('PanelMeta', [
+            {!! $content ?? '' !!}
+            @include('PanelMeta', [
                 'items' => [
                     'Status' => $meta['status'] ?? $status ?? 200,
                     'Module' => $meta['module'] ?? 'UserModule',
                     'Generated' => $meta['generatedAt'] ?? '',
                 ],
-            ]) ?>
+            ])
         </main>
         <footer class="footer">
             <span>Identity flows, OTP, passkeys, and JSON resources now share one presentation pipeline.</span>

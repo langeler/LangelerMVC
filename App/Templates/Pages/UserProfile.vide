@@ -1,13 +1,13 @@
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'UserModule',
         'headline' => $headline ?? 'Profile',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
     <div class="section">
         <h2>Account overview</h2>
-        <?= $view->renderComponent('DefinitionGrid', [
+        @component('DefinitionGrid', [
             'items' => is_array($user ?? null) ? [
                 'Name' => $user['name'] ?? '',
                 'Email' => $user['email'] ?? '',
@@ -16,14 +16,14 @@
                 'OTP Enabled' => !empty($user['otpEnabled']) ? 'Yes' : 'No',
             ] : [],
             'empty' => 'No profile data is available.',
-        ]) ?>
+        ])
     </div>
 
     <div class="section">
         <h2>Update profile</h2>
         <form method="post" action="/users/profile">
-            <label>Name<br><input type="text" name="name" value="<?= $view->escape((string) ($user['name'] ?? '')) ?>" required></label>
-            <label>Email<br><input type="email" name="email" value="<?= $view->escape((string) ($user['email'] ?? '')) ?>" required></label>
+            <label>Name<br><input type="text" name="name" value="{{ (string) ($user['name'] ?? '') }}" required></label>
+            <label>Email<br><input type="email" name="email" value="{{ (string) ($user['email'] ?? '') }}" required></label>
             <button type="submit">Save profile</button>
         </form>
     </div>
@@ -40,18 +40,18 @@
 
     <div class="section">
         <h2>Roles</h2>
-        <?= $view->renderComponent('BadgeList', [
+        @component('BadgeList', [
             'items' => is_array($roles ?? null) ? $roles : [],
             'empty' => 'No roles assigned.',
-        ]) ?>
+        ])
     </div>
 
     <div class="section">
         <h2>Permissions</h2>
-        <?= $view->renderComponent('BadgeList', [
+        @component('BadgeList', [
             'items' => is_array($permissions ?? null) ? $permissions : [],
             'empty' => 'No permissions assigned.',
-        ]) ?>
+        ])
     </div>
 
     <div class="section">
@@ -73,59 +73,59 @@
         <form method="post" action="/users/otp/disable">
             <button type="submit">Disable OTP</button>
         </form>
-        <?php if (!empty($recoveryCodes ?? [])): ?>
+        @if(!empty($recoveryCodes ?? []))
             <h3>Recovery codes</h3>
-            <?= $view->renderComponent('CodeList', ['items' => $recoveryCodes]) ?>
-        <?php endif; ?>
+            @component('CodeList', ['items' => $recoveryCodes])
+        @endif
         <h3>Trusted devices</h3>
-        <?php if (!empty($trustedDevices ?? [])): ?>
+        @if(!empty($trustedDevices ?? []))
             <div class="stack">
-                <?php foreach (($trustedDevices ?? []) as $device): ?>
+                @foreach(($trustedDevices ?? []) as $device)
                     <article class="section">
-                        <?= $view->renderComponent('DefinitionGrid', [
+                        @component('DefinitionGrid', [
                             'items' => [
                                 'Device' => $device['payload']['label'] ?? 'Trusted browser',
                                 'Trusted Until' => $device['payload']['trusted_until'] ?? ($device['expires_at'] ?? ''),
                                 'Created At' => $device['created_at'] ?? '',
                             ],
-                        ]) ?>
+                        ])
                     </article>
-                <?php endforeach; ?>
+                @endforeach
             </div>
-        <?php else: ?>
+        @else
             <p>No trusted OTP devices are currently stored.</p>
-        <?php endif; ?>
+        @endif
     </div>
 
     <div class="section">
         <h2>Passkeys</h2>
         <p>
-            <?php if (!empty($passkeySupport['available'])): ?>
-                Driver: <?= $view->escape((string) ($passkeySupport['driver'] ?? 'unknown')) ?>
-            <?php else: ?>
+            @if(!empty($passkeySupport['available']))
+                Driver: {{ (string) ($passkeySupport['driver'] ?? 'unknown') }}
+            @else
                 Passkeys are not available in the current runtime.
-            <?php endif; ?>
+            @endif
         </p>
-        <?php if (!empty($passkeys ?? [])): ?>
+        @if(!empty($passkeys ?? []))
             <div class="stack">
-                <?php foreach (($passkeys ?? []) as $passkey): ?>
+                @foreach(($passkeys ?? []) as $passkey)
                     <article class="section">
-                        <strong><?= $view->escape((string) ($passkey['name'] ?? 'Passkey')) ?></strong>
-                        <?= $view->renderComponent('DefinitionGrid', [
+                        <strong>{{ (string) ($passkey['name'] ?? 'Passkey') }}</strong>
+                        @component('DefinitionGrid', [
                             'items' => [
                                 'Counter' => $passkey['counter'] ?? 0,
                                 'Last used' => $passkey['lastUsedAt'] ?? 'Not used yet',
                             ],
-                        ]) ?>
-                        <form method="post" action="/users/passkeys/<?= (int) ($passkey['id'] ?? 0) ?>/delete">
+                        ])
+                        <form method="post" action="/users/passkeys/{{ (int) ($passkey['id'] ?? 0) }}/delete">
                             <button type="submit">Remove passkey</button>
                         </form>
                     </article>
-                <?php endforeach; ?>
+                @endforeach
             </div>
-        <?php else: ?>
+        @else
             <p>No passkeys are registered for this account yet.</p>
-        <?php endif; ?>
+        @endif
         <div class="stack">
             <label>Passkey Name<br><input type="text" id="passkey-name" name="passkey_name" placeholder="My phone passkey"></label>
             <button type="button" id="register-passkey-button">Register passkey</button>
@@ -134,12 +134,12 @@
 
     <div class="section">
         <h2>Account actions</h2>
-        <?= $view->renderComponent('LinkList', [
+        @component('LinkList', [
             'links' => [
                 ['href' => '/users/login', 'label' => 'Sign in'],
                 ['href' => '/users/register', 'label' => 'Register another account'],
             ],
-        ]) ?>
+        ])
         <form method="post" action="/users/email/verify">
             <button type="submit">Resend verification email</button>
         </form>

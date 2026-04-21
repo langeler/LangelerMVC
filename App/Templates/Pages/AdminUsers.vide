@@ -1,11 +1,11 @@
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'AdminModule',
         'headline' => $headline ?? 'Users',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
-    <?= $view->renderComponent('DataTable', [
+    @component('DataTable', [
         'columns' => [
             'id' => 'ID',
             'name' => 'Name',
@@ -15,5 +15,5 @@
         ],
         'rows' => is_array($users ?? null) ? $users : [],
         'empty' => 'No users are available.',
-    ]) ?>
+    ])
 </section>

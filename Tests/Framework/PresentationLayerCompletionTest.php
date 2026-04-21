@@ -77,6 +77,67 @@ class PresentationLayerCompletionTest extends TestCase
         self::assertSame('<article><p>LangelerMVC</p><h1>Framework</h1><ul><li>alpha</li><li>beta</li></ul></article>', $view->renderPage('CodexPresentationPage', ['name' => 'Framework']));
     }
 
+    public function testTemplateEngineSupportsPresenceAndConditionalAttributeDirectives(): void
+    {
+        $projectRoot = dirname(__DIR__, 2);
+        $pagePath = $projectRoot . '/App/Templates/Pages/CodexDirectiveSurface.vide';
+
+        file_put_contents(
+            $pagePath,
+            '@isset($headline)<h1>{{ $headline }}</h1>@endisset'
+            . '@empty($items)<p>No items</p>@endempty'
+            . '<input type="checkbox"@checked($checked)>'
+            . '<option value="ready"@selected($selected)>Ready</option>'
+            . '<button@disabled($disabled)>Go</button>'
+            . '<input type="text"@readonly($readonly)@required($required)>'
+        );
+
+        $this->pathsToDelete[] = $pagePath;
+
+        $view = new class(
+            new FileFinder(new IteratorManager()),
+            new DirectoryFinder(new IteratorManager()),
+            $this->createStub(CacheManager::class),
+            new FileManager(),
+            new PatternSanitizer(),
+            new PatternValidator()
+        ) extends View {
+        };
+
+        $output = $view->renderPageContent('CodexDirectiveSurface', [
+            'headline' => 'Directives',
+            'items' => [],
+            'checked' => true,
+            'selected' => true,
+            'disabled' => true,
+            'readonly' => true,
+            'required' => true,
+        ]);
+
+        self::assertStringContainsString('<h1>Directives</h1>', $output);
+        self::assertStringContainsString('<p>No items</p>', $output);
+        self::assertStringContainsString('type="checkbox" checked', $output);
+        self::assertStringContainsString('value="ready" selected', $output);
+        self::assertStringContainsString('<button disabled>', $output);
+        self::assertStringContainsString('type="text" readonly required', $output);
+    }
+
+    public function testAllNativeVideTemplatesAvoidRawPhpTags(): void
+    {
+        $templateRoot = dirname(__DIR__, 2) . '/App/Templates';
+        $files = glob($templateRoot . '/*/*.vide') ?: [];
+
+        self::assertNotSame([], $files, 'Expected the framework to expose native .vide templates.');
+
+        foreach ($files as $file) {
+            $contents = file_get_contents($file);
+
+            self::assertIsString($contents);
+            self::assertStringNotContainsString('<?php', $contents, sprintf('Expected [%s] to avoid raw PHP blocks.', basename($file)));
+            self::assertStringNotContainsString('<?=', $contents, sprintf('Expected [%s] to avoid raw short echoes.', basename($file)));
+        }
+    }
+
     public function testResourcePrimitivesSupportMetaLinksAdditionalAndPagination(): void
     {
         $resource = new class(['name' => 'LangelerMVC']) extends Resource {

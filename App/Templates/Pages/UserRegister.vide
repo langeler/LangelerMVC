@@ -1,9 +1,9 @@
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'UserModule',
         'headline' => $headline ?? 'Create account',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
     <form method="post" action="/users/register">
         <label>Name<br><input type="text" name="name" required></label>
@@ -14,9 +14,9 @@
         <button type="submit">Create account</button>
     </form>
 
-    <?= $view->renderComponent('LinkList', [
+    @component('LinkList', [
         'links' => [
             ['href' => '/users/login', 'label' => 'Already have an account? Sign in.'],
         ],
-    ]) ?>
+    ])
 </section>

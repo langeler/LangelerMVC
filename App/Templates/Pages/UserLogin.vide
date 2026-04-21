@@ -1,11 +1,11 @@
 <section class="stack">
-    <?= $view->renderPartial('PageIntro', [
+    @include('PageIntro', [
         'eyebrow' => 'UserModule',
         'headline' => $headline ?? 'Sign in',
         'summary' => $summary ?? '',
-    ]) ?>
+    ])
 
-    <?= $view->renderPartial('StatusMessage', ['message' => $message ?? '']) ?>
+    @include('StatusMessage', ['message' => $message ?? ''])
 
     <form method="post" action="/users/login">
         <label>Email<br><input type="email" name="email" required></label>
@@ -19,12 +19,12 @@
 
     <div class="section">
         <button type="button" id="passkey-login-button">Sign in with passkey</button>
-        <?= $view->renderComponent('LinkList', [
+        @component('LinkList', [
             'links' => [
                 ['href' => '/users/password/forgot', 'label' => 'Forgot password?'],
                 ['href' => '/users/register', 'label' => 'Create an account'],
             ],
-        ]) ?>
+        ])
     </div>
 </section>
 <script>

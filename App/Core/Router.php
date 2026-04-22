@@ -9,8 +9,11 @@ use App\Contracts\Http\ResponseInterface;
 use App\Exceptions\RouteNotFoundException;
 use App\Utilities\Managers\{
     CacheManager,
+    DateTimeManager,
     System\ErrorManager
 };
+use App\Utilities\Handlers\DataHandler;
+use App\Utilities\Managers\Security\HttpSecurityManager;
 use App\Utilities\Traits\{
     ArrayTrait,
     CheckerTrait,
@@ -41,7 +44,7 @@ class Router
         ManipulationTrait::toUpper as private toUpperString;
     }
 
-    private const CACHE_SCHEMA_VERSION = 2;
+    private const CACHE_SCHEMA_VERSION = 3;
 
     /**
      * @var array<string, array<string, array>>
@@ -84,7 +87,11 @@ class Router
         private CacheManager $cacheManager,
         private PatternValidator $patternValidator,
         private ModuleManager $moduleManager,
-        private ErrorManager $errorManager
+        private ErrorManager $errorManager,
+        private Session $session,
+        private HttpSecurityManager $httpSecurity,
+        private DataHandler $dataHandler,
+        private DateTimeManager $dateTimeManager
     ) {
         $this->initializeRoutes();
     }
@@ -137,6 +144,7 @@ class Router
             'callback' => [$controllerAlias, $action],
             'middleware' => $this->getValues($this->merge($this->groupMiddleware, $options['middleware'] ?? [])),
             'paramRules' => $options['params'] ?? [],
+            'csrf' => $this->resolveCsrfSetting($normalizedMethod, $options),
         ];
     }
 
@@ -341,6 +349,10 @@ class Router
                 $this->getHttpMethod($method)
             );
 
+            if (($route['csrf'] ?? false) === true && !$this->requestHasValidCsrfToken()) {
+                return $this->buildCsrfViolationResponse($uri);
+            }
+
             $middlewareResponse = $this->applyMiddleware($route['middleware'] ?? []);
 
             if ($middlewareResponse instanceof ResponseInterface) {
@@ -511,6 +523,15 @@ class Router
         }
 
         $this->addRoute($method, $path, $controller, $action, $options);
+    }
+
+    private function resolveCsrfSetting(string $method, array $options): bool
+    {
+        if (array_key_exists('csrf', $options)) {
+            return (bool) $options['csrf'];
+        }
+
+        return $this->httpSecurity->requiresCsrfProtection($method);
     }
 
     /**
@@ -761,6 +782,85 @@ class Router
     private function getHttpMethod(string $original): string
     {
         return $this->toUpperString($original);
+    }
+
+    private function requestHasValidCsrfToken(): bool
+    {
+        return $this->httpSecurity->hasValidCsrfToken(
+            $this->session,
+            $this->requestPayload(),
+            $this->requestHeaders()
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requestPayload(): array
+    {
+        return $this->isArray($_POST ?? null) ? $_POST : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function requestHeaders(): array
+    {
+        if ($this->functionExists('getallheaders')) {
+            $headers = getallheaders();
+
+            if ($this->isArray($headers)) {
+                return $headers;
+            }
+        }
+
+        $headers = [];
+
+        foreach ($_SERVER as $key => $value) {
+            if (!$this->isString($key) || !$this->isScalar($value)) {
+                continue;
+            }
+
+            if ($this->startsWith($key, 'HTTP_')) {
+                $headers[$this->replaceText('_', '-', $this->substring($key, 5))] = (string) $value;
+            }
+        }
+
+        return $headers;
+    }
+
+    private function buildCsrfViolationResponse(string $uri): ResponseInterface
+    {
+        $response = new FrameworkResponse($this->dataHandler, $this->dateTimeManager);
+        $message = 'CSRF token mismatch.';
+
+        if ($this->requestExpectsJson($uri)) {
+            return $response->asJson([
+                'status' => 419,
+                'error' => 'csrf_token_mismatch',
+                'message' => $message,
+            ], 419, ['Cache-Control' => 'no-store']);
+        }
+
+        return $response->asHtml(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>CSRF token mismatch</title></head><body><main><h1>Security Check Failed</h1><p>'
+            . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+            . '</p><p>Please refresh the page and try again.</p></main></body></html>',
+            419,
+            ['Cache-Control' => 'no-store']
+        );
+    }
+
+    private function requestExpectsJson(string $uri): bool
+    {
+        $accept = $this->toLowerString((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+        $requestedWith = $this->toLowerString((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+        $path = $this->normalizeRequestPath($uri);
+
+        return $this->startsWith($path, '/api/')
+            || $this->contains($accept, 'application/json')
+            || $this->contains($accept, 'application/vnd.api+json')
+            || $requestedWith === 'xmlhttprequest';
     }
 
     /**

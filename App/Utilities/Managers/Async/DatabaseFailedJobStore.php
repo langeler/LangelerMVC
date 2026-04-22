@@ -24,7 +24,9 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
 
     public function record(array $envelope, \Throwable $exception): string
     {
-        $this->ensureTable();
+        if (!$this->tableExists()) {
+            return '';
+        }
 
         $id = bin2hex(random_bytes(16));
         $record = [
@@ -51,7 +53,9 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
 
     public function all(): array
     {
-        $this->ensureTable();
+        if (!$this->tableExists()) {
+            return [];
+        }
 
         $query = $this->database
             ->dataQuery(self::TABLE)
@@ -67,7 +71,9 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
 
     public function find(string $id): ?array
     {
-        $this->ensureTable();
+        if (!$this->tableExists()) {
+            return null;
+        }
 
         $query = $this->database
             ->dataQuery(self::TABLE)
@@ -83,7 +89,9 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
 
     public function delete(string $id): bool
     {
-        $this->ensureTable();
+        if (!$this->tableExists()) {
+            return false;
+        }
 
         $query = $this->database
             ->dataQuery(self::TABLE)
@@ -92,22 +100,6 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
             ->toExecutable();
 
         return $this->database->execute($query['sql'], $query['bindings']) > 0;
-    }
-
-    private function ensureTable(): void
-    {
-        if ($this->tableExists()) {
-            return;
-        }
-
-        $statement = match ($this->driver()) {
-            'pgsql' => 'CREATE TABLE "framework_failed_jobs" ("id" VARCHAR(64) PRIMARY KEY, "queue" VARCHAR(120) NOT NULL, "type" VARCHAR(60) NOT NULL, "class" VARCHAR(255) NOT NULL, "handler" TEXT NULL, "payload" TEXT NOT NULL, "attempts" INT NOT NULL, "exception" TEXT NOT NULL, "failed_at" BIGINT NOT NULL)',
-            'sqlite' => 'CREATE TABLE "framework_failed_jobs" ("id" TEXT PRIMARY KEY, "queue" TEXT NOT NULL, "type" TEXT NOT NULL, "class" TEXT NOT NULL, "handler" TEXT NULL, "payload" TEXT NOT NULL, "attempts" INTEGER NOT NULL, "exception" TEXT NOT NULL, "failed_at" INTEGER NOT NULL)',
-            'sqlsrv' => 'CREATE TABLE [framework_failed_jobs] ([id] NVARCHAR(64) PRIMARY KEY, [queue] NVARCHAR(120) NOT NULL, [type] NVARCHAR(60) NOT NULL, [class] NVARCHAR(255) NOT NULL, [handler] NVARCHAR(MAX) NULL, [payload] NVARCHAR(MAX) NOT NULL, [attempts] INT NOT NULL, [exception] NVARCHAR(MAX) NOT NULL, [failed_at] BIGINT NOT NULL)',
-            default => 'CREATE TABLE `framework_failed_jobs` (`id` VARCHAR(64) PRIMARY KEY, `queue` VARCHAR(120) NOT NULL, `type` VARCHAR(60) NOT NULL, `class` VARCHAR(255) NOT NULL, `handler` TEXT NULL, `payload` LONGTEXT NOT NULL, `attempts` INT NOT NULL, `exception` LONGTEXT NOT NULL, `failed_at` BIGINT NOT NULL)',
-        };
-
-        $this->database->query($statement);
     }
 
     private function tableExists(): bool

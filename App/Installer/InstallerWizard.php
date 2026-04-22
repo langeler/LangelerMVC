@@ -41,12 +41,18 @@ final class InstallerWizard
     ];
 
     private string $basePath;
+    /**
+     * @var (callable(): CoreProvider)|null
+     */
+    private $providerFactory;
 
     public function __construct(
         private readonly FileManager $files,
-        ?string $basePath = null
+        ?string $basePath = null,
+        ?callable $providerFactory = null
     ) {
         $this->basePath = $basePath ?? $this->frameworkBasePath();
+        $this->providerFactory = $providerFactory;
     }
 
     /**
@@ -80,6 +86,7 @@ final class InstallerWizard
         $databaseDirectory = $this->storagePath('Database');
         $environmentDirectory = dirname($this->envPath());
         $appUrl = (string) ($this->defaults()['APP_URL'] ?? 'http://localhost');
+        $installState = $this->readInstallState();
 
         return [
             'php' => PHP_VERSION,
@@ -105,6 +112,15 @@ final class InstallerWizard
             'queueDrivers' => self::SUPPORTED_QUEUE_DRIVERS,
             'contentSources' => self::SUPPORTED_CONTENT_SOURCES,
             'paymentDrivers' => self::SUPPORTED_PAYMENT_DRIVERS,
+            'installState' => [
+                'status' => (string) ($installState['status'] ?? 'idle'),
+                'stage' => (string) ($installState['stage'] ?? 'idle'),
+                'resumeAvailable' => in_array((string) ($installState['status'] ?? ''), ['failed', 'rolled_back'], true),
+                'updatedAt' => $installState['updated_at'] ?? null,
+                'error' => is_array($installState['error'] ?? null)
+                    ? (string) ($installState['error']['message'] ?? '')
+                    : '',
+            ],
         ];
     }
 
@@ -116,48 +132,105 @@ final class InstallerWizard
     {
         $data = $this->normalizePayload($payload);
         $this->validate($data);
-        $this->prepareFilesystem($data);
-        $this->verifyDatabaseConnection($data);
-
-        $environment = $this->buildEnvironment($data);
-        $this->writeEnvironment($environment);
-        $this->reloadEnvironment($environment);
-        $this->ensurePathConstants();
-
-        $provider = new CoreProvider();
-        $provider->registerServices();
-
-        $migrationRunner = $provider->getCoreService('migrationRunner');
-        $seedRunner = $provider->getCoreService('seedRunner');
-
-        if (!$migrationRunner instanceof MigrationRunner || !$seedRunner instanceof SeedRunner) {
-            throw new \RuntimeException('Unable to resolve schema lifecycle services during installation.');
-        }
-
+        $hadEnvironmentFile = $this->files->fileExists($this->envPath());
+        $previousEnvironmentContents = $hadEnvironmentFile
+            ? ($this->files->readContents($this->envPath()) ?? '')
+            : null;
+        $environment = [];
         $migrated = [];
         $seeded = [];
+        $stage = 'bootstrap';
+        $migrationRunner = null;
 
-        foreach ($this->moduleInstallOrder() as $module) {
-            $migrated[$module] = $migrationRunner->migrate($module);
+        $this->updateInstallState('running', $stage, [
+            'migrated' => [],
+            'seeded' => [],
+            'rolled_back' => [],
+        ]);
+
+        try {
+            $stage = 'filesystem';
+            $this->updateInstallState('running', $stage);
+            $this->prepareFilesystem($data);
+
+            $stage = 'database';
+            $this->updateInstallState('running', $stage);
+            $this->verifyDatabaseConnection($data);
+
+            $environment = $this->buildEnvironment($data);
+
+            $stage = 'environment';
+            $this->updateInstallState('running', $stage);
+            $this->writeEnvironment($environment);
+            $this->reloadEnvironment($environment);
+            $this->ensurePathConstants();
+
+            $provider = $this->makeCoreProvider();
+            $provider->registerServices();
+
+            $migrationRunner = $provider->getCoreService('migrationRunner');
+            $seedRunner = $provider->getCoreService('seedRunner');
+
+            if (!$migrationRunner instanceof MigrationRunner || !$seedRunner instanceof SeedRunner) {
+                throw new \RuntimeException('Unable to resolve schema lifecycle services during installation.');
+            }
+
+            $stage = 'migrations.framework';
+            $migrated['Framework'] = $migrationRunner->migrate('Framework');
+            $this->updateInstallState('running', $stage, ['migrated' => $migrated]);
+
+            foreach ($this->moduleInstallOrder() as $module) {
+                $stage = 'migrations.' . $module;
+                $migrated[$module] = $migrationRunner->migrate($module);
+                $this->updateInstallState('running', $stage, ['migrated' => $migrated]);
+            }
+
+            foreach ($this->moduleInstallOrder() as $module) {
+                $stage = 'seeds.' . $module;
+                $seeded[$module] = $seedRunner->run($module);
+                $this->updateInstallState('running', $stage, ['migrated' => $migrated, 'seeded' => $seeded]);
+            }
+
+            $stage = 'administrator';
+            $admin = $this->provisionAdministrator($provider, $data);
+
+            $this->clearInstallState();
+
+            return [
+                'environment' => $environment,
+                'migrated' => $migrated,
+                'seeded' => $seeded,
+                'modules' => $this->moduleInstallOrder(),
+                'admin' => $admin,
+                'login' => [
+                    'html' => '/users/login',
+                    'api' => '/api/users/login',
+                ],
+            ];
+        } catch (\Throwable $exception) {
+            $rolledBack = $migrationRunner instanceof MigrationRunner
+                ? $this->rollbackInstallMigrations($migrationRunner, $migrated)
+                : [];
+
+            $this->restoreEnvironmentSnapshot($previousEnvironmentContents, $hadEnvironmentFile, $environment);
+            $this->updateInstallState($rolledBack !== [] ? 'rolled_back' : 'failed', $stage, [
+                'migrated' => $migrated,
+                'seeded' => $seeded,
+                'rolled_back' => $rolledBack,
+                'error' => [
+                    'type' => $exception::class,
+                    'message' => $exception->getMessage(),
+                ],
+            ]);
+
+            throw new \RuntimeException(
+                $rolledBack !== []
+                    ? 'Installation failed and rollback was applied: ' . $exception->getMessage()
+                    : 'Installation failed: ' . $exception->getMessage(),
+                0,
+                $exception
+            );
         }
-
-        foreach ($this->moduleInstallOrder() as $module) {
-            $seeded[$module] = $seedRunner->run($module);
-        }
-
-        $admin = $this->provisionAdministrator($provider, $data);
-
-        return [
-            'environment' => $environment,
-            'migrated' => $migrated,
-            'seeded' => $seeded,
-            'modules' => $this->moduleInstallOrder(),
-            'admin' => $admin,
-            'login' => [
-                'html' => '/users/login',
-                'api' => '/api/users/login',
-            ],
-        ];
     }
 
     /**
@@ -667,6 +740,149 @@ final class InstallerWizard
         ];
     }
 
+    private function makeCoreProvider(): CoreProvider
+    {
+        $provider = $this->providerFactory !== null
+            ? ($this->providerFactory)()
+            : new CoreProvider();
+
+        if (!$provider instanceof CoreProvider) {
+            throw new \RuntimeException('Installer provider factory must resolve to CoreProvider.');
+        }
+
+        return $provider;
+    }
+
+    /**
+     * @param array<string, array<int, string>> $migrated
+     * @return array<string, array<int, string>>
+     */
+    private function rollbackInstallMigrations(MigrationRunner $migrationRunner, array $migrated): array
+    {
+        $rolledBack = [];
+
+        foreach (array_reverse(array_keys($migrated)) as $module) {
+            $executed = array_values(array_filter(
+                array_map('strval', (array) ($migrated[$module] ?? [])),
+                static fn(string $migration): bool => $migration !== ''
+            ));
+
+            if ($executed === []) {
+                continue;
+            }
+
+            $rolledBack[$module] = $migrationRunner->rollbackNamed($executed);
+        }
+
+        return array_filter(
+            $rolledBack,
+            static fn(array $executed): bool => $executed !== []
+        );
+    }
+
+    /**
+     * @param array<string, string> $writtenEnvironment
+     */
+    private function restoreEnvironmentSnapshot(?string $previousContents, bool $hadEnvironmentFile, array $writtenEnvironment): void
+    {
+        $writtenKeys = array_keys($writtenEnvironment);
+
+        if ($hadEnvironmentFile) {
+            if ($this->files->writeContents($this->envPath(), $previousContents ?? '') === false) {
+                return;
+            }
+
+            $restored = $this->readEnvironment($this->envPath());
+            $this->unsetEnvironmentKeys(array_diff($writtenKeys, array_keys($restored)));
+            $this->reloadEnvironment($restored);
+            return;
+        }
+
+        if ($this->files->fileExists($this->envPath())) {
+            $this->files->deleteFile($this->envPath());
+        }
+
+        $this->unsetEnvironmentKeys($writtenKeys);
+    }
+
+    /**
+     * @param array<int, string> $keys
+     */
+    private function unsetEnvironmentKeys(array $keys): void
+    {
+        foreach ($keys as $key) {
+            if ($key === '') {
+                continue;
+            }
+
+            putenv($key);
+            unset($_ENV[$key], $_SERVER[$key]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function updateInstallState(string $status, string $stage, array $context = []): void
+    {
+        $state = $this->readInstallState();
+        $state['status'] = $status;
+        $state['stage'] = $stage;
+        $state['updated_at'] = gmdate('c');
+        $state['started_at'] = (string) ($state['started_at'] ?? gmdate('c'));
+
+        foreach ($context as $key => $value) {
+            $state[$key] = $value;
+        }
+
+        $this->writeInstallState($state);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readInstallState(): array
+    {
+        $contents = $this->files->readContents($this->installStatePath());
+
+        if (!is_string($contents) || trim($contents) === '') {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+
+            return is_array($decoded) ? $decoded : [];
+        } catch (\JsonException) {
+            return [];
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     */
+    private function writeInstallState(array $state): void
+    {
+        $directory = dirname($this->installStatePath());
+
+        if (!$this->files->isDirectory($directory)) {
+            $this->files->createDirectory($directory, 0777, true);
+        }
+
+        $payload = json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        if ($this->files->writeContents($this->installStatePath(), $payload) === false) {
+            throw new \RuntimeException('Unable to write the installer state journal.');
+        }
+    }
+
+    private function clearInstallState(): void
+    {
+        if ($this->files->fileExists($this->installStatePath())) {
+            $this->files->deleteFile($this->installStatePath());
+        }
+    }
+
     /**
      * @return array<int, string>
      */
@@ -880,6 +1096,11 @@ final class InstallerWizard
     private function envPath(): string
     {
         return $this->basePath . DIRECTORY_SEPARATOR . '.env';
+    }
+
+    private function installStatePath(): string
+    {
+        return $this->storagePath('Installer/install-state.json');
     }
 
     private function storagePath(string $path = ''): string

@@ -7,6 +7,7 @@ namespace App\Core;
 use App\Contracts\Http\ResponseInterface;
 use App\Providers\CoreProvider;
 use App\Contracts\Support\HealthManagerInterface;
+use App\Utilities\Managers\Security\HttpSecurityManager;
 use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Traits\{
     CheckerTrait,
@@ -34,6 +35,8 @@ class App
     private bool $maintenanceMode = false;
     private ?Config $config = null;
     private ?Router $router = null;
+    private ?HttpSecurityManager $httpSecurity = null;
+    private ?Session $session = null;
 
     public function __construct(
         protected CoreProvider $coreProvider,
@@ -52,6 +55,7 @@ class App
 
         $this->config = $this->resolveConfig();
         $this->router = $this->resolveRouter();
+        $this->httpSecurity = $this->resolveHttpSecurity();
 
         $this->configureRuntime();
         $this->maintenanceMode = $this->isMaintenanceModeEnabled();
@@ -113,6 +117,17 @@ class App
         return $router;
     }
 
+    private function resolveHttpSecurity(): ?HttpSecurityManager
+    {
+        try {
+            $resolved = $this->coreProvider->getCoreService('httpSecurity');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $resolved instanceof HttpSecurityManager ? $resolved : null;
+    }
+
     private function configureRuntime(): void
     {
         $debugEnabled = $this->normalizeBool($this->config?->get('app', 'DEBUG', false), false);
@@ -153,6 +168,7 @@ class App
         $this->wrapInTry(
             function () use ($result): void {
                 if ($result instanceof ResponseInterface) {
+                    $this->prepareFrameworkResponse($result);
                     $result->send();
                     return;
                 }
@@ -190,6 +206,7 @@ class App
             http_response_code((int) $payload['status']);
         }
 
+        $this->applyDefaultSecurityHeaders();
         $this->sendHeaderIfMissing('Content-Type', 'application/json; charset=UTF-8');
 
         $encoded = $this->toJson(
@@ -202,15 +219,16 @@ class App
 
     private function emitText(string $content): void
     {
+        $this->applyDefaultSecurityHeaders();
         $this->sendHeaderIfMissing('Content-Type', 'text/html; charset=UTF-8');
-
-        echo $content;
+        echo $this->decorateHtmlIfNeeded($content);
     }
 
     private function emitMaintenanceResponse(): void
     {
         if ($this->isHttpContext()) {
             http_response_code(503);
+            $this->applyDefaultSecurityHeaders();
             $this->sendHeaderIfMissing('Retry-After', '3600');
             $this->sendHeaderIfMissing('Content-Type', 'text/plain; charset=UTF-8');
         }
@@ -291,6 +309,127 @@ class App
     {
         return $this->normalizeBool($this->config?->get('app', 'MAINTENANCE', false), false)
             && $this->isHttpContext();
+    }
+
+    private function prepareFrameworkResponse(ResponseInterface $response): void
+    {
+        $this->applyDefaultSecurityHeadersToResponse($response);
+        $this->decorateResponseContent($response);
+    }
+
+    private function applyDefaultSecurityHeaders(): void
+    {
+        foreach ($this->defaultSecurityHeaders() as $name => $value) {
+            $this->sendHeaderIfMissing($name, $value);
+        }
+    }
+
+    private function applyDefaultSecurityHeadersToResponse(ResponseInterface $response): void
+    {
+        $existing = $response->getHeaders();
+        $normalized = [];
+
+        foreach ($existing as $name => $value) {
+            $normalized[$this->toLower((string) $name)] = (string) $value;
+        }
+
+        foreach ($this->defaultSecurityHeaders() as $name => $value) {
+            if (isset($normalized[$this->toLower($name)])) {
+                continue;
+            }
+
+            $response->addHeader($name, $value);
+        }
+    }
+
+    private function decorateResponseContent(ResponseInterface $response): void
+    {
+        $content = $response->getContent();
+
+        if (!$this->isString($content)) {
+            return;
+        }
+
+        $response->setContent($this->decorateHtmlIfNeeded($content, $response->getHeaders()));
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function decorateHtmlIfNeeded(string $content, array $headers = []): string
+    {
+        if ($this->httpSecurity === null || !$this->looksLikeHtmlResponse($content, $headers)) {
+            return $content;
+        }
+
+        $session = $this->resolveSession();
+
+        if (!$session instanceof Session) {
+            return $content;
+        }
+
+        return $this->httpSecurity->decorateHtmlDocument($content, $session);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function looksLikeHtmlResponse(string $content, array $headers = []): bool
+    {
+        $contentType = '';
+
+        foreach ($headers as $name => $value) {
+            if ($this->toLower((string) $name) === 'content-type') {
+                $contentType = $this->toLower((string) $value);
+                break;
+            }
+        }
+
+        if ($contentType !== '' && !$this->contains($contentType, 'text/html')) {
+            return false;
+        }
+
+        return preg_match('/<(?:!doctype|html|head|body|main|section|form)\b/i', $content) === 1;
+    }
+
+    private function resolveSession(): ?Session
+    {
+        if ($this->session instanceof Session) {
+            return $this->session;
+        }
+
+        try {
+            $resolved = $this->coreProvider->getCoreService('session');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$resolved instanceof Session) {
+            return null;
+        }
+
+        $this->session = $resolved;
+
+        return $this->session;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function defaultSecurityHeaders(): array
+    {
+        return $this->httpSecurity?->defaultHeaders($this->isSecureRequest()) ?? [];
+    }
+
+    private function isSecureRequest(): bool
+    {
+        $https = $_SERVER['HTTPS'] ?? null;
+        $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? null;
+        $forwardedSsl = $_SERVER['HTTP_X_FORWARDED_SSL'] ?? null;
+
+        return ($this->isString($https) && $https !== '' && $this->toLower($https) !== 'off')
+            || ($this->isString($forwardedProto) && $this->toLower($forwardedProto) === 'https')
+            || ($this->isString($forwardedSsl) && $this->toLower($forwardedSsl) === 'on');
     }
 
     private function normalizeBool(mixed $value, bool $default = false): bool

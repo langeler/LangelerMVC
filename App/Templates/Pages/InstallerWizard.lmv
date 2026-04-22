@@ -62,6 +62,7 @@
             </div>
 
             <form method="post" action="">
+                <input type="hidden" name="_token" value="<?= $view->escape((string) ($csrfToken ?? '')) ?>">
                 <section>
                     <div class="section-head">
                         <h3>Application</h3>

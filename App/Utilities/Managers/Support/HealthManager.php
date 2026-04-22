@@ -268,9 +268,10 @@ class HealthManager implements HealthManagerInterface
     private function auditCheck(): array
     {
         $summary = $this->audit->summary(86400);
+        $available = (bool) ($summary['available'] ?? ($summary['enabled'] ?? false));
 
         return [
-            'ok' => (bool) ($summary['enabled'] ?? false),
+            'ok' => (bool) ($summary['enabled'] ?? false) && $available,
             'summary' => $summary,
         ];
     }

@@ -232,9 +232,28 @@ class Database
 		$this->ensureConnection();
 
 		return $this->wrapInTry(
-			fn(): bool => ++$this->transactionDepth === 1
-				? $this->pdo->beginTransaction()
-				: true,
+			function (): bool {
+				if ($this->transactionDepth === 0) {
+					$started = $this->pdo->beginTransaction();
+
+					if ($started) {
+						$this->transactionDepth = 1;
+					}
+
+					return $started;
+				}
+
+				$depth = $this->transactionDepth + 1;
+				$started = $this->supportsSavepoints()
+					? $this->executeTransactionCommand('SAVEPOINT ' . $this->savepointName($depth))
+					: true;
+
+				if ($started) {
+					$this->transactionDepth = $depth;
+				}
+
+				return $started;
+			},
 			'database'
 		);
 	}
@@ -249,9 +268,32 @@ class Database
 		$this->ensureConnection();
 
 		return $this->wrapInTry(
-			fn(): bool => $this->transactionDepth > 0 && --$this->transactionDepth === 0
-				? $this->pdo->commit()
-				: true,
+			function (): bool {
+				if ($this->transactionDepth === 0) {
+					return true;
+				}
+
+				if ($this->transactionDepth === 1) {
+					$committed = $this->pdo->commit();
+
+					if ($committed) {
+						$this->transactionDepth = 0;
+					}
+
+					return $committed;
+				}
+
+				$depth = $this->transactionDepth;
+				$committed = $this->supportsSavepoints()
+					? $this->executeTransactionCommand('RELEASE SAVEPOINT ' . $this->savepointName($depth))
+					: true;
+
+				if ($committed) {
+					$this->transactionDepth--;
+				}
+
+				return $committed;
+			},
 			'database'
 		);
 	}
@@ -266,9 +308,32 @@ class Database
 		$this->ensureConnection();
 
 		return $this->wrapInTry(
-			fn(): bool => $this->transactionDepth > 0 && --$this->transactionDepth === 0
-				? $this->pdo->rollBack()
-				: true,
+			function (): bool {
+				if ($this->transactionDepth === 0) {
+					return true;
+				}
+
+				if ($this->transactionDepth === 1) {
+					$rolledBack = $this->pdo->rollBack();
+
+					if ($rolledBack) {
+						$this->transactionDepth = 0;
+					}
+
+					return $rolledBack;
+				}
+
+				$depth = $this->transactionDepth;
+				$rolledBack = $this->supportsSavepoints()
+					? $this->executeTransactionCommand('ROLLBACK TO SAVEPOINT ' . $this->savepointName($depth))
+					: true;
+
+				if ($rolledBack) {
+					$this->transactionDepth--;
+				}
+
+				return $rolledBack;
+			},
 			'database'
 		);
 	}
@@ -556,6 +621,23 @@ class Database
 			fn(): bool => $this->pdo->inTransaction(),
 			'database'
 		);
+	}
+
+	private function supportsSavepoints(): bool
+	{
+		return $this->isInArray($this->configuredDriver(), ['mysql', 'pgsql', 'sqlite', 'sqlsrv'], true);
+	}
+
+	private function savepointName(int $depth): string
+	{
+		return 'langeler_sp_' . max(1, $depth);
+	}
+
+	private function executeTransactionCommand(string $statement): bool
+	{
+		$this->pdo->exec($statement);
+
+		return true;
 	}
 
 	/**

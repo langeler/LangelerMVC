@@ -34,9 +34,11 @@ class AuditLogger implements AuditLoggerInterface
             return false;
         }
 
-        try {
-            $this->ensureTable();
+        if (!$this->tableAvailable()) {
+            return false;
+        }
 
+        try {
             $record = [
                 'category' => $this->trimString($category) !== '' ? $this->trimString($category) : 'framework',
                 'event' => $this->trimString($event),
@@ -64,9 +66,11 @@ class AuditLogger implements AuditLoggerInterface
 
     public function recent(int $limit = 50, array $criteria = []): array
     {
-        try {
-            $this->ensureTable();
+        if (!$this->tableAvailable()) {
+            return [];
+        }
 
+        try {
             $query = $this->database
                 ->dataQuery(self::TABLE)
                 ->select(['*']);
@@ -97,8 +101,21 @@ class AuditLogger implements AuditLoggerInterface
 
     public function summary(int $windowSeconds = 86400): array
     {
+        $enabled = (bool) $this->config->get('operations', 'AUDIT.ENABLED', true);
+
+        if (!$this->tableAvailable()) {
+            return [
+                'enabled' => $enabled,
+                'available' => false,
+                'table' => self::TABLE,
+                'stored' => 0,
+                'recent_window_seconds' => max(60, $windowSeconds),
+                'recent_count' => 0,
+                'categories' => [],
+            ];
+        }
+
         try {
-            $this->ensureTable();
             $windowStart = time() - max(60, $windowSeconds);
 
             $records = $this->recent((int) $this->config->get('operations', 'AUDIT.SUMMARY_LIMIT', 250), []);
@@ -117,7 +134,8 @@ class AuditLogger implements AuditLoggerInterface
             ksort($categories);
 
             return [
-                'enabled' => true,
+                'enabled' => $enabled,
+                'available' => true,
                 'table' => self::TABLE,
                 'stored' => count($records),
                 'recent_window_seconds' => max(60, $windowSeconds),
@@ -128,7 +146,8 @@ class AuditLogger implements AuditLoggerInterface
             $this->errorManager->logThrowable($exception, 'audit', 'userNotice');
 
             return [
-                'enabled' => (bool) $this->config->get('operations', 'AUDIT.ENABLED', true),
+                'enabled' => $enabled,
+                'available' => $this->tableExists(),
                 'table' => self::TABLE,
                 'stored' => 0,
                 'recent_window_seconds' => max(60, $windowSeconds),
@@ -142,6 +161,7 @@ class AuditLogger implements AuditLoggerInterface
     {
         return [
             'enabled' => (bool) $this->config->get('operations', 'AUDIT.ENABLED', true),
+            'available' => $this->tableExists(),
             'storage' => [
                 'database' => true,
                 'table' => self::TABLE,
@@ -155,20 +175,10 @@ class AuditLogger implements AuditLoggerInterface
         ];
     }
 
-    private function ensureTable(): void
+    private function tableAvailable(): bool
     {
-        if ($this->tableExists()) {
-            return;
-        }
-
-        $statement = match ($this->driver()) {
-            'pgsql' => 'CREATE TABLE "framework_audit_log" ("id" BIGSERIAL PRIMARY KEY, "category" VARCHAR(120) NOT NULL, "event" VARCHAR(255) NOT NULL, "severity" VARCHAR(30) NOT NULL, "actor_type" VARCHAR(255) NULL, "actor_id" VARCHAR(255) NULL, "context" TEXT NOT NULL, "created_at" BIGINT NOT NULL)',
-            'sqlite' => 'CREATE TABLE "framework_audit_log" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "category" TEXT NOT NULL, "event" TEXT NOT NULL, "severity" TEXT NOT NULL, "actor_type" TEXT NULL, "actor_id" TEXT NULL, "context" TEXT NOT NULL, "created_at" INTEGER NOT NULL)',
-            'sqlsrv' => 'CREATE TABLE [framework_audit_log] ([id] BIGINT IDENTITY(1,1) PRIMARY KEY, [category] NVARCHAR(120) NOT NULL, [event] NVARCHAR(255) NOT NULL, [severity] NVARCHAR(30) NOT NULL, [actor_type] NVARCHAR(255) NULL, [actor_id] NVARCHAR(255) NULL, [context] NVARCHAR(MAX) NOT NULL, [created_at] BIGINT NOT NULL)',
-            default => 'CREATE TABLE `framework_audit_log` (`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, `category` VARCHAR(120) NOT NULL, `event` VARCHAR(255) NOT NULL, `severity` VARCHAR(30) NOT NULL, `actor_type` VARCHAR(255) NULL, `actor_id` VARCHAR(255) NULL, `context` LONGTEXT NOT NULL, `created_at` BIGINT NOT NULL)',
-        };
-
-        $this->database->query($statement);
+        return (bool) $this->config->get('operations', 'AUDIT.ENABLED', true)
+            && $this->tableExists();
     }
 
     private function tableExists(): bool

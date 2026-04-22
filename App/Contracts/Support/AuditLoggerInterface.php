@@ -23,6 +23,11 @@ interface AuditLoggerInterface
     public function summary(int $windowSeconds = 86400): array;
 
     /**
+     * @param array<string, mixed> $criteria
+     */
+    public function prune(?int $before = null, array $criteria = []): int;
+
+    /**
      * @return array<string, mixed>
      */
     public function capabilities(): array;

@@ -44,7 +44,7 @@ class Router
         ManipulationTrait::toUpper as private toUpperString;
     }
 
-    private const CACHE_SCHEMA_VERSION = 3;
+    private const CACHE_SCHEMA_VERSION = 4;
 
     /**
      * @var array<string, array<string, array>>
@@ -64,6 +64,16 @@ class Router
      * @var array<string, array{path:string,method:string}>
      */
     private array $namedRoutes = [];
+
+    /**
+     * Route registration diagnostics captured during build.
+     *
+     * @var array{route_overrides:list<array<string, string>>, name_overrides:list<array<string, string>>}
+     */
+    private array $diagnostics = [
+        'route_overrides' => [],
+        'name_overrides' => [],
+    ];
 
     /**
      * Fallback route callback definition.
@@ -139,6 +149,11 @@ class Router
     ): void {
         $normalizedMethod = $this->toUpperString($method);
         $normalizedPath = $this->normalizeRoutePath($this->groupPrefix . $path);
+        $existing = $this->routes[$normalizedMethod][$normalizedPath] ?? null;
+
+        if ($this->isArray($existing) && $existing !== []) {
+            $this->recordRouteOverride($normalizedMethod, $normalizedPath, $existing, [$controllerAlias, $action]);
+        }
 
         $this->routes[$normalizedMethod][$normalizedPath] = [
             'callback' => [$controllerAlias, $action],
@@ -167,10 +182,25 @@ class Router
         string $alias,
         array $options = []
     ): void {
+        $normalizedPath = $this->normalizeRoutePath($this->groupPrefix . $path);
+        $normalizedMethod = $this->toUpperString($method);
+
+        if (isset($this->namedRoutes[$alias])) {
+            $existing = $this->namedRoutes[$alias];
+            $existingPath = $this->isArray($existing) ? (string) ($existing['path'] ?? '') : (string) $existing;
+            $existingMethod = $this->isArray($existing)
+                ? $this->toUpperString((string) ($existing['method'] ?? 'GET'))
+                : 'GET';
+
+            if ($existingPath !== '' && ($existingPath !== $normalizedPath || $existingMethod !== $normalizedMethod)) {
+                $this->recordNamedRouteOverride($alias, $existingMethod, $existingPath, $normalizedMethod, $normalizedPath);
+            }
+        }
+
         $this->addRoute($method, $path, $controllerAlias, $action, $options);
         $this->namedRoutes[$alias] = [
-            'path' => $this->normalizeRoutePath($this->groupPrefix . $path),
-            'method' => $this->toUpperString($method),
+            'path' => $normalizedPath,
+            'method' => $normalizedMethod,
         ];
     }
 
@@ -304,6 +334,19 @@ class Router
         );
 
         return $listed;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function diagnostics(): array
+    {
+        return [
+            'route_overrides' => $this->diagnostics['route_overrides'],
+            'name_overrides' => $this->diagnostics['name_overrides'],
+            'route_override_count' => count($this->diagnostics['route_overrides']),
+            'name_override_count' => count($this->diagnostics['name_overrides']),
+        ];
     }
 
     /**
@@ -615,6 +658,7 @@ class Router
             'routes' => $this->routes,
             'namedRoutes' => $this->namedRoutes,
             'fallbackRoute' => $this->fallbackRoute,
+            'diagnostics' => $this->diagnostics,
         ];
     }
 
@@ -631,6 +675,9 @@ class Router
             $this->isArray($state['namedRoutes'] ?? null) ? $state['namedRoutes'] : []
         );
         $this->fallbackRoute = $this->isArray($state['fallbackRoute'] ?? null) ? $state['fallbackRoute'] : null;
+        $this->diagnostics = $this->normalizeDiagnostics(
+            $this->isArray($state['diagnostics'] ?? null) ? $state['diagnostics'] : []
+        );
     }
 
     /**
@@ -644,6 +691,10 @@ class Router
         $this->routeParams = [];
         $this->namedRoutes = [];
         $this->fallbackRoute = null;
+        $this->diagnostics = [
+            'route_overrides' => [],
+            'name_overrides' => [],
+        ];
         $this->groupPrefix = '';
         $this->groupMiddleware = [];
     }
@@ -673,6 +724,59 @@ class Router
                 'path' => $path,
                 'method' => $method,
             ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $existing
+     * @param array{0:string,1:string} $incoming
+     */
+    private function recordRouteOverride(string $method, string $path, array $existing, array $incoming): void
+    {
+        $this->diagnostics['route_overrides'][] = [
+            'method' => $method,
+            'path' => $path,
+            'previous' => sprintf('%s@%s', (string) ($existing['callback'][0] ?? ''), (string) ($existing['callback'][1] ?? '')),
+            'incoming' => sprintf('%s@%s', $incoming[0], $incoming[1]),
+        ];
+    }
+
+    private function recordNamedRouteOverride(string $alias, string $existingMethod, string $existingPath, string $incomingMethod, string $incomingPath): void
+    {
+        $this->diagnostics['name_overrides'][] = [
+            'alias' => $alias,
+            'previous' => trim($existingMethod . ' ' . $existingPath),
+            'incoming' => trim($incomingMethod . ' ' . $incomingPath),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @return array{route_overrides:list<array<string, string>>, name_overrides:list<array<string, string>>}
+     */
+    private function normalizeDiagnostics(array $state): array
+    {
+        $normalized = [
+            'route_overrides' => [],
+            'name_overrides' => [],
+        ];
+
+        foreach (['route_overrides', 'name_overrides'] as $key) {
+            $entries = $state[$key] ?? [];
+
+            if (!$this->isArray($entries)) {
+                continue;
+            }
+
+            foreach ($entries as $entry) {
+                if (!$this->isArray($entry)) {
+                    continue;
+                }
+
+                $normalized[$key][] = array_map('strval', $entry);
+            }
         }
 
         return $normalized;

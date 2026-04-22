@@ -26,6 +26,39 @@ use RuntimeException;
 
 final class AsyncOperationsHardeningTest extends TestCase
 {
+    /**
+     * @var list<string>
+     */
+    private array $pathsToDelete = [];
+
+    protected function tearDown(): void
+    {
+        foreach (array_reverse($this->pathsToDelete) as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+                continue;
+            }
+
+            if (is_dir($path)) {
+                $entries = scandir($path);
+
+                if (is_array($entries)) {
+                    foreach ($entries as $entry) {
+                        if ($entry === '.' || $entry === '..') {
+                            continue;
+                        }
+
+                        @unlink($path . DIRECTORY_SEPARATOR . $entry);
+                    }
+                }
+
+                @rmdir($path);
+            }
+        }
+
+        $this->pathsToDelete = [];
+    }
+
     public function testQueueManagerRetriesSyncJobsUntilTerminalFailure(): void
     {
         $failedJobs = new InMemoryFailedJobStore();
@@ -145,6 +178,94 @@ final class AsyncOperationsHardeningTest extends TestCase
         $this->expectExceptionMessage('Queue storage table [framework_jobs] is missing.');
 
         $driver->pending();
+    }
+
+    public function testQueueStopSignalPreventsWorkerFromClaimingNextJob(): void
+    {
+        $database = $this->makeSqliteDatabase();
+        $this->createQueueTables($database);
+        $controlPath = sys_get_temp_dir() . '/langelermvc-queue-stop-' . bin2hex(random_bytes(4));
+        $this->pathsToDelete[] = $controlPath;
+        $job = new SuccessfulQueueJob();
+        $queue = $this->makeQueueManager(
+            [
+                'DRIVER' => 'database',
+                'DEFAULT_QUEUE' => 'default',
+                'MAX_ATTEMPTS' => 3,
+                'BACKOFF' => [
+                    'STRATEGY' => 'fixed',
+                    'SECONDS' => 0,
+                    'MAX_SECONDS' => 0,
+                ],
+                'WORKER' => [
+                    'SLEEP' => 0,
+                    'MAX_RUNTIME' => 0,
+                    'MAX_MEMORY_MB' => 0,
+                    'CONTROL_PATH' => $controlPath,
+                ],
+                'FAILED' => [
+                    'PRUNE_AFTER_HOURS' => 168,
+                ],
+            ],
+            new DatabaseQueueDriver($database),
+            new DatabaseFailedJobStore($database),
+            [
+                SuccessfulQueueJob::class => $job,
+            ]
+        );
+
+        $queue->dispatch($job);
+
+        self::assertTrue($queue->signalStop(false));
+        self::assertTrue((bool) $queue->workerState()['stop_requested']);
+        self::assertSame(0, $queue->work('default', 0, ['stop_when_empty' => false, 'sleep' => 0, 'max_runtime' => 1, 'max_memory_mb' => 0]));
+        self::assertCount(1, $queue->pending());
+        self::assertSame([], $job->handledPayloads);
+        self::assertFalse((bool) $queue->workerState()['stop_requested']);
+    }
+
+    public function testQueueDrainSignalProcessesPendingJobsThenStops(): void
+    {
+        $database = $this->makeSqliteDatabase();
+        $this->createQueueTables($database);
+        $controlPath = sys_get_temp_dir() . '/langelermvc-queue-drain-' . bin2hex(random_bytes(4));
+        $this->pathsToDelete[] = $controlPath;
+        $job = new SuccessfulQueueJob();
+        $queue = $this->makeQueueManager(
+            [
+                'DRIVER' => 'database',
+                'DEFAULT_QUEUE' => 'default',
+                'MAX_ATTEMPTS' => 3,
+                'BACKOFF' => [
+                    'STRATEGY' => 'fixed',
+                    'SECONDS' => 0,
+                    'MAX_SECONDS' => 0,
+                ],
+                'WORKER' => [
+                    'SLEEP' => 0,
+                    'MAX_RUNTIME' => 0,
+                    'MAX_MEMORY_MB' => 0,
+                    'CONTROL_PATH' => $controlPath,
+                ],
+                'FAILED' => [
+                    'PRUNE_AFTER_HOURS' => 168,
+                ],
+            ],
+            new DatabaseQueueDriver($database),
+            new DatabaseFailedJobStore($database),
+            [
+                SuccessfulQueueJob::class => $job,
+            ]
+        );
+
+        $queue->dispatch($job);
+
+        self::assertTrue($queue->signalStop(true));
+        self::assertTrue((bool) $queue->workerState()['drain_requested']);
+        self::assertSame(1, $queue->work('default', 0, ['stop_when_empty' => false, 'sleep' => 0, 'max_runtime' => 1, 'max_memory_mb' => 0]));
+        self::assertSame([], $queue->pending());
+        self::assertCount(1, $job->handledPayloads);
+        self::assertFalse((bool) $queue->workerState()['drain_requested']);
     }
 
     /**
@@ -287,6 +408,16 @@ final class AsyncOperationsHardeningTest extends TestCase
                 'DRIVER' => 'sqlite',
                 'DATABASE' => ':memory:',
             ]
+        );
+    }
+
+    private function createQueueTables(Database $database): void
+    {
+        $database->query(
+            'CREATE TABLE "framework_jobs" ("id" TEXT PRIMARY KEY, "queue" TEXT, "type" TEXT, "class" TEXT, "handler" TEXT, "payload" TEXT, "attempts" INTEGER, "available_at" INTEGER, "reserved_at" INTEGER NULL, "created_at" INTEGER)'
+        );
+        $database->query(
+            'CREATE TABLE "framework_failed_jobs" ("id" TEXT PRIMARY KEY, "queue" TEXT, "type" TEXT, "class" TEXT, "handler" TEXT, "payload" TEXT, "attempts" INTEGER, "exception" TEXT, "failed_at" INTEGER)'
         );
     }
 }

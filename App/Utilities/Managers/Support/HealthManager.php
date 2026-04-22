@@ -283,6 +283,7 @@ class HealthManager implements HealthManagerInterface
         $configuration = $this->queue->configuration();
         $driver = (string) ($configuration['driver'] ?? $this->queue->driverName());
         $defaultQueue = (string) ($configuration['default_queue'] ?? 'default');
+        $worker = $this->queue->workerState();
         $errors = [];
 
         try {
@@ -315,6 +316,10 @@ class HealthManager implements HealthManagerInterface
             }
         }
 
+        if (!(bool) ($worker['control_path_writable'] ?? false)) {
+            $errors[] = 'Queue worker control path is not writable.';
+        }
+
         return [
             'ok' => $errors === [],
             'driver' => $driver,
@@ -322,6 +327,7 @@ class HealthManager implements HealthManagerInterface
             'pending' => $pendingCount,
             'failed_jobs' => $failedCount,
             'configuration' => $configuration,
+            'worker' => $worker,
             'tables' => $tables,
             'errors' => $errors,
         ];
@@ -387,6 +393,7 @@ class HealthManager implements HealthManagerInterface
             'ok' => (bool) ($summary['enabled'] ?? false) && $available && $this->databaseTableExists('framework_audit_log'),
             'summary' => $summary,
             'table_exists' => $this->databaseTableExists('framework_audit_log'),
+            'retention_hours' => (int) ($summary['retention_hours'] ?? 0),
         ];
     }
 

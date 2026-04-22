@@ -63,6 +63,7 @@ class PlatformFoundationTest extends TestCase
 
         self::assertInstanceOf(ConsoleKernel::class, $kernel);
         self::assertArrayHasKey('audit:list', $kernel->commandDescriptions());
+        self::assertArrayHasKey('audit:prune', $kernel->commandDescriptions());
         self::assertArrayHasKey('health:check', $kernel->commandDescriptions());
         self::assertArrayHasKey('migrate', $kernel->commandDescriptions());
         self::assertArrayHasKey('route:list', $kernel->commandDescriptions());
@@ -71,6 +72,8 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('framework:doctor', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:work', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:failed', $kernel->commandDescriptions());
+        self::assertArrayHasKey('queue:stop', $kernel->commandDescriptions());
+        self::assertArrayHasKey('queue:drain', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:retry', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:prune-failed', $kernel->commandDescriptions());
     }

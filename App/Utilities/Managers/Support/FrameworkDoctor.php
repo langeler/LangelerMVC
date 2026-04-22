@@ -357,6 +357,7 @@ class FrameworkDoctor implements FrameworkDoctorInterface
     {
         $queueDriver = $this->toLowerString((string) $this->config->get('queue', 'DRIVER', 'sync'));
         $auditEnabled = $this->toBool($this->config->get('operations', 'AUDIT.ENABLED', true));
+        $auditRetentionHours = max(0, (int) $this->config->get('operations', 'AUDIT.RETENTION_HOURS', 720));
         $required = [
             'framework_migrations' => true,
             'framework_migration_locks' => true,
@@ -380,9 +381,14 @@ class FrameworkDoctor implements FrameworkDoctorInterface
         }
 
         $errors = [];
+        $warnings = [];
 
         if ($missing !== []) {
             $errors[] = 'Missing required framework operations tables: ' . implode(', ', $missing);
+        }
+
+        if ($auditEnabled && $auditRetentionHours < 1) {
+            $warnings[] = 'Audit retention is disabled; audit records will grow without automatic pruning guidance.';
         }
 
         return [
@@ -390,8 +396,9 @@ class FrameworkDoctor implements FrameworkDoctorInterface
             'tables' => $surface,
             'queue_driver' => $queueDriver,
             'audit_enabled' => $auditEnabled,
+            'audit_retention_hours' => $auditRetentionHours,
             'errors' => $errors,
-            'warnings' => [],
+            'warnings' => $warnings,
         ];
     }
 
@@ -405,6 +412,11 @@ class FrameworkDoctor implements FrameworkDoctorInterface
         $strategy = $this->toLowerString((string) $this->config->get('queue', 'BACKOFF.STRATEGY', 'fixed'));
         $seconds = (int) $this->config->get('queue', 'BACKOFF.SECONDS', 5);
         $maxSeconds = (int) $this->config->get('queue', 'BACKOFF.MAX_SECONDS', 300);
+        $controlPath = $this->resolveQueueControlPath();
+        $controlExists = $this->fileManager->isDirectory($controlPath);
+        $controlWritable = $controlExists
+            ? $this->fileManager->isWritable($controlPath)
+            : is_writable(dirname($controlPath));
         $warnings = [];
         $errors = [];
 
@@ -428,6 +440,10 @@ class FrameworkDoctor implements FrameworkDoctorInterface
             $errors[] = 'Database queue driver is enabled but framework_jobs is missing.';
         }
 
+        if (!$controlWritable) {
+            $errors[] = sprintf('Queue worker control path [%s] is not writable.', $controlPath);
+        }
+
         return [
             'ok' => $errors === [],
             'driver' => $driver,
@@ -436,6 +452,11 @@ class FrameworkDoctor implements FrameworkDoctorInterface
                 'strategy' => $strategy,
                 'seconds' => $seconds,
                 'max_seconds' => $maxSeconds,
+            ],
+            'control' => [
+                'path' => $controlPath,
+                'exists' => $controlExists,
+                'writable' => $controlWritable,
             ],
             'errors' => $errors,
             'warnings' => $warnings,
@@ -491,6 +512,9 @@ class FrameworkDoctor implements FrameworkDoctorInterface
     private function routeSurfaceCheck(): array
     {
         $routes = $this->router->listRoutes();
+        $diagnostics = method_exists($this->router, 'diagnostics')
+            ? (array) $this->router->diagnostics()
+            : ['route_overrides' => [], 'name_overrides' => []];
         $routeCount = count($routes);
         $namedRoutes = count(array_filter(
             $routes,
@@ -520,11 +544,16 @@ class FrameworkDoctor implements FrameworkDoctorInterface
             $warnings[] = 'Some unsafe routes explicitly disable CSRF protection.';
         }
 
+        if (!empty($diagnostics['route_overrides']) || !empty($diagnostics['name_overrides'])) {
+            $warnings[] = 'Route registration collisions were detected while building the route surface.';
+        }
+
         return [
             'ok' => $errors === [],
             'count' => $routeCount,
             'named' => $namedRoutes,
             'unsafe' => count($unsafeRoutes),
+            'diagnostics' => $diagnostics,
             'unsafe_without_csrf' => array_map(
                 fn(array $route): string => sprintf('%s %s', (string) ($route['method'] ?? 'POST'), (string) ($route['path'] ?? '/')),
                 $unsafeWithoutCsrf
@@ -548,6 +577,27 @@ class FrameworkDoctor implements FrameworkDoctorInterface
         }
 
         return array_values(array_map('strval', $messages));
+    }
+
+    private function resolveQueueControlPath(): string
+    {
+        $path = $this->trimString((string) $this->config->get('queue', 'WORKER.CONTROL_PATH', 'Storage/Framework/Queue'));
+
+        if ($path === '') {
+            return $this->frameworkStoragePath('Framework/Queue');
+        }
+
+        if ($path[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {
+            return str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path);
+        }
+
+        $normalized = ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+
+        if (str_starts_with($normalized, 'Storage' . DIRECTORY_SEPARATOR)) {
+            return $this->frameworkBasePath() . DIRECTORY_SEPARATOR . $normalized;
+        }
+
+        return $this->frameworkStoragePath($normalized);
     }
 
     /**

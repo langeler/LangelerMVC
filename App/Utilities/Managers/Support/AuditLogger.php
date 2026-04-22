@@ -102,6 +102,7 @@ class AuditLogger implements AuditLoggerInterface
     public function summary(int $windowSeconds = 86400): array
     {
         $enabled = (bool) $this->config->get('operations', 'AUDIT.ENABLED', true);
+        $retentionHours = max(0, (int) $this->config->get('operations', 'AUDIT.RETENTION_HOURS', 720));
 
         if (!$this->tableAvailable()) {
             return [
@@ -112,6 +113,10 @@ class AuditLogger implements AuditLoggerInterface
                 'recent_window_seconds' => max(60, $windowSeconds),
                 'recent_count' => 0,
                 'categories' => [],
+                'severities' => [],
+                'oldest_at' => null,
+                'newest_at' => null,
+                'retention_hours' => $retentionHours,
             ];
         }
 
@@ -125,13 +130,23 @@ class AuditLogger implements AuditLoggerInterface
             ));
 
             $categories = [];
+            $severities = [];
 
             foreach ($recentWindow as $record) {
                 $category = (string) ($record['category'] ?? 'framework');
+                $severity = (string) ($record['severity'] ?? 'info');
                 $categories[$category] = ($categories[$category] ?? 0) + 1;
+                $severities[$severity] = ($severities[$severity] ?? 0) + 1;
             }
 
             ksort($categories);
+            ksort($severities);
+
+            $timestamps = array_map(
+                static fn(array $record): int => (int) ($record['created_at'] ?? 0),
+                $records
+            );
+            $timestamps = array_values(array_filter($timestamps, static fn(int $value): bool => $value > 0));
 
             return [
                 'enabled' => $enabled,
@@ -141,6 +156,10 @@ class AuditLogger implements AuditLoggerInterface
                 'recent_window_seconds' => max(60, $windowSeconds),
                 'recent_count' => count($recentWindow),
                 'categories' => $categories,
+                'severities' => $severities,
+                'oldest_at' => $timestamps === [] ? null : min($timestamps),
+                'newest_at' => $timestamps === [] ? null : max($timestamps),
+                'retention_hours' => $retentionHours,
             ];
         } catch (Throwable $exception) {
             $this->errorManager->logThrowable($exception, 'audit', 'userNotice');
@@ -153,7 +172,44 @@ class AuditLogger implements AuditLoggerInterface
                 'recent_window_seconds' => max(60, $windowSeconds),
                 'recent_count' => 0,
                 'categories' => [],
+                'severities' => [],
+                'oldest_at' => null,
+                'newest_at' => null,
+                'retention_hours' => $retentionHours,
             ];
+        }
+    }
+
+    public function prune(?int $before = null, array $criteria = []): int
+    {
+        if (!$this->tableAvailable()) {
+            return 0;
+        }
+
+        try {
+            $query = $this->database
+                ->dataQuery(self::TABLE)
+                ->delete(self::TABLE);
+
+            if ($before !== null) {
+                $query->where('created_at', '<', $before);
+            }
+
+            foreach ($criteria as $column => $value) {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                $query->where((string) $column, '=', is_scalar($value) ? $value : (string) $value);
+            }
+
+            $executable = $query->toExecutable();
+
+            return $this->database->execute($executable['sql'], $executable['bindings']);
+        } catch (Throwable $exception) {
+            $this->errorManager->logThrowable($exception, 'audit', 'userNotice');
+
+            return 0;
         }
     }
 
@@ -165,6 +221,10 @@ class AuditLogger implements AuditLoggerInterface
             'storage' => [
                 'database' => true,
                 'table' => self::TABLE,
+            ],
+            'retention' => [
+                'hours' => max(0, (int) $this->config->get('operations', 'AUDIT.RETENTION_HOURS', 720)),
+                'prunable' => true,
             ],
             'context' => [
                 'actor' => true,
@@ -183,24 +243,28 @@ class AuditLogger implements AuditLoggerInterface
 
     private function tableExists(): bool
     {
-        return match ($this->driver()) {
-            'sqlite' => $this->database->fetchColumn(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
-                [self::TABLE]
-            ) !== false,
-            'pgsql' => $this->database->fetchColumn(
-                'SELECT 1 FROM information_schema.tables WHERE table_name = ?',
-                [self::TABLE]
-            ) !== false,
-            'sqlsrv' => $this->database->fetchColumn(
-                'SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?',
-                [self::TABLE]
-            ) !== false,
-            default => $this->database->fetchColumn(
-                'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
-                [self::TABLE]
-            ) !== false,
-        };
+        try {
+            return match ($this->driver()) {
+                'sqlite' => $this->database->fetchColumn(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+                    [self::TABLE]
+                ) !== false,
+                'pgsql' => $this->database->fetchColumn(
+                    'SELECT 1 FROM information_schema.tables WHERE table_name = ?',
+                    [self::TABLE]
+                ) !== false,
+                'sqlsrv' => $this->database->fetchColumn(
+                    'SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?',
+                    [self::TABLE]
+                ) !== false,
+                default => $this->database->fetchColumn(
+                    'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+                    [self::TABLE]
+                ) !== false,
+            };
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function driver(): string

@@ -14,6 +14,7 @@ use App\Providers\CoreProvider;
 use App\Providers\QueueProvider;
 use App\Utilities\Managers\Data\ModuleManager;
 use App\Utilities\Managers\System\ErrorManager;
+use App\Utilities\Traits\ApplicationPathTrait;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
 use App\Utilities\Traits\ManipulationTrait;
@@ -21,9 +22,13 @@ use App\Utilities\Traits\TypeCheckerTrait;
 
 class QueueManager
 {
+    use ApplicationPathTrait;
     use ArrayTrait, CheckerTrait, ManipulationTrait, TypeCheckerTrait {
         ManipulationTrait::toLower as private toLowerString;
     }
+
+    private const SIGNAL_STOP = 'stop';
+    private const SIGNAL_DRAIN = 'drain';
 
     private ?QueueDriverInterface $driver = null;
 
@@ -135,6 +140,7 @@ class QueueManager
         $maxRuntime = max(0, $this->optionInt($options, 'max_runtime', (int) ($this->workerConfiguration()['max_runtime'] ?? 0)));
         $maxMemoryMb = max(0, $this->optionInt($options, 'max_memory_mb', (int) ($this->workerConfiguration()['max_memory_mb'] ?? 256)));
         $startedAt = time();
+        $draining = false;
 
         while ($processed < $limit) {
             if ($maxRuntime > 0 && (time() - $startedAt) >= $maxRuntime) {
@@ -152,9 +158,22 @@ class QueueManager
                 break;
             }
 
+            $state = $this->workerState();
+            $draining = $draining || (bool) ($state['drain_requested'] ?? false);
+
+            if ((bool) ($state['stop_requested'] ?? false)) {
+                $this->clearSignal(self::SIGNAL_STOP);
+                break;
+            }
+
             $envelope = $this->driver()->pop($queue);
 
             if (!$this->isArray($envelope) || $envelope === []) {
+                if ($draining) {
+                    $this->clearSignal(self::SIGNAL_DRAIN);
+                    break;
+                }
+
                 if ($stopWhenEmpty) {
                     break;
                 }
@@ -250,6 +269,51 @@ class QueueManager
         return $this->failedJobs->prune($failedBefore);
     }
 
+    public function signalStop(bool $drain = false): bool
+    {
+        $signal = $drain ? self::SIGNAL_DRAIN : self::SIGNAL_STOP;
+        $directory = $this->workerControlDirectory();
+
+        if (!is_dir($directory) && !@mkdir($directory, 0777, true) && !is_dir($directory)) {
+            return false;
+        }
+
+        $payload = json_encode([
+            'signal' => $signal,
+            'driver' => $this->driverName(),
+            'requested_at' => time(),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return file_put_contents($this->signalPath($signal), $payload ?: $signal) !== false;
+    }
+
+    public function clearSignal(string $signal): bool
+    {
+        $path = $this->signalPath($signal);
+
+        return !is_file($path) || @unlink($path);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function workerState(): array
+    {
+        $controlPath = $this->workerControlDirectory();
+
+        return [
+            'control_path' => $controlPath,
+            'control_path_exists' => is_dir($controlPath),
+            'control_path_writable' => is_dir($controlPath) ? is_writable($controlPath) : is_writable(dirname($controlPath)),
+            'stop_requested' => is_file($this->signalPath(self::SIGNAL_STOP)),
+            'drain_requested' => is_file($this->signalPath(self::SIGNAL_DRAIN)),
+            'signals' => [
+                self::SIGNAL_STOP => $this->readSignalMetadata(self::SIGNAL_STOP),
+                self::SIGNAL_DRAIN => $this->readSignalMetadata(self::SIGNAL_DRAIN),
+            ],
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -262,6 +326,7 @@ class QueueManager
             'max_attempts' => $this->maxAttempts(),
             'backoff' => $this->backoffConfiguration(),
             'worker' => $this->workerConfiguration(),
+            'control' => $this->workerState(),
             'failed' => [
                 'prune_after_hours' => (int) $this->config->get('queue', 'FAILED.PRUNE_AFTER_HOURS', 168),
             ],
@@ -468,7 +533,7 @@ class QueueManager
     }
 
     /**
-     * @return array<string, int>
+     * @return array<string, int|string>
      */
     private function workerConfiguration(): array
     {
@@ -476,6 +541,7 @@ class QueueManager
             'sleep' => max(0, (int) $this->config->get('queue', 'WORKER.SLEEP', 1)),
             'max_runtime' => max(0, (int) $this->config->get('queue', 'WORKER.MAX_RUNTIME', 0)),
             'max_memory_mb' => max(0, (int) $this->config->get('queue', 'WORKER.MAX_MEMORY_MB', 256)),
+            'control_path' => $this->workerControlDirectory(),
         ];
     }
 
@@ -531,5 +597,76 @@ class QueueManager
         }
 
         return (int) $options[$key];
+    }
+
+    private function workerControlDirectory(): string
+    {
+        $path = trim((string) $this->config->get('queue', 'WORKER.CONTROL_PATH', 'Storage/Framework/Queue'));
+
+        if ($path === '') {
+            return $this->frameworkStoragePath('Framework/Queue');
+        }
+
+        if ($path[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {
+            return str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path);
+        }
+
+        $normalized = ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+
+        if (str_starts_with($normalized, 'Storage' . DIRECTORY_SEPARATOR)) {
+            return $this->frameworkBasePath() . DIRECTORY_SEPARATOR . $normalized;
+        }
+
+        return $this->frameworkStoragePath($normalized);
+    }
+
+    private function signalPath(string $signal): string
+    {
+        return $this->workerControlDirectory() . DIRECTORY_SEPARATOR . $this->normalizeSignal($signal) . '.signal';
+    }
+
+    private function normalizeSignal(string $signal): string
+    {
+        return $this->toLowerString(trim($signal)) === self::SIGNAL_DRAIN
+            ? self::SIGNAL_DRAIN
+            : self::SIGNAL_STOP;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function readSignalMetadata(string $signal): ?array
+    {
+        $path = $this->signalPath($signal);
+
+        if (!is_file($path)) {
+            return null;
+        }
+
+        $contents = @file_get_contents($path);
+
+        if (!is_string($contents) || trim($contents) === '') {
+            return [
+                'signal' => $this->normalizeSignal($signal),
+                'path' => $path,
+                'requested_at' => @filemtime($path) ?: null,
+            ];
+        }
+
+        $decoded = json_decode($contents, true);
+
+        if (!is_array($decoded)) {
+            return [
+                'signal' => $this->normalizeSignal($signal),
+                'path' => $path,
+                'requested_at' => @filemtime($path) ?: null,
+            ];
+        }
+
+        return [
+            ...$decoded,
+            'signal' => (string) ($decoded['signal'] ?? $this->normalizeSignal($signal)),
+            'path' => $path,
+        ];
     }
 }

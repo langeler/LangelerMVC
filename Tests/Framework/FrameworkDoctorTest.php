@@ -149,13 +149,88 @@ class FrameworkDoctorTest extends TestCase
         self::assertSame(['POST /doctor-spec'], $report['checks']['routes']['unsafe_without_csrf']);
     }
 
+    public function testFrameworkDoctorWarnsAboutRouteCollisionsAndDisabledAuditRetention(): void
+    {
+        $doctor = $this->makeDoctor(
+            $this->baseConfig([
+                'app' => [
+                    'ENV' => 'production',
+                    'DEBUG' => 'false',
+                    'INSTALLED' => 'true',
+                    'URL' => 'https://example.test',
+                ],
+                'session' => [
+                    'COOKIE' => ['SECURE' => 'true'],
+                ],
+                'http' => [
+                    'SIGNED_URL' => ['KEY' => 'doctor-signed-url-key-123456'],
+                ],
+                'encryption' => [
+                    'ENABLED' => 'true',
+                    'DRIVER' => 'openssl',
+                    'KEY' => 'base64:Zm9vYmFyYmF6cXV4cXV1eA==',
+                    'OPENSSL_KEY' => 'base64:b3BlbnNzbC1zYW1wbGUta2V5',
+                    'SODIUM_KEY' => 'base64:c29kaXVtLXNhbXBsZS1rZXk=',
+                    'PBKDF2_ITERATIONS' => '120000',
+                ],
+                'operations' => [
+                    'AUDIT' => [
+                        'ENABLED' => 'true',
+                        'RETENTION_HOURS' => 0,
+                    ],
+                ],
+            ]),
+            [],
+            [[
+                'method' => 'GET',
+                'path' => '/doctor-spec',
+                'action' => 'DoctorSpecController@index',
+                'name' => 'doctor.spec',
+                'middleware' => [],
+                'csrf' => true,
+            ]],
+            [
+                'route_overrides' => [[
+                    'method' => 'GET',
+                    'path' => '/doctor-spec',
+                    'previous' => 'DoctorSpecController@index',
+                    'incoming' => 'DoctorSpecController@show',
+                ]],
+                'name_overrides' => [[
+                    'alias' => 'doctor.spec',
+                    'previous' => 'GET /doctor-spec',
+                    'incoming' => 'GET /doctor-spec/override',
+                ]],
+            ]
+        );
+
+        $report = $doctor->inspect();
+
+        self::assertTrue((bool) $report['healthy']);
+        self::assertContains('Audit retention is disabled; audit records will grow without automatic pruning guidance.', $report['warnings']);
+        self::assertContains('Route registration collisions were detected while building the route surface.', $report['warnings']);
+        self::assertSame(1, $report['checks']['routes']['diagnostics']['route_override_count']);
+        self::assertSame(1, $report['checks']['routes']['diagnostics']['name_override_count']);
+    }
+
     /**
      * @param array<string, mixed> $config
      * @param array<string, mixed> $environmentReport
      * @param list<array<string, mixed>> $routes
+     * @param array<string, mixed> $diagnostics
      */
-    private function makeDoctor(array $config, array $environmentReport = [], array $routes = []): FrameworkDoctor
+    private function makeDoctor(array $config, array $environmentReport = [], array $routes = [], array $diagnostics = []): FrameworkDoctor
     {
+        $controlPath = $this->moduleRoot . DIRECTORY_SEPARATOR . 'QueueControl';
+        @mkdir($controlPath, 0777, true);
+        $config = array_replace_recursive([
+            'queue' => [
+                'WORKER' => [
+                    'CONTROL_PATH' => $controlPath,
+                ],
+            ],
+        ], $config);
+
         $runtimeConfig = new class($config) extends Config {
             /**
              * @param array<string, mixed> $config
@@ -252,11 +327,12 @@ class FrameworkDoctorTest extends TestCase
             }
         };
 
-        $router = new class($routes) extends Router {
+        $router = new class($routes, $diagnostics) extends Router {
             /**
              * @param list<array<string, mixed>> $routes
+             * @param array<string, mixed> $diagnostics
              */
-            public function __construct(private readonly array $routes = [])
+            public function __construct(private readonly array $routes = [], private readonly array $diagnostics = [])
             {
             }
 
@@ -274,6 +350,19 @@ class FrameworkDoctorTest extends TestCase
                     'middleware' => [],
                     'csrf' => true,
                 ]];
+            }
+
+            public function diagnostics(): array
+            {
+                $payload = array_replace([
+                    'route_overrides' => [],
+                    'name_overrides' => [],
+                ], $this->diagnostics);
+
+                $payload['route_override_count'] = count((array) ($payload['route_overrides'] ?? []));
+                $payload['name_override_count'] = count((array) ($payload['name_overrides'] ?? []));
+
+                return $payload;
             }
         };
 

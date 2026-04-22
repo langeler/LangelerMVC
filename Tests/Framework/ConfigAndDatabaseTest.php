@@ -77,7 +77,11 @@ class ConfigAndDatabaseTest extends TestCase
         $this->setEnvironmentOverride('QUEUE_WORKER_SLEEP', '2');
         $this->setEnvironmentOverride('QUEUE_WORKER_MAX_RUNTIME', '600');
         $this->setEnvironmentOverride('QUEUE_WORKER_MAX_MEMORY_MB', '384');
+        $this->setEnvironmentOverride('QUEUE_WORKER_CONTROL_PATH', 'Storage/Framework/QueueControl');
         $this->setEnvironmentOverride('QUEUE_FAILED_PRUNE_AFTER_HOURS', '48');
+        $this->setEnvironmentOverride('OPERATIONS_AUDIT_ENABLED', 'false');
+        $this->setEnvironmentOverride('OPERATIONS_AUDIT_SUMMARY_LIMIT', '42');
+        $this->setEnvironmentOverride('OPERATIONS_AUDIT_RETENTION_HOURS', '96');
 
         $config = $this->resolveConfig();
 
@@ -99,7 +103,11 @@ class ConfigAndDatabaseTest extends TestCase
         self::assertSame(2, $config->get('queue', 'WORKER.SLEEP'));
         self::assertSame(600, $config->get('queue', 'WORKER.MAX_RUNTIME'));
         self::assertSame(384, $config->get('queue', 'WORKER.MAX_MEMORY_MB'));
+        self::assertSame('Storage/Framework/QueueControl', $config->get('queue', 'WORKER.CONTROL_PATH'));
         self::assertSame(48, $config->get('queue', 'FAILED.PRUNE_AFTER_HOURS'));
+        self::assertFalse($config->get('operations', 'AUDIT.ENABLED'));
+        self::assertSame(42, $config->get('operations', 'AUDIT.SUMMARY_LIMIT'));
+        self::assertSame(96, $config->get('operations', 'AUDIT.RETENTION_HOURS'));
     }
 
     public function testDatabaseServiceResolvesWithoutConnecting(): void

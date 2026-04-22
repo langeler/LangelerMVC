@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console;
 
 use App\Console\Commands\AuditListCommand;
+use App\Console\Commands\AuditPruneCommand;
 use App\Console\Commands\CacheClearCommand;
 use App\Console\Commands\ConfigShowCommand;
 use App\Console\Commands\EventListCommand;
@@ -17,8 +18,10 @@ use App\Console\Commands\ModuleMakeCommand;
 use App\Console\Commands\ModuleListCommand;
 use App\Console\Commands\NotificationListCommand;
 use App\Console\Commands\QueueFailedCommand;
+use App\Console\Commands\QueueDrainCommand;
 use App\Console\Commands\QueuePruneFailedCommand;
 use App\Console\Commands\QueueRetryCommand;
+use App\Console\Commands\QueueStopCommand;
 use App\Console\Commands\QueueWorkCommand;
 use App\Console\Commands\RouteListCommand;
 use App\Console\Commands\SeedCommand;
@@ -38,6 +41,7 @@ class ConsoleKernel
 
     public function __construct(
         AuditListCommand $auditList,
+        AuditPruneCommand $auditPrune,
         MigrateCommand $migrate,
         MigrateStatusCommand $migrateStatus,
         MigrateRollbackCommand $migrateRollback,
@@ -51,6 +55,8 @@ class ConsoleKernel
         HealthCheckCommand $healthCheck,
         QueueWorkCommand $queueWork,
         QueueFailedCommand $queueFailed,
+        QueueStopCommand $queueStop,
+        QueueDrainCommand $queueDrain,
         QueuePruneFailedCommand $queuePruneFailed,
         QueueRetryCommand $queueRetry,
         EventListCommand $eventList,
@@ -58,6 +64,7 @@ class ConsoleKernel
     ) {
         foreach ([
             $auditList,
+            $auditPrune,
             $migrate,
             $migrateStatus,
             $migrateRollback,
@@ -71,6 +78,8 @@ class ConsoleKernel
             $healthCheck,
             $queueWork,
             $queueFailed,
+            $queueStop,
+            $queueDrain,
             $queuePruneFailed,
             $queueRetry,
             $eventList,

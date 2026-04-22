@@ -16,6 +16,7 @@ return [
         'SLEEP' => 1,
         'MAX_RUNTIME' => 0,
         'MAX_MEMORY_MB' => 256,
+        'CONTROL_PATH' => 'Storage/Framework/Queue',
     ],
     'FAILED' => [
         'PRUNE_AFTER_HOURS' => 168,

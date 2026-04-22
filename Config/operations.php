@@ -9,5 +9,6 @@ return [
     'AUDIT' => [
         'ENABLED' => true,
         'SUMMARY_LIMIT' => 250,
+        'RETENTION_HOURS' => 720,
     ],
 ];

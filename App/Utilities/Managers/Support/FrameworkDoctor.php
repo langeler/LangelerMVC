@@ -6,6 +6,7 @@ namespace App\Utilities\Managers\Support;
 
 use App\Contracts\Support\FrameworkDoctorInterface;
 use App\Core\Config;
+use App\Core\Database;
 use App\Core\Router;
 use App\Utilities\Managers\Data\ModuleManager;
 use App\Utilities\Managers\System\FileManager;
@@ -73,6 +74,7 @@ class FrameworkDoctor implements FrameworkDoctorInterface
         private readonly SettingsManager $settingsManager,
         private readonly ModuleManager $moduleManager,
         private readonly Router $router,
+        private readonly Database $database,
         private readonly FileManager $fileManager
     ) {
     }
@@ -81,9 +83,12 @@ class FrameworkDoctor implements FrameworkDoctorInterface
     {
         $checks = [
             'configuration' => $this->configurationCheck(),
+            'environment' => $this->environmentCheck(),
             'app_security' => $this->appSecurityCheck(),
             'crypto' => $this->cryptoCheck(),
             'storage' => $this->storageCheck(),
+            'operations' => $this->operationsCheck(),
+            'queue' => $this->queueCheck(),
             'modules' => $this->moduleSurfaceCheck(),
             'routes' => $this->routeSurfaceCheck(),
         ];
@@ -136,6 +141,39 @@ class FrameworkDoctor implements FrameworkDoctorInterface
             'invalid_files' => $invalid,
             'errors' => $errors,
             'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function environmentCheck(): array
+    {
+        $report = method_exists($this->settingsManager, 'environmentReport')
+            ? $this->settingsManager->environmentReport()
+            : [
+                'exists' => false,
+                'recognized' => [],
+                'recognized_count' => 0,
+                'unknown' => [],
+                'unknown_count' => 0,
+            ];
+
+        $warnings = [];
+
+        if ((bool) ($report['exists'] ?? false) && !empty($report['unknown'])) {
+            $warnings[] = 'Unknown .env keys detected: ' . implode(', ', array_map('strval', (array) $report['unknown']));
+        }
+
+        return [
+            'ok' => true,
+            'exists' => (bool) ($report['exists'] ?? false),
+            'recognized_count' => (int) ($report['recognized_count'] ?? 0),
+            'unknown_count' => (int) ($report['unknown_count'] ?? 0),
+            'unknown' => array_values(array_map('strval', (array) ($report['unknown'] ?? []))),
+            'override_files' => array_values(array_map('strval', (array) ($report['override_files'] ?? []))),
+            'errors' => [],
+            'warnings' => $warnings,
         ];
     }
 
@@ -315,6 +353,98 @@ class FrameworkDoctor implements FrameworkDoctorInterface
     /**
      * @return array<string, mixed>
      */
+    private function operationsCheck(): array
+    {
+        $queueDriver = $this->toLowerString((string) $this->config->get('queue', 'DRIVER', 'sync'));
+        $auditEnabled = $this->toBool($this->config->get('operations', 'AUDIT.ENABLED', true));
+        $required = [
+            'framework_migrations' => true,
+            'framework_migration_locks' => true,
+            'framework_jobs' => $queueDriver === 'database',
+            'framework_failed_jobs' => true,
+            'framework_audit_log' => $auditEnabled,
+        ];
+        $surface = [];
+        $missing = [];
+
+        foreach ($required as $table => $enabled) {
+            $exists = !$enabled || $this->databaseTableExists($table);
+            $surface[$table] = [
+                'required' => $enabled,
+                'exists' => $exists,
+            ];
+
+            if ($enabled && !$exists) {
+                $missing[] = $table;
+            }
+        }
+
+        $errors = [];
+
+        if ($missing !== []) {
+            $errors[] = 'Missing required framework operations tables: ' . implode(', ', $missing);
+        }
+
+        return [
+            'ok' => $errors === [],
+            'tables' => $surface,
+            'queue_driver' => $queueDriver,
+            'audit_enabled' => $auditEnabled,
+            'errors' => $errors,
+            'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function queueCheck(): array
+    {
+        $driver = $this->toLowerString((string) $this->config->get('queue', 'DRIVER', 'sync'));
+        $maxAttempts = (int) $this->config->get('queue', 'MAX_ATTEMPTS', 3);
+        $strategy = $this->toLowerString((string) $this->config->get('queue', 'BACKOFF.STRATEGY', 'fixed'));
+        $seconds = (int) $this->config->get('queue', 'BACKOFF.SECONDS', 5);
+        $maxSeconds = (int) $this->config->get('queue', 'BACKOFF.MAX_SECONDS', 300);
+        $warnings = [];
+        $errors = [];
+
+        if ($maxAttempts < 1) {
+            $errors[] = 'QUEUE_MAX_ATTEMPTS must be at least 1.';
+        }
+
+        if (!in_array($strategy, ['none', 'fixed', 'linear', 'exponential'], true)) {
+            $errors[] = sprintf('Unsupported queue backoff strategy [%s].', $strategy);
+        }
+
+        if ($seconds < 0 || $maxSeconds < 0) {
+            $errors[] = 'Queue backoff timing values must be non-negative.';
+        }
+
+        if ($maxSeconds > 0 && $seconds > $maxSeconds) {
+            $warnings[] = 'QUEUE_BACKOFF_SECONDS exceeds QUEUE_BACKOFF_MAX_SECONDS and will be capped at runtime.';
+        }
+
+        if ($driver === 'database' && !$this->databaseTableExists('framework_jobs')) {
+            $errors[] = 'Database queue driver is enabled but framework_jobs is missing.';
+        }
+
+        return [
+            'ok' => $errors === [],
+            'driver' => $driver,
+            'max_attempts' => $maxAttempts,
+            'backoff' => [
+                'strategy' => $strategy,
+                'seconds' => $seconds,
+                'max_seconds' => $maxSeconds,
+            ],
+            'errors' => $errors,
+            'warnings' => $warnings,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function moduleSurfaceCheck(): array
     {
         $modules = $this->moduleManager->getModules();
@@ -366,6 +496,14 @@ class FrameworkDoctor implements FrameworkDoctorInterface
             $routes,
             fn(array $route): bool => isset($route['name']) && $route['name'] !== null && $route['name'] !== ''
         ));
+        $unsafeRoutes = array_values(array_filter(
+            $routes,
+            fn(array $route): bool => !in_array($this->toLowerString((string) ($route['method'] ?? 'get')), ['get', 'head', 'options'], true)
+        ));
+        $unsafeWithoutCsrf = array_values(array_filter(
+            $unsafeRoutes,
+            static fn(array $route): bool => array_key_exists('csrf', $route) && ($route['csrf'] === false)
+        ));
 
         $errors = [];
         $warnings = [];
@@ -378,10 +516,19 @@ class FrameworkDoctor implements FrameworkDoctorInterface
             $warnings[] = 'No named routes are registered.';
         }
 
+        if ($unsafeWithoutCsrf !== []) {
+            $warnings[] = 'Some unsafe routes explicitly disable CSRF protection.';
+        }
+
         return [
             'ok' => $errors === [],
             'count' => $routeCount,
             'named' => $namedRoutes,
+            'unsafe' => count($unsafeRoutes),
+            'unsafe_without_csrf' => array_map(
+                fn(array $route): string => sprintf('%s %s', (string) ($route['method'] ?? 'POST'), (string) ($route['path'] ?? '/')),
+                $unsafeWithoutCsrf
+            ),
             'methods' => $this->indexRouteMethods($routes),
             'errors' => $errors,
             'warnings' => $warnings,
@@ -441,6 +588,32 @@ class FrameworkDoctor implements FrameworkDoctorInterface
     private function normalizeSecret(string $value): string
     {
         return $this->trimString((string) preg_replace('/\s+/', '', $value));
+    }
+
+    private function databaseTableExists(string $table): bool
+    {
+        try {
+            return match ($this->toLowerString((string) $this->database->getAttribute('driverName'))) {
+                'sqlite' => $this->database->fetchColumn(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+                    [$table]
+                ) !== false,
+                'pgsql' => $this->database->fetchColumn(
+                    'SELECT 1 FROM information_schema.tables WHERE table_name = ?',
+                    [$table]
+                ) !== false,
+                'sqlsrv' => $this->database->fetchColumn(
+                    'SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?',
+                    [$table]
+                ) !== false,
+                default => $this->database->fetchColumn(
+                    'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+                    [$table]
+                ) !== false,
+            };
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function toBool(mixed $value): bool

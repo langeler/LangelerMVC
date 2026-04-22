@@ -69,6 +69,10 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('module:list', $kernel->commandDescriptions());
         self::assertArrayHasKey('module:make', $kernel->commandDescriptions());
         self::assertArrayHasKey('framework:doctor', $kernel->commandDescriptions());
+        self::assertArrayHasKey('queue:work', $kernel->commandDescriptions());
+        self::assertArrayHasKey('queue:failed', $kernel->commandDescriptions());
+        self::assertArrayHasKey('queue:retry', $kernel->commandDescriptions());
+        self::assertArrayHasKey('queue:prune-failed', $kernel->commandDescriptions());
     }
 
     public function testConsoleKernelParsesOptionsForOperationalCommands(): void
@@ -84,7 +88,7 @@ class PlatformFoundationTest extends TestCase
         self::assertSame(0, $exitCode);
     }
 
-    public function testConsoleKernelScaffoldsNewModuleAndRunsFrameworkDoctor(): void
+    public function testConsoleKernelScaffoldsNewModule(): void
     {
         $provider = new CoreProvider();
         $provider->registerServices();
@@ -103,12 +107,6 @@ class PlatformFoundationTest extends TestCase
         self::assertDirectoryExists($moduleFolder);
         self::assertFileExists($moduleFolder . '/Routes/web.php');
         self::assertFileExists($moduleFolder . '/Controllers/' . $moduleName . 'Controller.php');
-
-        ob_start();
-        $doctorExit = $kernel->run(['console', 'framework:doctor', '--quiet=1']);
-        ob_end_clean();
-
-        self::assertSame(0, $doctorExit);
     }
 
     public function testMigrationAndSeedRunnersManageWebModuleSchemaLifecycle(): void

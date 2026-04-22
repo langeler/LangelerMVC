@@ -10,6 +10,26 @@ class CreateFrameworkOperationsTables extends Migration
 {
     public function up(): void
     {
+        if (!$this->tableExists('framework_jobs')) {
+            $this->createTable('framework_jobs', function ($table): void {
+                $table->string('id', 64);
+                $table->primary('id', 'framework_jobs_pk');
+                $table->string('queue', 120);
+                $table->string('type', 60);
+                $table->string('class', 255);
+                $table->text('handler', true);
+                $table->text('payload');
+                $table->integer('attempts', false, 0);
+                $table->integer('available_at');
+                $table->integer('reserved_at', true);
+                $table->integer('created_at');
+                $table->index('queue', 'framework_jobs_queue_idx');
+                $table->index('available_at', 'framework_jobs_available_at_idx');
+                $table->index('reserved_at', 'framework_jobs_reserved_at_idx');
+                $table->index('created_at', 'framework_jobs_created_at_idx');
+            });
+        }
+
         if (!$this->tableExists('framework_audit_log')) {
             $this->createTable('framework_audit_log', function ($table): void {
                 $table->id();
@@ -45,6 +65,10 @@ class CreateFrameworkOperationsTables extends Migration
 
     public function down(): void
     {
+        if ($this->tableExists('framework_jobs')) {
+            $this->dropTable('framework_jobs');
+        }
+
         if ($this->tableExists('framework_failed_jobs')) {
             $this->dropTable('framework_failed_jobs');
         }

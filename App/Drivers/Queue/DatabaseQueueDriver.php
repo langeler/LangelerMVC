@@ -6,6 +6,7 @@ namespace App\Drivers\Queue;
 
 use App\Contracts\Async\QueueDriverInterface;
 use App\Core\Database;
+use App\Exceptions\AppException;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\ConversionTrait;
 use App\Utilities\Traits\ManipulationTrait;
@@ -21,7 +22,6 @@ class DatabaseQueueDriver implements QueueDriverInterface
 
     public function __construct(private readonly Database $database)
     {
-        $this->ensureTable();
     }
 
     public function driverName(): string
@@ -57,6 +57,8 @@ class DatabaseQueueDriver implements QueueDriverInterface
 
     public function push(array $envelope, string $queue = 'default', int $delay = 0): string
     {
+        $this->assertTableAvailable();
+
         $id = bin2hex(random_bytes(16));
         $record = [
             'id' => $id,
@@ -83,6 +85,8 @@ class DatabaseQueueDriver implements QueueDriverInterface
 
     public function pop(string $queue = 'default'): ?array
     {
+        $this->assertTableAvailable();
+
         $query = $this->database
             ->dataQuery(self::TABLE)
             ->select(['*'])
@@ -117,6 +121,8 @@ class DatabaseQueueDriver implements QueueDriverInterface
 
     public function delete(string $id): bool
     {
+        $this->assertTableAvailable();
+
         $query = $this->database
             ->dataQuery(self::TABLE)
             ->delete(self::TABLE)
@@ -128,6 +134,8 @@ class DatabaseQueueDriver implements QueueDriverInterface
 
     public function release(array $envelope, int $delay = 0): bool
     {
+        $this->assertTableAvailable();
+
         $query = $this->database
             ->dataQuery(self::TABLE)
             ->update(self::TABLE, [
@@ -143,6 +151,8 @@ class DatabaseQueueDriver implements QueueDriverInterface
 
     public function pending(string $queue = 'default'): array
     {
+        $this->assertTableAvailable();
+
         $query = $this->database
             ->dataQuery(self::TABLE)
             ->select(['*'])
@@ -156,20 +166,11 @@ class DatabaseQueueDriver implements QueueDriverInterface
         );
     }
 
-    private function ensureTable(): void
+    private function assertTableAvailable(): void
     {
-        if ($this->tableExists()) {
-            return;
+        if (!$this->tableExists()) {
+            throw new AppException('Queue storage table [framework_jobs] is missing. Run the framework migrations before using the database queue driver.');
         }
-
-        $statement = match ($this->driver()) {
-            'pgsql' => 'CREATE TABLE "framework_jobs" ("id" VARCHAR(64) PRIMARY KEY, "queue" VARCHAR(120) NOT NULL, "type" VARCHAR(60) NOT NULL, "class" VARCHAR(255) NOT NULL, "handler" TEXT NULL, "payload" TEXT NOT NULL, "attempts" INT NOT NULL, "available_at" BIGINT NOT NULL, "reserved_at" BIGINT NULL, "created_at" BIGINT NOT NULL)',
-            'sqlite' => 'CREATE TABLE "framework_jobs" ("id" TEXT PRIMARY KEY, "queue" TEXT NOT NULL, "type" TEXT NOT NULL, "class" TEXT NOT NULL, "handler" TEXT NULL, "payload" TEXT NOT NULL, "attempts" INTEGER NOT NULL, "available_at" INTEGER NOT NULL, "reserved_at" INTEGER NULL, "created_at" INTEGER NOT NULL)',
-            'sqlsrv' => 'CREATE TABLE [framework_jobs] ([id] NVARCHAR(64) PRIMARY KEY, [queue] NVARCHAR(120) NOT NULL, [type] NVARCHAR(60) NOT NULL, [class] NVARCHAR(255) NOT NULL, [handler] NVARCHAR(MAX) NULL, [payload] NVARCHAR(MAX) NOT NULL, [attempts] INT NOT NULL, [available_at] BIGINT NOT NULL, [reserved_at] BIGINT NULL, [created_at] BIGINT NOT NULL)',
-            default => 'CREATE TABLE `framework_jobs` (`id` VARCHAR(64) PRIMARY KEY, `queue` VARCHAR(120) NOT NULL, `type` VARCHAR(60) NOT NULL, `class` VARCHAR(255) NOT NULL, `handler` TEXT NULL, `payload` LONGTEXT NOT NULL, `attempts` INT NOT NULL, `available_at` BIGINT NOT NULL, `reserved_at` BIGINT NULL, `created_at` BIGINT NOT NULL)',
-        };
-
-        $this->database->query($statement);
     }
 
     private function tableExists(): bool

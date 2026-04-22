@@ -50,7 +50,7 @@ class SyncQueueDriver implements QueueDriverInterface
 
     public function push(array $envelope, string $queue = 'default', int $delay = 0): string
     {
-        $id = bin2hex(random_bytes(16));
+        $id = (string) ($envelope['id'] ?? bin2hex(random_bytes(16)));
         $this->queue[] = [
             ...$envelope,
             'id' => $id,
@@ -58,6 +58,7 @@ class SyncQueueDriver implements QueueDriverInterface
             'attempts' => (int) ($envelope['attempts'] ?? 0),
             'available_at' => time() + max(0, $delay),
             'created_at' => time(),
+            'reserved_at' => null,
         ];
 
         return $id;
@@ -76,6 +77,7 @@ class SyncQueueDriver implements QueueDriverInterface
 
             $selected = $envelope;
             $selected['attempts'] = ((int) ($selected['attempts'] ?? 0)) + 1;
+            $selected['reserved_at'] = time();
             unset($this->queue[$index]);
 
             return $selected;
@@ -91,7 +93,15 @@ class SyncQueueDriver implements QueueDriverInterface
 
     public function release(array $envelope, int $delay = 0): bool
     {
-        $this->push($envelope, (string) ($envelope['queue'] ?? 'default'), $delay);
+        $this->queue[] = [
+            ...$envelope,
+            'id' => (string) ($envelope['id'] ?? bin2hex(random_bytes(16))),
+            'queue' => (string) ($envelope['queue'] ?? 'default'),
+            'attempts' => (int) ($envelope['attempts'] ?? 0),
+            'available_at' => time() + max(0, $delay),
+            'reserved_at' => null,
+            'created_at' => (int) ($envelope['created_at'] ?? time()),
+        ];
 
         return true;
     }

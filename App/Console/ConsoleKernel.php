@@ -17,6 +17,7 @@ use App\Console\Commands\ModuleMakeCommand;
 use App\Console\Commands\ModuleListCommand;
 use App\Console\Commands\NotificationListCommand;
 use App\Console\Commands\QueueFailedCommand;
+use App\Console\Commands\QueuePruneFailedCommand;
 use App\Console\Commands\QueueRetryCommand;
 use App\Console\Commands\QueueWorkCommand;
 use App\Console\Commands\RouteListCommand;
@@ -50,6 +51,7 @@ class ConsoleKernel
         HealthCheckCommand $healthCheck,
         QueueWorkCommand $queueWork,
         QueueFailedCommand $queueFailed,
+        QueuePruneFailedCommand $queuePruneFailed,
         QueueRetryCommand $queueRetry,
         EventListCommand $eventList,
         NotificationListCommand $notificationList
@@ -69,6 +71,7 @@ class ConsoleKernel
             $healthCheck,
             $queueWork,
             $queueFailed,
+            $queuePruneFailed,
             $queueRetry,
             $eventList,
             $notificationList,

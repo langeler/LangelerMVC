@@ -70,6 +70,9 @@ final class InfrastructureHardeningTest extends TestCase
 
         self::assertContains('CreateFrameworkOperationsTables', $executed);
         self::assertNotFalse($database->fetchColumn(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'framework_jobs'"
+        ));
+        self::assertNotFalse($database->fetchColumn(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'framework_audit_log'"
         ));
         self::assertNotFalse($database->fetchColumn(

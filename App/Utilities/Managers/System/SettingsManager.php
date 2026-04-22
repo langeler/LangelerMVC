@@ -64,40 +64,40 @@ class SettingsManager
      * Environment aliases for config keys whose runtime names contain nested or
      * compound segments that do not map 1:1 from underscore-separated env vars.
      *
-     * @var array<string, array{file:string, path:list<string>}>
+     * @var array<string, array{file:string, path:list<string>, type?:string}>
      */
     private const ENVIRONMENT_ALIASES = [
         'APP_FALLBACK_LOCALE' => ['file' => 'app', 'path' => ['FALLBACK']],
         'AUTH_VERIFY_EMAIL' => ['file' => 'auth', 'path' => ['VERIFY_EMAIL']],
-        'AUTH_EMAIL_VERIFY_EXPIRES' => ['file' => 'auth', 'path' => ['EMAIL_VERIFY_EXPIRES']],
-        'AUTH_PASSWORD_RESET_EXPIRES' => ['file' => 'auth', 'path' => ['PASSWORD_RESET_EXPIRES']],
-        'AUTH_REMEMBER_ME_DAYS' => ['file' => 'auth', 'path' => ['REMEMBER_ME_DAYS']],
+        'AUTH_EMAIL_VERIFY_EXPIRES' => ['file' => 'auth', 'path' => ['EMAIL_VERIFY_EXPIRES'], 'type' => 'int'],
+        'AUTH_PASSWORD_RESET_EXPIRES' => ['file' => 'auth', 'path' => ['PASSWORD_RESET_EXPIRES'], 'type' => 'int'],
+        'AUTH_REMEMBER_ME_DAYS' => ['file' => 'auth', 'path' => ['REMEMBER_ME_DAYS'], 'type' => 'int'],
         'AUTH_DEFAULT_ROLE' => ['file' => 'auth', 'path' => ['DEFAULT_ROLE']],
         'AUTH_ADMIN_ROLE' => ['file' => 'auth', 'path' => ['ADMIN_ROLE']],
-        'AUTH_OTP_TRUSTED_DEVICE_DAYS' => ['file' => 'auth', 'path' => ['OTP', 'TRUSTED_DEVICE_DAYS']],
+        'AUTH_OTP_TRUSTED_DEVICE_DAYS' => ['file' => 'auth', 'path' => ['OTP', 'TRUSTED_DEVICE_DAYS'], 'type' => 'int'],
         'AUTH_OTP_TRUSTED_DEVICE_COOKIE' => ['file' => 'auth', 'path' => ['OTP', 'TRUSTED_DEVICE_COOKIE']],
         'AUTH_PASSKEY_RP_ID' => ['file' => 'auth', 'path' => ['PASSKEY', 'RP_ID']],
         'AUTH_PASSKEY_RP_NAME' => ['file' => 'auth', 'path' => ['PASSKEY', 'RP_NAME']],
         'AUTH_PASSKEY_ALLOW_SUBDOMAINS' => ['file' => 'auth', 'path' => ['PASSKEY', 'ALLOW_SUBDOMAINS']],
-        'AUTH_PASSKEY_CHALLENGE_TTL' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_TTL']],
-        'AUTH_PASSKEY_CHALLENGE_BYTES' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_BYTES']],
+        'AUTH_PASSKEY_CHALLENGE_TTL' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_TTL'], 'type' => 'int'],
+        'AUTH_PASSKEY_CHALLENGE_BYTES' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_BYTES'], 'type' => 'int'],
         'AUTH_PASSKEY_RESIDENT_KEY' => ['file' => 'auth', 'path' => ['PASSKEY', 'RESIDENT_KEY']],
         'CACHE_FILE_PATH' => ['file' => 'cache', 'path' => ['FILE']],
-        'CACHE_MAX_ITEMS' => ['file' => 'cache', 'path' => ['MAX_ITEMS']],
+        'CACHE_MAX_ITEMS' => ['file' => 'cache', 'path' => ['MAX_ITEMS'], 'type' => 'int'],
         'CACHE_REDIS_HOST' => ['file' => 'cache', 'path' => ['REDIS_HOST']],
-        'CACHE_REDIS_PORT' => ['file' => 'cache', 'path' => ['REDIS_PORT']],
-        'CACHE_REDIS_TIMEOUT' => ['file' => 'cache', 'path' => ['REDIS_TIMEOUT']],
+        'CACHE_REDIS_PORT' => ['file' => 'cache', 'path' => ['REDIS_PORT'], 'type' => 'int'],
+        'CACHE_REDIS_TIMEOUT' => ['file' => 'cache', 'path' => ['REDIS_TIMEOUT'], 'type' => 'int'],
         'CACHE_REDIS_PASSWORD' => ['file' => 'cache', 'path' => ['REDIS_PASSWORD']],
-        'CACHE_REDIS_DATABASE' => ['file' => 'cache', 'path' => ['REDIS_DATABASE']],
+        'CACHE_REDIS_DATABASE' => ['file' => 'cache', 'path' => ['REDIS_DATABASE'], 'type' => 'int'],
         'CACHE_MEMCACHED_HOST' => ['file' => 'cache', 'path' => ['MEMCACHE_HOST']],
-        'CACHE_MEMCACHED_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT']],
+        'CACHE_MEMCACHED_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT'], 'type' => 'int'],
         'CACHE_MEMCACHE_HOST' => ['file' => 'cache', 'path' => ['MEMCACHE_HOST']],
-        'CACHE_MEMCACHE_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT']],
-        'DB_POOL_SIZE' => ['file' => 'db', 'path' => ['POOL']],
-        'DB_RETRY_DELAY' => ['file' => 'db', 'path' => ['RETRY']],
+        'CACHE_MEMCACHE_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT'], 'type' => 'int'],
+        'DB_POOL_SIZE' => ['file' => 'db', 'path' => ['POOL'], 'type' => 'int'],
+        'DB_RETRY_DELAY' => ['file' => 'db', 'path' => ['RETRY'], 'type' => 'int'],
         'DB_SSL_MODE' => ['file' => 'db', 'path' => ['SSL']],
         'ENCRYPTION_HASH_ALGO' => ['file' => 'encryption', 'path' => ['HASH_ALGORITHM']],
-        'ENCRYPTION_PBKDF2_ITERATIONS' => ['file' => 'encryption', 'path' => ['PBKDF2_ITERATIONS']],
+        'ENCRYPTION_PBKDF2_ITERATIONS' => ['file' => 'encryption', 'path' => ['PBKDF2_ITERATIONS'], 'type' => 'int'],
         'ENCRYPTION_OPENSSL_CIPHER' => ['file' => 'encryption', 'path' => ['OPENSSL_CIPHER']],
         'ENCRYPTION_OPENSSL_KEY' => ['file' => 'encryption', 'path' => ['OPENSSL_KEY']],
         'ENCRYPTION_SODIUM_KEY' => ['file' => 'encryption', 'path' => ['SODIUM_KEY']],
@@ -115,8 +115,8 @@ class SettingsManager
         'HTTP_HEADER_CROSS_ORIGIN_OPENER_POLICY' => ['file' => 'http', 'path' => ['HEADERS', 'CROSS_ORIGIN_OPENER_POLICY']],
         'HTTP_HEADER_CROSS_ORIGIN_RESOURCE_POLICY' => ['file' => 'http', 'path' => ['HEADERS', 'CROSS_ORIGIN_RESOURCE_POLICY']],
         'HTTP_SIGNED_URL_KEY' => ['file' => 'http', 'path' => ['SIGNED_URL', 'KEY']],
-        'HTTP_THROTTLE_MAX_ATTEMPTS' => ['file' => 'http', 'path' => ['THROTTLE', 'MAX_ATTEMPTS']],
-        'HTTP_THROTTLE_DECAY_SECONDS' => ['file' => 'http', 'path' => ['THROTTLE', 'DECAY_SECONDS']],
+        'HTTP_THROTTLE_MAX_ATTEMPTS' => ['file' => 'http', 'path' => ['THROTTLE', 'MAX_ATTEMPTS'], 'type' => 'int'],
+        'HTTP_THROTTLE_DECAY_SECONDS' => ['file' => 'http', 'path' => ['THROTTLE', 'DECAY_SECONDS'], 'type' => 'int'],
         'MAIL_FROM_ADDRESS' => ['file' => 'mail', 'path' => ['FROM']],
         'MAIL_FROM_NAME' => ['file' => 'mail', 'path' => ['FROM_NAME']],
         'MAIL_REPLY_TO' => ['file' => 'mail', 'path' => ['REPLY']],
@@ -126,7 +126,15 @@ class SettingsManager
         'PAYMENT_DEFAULT_METHOD' => ['file' => 'payment', 'path' => ['DEFAULT_METHOD']],
         'PAYMENT_DEFAULT_FLOW' => ['file' => 'payment', 'path' => ['DEFAULT_FLOW']],
         'QUEUE_DEFAULT_QUEUE' => ['file' => 'queue', 'path' => ['DEFAULT_QUEUE']],
-        'QUEUE_RETRY_AFTER' => ['file' => 'queue', 'path' => ['RETRY_AFTER']],
+        'QUEUE_RETRY_AFTER' => ['file' => 'queue', 'path' => ['RETRY_AFTER'], 'type' => 'int'],
+        'QUEUE_MAX_ATTEMPTS' => ['file' => 'queue', 'path' => ['MAX_ATTEMPTS'], 'type' => 'int'],
+        'QUEUE_BACKOFF_STRATEGY' => ['file' => 'queue', 'path' => ['BACKOFF', 'STRATEGY']],
+        'QUEUE_BACKOFF_SECONDS' => ['file' => 'queue', 'path' => ['BACKOFF', 'SECONDS'], 'type' => 'int'],
+        'QUEUE_BACKOFF_MAX_SECONDS' => ['file' => 'queue', 'path' => ['BACKOFF', 'MAX_SECONDS'], 'type' => 'int'],
+        'QUEUE_WORKER_SLEEP' => ['file' => 'queue', 'path' => ['WORKER', 'SLEEP'], 'type' => 'int'],
+        'QUEUE_WORKER_MAX_RUNTIME' => ['file' => 'queue', 'path' => ['WORKER', 'MAX_RUNTIME'], 'type' => 'int'],
+        'QUEUE_WORKER_MAX_MEMORY_MB' => ['file' => 'queue', 'path' => ['WORKER', 'MAX_MEMORY_MB'], 'type' => 'int'],
+        'QUEUE_FAILED_PRUNE_AFTER_HOURS' => ['file' => 'queue', 'path' => ['FAILED', 'PRUNE_AFTER_HOURS'], 'type' => 'int'],
         'SESSION_EXPIRE_ON_CLOSE' => ['file' => 'session', 'path' => ['EXPIRE_ON_CLOSE']],
         'SESSION_SAVE_PATH' => ['file' => 'session', 'path' => ['SAVE', 'PATH']],
         'SESSION_SECURE_COOKIE' => ['file' => 'session', 'path' => ['COOKIE', 'SECURE']],
@@ -250,6 +258,60 @@ class SettingsManager
     public function getInvalidFiles(): array
     {
         return $this->invalidFiles;
+    }
+
+    /**
+     * Summarize recognized and unknown keys from the project .env file.
+     *
+     * @return array<string, mixed>
+     */
+    public function environmentReport(): array
+    {
+        $envFile = dirname($this->folder) . '/.env';
+        $variables = $this->fileManager->fileExists($envFile)
+            ? $this->parseEnvFile($envFile)
+            : [];
+        $recognized = [];
+        $unknown = [];
+
+        foreach ($variables as $key => $value) {
+            if (!$this->isString($key) || $this->trimString($key) === '') {
+                continue;
+            }
+
+            $target = $this->resolveEnvironmentTarget($key);
+
+            if ($target === null) {
+                $unknown[] = $key;
+                continue;
+            }
+
+            $recognized[] = [
+                'key' => $key,
+                'file' => (string) ($target['file'] ?? ''),
+                'path' => implode('.', array_map('strval', (array) ($target['path'] ?? []))),
+                'value' => $this->normalizeEnvironmentValue($value, is_string($target['type'] ?? null) ? (string) $target['type'] : null),
+            ];
+        }
+
+        usort(
+            $recognized,
+            static fn(array $left, array $right): int => strcmp(
+                (string) ($left['key'] ?? ''),
+                (string) ($right['key'] ?? '')
+            )
+        );
+        sort($unknown);
+
+        return [
+            'path' => $envFile,
+            'exists' => $this->fileManager->fileExists($envFile),
+            'recognized' => $recognized,
+            'recognized_count' => count($recognized),
+            'unknown' => array_values(array_unique($unknown)),
+            'unknown_count' => count(array_unique($unknown)),
+            'override_files' => array_keys($this->environment),
+        ];
     }
 
     /**
@@ -508,7 +570,7 @@ class SettingsManager
             $this->setNestedValue(
                 $grouped[$target['file']],
                 $target['path'],
-                $this->normalizeScalarValue($value)
+                $this->normalizeEnvironmentValue($value, is_string($target['type'] ?? null) ? (string) $target['type'] : null)
             );
         }
 
@@ -519,7 +581,7 @@ class SettingsManager
      * Resolves an environment variable name into its target config file/path.
      *
      * @param string $key
-     * @return array{file:string, path:list<string>}|null
+     * @return array{file:string, path:list<string>, type?:string}|null
      */
     private function resolveEnvironmentTarget(string $key): ?array
     {
@@ -538,7 +600,11 @@ class SettingsManager
             );
 
             return $file !== '' && $path !== [] && isset($this->files[$file])
-                ? ['file' => $file, 'path' => $path]
+                ? [
+                    'file' => $file,
+                    'path' => $path,
+                    'type' => isset($alias['type']) ? (string) $alias['type'] : null,
+                ]
                 : null;
         }
 
@@ -629,6 +695,16 @@ class SettingsManager
         return $value;
     }
 
+    private function normalizeEnvironmentValue(mixed $value, ?string $type = null): mixed
+    {
+        $normalized = $this->normalizeScalarValue($value);
+
+        return match ($type) {
+            'int' => $this->coerceIntegerValue($normalized),
+            default => $normalized,
+        };
+    }
+
     /**
      * Normalizes scalar config values by trimming whitespace, comments, and quotes.
      *
@@ -677,6 +753,27 @@ class SettingsManager
         }
 
         return $trimmed;
+    }
+
+    private function coerceIntegerValue(mixed $value): mixed
+    {
+        if ($value === null || $this->isInt($value)) {
+            return $value;
+        }
+
+        if ($this->isBool($value)) {
+            return $value ? 1 : 0;
+        }
+
+        if ($this->isFloat($value)) {
+            return (int) $value;
+        }
+
+        if ($this->isString($value) && preg_match('/^-?\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        return $value;
     }
 
     /**

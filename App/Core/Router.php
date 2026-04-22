@@ -258,7 +258,7 @@ class Router
     }
 
     /**
-     * @return array<int, array{method:string,path:string,action:string,name:?string,middleware:list<mixed>}>
+     * @return array<int, array{method:string,path:string,action:string,name:?string,middleware:list<mixed>,csrf:?bool}>
      */
     public function listRoutes(): array
     {
@@ -293,6 +293,7 @@ class Router
                     'middleware' => $this->isArray($definition['middleware'] ?? null)
                         ? $definition['middleware']
                         : [],
+                    'csrf' => isset($definition['csrf']) ? (bool) $definition['csrf'] : null,
                 ];
             }
         }

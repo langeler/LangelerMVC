@@ -25,10 +25,23 @@ class QueueFailedCommand extends Command
 
     public function handle(array $arguments = [], array $options = []): int
     {
-        $failed = $this->queue->failed();
+        $queue = isset($options['queue']) ? (string) $options['queue'] : null;
+        $failed = $this->queue->failed($queue);
+
+        if ($this->toBoolean($options['json'] ?? false)) {
+            $this->dumpJson([
+                'queue' => $queue,
+                'count' => count($failed),
+                'jobs' => $failed,
+            ]);
+
+            return 0;
+        }
 
         if ($failed === []) {
-            $this->info('No failed queue jobs.');
+            $this->info($queue === null
+                ? 'No failed queue jobs.'
+                : sprintf('No failed queue jobs for [%s].', $queue));
             return 0;
         }
 
@@ -43,5 +56,24 @@ class QueueFailedCommand extends Command
         }
 
         return 0;
+    }
+
+    private function toBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value !== 0;
+        }
+
+        if (is_string($value)) {
+            $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            return $parsed ?? true;
+        }
+
+        return (bool) $value;
     }
 }

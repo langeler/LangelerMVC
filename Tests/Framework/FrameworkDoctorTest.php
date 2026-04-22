@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Tests\Framework;
 
 use App\Core\Config;
+use App\Core\Database;
 use App\Core\Router;
+use App\Providers\ExceptionProvider;
 use App\Utilities\Managers\Data\ModuleManager;
 use App\Utilities\Managers\Support\FrameworkDoctor;
+use App\Utilities\Managers\System\ErrorManager;
 use App\Utilities\Managers\System\FileManager;
+use App\Utilities\Managers\SettingsManager as LegacySettingsManager;
 use App\Utilities\Managers\System\SettingsManager;
+use PDO;
 use PHPUnit\Framework\TestCase;
 
 class FrameworkDoctorTest extends TestCase
@@ -93,10 +98,63 @@ class FrameworkDoctorTest extends TestCase
         self::assertNotSame([], $strict['warnings']);
     }
 
+    public function testFrameworkDoctorWarnsAboutUnknownEnvironmentKeysAndUnsafeRoutes(): void
+    {
+        $doctor = $this->makeDoctor(
+            $this->baseConfig([
+                'app' => [
+                    'ENV' => 'production',
+                    'DEBUG' => 'false',
+                    'INSTALLED' => 'true',
+                    'URL' => 'https://example.test',
+                ],
+                'session' => [
+                    'COOKIE' => ['SECURE' => 'true'],
+                ],
+                'http' => [
+                    'SIGNED_URL' => ['KEY' => 'doctor-signed-url-key-123456'],
+                ],
+                'encryption' => [
+                    'ENABLED' => 'true',
+                    'DRIVER' => 'openssl',
+                    'KEY' => 'base64:Zm9vYmFyYmF6cXV4cXV1eA==',
+                    'OPENSSL_KEY' => 'base64:b3BlbnNzbC1zYW1wbGUta2V5',
+                    'SODIUM_KEY' => 'base64:c29kaXVtLXNhbXBsZS1rZXk=',
+                    'PBKDF2_ITERATIONS' => '120000',
+                ],
+            ]),
+            [
+                'exists' => true,
+                'recognized' => [],
+                'recognized_count' => 0,
+                'unknown' => ['UNTRACKED_SETTING'],
+                'unknown_count' => 1,
+                'override_files' => ['app', 'queue'],
+            ],
+            [[
+                'method' => 'POST',
+                'path' => '/doctor-spec',
+                'action' => 'DoctorSpecController@store',
+                'name' => 'doctor.spec.store',
+                'middleware' => ['web'],
+                'csrf' => false,
+            ]]
+        );
+
+        $report = $doctor->inspect();
+
+        self::assertTrue((bool) $report['healthy']);
+        self::assertContains('Unknown .env keys detected: UNTRACKED_SETTING', $report['warnings']);
+        self::assertContains('Some unsafe routes explicitly disable CSRF protection.', $report['warnings']);
+        self::assertSame(['POST /doctor-spec'], $report['checks']['routes']['unsafe_without_csrf']);
+    }
+
     /**
      * @param array<string, mixed> $config
+     * @param array<string, mixed> $environmentReport
+     * @param list<array<string, mixed>> $routes
      */
-    private function makeDoctor(array $config): FrameworkDoctor
+    private function makeDoctor(array $config, array $environmentReport = [], array $routes = []): FrameworkDoctor
     {
         $runtimeConfig = new class($config) extends Config {
             /**
@@ -155,14 +213,29 @@ class FrameworkDoctorTest extends TestCase
             }
         };
 
-        $settings = new class extends SettingsManager {
-            public function __construct()
+        $settings = new class($environmentReport) extends SettingsManager {
+            /**
+             * @param array<string, mixed> $environmentReport
+             */
+            public function __construct(private readonly array $environmentReport = [])
             {
             }
 
             public function getInvalidFiles(): array
             {
                 return [];
+            }
+
+            public function environmentReport(): array
+            {
+                return array_replace([
+                    'exists' => false,
+                    'recognized' => [],
+                    'recognized_count' => 0,
+                    'unknown' => [],
+                    'unknown_count' => 0,
+                    'override_files' => [],
+                ], $this->environmentReport);
             }
         };
 
@@ -179,28 +252,39 @@ class FrameworkDoctorTest extends TestCase
             }
         };
 
-        $router = new class extends Router {
-            public function __construct()
+        $router = new class($routes) extends Router {
+            /**
+             * @param list<array<string, mixed>> $routes
+             */
+            public function __construct(private readonly array $routes = [])
             {
             }
 
             public function listRoutes(): array
             {
+                if ($this->routes !== []) {
+                    return $this->routes;
+                }
+
                 return [[
                     'method' => 'GET',
                     'path' => '/doctor-spec',
                     'action' => 'DoctorSpecController@index',
                     'name' => 'doctor.spec',
                     'middleware' => [],
+                    'csrf' => true,
                 ]];
             }
         };
+
+        $database = $this->makeSqliteDatabase();
 
         return new FrameworkDoctor(
             $runtimeConfig,
             $settings,
             $modules,
             $router,
+            $database,
             new FileManager()
         );
     }
@@ -253,6 +337,47 @@ class FrameworkDoctorTest extends TestCase
         foreach ($surfaces as $surface) {
             @mkdir($root . DIRECTORY_SEPARATOR . $surface, 0777, true);
         }
+    }
+
+    private function makeSqliteDatabase(): Database
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $database = new Database(
+            new class extends LegacySettingsManager {
+                public function __construct()
+                {
+                }
+
+                public function getAllSettings(string $fileName): array
+                {
+                    return [
+                        'CONNECTION' => 'sqlite',
+                        'DRIVER' => 'sqlite',
+                        'DATABASE' => ':memory:',
+                    ];
+                }
+            },
+            new ErrorManager(new ExceptionProvider()),
+            pdo: $pdo,
+            config: [
+                'CONNECTION' => 'sqlite',
+                'DRIVER' => 'sqlite',
+                'DATABASE' => ':memory:',
+            ]
+        );
+
+        foreach ([
+            'CREATE TABLE "framework_migrations" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "module" TEXT, "migration" TEXT, "batch" INTEGER)',
+            'CREATE TABLE "framework_migration_locks" ("name" TEXT PRIMARY KEY, "owner" TEXT NOT NULL, "acquired_at" INTEGER NOT NULL)',
+            'CREATE TABLE "framework_failed_jobs" ("id" TEXT PRIMARY KEY, "queue" TEXT, "type" TEXT, "class" TEXT, "handler" TEXT, "payload" TEXT, "attempts" INTEGER, "exception" TEXT, "failed_at" INTEGER)',
+            'CREATE TABLE "framework_audit_log" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "category" TEXT, "event" TEXT, "severity" TEXT, "actor_type" TEXT, "actor_id" TEXT, "context" TEXT, "created_at" INTEGER)',
+        ] as $statement) {
+            $database->query($statement);
+        }
+
+        return $database;
     }
 
     private function removeDirectory(string $path): void

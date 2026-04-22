@@ -102,6 +102,23 @@ class DatabaseFailedJobStore implements FailedJobStoreInterface
         return $this->database->execute($query['sql'], $query['bindings']) > 0;
     }
 
+    public function prune(?int $failedBefore = null): int
+    {
+        if (!$this->tableExists()) {
+            return 0;
+        }
+
+        $query = $this->database->dataQuery(self::TABLE)->delete(self::TABLE);
+
+        if ($failedBefore !== null) {
+            $query = $query->where('failed_at', '<', $failedBefore);
+        }
+
+        $executable = $query->toExecutable();
+
+        return $this->database->execute($executable['sql'], $executable['bindings']);
+    }
+
     private function tableExists(): bool
     {
         return match ($this->driver()) {

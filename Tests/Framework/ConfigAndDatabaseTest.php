@@ -70,6 +70,14 @@ class ConfigAndDatabaseTest extends TestCase
         $this->setEnvironmentOverride('PAYMENT_DEFAULT_FLOW', 'redirect');
         $this->setEnvironmentOverride('WEBMODULE_CONTENT_SOURCE', 'memory');
         $this->setEnvironmentOverride('QUEUE_DEFAULT_QUEUE', 'framework');
+        $this->setEnvironmentOverride('QUEUE_MAX_ATTEMPTS', '5');
+        $this->setEnvironmentOverride('QUEUE_BACKOFF_STRATEGY', 'linear');
+        $this->setEnvironmentOverride('QUEUE_BACKOFF_SECONDS', '7');
+        $this->setEnvironmentOverride('QUEUE_BACKOFF_MAX_SECONDS', '70');
+        $this->setEnvironmentOverride('QUEUE_WORKER_SLEEP', '2');
+        $this->setEnvironmentOverride('QUEUE_WORKER_MAX_RUNTIME', '600');
+        $this->setEnvironmentOverride('QUEUE_WORKER_MAX_MEMORY_MB', '384');
+        $this->setEnvironmentOverride('QUEUE_FAILED_PRUNE_AFTER_HOURS', '48');
 
         $config = $this->resolveConfig();
 
@@ -84,6 +92,14 @@ class ConfigAndDatabaseTest extends TestCase
         self::assertSame('redirect', $config->get('payment', 'DEFAULT_FLOW'));
         self::assertSame('memory', $config->get('webmodule', 'CONTENT_SOURCE'));
         self::assertSame('framework', $config->get('queue', 'DEFAULT_QUEUE'));
+        self::assertSame(5, $config->get('queue', 'MAX_ATTEMPTS'));
+        self::assertSame('linear', $config->get('queue', 'BACKOFF.STRATEGY'));
+        self::assertSame(7, $config->get('queue', 'BACKOFF.SECONDS'));
+        self::assertSame(70, $config->get('queue', 'BACKOFF.MAX_SECONDS'));
+        self::assertSame(2, $config->get('queue', 'WORKER.SLEEP'));
+        self::assertSame(600, $config->get('queue', 'WORKER.MAX_RUNTIME'));
+        self::assertSame(384, $config->get('queue', 'WORKER.MAX_MEMORY_MB'));
+        self::assertSame(48, $config->get('queue', 'FAILED.PRUNE_AFTER_HOURS'));
     }
 
     public function testDatabaseServiceResolvesWithoutConnecting(): void

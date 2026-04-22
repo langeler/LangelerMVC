@@ -185,10 +185,43 @@ class HealthManager implements HealthManagerInterface
      */
     private function cacheCheck(): array
     {
-        return [
-            'ok' => $this->cache->isEnabled(),
+        if (!$this->cache->isEnabled()) {
+            return [
+                'ok' => true,
+                'enabled' => false,
+                'driver' => $this->cache->getDriverName(),
+            ];
+        }
+
+        $key = 'health:cache:' . bin2hex(random_bytes(8));
+        $payload = [
+            'checked_at' => time(),
             'driver' => $this->cache->getDriverName(),
         ];
+
+        try {
+            $stored = $this->cache->put($key, $payload, 30);
+            $fetched = $this->cache->get($key);
+            $forgotten = $this->cache->forget($key);
+
+            return [
+                'ok' => $stored && $forgotten && $fetched === $payload,
+                'enabled' => true,
+                'driver' => $this->cache->getDriverName(),
+                'roundtrip' => [
+                    'stored' => $stored,
+                    'fetched' => $fetched === $payload,
+                    'forgotten' => $forgotten,
+                ],
+            ];
+        } catch (Throwable $exception) {
+            return [
+                'ok' => false,
+                'enabled' => true,
+                'driver' => $this->cache->getDriverName(),
+                'error' => $exception->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -196,9 +229,49 @@ class HealthManager implements HealthManagerInterface
      */
     private function sessionCheck(): array
     {
-        return [
-            'ok' => true,
+        $normalized = $this->sessionManager->normalizeConfiguration(
+            (array) $this->config->get('session', null, [])
+        );
+        $driver = (string) ($normalized['DRIVER'] ?? 'native');
+        $errors = [];
+        $surface = [
+            'driver' => $driver,
             'capabilities' => $this->sessionManager->capabilities(),
+        ];
+
+        try {
+            $this->sessionManager->assertSupportedConfiguration($normalized);
+        } catch (Throwable $exception) {
+            $errors[] = $exception->getMessage();
+        }
+
+        if (in_array($driver, ['native', 'file'], true)) {
+            $path = $this->resolveSessionSavePath($normalized);
+            $surface['path'] = $path;
+            $surface['path_exists'] = $path !== null && is_dir($path);
+            $surface['path_writable'] = $path !== null && is_writable($path);
+
+            if ($path === null || !is_dir($path)) {
+                $errors[] = 'Session save path is missing.';
+            } elseif (!is_writable($path)) {
+                $errors[] = 'Session save path is not writable.';
+            }
+        }
+
+        if ($driver === 'database') {
+            $table = (string) (($normalized['DATABASE']['TABLE'] ?? 'framework_sessions'));
+            $surface['table'] = $table;
+            $surface['table_exists'] = $this->databaseTableExists($table);
+
+            if (!$surface['table_exists']) {
+                $errors[] = sprintf('Session database table [%s] is missing.', $table);
+            }
+        }
+
+        return [
+            'ok' => $errors === [],
+            ...$surface,
+            'errors' => $errors,
         ];
     }
 
@@ -207,10 +280,50 @@ class HealthManager implements HealthManagerInterface
      */
     private function queueCheck(): array
     {
+        $configuration = $this->queue->configuration();
+        $driver = (string) ($configuration['driver'] ?? $this->queue->driverName());
+        $defaultQueue = (string) ($configuration['default_queue'] ?? 'default');
+        $errors = [];
+
+        try {
+            $pendingCount = count($this->queue->pending($defaultQueue));
+            $failedCount = count($this->queue->failed());
+        } catch (Throwable $exception) {
+            return [
+                'ok' => false,
+                'driver' => $driver,
+                'queue' => $defaultQueue,
+                'error' => $exception->getMessage(),
+                'configuration' => $configuration,
+            ];
+        }
+
+        $tables = [];
+
+        if ($driver === 'database') {
+            $tables = [
+                'jobs' => $this->databaseTableExists('framework_jobs'),
+                'failed_jobs' => $this->databaseTableExists('framework_failed_jobs'),
+            ];
+
+            if (!$tables['jobs']) {
+                $errors[] = 'Queue storage table [framework_jobs] is missing.';
+            }
+
+            if (!$tables['failed_jobs']) {
+                $errors[] = 'Failed queue storage table [framework_failed_jobs] is missing.';
+            }
+        }
+
         return [
-            'ok' => true,
-            'driver' => $this->queue->driverName(),
-            'failed_jobs' => count($this->queue->failed()),
+            'ok' => $errors === [],
+            'driver' => $driver,
+            'queue' => $defaultQueue,
+            'pending' => $pendingCount,
+            'failed_jobs' => $failedCount,
+            'configuration' => $configuration,
+            'tables' => $tables,
+            'errors' => $errors,
         ];
     }
 
@@ -271,8 +384,9 @@ class HealthManager implements HealthManagerInterface
         $available = (bool) ($summary['available'] ?? ($summary['enabled'] ?? false));
 
         return [
-            'ok' => (bool) ($summary['enabled'] ?? false) && $available,
+            'ok' => (bool) ($summary['enabled'] ?? false) && $available && $this->databaseTableExists('framework_audit_log'),
             'summary' => $summary,
+            'table_exists' => $this->databaseTableExists('framework_audit_log'),
         ];
     }
 
@@ -289,5 +403,51 @@ class HealthManager implements HealthManagerInterface
             'errors' => is_array($report['errors'] ?? null) ? $report['errors'] : [],
             'warnings' => is_array($report['warnings'] ?? null) ? $report['warnings'] : [],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $normalized
+     */
+    private function resolveSessionSavePath(array $normalized): ?string
+    {
+        $path = $normalized['SAVE']['PATH'] ?? null;
+
+        if (!is_string($path) || trim($path) === '') {
+            return null;
+        }
+
+        $trimmed = trim($path);
+
+        if ($trimmed[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $trimmed) === 1) {
+            return $trimmed;
+        }
+
+        return dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $trimmed), DIRECTORY_SEPARATOR);
+    }
+
+    private function databaseTableExists(string $table): bool
+    {
+        try {
+            return match (strtolower((string) $this->database->getAttribute('driverName'))) {
+                'sqlite' => $this->database->fetchColumn(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+                    [$table]
+                ) !== false,
+                'pgsql' => $this->database->fetchColumn(
+                    'SELECT 1 FROM information_schema.tables WHERE table_name = ?',
+                    [$table]
+                ) !== false,
+                'sqlsrv' => $this->database->fetchColumn(
+                    'SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = ?',
+                    [$table]
+                ) !== false,
+                default => $this->database->fetchColumn(
+                    'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
+                    [$table]
+                ) !== false,
+            };
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

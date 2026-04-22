@@ -22,4 +22,6 @@ interface FailedJobStoreInterface
     public function find(string $id): ?array;
 
     public function delete(string $id): bool;
+
+    public function prune(?int $failedBefore = null): int;
 }

@@ -128,6 +128,76 @@ class OrderLifecycleManager
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function transitionFulfillment(int $orderId, string $action, array $payload = []): array
+    {
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return [
+                'successful' => false,
+                'status' => 404,
+                'title' => 'Order not found',
+                'message' => 'The requested order could not be found.',
+            ];
+        }
+
+        $summary = $this->orders->mapSummary($order);
+        $allowed = $this->availableFulfillmentTransitions($summary);
+
+        if (!in_array($action, $allowed, true)) {
+            return [
+                'successful' => false,
+                'status' => 409,
+                'title' => 'Fulfillment transition blocked',
+                'message' => 'The requested fulfillment step is not valid for the current order state.',
+                'order' => $summary,
+            ];
+        }
+
+        $currentFulfillmentStatus = (string) ($summary['fulfillment_status'] ?? 'unfulfilled');
+        $nextFulfillmentStatus = match ($action) {
+            'pack' => 'packed',
+            'ship' => 'shipped',
+            'deliver' => 'delivered',
+            default => $currentFulfillmentStatus,
+        };
+        $nextStatus = match ($action) {
+            'pack' => 'processing',
+            'ship' => 'fulfilled',
+            'deliver' => 'completed',
+            default => (string) ($summary['status'] ?? 'processing'),
+        };
+
+        $updated = $this->orders->updateLifecycle($orderId, [
+            'status' => $nextStatus,
+            'fulfillment_status' => $nextFulfillmentStatus,
+        ]);
+
+        $this->events->dispatch('order.fulfillment.updated', [
+            'order_id' => $orderId,
+            'action' => $action,
+            'fulfillment_status' => $nextFulfillmentStatus,
+        ]);
+        $this->audit->record('order.fulfillment.' . $action, [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'order_id' => (string) $orderId,
+            'status' => $nextStatus,
+            'fulfillment_status' => $nextFulfillmentStatus,
+        ], 'order');
+
+        return [
+            'successful' => true,
+            'status' => 200,
+            'title' => 'Fulfillment updated',
+            'message' => ucfirst($action) . ' completed successfully.',
+            'order' => $this->orders->mapSummary($updated),
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $order
      * @return list<string>
      */
@@ -153,6 +223,32 @@ class OrderLifecycleManager
         }
 
         return $actions;
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @return list<string>
+     */
+    public function availableFulfillmentTransitions(array $order): array
+    {
+        $paymentStatus = (string) ($order['payment_status'] ?? '');
+        $fulfillmentStatus = (string) ($order['fulfillment_status'] ?? 'unfulfilled');
+        $status = (string) ($order['status'] ?? '');
+
+        if (!in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {
+            return [];
+        }
+
+        if (in_array($status, ['cancelled', 'refunded', 'completed'], true)) {
+            return [];
+        }
+
+        return match ($fulfillmentStatus) {
+            'ready_to_fulfill' => ['pack'],
+            'packed' => ['ship'],
+            'shipped' => ['deliver'],
+            default => [],
+        };
     }
 
     public function orderStatusForIntent(PaymentIntent $intent): string

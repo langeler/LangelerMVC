@@ -108,6 +108,22 @@
                             @endif
                         </div>
                     </form>
+
+                    <div>
+                        @if(!empty($entry['is_published']))
+                            <form method="post" action="{{ (string) ($entry['unpublish_path'] ?? '') }}">
+                                <button type="submit">Unpublish category</button>
+                            </form>
+                        @else
+                            <form method="post" action="{{ (string) ($entry['publish_path'] ?? '') }}">
+                                <button type="submit">Publish category</button>
+                            </form>
+                        @endif
+
+                            <form method="post" action="{{ (string) ($entry['delete_path'] ?? '') }}" onsubmit="return confirm('Delete this category? This cannot be undone.');">
+                                <button type="submit">Delete category</button>
+                            </form>
+                    </div>
                 </article>
             @endforeach
         @endif
@@ -158,7 +174,7 @@
             <label>
                 Visibility
                 <select name="visibility">
-                    @foreach(['published' => 'Published', 'draft' => 'Draft'] as $value => $label)
+                    @foreach(['published' => 'Published', 'draft' => 'Draft', 'archived' => 'Archived'] as $value => $label)
                         <option value="{{ $value }}"@selected(($productForm['visibility'] ?? 'published') === $value)>
                             {{ $label }}
                         </option>
@@ -198,7 +214,7 @@
                             'ID' => $entry['id'] ?? 0,
                             'Category' => $entry['category'] ?? '',
                             'Slug' => $entry['slug'] ?? '',
-                            'Visibility' => $entry['visibility'] ?? '',
+                            'Visibility' => $entry['status'] ?? ($entry['visibility'] ?? ''),
                             'Price' => $entry['price'] ?? '',
                             'Stock' => $entry['stock'] ?? 0,
                             'Storefront' => $entry['storefront_path'] ?? '',
@@ -248,7 +264,7 @@
                         <label>
                             Visibility
                             <select name="visibility">
-                                @foreach(['published' => 'Published', 'draft' => 'Draft'] as $value => $label)
+                                @foreach(['published' => 'Published', 'draft' => 'Draft', 'archived' => 'Archived'] as $value => $label)
                                     <option value="{{ $value }}"@selected(($entry['visibility'] ?? 'published') === $value)>
                                         {{ $label }}
                                     </option>
@@ -273,6 +289,30 @@
                             @endif
                         </div>
                     </form>
+
+                    <div>
+                        @if(($entry['visibility'] ?? '') !== 'published')
+                            <form method="post" action="{{ (string) ($entry['publish_path'] ?? '') }}">
+                                <button type="submit">Publish product</button>
+                            </form>
+                        @endif
+
+                        @if(($entry['visibility'] ?? '') !== 'draft')
+                            <form method="post" action="{{ (string) ($entry['draft_path'] ?? '') }}">
+                                <button type="submit">Move to draft</button>
+                            </form>
+                        @endif
+
+                        @if(($entry['visibility'] ?? '') !== 'archived')
+                            <form method="post" action="{{ (string) ($entry['archive_path'] ?? '') }}" onsubmit="return confirm('Archive this product and remove it from the storefront?');">
+                                <button type="submit">Archive product</button>
+                            </form>
+                        @endif
+
+                        <form method="post" action="{{ (string) ($entry['delete_path'] ?? '') }}" onsubmit="return confirm('Delete this product? This cannot be undone.');">
+                            <button type="submit">Delete product</button>
+                        </form>
+                    </div>
                 </article>
             @endforeach
         @endif

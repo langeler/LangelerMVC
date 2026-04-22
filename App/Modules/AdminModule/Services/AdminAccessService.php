@@ -19,6 +19,7 @@ use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\ShopModule\Repositories\CategoryRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
+use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
@@ -58,6 +59,7 @@ class AdminAccessService extends Service
         private readonly OrderRepository $orders,
         private readonly OrderItemRepository $orderItems,
         private readonly OrderAddressRepository $orderAddresses,
+        private readonly CatalogLifecycleManager $catalogLifecycle,
         private readonly CommerceTotalsCalculator $totals,
         private readonly OrderLifecycleManager $lifecycle,
         private readonly ModuleManager $modules,
@@ -97,8 +99,15 @@ class AdminAccessService extends Service
             'catalog' => $this->catalogPage(),
             'saveCategory' => $this->saveCategory(),
             'updateCategory' => $this->saveCategory((int) ($this->context['category'] ?? 0)),
+            'publishCategory' => $this->transitionCategory((int) ($this->context['category'] ?? 0), 'publish'),
+            'unpublishCategory' => $this->transitionCategory((int) ($this->context['category'] ?? 0), 'unpublish'),
+            'deleteCategory' => $this->transitionCategory((int) ($this->context['category'] ?? 0), 'delete'),
             'saveProduct' => $this->saveProduct(),
             'updateProduct' => $this->saveProduct((int) ($this->context['product'] ?? 0)),
+            'publishProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'published'),
+            'draftProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'draft'),
+            'archiveProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'archived'),
+            'deleteProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'delete'),
             'carts' => $this->cartsPage(),
             'orders' => $this->ordersPage(),
             'order' => $this->orderPage((int) ($this->context['order'] ?? 0)),
@@ -106,6 +115,9 @@ class AdminAccessService extends Service
             'cancelOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'cancel'),
             'refundOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'refund'),
             'reconcileOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'reconcile'),
+            'packOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'pack'),
+            'shipOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'ship'),
+            'deliverOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'deliver'),
             'system' => $this->systemPage(),
             'operations' => $this->operationsPage(),
             default => $this->dashboard(),
@@ -420,6 +432,30 @@ class AdminAccessService extends Service
         ];
     }
 
+    private function transitionCategory(int $categoryId, string $action): array
+    {
+        if (!$this->auth->hasPermission('shop.catalog.manage')) {
+            return $this->forbidden('AdminCatalog', 'Catalog administration requires the shop.catalog.manage permission.');
+        }
+
+        $result = match ($action) {
+            'publish' => $this->catalogLifecycle->setCategoryPublication($categoryId, true),
+            'unpublish' => $this->catalogLifecycle->setCategoryPublication($categoryId, false),
+            default => $this->catalogLifecycle->deleteCategory($categoryId),
+        };
+
+        return [
+            ...$this->catalogResponse(
+                title: (string) ($result['title'] ?? 'Catalog administration'),
+                headline: 'Category lifecycle updated',
+                summary: (string) ($result['message'] ?? 'The category lifecycle action completed.'),
+                status: (int) ($result['status'] ?? 200),
+                message: (string) ($result['message'] ?? '')
+            ),
+            'redirect' => '/admin/catalog',
+        ];
+    }
+
     private function saveProduct(int $productId = 0): array
     {
         if (!$this->auth->hasPermission('shop.catalog.manage')) {
@@ -488,7 +524,7 @@ class AdminAccessService extends Service
             'description' => trim((string) ($this->payload['description'] ?? '')),
             'price_minor' => max(0, (int) ($this->payload['price_minor'] ?? 0)),
             'currency' => strtoupper(trim((string) ($this->payload['currency'] ?? 'SEK'))),
-            'visibility' => in_array((string) ($this->payload['visibility'] ?? 'published'), ['draft', 'published'], true)
+            'visibility' => in_array((string) ($this->payload['visibility'] ?? 'published'), ['draft', 'published', 'archived'], true)
                 ? (string) ($this->payload['visibility'] ?? 'published')
                 : 'published',
             'stock' => max(0, (int) ($this->payload['stock'] ?? 0)),
@@ -529,6 +565,28 @@ class AdminAccessService extends Service
                 summary: 'Product details were stored through the framework repository layer.',
                 status: 200,
                 message: 'Product changes saved successfully.'
+            ),
+            'redirect' => '/admin/catalog',
+        ];
+    }
+
+    private function transitionProduct(int $productId, string $action): array
+    {
+        if (!$this->auth->hasPermission('shop.catalog.manage')) {
+            return $this->forbidden('AdminCatalog', 'Catalog administration requires the shop.catalog.manage permission.');
+        }
+
+        $result = $action === 'delete'
+            ? $this->catalogLifecycle->deleteProduct($productId)
+            : $this->catalogLifecycle->setProductVisibility($productId, $action);
+
+        return [
+            ...$this->catalogResponse(
+                title: (string) ($result['title'] ?? 'Catalog administration'),
+                headline: 'Product lifecycle updated',
+                summary: (string) ($result['message'] ?? 'The product lifecycle action completed.'),
+                status: (int) ($result['status'] ?? 200),
+                message: (string) ($result['message'] ?? '')
             ),
             'redirect' => '/admin/catalog',
         ];
@@ -623,6 +681,49 @@ class AdminAccessService extends Service
                 summary: 'Detailed order lifecycle, stored addresses, and available management actions.',
                 status: 200,
                 message: (string) ($transition['message'] ?? 'Order action completed successfully.'),
+                order: $this->adminOrderDetail($order)
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
+    private function transitionFulfillment(int $orderId, string $action): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Order management requires the order.manage permission.');
+        }
+
+        $transition = $this->lifecycle->transitionFulfillment($orderId, $action, $this->payload);
+
+        if (!$transition['successful']) {
+            return $this->ordersResponse(
+                title: (string) ($transition['title'] ?? 'Fulfillment update failed'),
+                headline: 'Order fulfillment update failed',
+                summary: (string) ($transition['message'] ?? 'The requested fulfillment transition could not be completed.'),
+                status: (int) ($transition['status'] ?? 422),
+                message: (string) ($transition['message'] ?? '')
+            );
+        }
+
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return $this->ordersResponse(
+                title: 'Order not found',
+                headline: 'The updated order could not be loaded',
+                summary: 'The fulfillment change completed, but the order could not be reloaded afterward.',
+                status: 404,
+                message: 'Refresh the administrative order list and try again.'
+            );
+        }
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
+                summary: 'Detailed order lifecycle, stored addresses, and available management actions.',
+                status: 200,
+                message: (string) ($transition['message'] ?? 'Order fulfillment updated successfully.'),
                 order: $this->adminOrderDetail($order)
             ),
             'redirect' => '/admin/orders/' . $orderId,
@@ -743,6 +844,7 @@ class AdminAccessService extends Service
             'products' => count($catalog),
             'published_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'published')),
             'draft_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'draft')),
+            'archived_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'archived')),
             'out_of_stock' => count(array_filter($catalog, static fn(array $product): bool => (int) ($product['stock'] ?? 0) <= 0)),
         ];
     }
@@ -778,7 +880,7 @@ class AdminAccessService extends Service
             'description' => trim((string) ($input['description'] ?? '')),
             'price_minor' => max(0, (int) ($input['price_minor'] ?? 0)),
             'currency' => strtoupper(trim((string) ($input['currency'] ?? 'SEK'))),
-            'visibility' => in_array((string) ($input['visibility'] ?? 'published'), ['draft', 'published'], true)
+            'visibility' => in_array((string) ($input['visibility'] ?? 'published'), ['draft', 'published', 'archived'], true)
                 ? (string) ($input['visibility'] ?? 'published')
                 : 'published',
             'stock' => max(0, (int) ($input['stock'] ?? 0)),
@@ -861,6 +963,10 @@ class AdminAccessService extends Service
         }
 
         foreach ($this->lifecycle->availableTransitions($order) as $transition) {
+            $actions[$transition] = '/admin/orders/' . $orderId . '/' . $transition;
+        }
+
+        foreach ($this->lifecycle->availableFulfillmentTransitions($order) as $transition) {
             $actions[$transition] = '/admin/orders/' . $orderId . '/' . $transition;
         }
 

@@ -14,6 +14,14 @@
         'reconcile' => 'Reconcile payment',
         'refund' => 'Refund payment',
         'cancel' => 'Cancel order',
+        'pack' => 'Pack order',
+        'ship' => 'Ship order',
+        'deliver' => 'Mark delivered',
+    ];
+    $confirmActions = [
+        'refund' => 'Refund this order payment?',
+        'cancel' => 'Cancel this order and release its inventory?',
+        'deliver' => 'Mark this order as delivered?',
     ];
 @endphp
 <section class="stack">
@@ -67,7 +75,7 @@
 
                 @foreach($submitActions as $key => $label)
                     @if(!empty($actions[$key]))
-                        <form method="post" action="{{ (string) $actions[$key] }}">
+                        <form method="post" action="{{ (string) $actions[$key] }}"@if(isset($confirmActions[$key])) onsubmit="return confirm('{{ $confirmActions[$key] }}');"@endif>
                             <button type="submit">{{ $label }}</button>
                         </form>
                     @endif
@@ -118,6 +126,7 @@
                         <th>Order</th>
                         <th>Email</th>
                         <th>Status</th>
+                        <th>Fulfillment</th>
                         <th>Payment</th>
                         <th>Method</th>
                         <th>Driver</th>
@@ -135,6 +144,7 @@
                             <td>{{ (string) ($row['order_number'] ?? '') }}</td>
                             <td>{{ (string) ($row['contact_email'] ?? '') }}</td>
                             <td>{{ (string) ($row['status'] ?? '') }}</td>
+                            <td>{{ (string) ($row['fulfillment_status'] ?? '') }}</td>
                             <td>{{ (string) ($row['payment_status'] ?? '') }}</td>
                             <td>{{ (string) ($row['payment_method'] ?? '') }}</td>
                             <td>{{ (string) ($row['payment_driver'] ?? '') }}</td>

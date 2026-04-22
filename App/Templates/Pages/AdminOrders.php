@@ -3,6 +3,27 @@
 $orders = is_array($orders ?? null) ? $orders : [];
 $order = is_array($order ?? null) ? $order : [];
 $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
+$linkActions = [
+    'admin_view' => 'Refresh admin view',
+    'public_view' => 'Open native order surface',
+    'complete_return' => 'Open payment completion return',
+    'cancelled_return' => 'Open payment cancelled return',
+    'continue_payment' => 'Continue provider payment',
+];
+$submitActions = [
+    'capture' => 'Capture payment',
+    'reconcile' => 'Reconcile payment',
+    'refund' => 'Refund payment',
+    'cancel' => 'Cancel order',
+    'pack' => 'Pack order',
+    'ship' => 'Ship order',
+    'deliver' => 'Mark delivered',
+];
+$confirmActions = [
+    'refund' => 'Refund this order payment?',
+    'cancel' => 'Cancel this order and release its inventory?',
+    'deliver' => 'Mark this order as delivered?',
+];
 ?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
@@ -47,21 +68,15 @@ $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
             <div class="section">
                 <h2>Available actions</h2>
 
-                <?php foreach ([
-                    'admin_view' => 'Refresh admin view',
-                    'public_view' => 'Open native order surface',
-                    'complete_return' => 'Open payment completion return',
-                    'cancelled_return' => 'Open payment cancelled return',
-                    'continue_payment' => 'Continue provider payment',
-                ] as $key => $label): ?>
+                <?php foreach ($linkActions as $key => $label): ?>
                     <?php if (!empty($actions[$key])): ?>
                         <p><a href="<?= $view->escape((string) $actions[$key]) ?>"><?= $view->escape($label) ?></a></p>
                     <?php endif; ?>
                 <?php endforeach; ?>
 
-                <?php foreach (['capture' => 'Capture payment', 'reconcile' => 'Reconcile payment', 'refund' => 'Refund payment', 'cancel' => 'Cancel order'] as $key => $label): ?>
+                <?php foreach ($submitActions as $key => $label): ?>
                     <?php if (!empty($actions[$key])): ?>
-                        <form method="post" action="<?= $view->escape((string) $actions[$key]) ?>">
+                        <form method="post" action="<?= $view->escape((string) $actions[$key]) ?>"<?php if (isset($confirmActions[$key])): ?> onsubmit="return confirm('<?= $view->escape($confirmActions[$key]) ?>');"<?php endif; ?>>
                             <button type="submit"><?= $view->escape($label) ?></button>
                         </form>
                     <?php endif; ?>
@@ -112,6 +127,7 @@ $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
                         <th>Order</th>
                         <th>Email</th>
                         <th>Status</th>
+                        <th>Fulfillment</th>
                         <th>Payment</th>
                         <th>Method</th>
                         <th>Driver</th>
@@ -127,6 +143,7 @@ $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
                             <td><?= $view->escape((string) ($row['order_number'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['contact_email'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['status'] ?? '')) ?></td>
+                            <td><?= $view->escape((string) ($row['fulfillment_status'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_status'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_method'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_driver'] ?? '')) ?></td>

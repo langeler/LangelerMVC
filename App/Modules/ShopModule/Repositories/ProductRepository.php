@@ -153,11 +153,20 @@ class ProductRepository extends Repository
                 'currency' => (string) ($row['currency'] ?? 'SEK'),
                 'price' => $this->formatMoneyMinor((int) ($row['price_minor'] ?? 0), (string) ($row['currency'] ?? 'SEK')),
                 'stock' => (int) ($row['stock'] ?? 0),
+                'status' => match ((string) ($row['visibility'] ?? 'draft')) {
+                    'published' => 'Published',
+                    'archived' => 'Archived',
+                    default => 'Draft',
+                },
                 'category' => (string) ($row['category_name'] ?? ''),
                 'media' => $this->decodeMedia((string) ($row['media'] ?? '[]')),
                 'media_input' => implode(', ', $this->decodeMedia((string) ($row['media'] ?? '[]'))),
                 'storefront_path' => '/shop/products/' . (string) ($row['slug'] ?? ''),
                 'update_path' => '/admin/catalog/products/' . (int) ($row['id'] ?? 0) . '/update',
+                'publish_path' => '/admin/catalog/products/' . (int) ($row['id'] ?? 0) . '/publish',
+                'draft_path' => '/admin/catalog/products/' . (int) ($row['id'] ?? 0) . '/draft',
+                'archive_path' => '/admin/catalog/products/' . (int) ($row['id'] ?? 0) . '/archive',
+                'delete_path' => '/admin/catalog/products/' . (int) ($row['id'] ?? 0) . '/delete',
             ];
         }, $this->db->fetchAll($query['sql'], $query['bindings']));
     }

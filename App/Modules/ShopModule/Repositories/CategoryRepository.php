@@ -90,6 +90,9 @@ class CategoryRepository extends Repository
             'status' => $isPublished ? 'Published' : 'Draft',
             'storefront_path' => '/shop/categories/' . $slug,
             'update_path' => '/admin/catalog/categories/' . (int) $category->getKey() . '/update',
+            'publish_path' => '/admin/catalog/categories/' . (int) $category->getKey() . '/publish',
+            'unpublish_path' => '/admin/catalog/categories/' . (int) $category->getKey() . '/unpublish',
+            'delete_path' => '/admin/catalog/categories/' . (int) $category->getKey() . '/delete',
         ];
     }
 }

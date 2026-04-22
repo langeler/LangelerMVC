@@ -17,16 +17,19 @@ class OrderStatusNotification extends Notification
     {
         $orderNumber = (string) ($this->payload['order_number'] ?? 'order');
         $status = (string) ($this->payload['status'] ?? 'updated');
+        $fulfillmentStatus = (string) ($this->payload['fulfillment_status'] ?? '');
         $paymentStatus = (string) ($this->payload['payment_status'] ?? '');
         $paymentMethod = (string) ($this->payload['payment_method'] ?? '');
         $total = (string) ($this->payload['total'] ?? '');
+        $fulfillmentSegment = $fulfillmentStatus !== '' ? ' Fulfillment: ' . $fulfillmentStatus . '.' : '';
 
         return [
             'subject' => sprintf('Order %s %s', $orderNumber, $status),
             'text' => sprintf(
-                'Order %s is now %s. Payment status: %s. Payment method: %s. Total: %s.',
+                'Order %s is now %s.%s Payment status: %s. Payment method: %s. Total: %s.',
                 $orderNumber,
                 $status,
+                $fulfillmentSegment,
                 $paymentStatus,
                 $paymentMethod,
                 $total
@@ -40,6 +43,7 @@ class OrderStatusNotification extends Notification
             'order_id' => $this->payload['order_id'] ?? null,
             'order_number' => $this->payload['order_number'] ?? '',
             'status' => $this->payload['status'] ?? '',
+            'fulfillment_status' => $this->payload['fulfillment_status'] ?? '',
             'payment_status' => $this->payload['payment_status'] ?? '',
             'payment_method' => $this->payload['payment_method'] ?? '',
             'total' => $this->payload['total'] ?? '',

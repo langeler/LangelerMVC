@@ -47,6 +47,11 @@ class OrderLifecycleNotificationListener implements ListenerInterface
                 'queued' => true,
                 'queue' => 'notifications',
             ]],
+            'order.fulfillment.updated' => [[
+                'method' => 'handle',
+                'queued' => true,
+                'queue' => 'notifications',
+            ]],
         ];
     }
 
@@ -82,6 +87,7 @@ class OrderLifecycleNotificationListener implements ListenerInterface
             'order_id' => $orderId,
             'order_number' => $summary['order_number'],
             'status' => $summary['status'],
+            'fulfillment_status' => $summary['fulfillment_status'],
             'payment_status' => $summary['payment_status'],
             'payment_method' => $summary['payment_method'],
             'total' => $summary['total'],

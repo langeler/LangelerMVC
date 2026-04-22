@@ -107,6 +107,22 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
                             <?php endif; ?>
                         </div>
                     </form>
+
+                    <div>
+                        <?php if (!empty($entry['is_published'])): ?>
+                            <form method="post" action="<?= $view->escape((string) ($entry['unpublish_path'] ?? '')) ?>">
+                                <button type="submit">Unpublish category</button>
+                            </form>
+                        <?php else: ?>
+                            <form method="post" action="<?= $view->escape((string) ($entry['publish_path'] ?? '')) ?>">
+                                <button type="submit">Publish category</button>
+                            </form>
+                        <?php endif; ?>
+
+                        <form method="post" action="<?= $view->escape((string) ($entry['delete_path'] ?? '')) ?>" onsubmit="return confirm('Delete this category? This cannot be undone.');">
+                            <button type="submit">Delete category</button>
+                        </form>
+                    </div>
                 </article>
             <?php endforeach; ?>
         <?php endif; ?>
@@ -155,7 +171,7 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
             <label>
                 Visibility
                 <select name="visibility">
-                    <?php foreach (['published' => 'Published', 'draft' => 'Draft'] as $value => $label): ?>
+                    <?php foreach (['published' => 'Published', 'draft' => 'Draft', 'archived' => 'Archived'] as $value => $label): ?>
                         <option value="<?= $view->escape($value) ?>"<?php if (($productForm['visibility'] ?? 'published') === $value): ?> selected<?php endif; ?>>
                             <?= $view->escape($label) ?>
                         </option>
@@ -193,7 +209,7 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
                             'ID' => $entry['id'] ?? 0,
                             'Category' => $entry['category'] ?? '',
                             'Slug' => $entry['slug'] ?? '',
-                            'Visibility' => $entry['visibility'] ?? '',
+                            'Visibility' => $entry['status'] ?? ($entry['visibility'] ?? ''),
                             'Price' => $entry['price'] ?? '',
                             'Stock' => $entry['stock'] ?? 0,
                             'Storefront' => $entry['storefront_path'] ?? '',
@@ -241,7 +257,7 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
                         <label>
                             Visibility
                             <select name="visibility">
-                                <?php foreach (['published' => 'Published', 'draft' => 'Draft'] as $value => $label): ?>
+                                <?php foreach (['published' => 'Published', 'draft' => 'Draft', 'archived' => 'Archived'] as $value => $label): ?>
                                     <option value="<?= $view->escape($value) ?>"<?php if (($entry['visibility'] ?? 'published') === $value): ?> selected<?php endif; ?>>
                                         <?= $view->escape($label) ?>
                                     </option>
@@ -266,6 +282,30 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
                             <?php endif; ?>
                         </div>
                     </form>
+
+                    <div>
+                        <?php if (($entry['visibility'] ?? '') !== 'published'): ?>
+                            <form method="post" action="<?= $view->escape((string) ($entry['publish_path'] ?? '')) ?>">
+                                <button type="submit">Publish product</button>
+                            </form>
+                        <?php endif; ?>
+
+                        <?php if (($entry['visibility'] ?? '') !== 'draft'): ?>
+                            <form method="post" action="<?= $view->escape((string) ($entry['draft_path'] ?? '')) ?>">
+                                <button type="submit">Move to draft</button>
+                            </form>
+                        <?php endif; ?>
+
+                        <?php if (($entry['visibility'] ?? '') !== 'archived'): ?>
+                            <form method="post" action="<?= $view->escape((string) ($entry['archive_path'] ?? '')) ?>" onsubmit="return confirm('Archive this product and remove it from the storefront?');">
+                                <button type="submit">Archive product</button>
+                            </form>
+                        <?php endif; ?>
+
+                        <form method="post" action="<?= $view->escape((string) ($entry['delete_path'] ?? '')) ?>" onsubmit="return confirm('Delete this product? This cannot be undone.');">
+                            <button type="submit">Delete product</button>
+                        </form>
+                    </div>
                 </article>
             <?php endforeach; ?>
         <?php endif; ?>

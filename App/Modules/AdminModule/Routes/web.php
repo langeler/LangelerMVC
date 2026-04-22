@@ -15,8 +15,15 @@ return static function (Router $router): void {
     $router->get('/admin/catalog', AdminController::class, 'catalog', ['as' => 'admin.catalog', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/categories', AdminController::class, 'saveCategory', ['as' => 'admin.catalog.categories.store', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/categories/{category:\\d+}/update', AdminController::class, 'updateCategory', ['as' => 'admin.catalog.categories.update', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/categories/{category:\\d+}/publish', AdminController::class, 'publishCategory', ['as' => 'admin.catalog.categories.publish', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/categories/{category:\\d+}/unpublish', AdminController::class, 'unpublishCategory', ['as' => 'admin.catalog.categories.unpublish', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/categories/{category:\\d+}/delete', AdminController::class, 'deleteCategory', ['as' => 'admin.catalog.categories.delete', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/products', AdminController::class, 'saveProduct', ['as' => 'admin.catalog.products.store', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/products/{product:\\d+}/update', AdminController::class, 'updateProduct', ['as' => 'admin.catalog.products.update', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/products/{product:\\d+}/publish', AdminController::class, 'publishProduct', ['as' => 'admin.catalog.products.publish', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/products/{product:\\d+}/draft', AdminController::class, 'draftProduct', ['as' => 'admin.catalog.products.draft', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/products/{product:\\d+}/archive', AdminController::class, 'archiveProduct', ['as' => 'admin.catalog.products.archive', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/catalog/products/{product:\\d+}/delete', AdminController::class, 'deleteProduct', ['as' => 'admin.catalog.products.delete', 'middleware' => $adminMiddleware]);
     $router->get('/admin/carts', AdminController::class, 'carts', ['as' => 'admin.carts', 'middleware' => $adminMiddleware]);
     $router->get('/admin/orders', AdminController::class, 'orders', ['as' => 'admin.orders', 'middleware' => $adminMiddleware]);
     $router->get('/admin/orders/{order:\\d+}', AdminController::class, 'order', ['as' => 'admin.orders.show', 'middleware' => $adminMiddleware]);
@@ -24,6 +31,9 @@ return static function (Router $router): void {
     $router->post('/admin/orders/{order:\\d+}/cancel', AdminController::class, 'cancelOrder', ['as' => 'admin.orders.cancel', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/refund', AdminController::class, 'refundOrder', ['as' => 'admin.orders.refund', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/reconcile', AdminController::class, 'reconcileOrder', ['as' => 'admin.orders.reconcile', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/pack', AdminController::class, 'packOrder', ['as' => 'admin.orders.pack', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/ship', AdminController::class, 'shipOrder', ['as' => 'admin.orders.ship', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/deliver', AdminController::class, 'deliverOrder', ['as' => 'admin.orders.deliver', 'middleware' => $adminMiddleware]);
     $router->get('/admin/system', AdminController::class, 'system', ['as' => 'admin.system', 'middleware' => $adminMiddleware]);
     $router->get('/admin/operations', AdminController::class, 'operations', ['as' => 'admin.operations', 'middleware' => $adminMiddleware]);
 
@@ -35,8 +45,15 @@ return static function (Router $router): void {
     $router->get('/api/admin/catalog', AdminController::class, 'catalog', ['as' => 'api.admin.catalog', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/categories', AdminController::class, 'saveCategory', ['as' => 'api.admin.catalog.categories.store', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/categories/{category:\\d+}/update', AdminController::class, 'updateCategory', ['as' => 'api.admin.catalog.categories.update', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/categories/{category:\\d+}/publish', AdminController::class, 'publishCategory', ['as' => 'api.admin.catalog.categories.publish', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/categories/{category:\\d+}/unpublish', AdminController::class, 'unpublishCategory', ['as' => 'api.admin.catalog.categories.unpublish', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/categories/{category:\\d+}/delete', AdminController::class, 'deleteCategory', ['as' => 'api.admin.catalog.categories.delete', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/products', AdminController::class, 'saveProduct', ['as' => 'api.admin.catalog.products.store', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/products/{product:\\d+}/update', AdminController::class, 'updateProduct', ['as' => 'api.admin.catalog.products.update', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/products/{product:\\d+}/publish', AdminController::class, 'publishProduct', ['as' => 'api.admin.catalog.products.publish', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/products/{product:\\d+}/draft', AdminController::class, 'draftProduct', ['as' => 'api.admin.catalog.products.draft', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/products/{product:\\d+}/archive', AdminController::class, 'archiveProduct', ['as' => 'api.admin.catalog.products.archive', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/catalog/products/{product:\\d+}/delete', AdminController::class, 'deleteProduct', ['as' => 'api.admin.catalog.products.delete', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/carts', AdminController::class, 'carts', ['as' => 'api.admin.carts', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/orders', AdminController::class, 'orders', ['as' => 'api.admin.orders', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/orders/{order:\\d+}', AdminController::class, 'order', ['as' => 'api.admin.orders.show', 'middleware' => $adminMiddleware]);
@@ -44,6 +61,9 @@ return static function (Router $router): void {
     $router->post('/api/admin/orders/{order:\\d+}/cancel', AdminController::class, 'cancelOrder', ['as' => 'api.admin.orders.cancel', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/refund', AdminController::class, 'refundOrder', ['as' => 'api.admin.orders.refund', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/reconcile', AdminController::class, 'reconcileOrder', ['as' => 'api.admin.orders.reconcile', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/pack', AdminController::class, 'packOrder', ['as' => 'api.admin.orders.pack', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/ship', AdminController::class, 'shipOrder', ['as' => 'api.admin.orders.ship', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/deliver', AdminController::class, 'deliverOrder', ['as' => 'api.admin.orders.deliver', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/system', AdminController::class, 'system', ['as' => 'api.admin.system', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/operations', AdminController::class, 'operations', ['as' => 'api.admin.operations', 'middleware' => $adminMiddleware]);
 };

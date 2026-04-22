@@ -95,6 +95,30 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function publishCategory(string $category): ResponseInterface
+    {
+        $this->action = 'publishCategory';
+        $this->context = ['category' => (int) $category];
+
+        return $this->run();
+    }
+
+    public function unpublishCategory(string $category): ResponseInterface
+    {
+        $this->action = 'unpublishCategory';
+        $this->context = ['category' => (int) $category];
+
+        return $this->run();
+    }
+
+    public function deleteCategory(string $category): ResponseInterface
+    {
+        $this->action = 'deleteCategory';
+        $this->context = ['category' => (int) $category];
+
+        return $this->run();
+    }
+
     public function saveProduct(): ResponseInterface
     {
         $this->adminRequest->forScenario('saveProduct');
@@ -107,6 +131,38 @@ class AdminController extends Controller
     {
         $this->adminRequest->forScenario('saveProduct');
         $this->action = 'updateProduct';
+        $this->context = ['product' => (int) $product];
+
+        return $this->run();
+    }
+
+    public function publishProduct(string $product): ResponseInterface
+    {
+        $this->action = 'publishProduct';
+        $this->context = ['product' => (int) $product];
+
+        return $this->run();
+    }
+
+    public function draftProduct(string $product): ResponseInterface
+    {
+        $this->action = 'draftProduct';
+        $this->context = ['product' => (int) $product];
+
+        return $this->run();
+    }
+
+    public function archiveProduct(string $product): ResponseInterface
+    {
+        $this->action = 'archiveProduct';
+        $this->context = ['product' => (int) $product];
+
+        return $this->run();
+    }
+
+    public function deleteProduct(string $product): ResponseInterface
+    {
+        $this->action = 'deleteProduct';
         $this->context = ['product' => (int) $product];
 
         return $this->run();
@@ -161,6 +217,30 @@ class AdminController extends Controller
     public function reconcileOrder(string $order): ResponseInterface
     {
         $this->action = 'reconcileOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function packOrder(string $order): ResponseInterface
+    {
+        $this->action = 'packOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function shipOrder(string $order): ResponseInterface
+    {
+        $this->action = 'shipOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function deliverOrder(string $order): ResponseInterface
+    {
+        $this->action = 'deliverOrder';
         $this->context = ['order' => (int) $order];
 
         return $this->run();

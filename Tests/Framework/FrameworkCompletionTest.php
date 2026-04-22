@@ -57,6 +57,7 @@ use App\Providers\ExceptionProvider;
 use App\Providers\NotificationProvider;
 use App\Providers\PaymentProvider;
 use App\Providers\QueueProvider;
+use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
@@ -711,7 +712,137 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('captured', $captured['order']['payment_status']);
         self::assertSame('ready_to_fulfill', $captured['order']['fulfillment_status']);
         self::assertSame('committed', $captured['order']['inventory_status']);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/pack', $captured['order']['actions']['pack'] ?? null);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/refund', $captured['order']['actions']['refund'] ?? null);
+
+        $packed = $stack['adminService']->forAction('packOrder', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $packed['status']);
+        self::assertSame('packed', $packed['order']['fulfillment_status']);
+        self::assertSame('processing', $packed['order']['status']);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/ship', $packed['order']['actions']['ship'] ?? null);
+
+        $shipped = $stack['adminService']->forAction('shipOrder', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $shipped['status']);
+        self::assertSame('shipped', $shipped['order']['fulfillment_status']);
+        self::assertSame('fulfilled', $shipped['order']['status']);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/deliver', $shipped['order']['actions']['deliver'] ?? null);
+
+        $delivered = $stack['adminService']->forAction('deliverOrder', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $delivered['status']);
+        self::assertSame('delivered', $delivered['order']['fulfillment_status']);
+        self::assertSame('completed', $delivered['order']['status']);
+        self::assertArrayNotHasKey('deliver', $delivered['order']['actions']);
+    }
+
+    public function testAdminCatalogLifecycleActionsApplyGuardrailsAndSharedManagement(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $createdCategory = $stack['adminService']->forAction('saveCategory', [
+            'name' => 'Disposable Category',
+            'slug' => 'disposable-category',
+            'description' => 'Temporary category for lifecycle verification.',
+            'is_published' => true,
+        ])->execute();
+
+        self::assertSame(200, $createdCategory['status']);
+
+        $category = null;
+
+        foreach ($createdCategory['categories'] as $entry) {
+            if (($entry['slug'] ?? '') === 'disposable-category') {
+                $category = $entry;
+                break;
+            }
+        }
+
+        self::assertIsArray($category);
+        self::assertSame('/admin/catalog/categories/' . $category['id'] . '/delete', $category['delete_path'] ?? null);
+
+        $createdProduct = $stack['adminService']->forAction('saveProduct', [
+            'category_id' => (int) $category['id'],
+            'name' => 'Disposable Product',
+            'slug' => 'disposable-product',
+            'description' => 'Temporary product for lifecycle verification.',
+            'price_minor' => 2500,
+            'currency' => 'SEK',
+            'visibility' => 'published',
+            'stock' => 3,
+            'media' => '',
+        ])->execute();
+
+        self::assertSame(200, $createdProduct['status']);
+
+        $product = null;
+
+        foreach ($createdProduct['catalog'] as $entry) {
+            if (($entry['slug'] ?? '') === 'disposable-product') {
+                $product = $entry;
+                break;
+            }
+        }
+
+        self::assertIsArray($product);
+        self::assertSame('/admin/catalog/products/' . $product['id'] . '/archive', $product['archive_path'] ?? null);
+
+        $blockedCategoryDelete = $stack['adminService']->forAction('deleteCategory', [], [
+            'category' => (int) $category['id'],
+        ])->execute();
+
+        self::assertSame(409, $blockedCategoryDelete['status']);
+        self::assertStringContainsString('still contains products', $blockedCategoryDelete['message']);
+
+        $archivedProduct = $stack['adminService']->forAction('archiveProduct', [], [
+            'product' => (int) $product['id'],
+        ])->execute();
+
+        self::assertSame(200, $archivedProduct['status']);
+
+        $archivedSummary = null;
+
+        foreach ($archivedProduct['catalog'] as $entry) {
+            if (($entry['slug'] ?? '') === 'disposable-product') {
+                $archivedSummary = $entry;
+                break;
+            }
+        }
+
+        self::assertIsArray($archivedSummary);
+        self::assertSame('archived', $archivedSummary['visibility'] ?? null);
+
+        $deletedProduct = $stack['adminService']->forAction('deleteProduct', [], [
+            'product' => (int) $product['id'],
+        ])->execute();
+
+        self::assertSame(200, $deletedProduct['status']);
+        self::assertNull($stack['products']->findBySlug('disposable-product'));
+
+        $unpublishedCategory = $stack['adminService']->forAction('unpublishCategory', [], [
+            'category' => (int) $category['id'],
+        ])->execute();
+
+        self::assertSame(200, $unpublishedCategory['status']);
+
+        $deletedCategory = $stack['adminService']->forAction('deleteCategory', [], [
+            'category' => (int) $category['id'],
+        ])->execute();
+
+        self::assertSame(200, $deletedCategory['status']);
+        self::assertNull($stack['categories']->findBySlug('disposable-category'));
     }
 
     public function testPaymentCatalogExposesFrameworkDriversForSupportedProviders(): void
@@ -1023,6 +1154,7 @@ final class FrameworkCompletionTest extends TestCase
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
         $inventory = new InventoryManager($products);
+        $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
         $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory);
 
         $catalogService = new CatalogService($products, $categories);
@@ -1056,6 +1188,7 @@ final class FrameworkCompletionTest extends TestCase
             $orders,
             $orderItems,
             $addresses,
+            $catalogLifecycle,
             $totals,
             $lifecycle,
             $modules,
@@ -1099,6 +1232,7 @@ final class FrameworkCompletionTest extends TestCase
             'cartItems' => $cartItems,
             'cartService' => $cartService,
             'carts' => $carts,
+            'categories' => $categories,
             'catalogService' => $catalogService,
             'config' => $config,
             'database' => $database,

@@ -66,7 +66,7 @@ class AdminRequest extends InboundRequest
                 'slug' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[a-z0-9-]{2,191}$/']],
                 'price_minor' => ['methods' => 'integer', 'rules' => ['min' => [0]]],
                 'currency' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z]{3,12}$/']],
-                'visibility' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(draft|published)$/']],
+                'visibility' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(draft|published|archived)$/']],
                 'stock' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
             ],
             default => [],

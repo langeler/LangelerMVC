@@ -20,6 +20,8 @@ use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\CartModule\Migrations\CreateCartTables;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\ShopModule\Migrations\CreateShopTables;
+use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\OrderLifecycleManager;
 use App\Modules\UserModule\Migrations\CreateUserPlatformTables;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
@@ -419,6 +421,8 @@ class AuthPlatformTest extends TestCase
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderRepository::class),
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderItemRepository::class),
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderAddressRepository::class),
+            new CommerceTotalsCalculator($stack['config']),
+            $this->createStub(OrderLifecycleManager::class),
             $moduleManager,
             $cache,
             $stack['sessionManager'],

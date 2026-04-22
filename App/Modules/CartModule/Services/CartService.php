@@ -10,6 +10,7 @@ use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
+use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Utilities\Managers\Security\AuthManager;
 
 class CartService extends Service
@@ -31,7 +32,8 @@ class CartService extends Service
         private readonly CartItemRepository $items,
         private readonly ProductRepository $products,
         private readonly Session $session,
-        private readonly AuthManager $auth
+        private readonly AuthManager $auth,
+        private readonly CommerceTotalsCalculator $totals
     ) {
     }
 
@@ -130,6 +132,10 @@ class CartService extends Service
             return $this->response('Unable to add item', 'The requested product could not be found.', 404);
         }
 
+        if ((int) ($product->getAttribute('stock') ?? 0) < $quantity) {
+            return $this->response('Unable to add item', 'The requested quantity is not currently available.', 409);
+        }
+
         $cart = $this->currentCart();
         $this->items->addOrIncrement((int) $cart->getKey(), $this->products->mapProductData($product), $quantity);
 
@@ -149,7 +155,20 @@ class CartService extends Service
             return $this->response('Unable to update item', 'A valid cart item identifier is required.', 422);
         }
 
-        $this->items->updateQuantity($itemId, max(1, (int) ($this->payload['quantity'] ?? 1)));
+        $item = $this->items->find($itemId);
+
+        if ($item === null) {
+            return $this->response('Unable to update item', 'The requested cart item could not be found.', 404);
+        }
+
+        $quantity = max(1, (int) ($this->payload['quantity'] ?? 1));
+        $product = $this->products->find((int) ($item->getAttribute('product_id') ?? 0));
+
+        if ($product !== null && (int) ($product->getAttribute('stock') ?? 0) < $quantity) {
+            return $this->response('Unable to update item', 'The requested quantity exceeds the currently available stock.', 409);
+        }
+
+        $this->items->updateQuantity($itemId, $quantity);
 
         return [
             ...$this->response('Item updated', 'The cart item quantity was updated.', 200),
@@ -216,11 +235,7 @@ class CartService extends Service
     private function cartPayload(Cart $cart): array
     {
         $items = $this->items->summaryForCart((int) $cart->getKey());
-        $subtotal = array_reduce(
-            $items,
-            static fn(int $carry, array $item): int => $carry + (int) ($item['line_total_minor'] ?? 0),
-            0
-        );
+        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
 
         return [
             'id' => (int) $cart->getKey(),
@@ -228,8 +243,7 @@ class CartService extends Service
             'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
             'items' => $items,
             'item_count' => count($items),
-            'subtotal_minor' => $subtotal,
-            'subtotal' => $this->formatMoneyMinor($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
+            ...$totals,
         ];
     }
 

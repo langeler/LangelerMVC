@@ -19,6 +19,8 @@ use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\ShopModule\Repositories\CategoryRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
+use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\OrderLifecycleManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
@@ -56,6 +58,8 @@ class AdminAccessService extends Service
         private readonly OrderRepository $orders,
         private readonly OrderItemRepository $orderItems,
         private readonly OrderAddressRepository $orderAddresses,
+        private readonly CommerceTotalsCalculator $totals,
+        private readonly OrderLifecycleManager $lifecycle,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
@@ -98,6 +102,10 @@ class AdminAccessService extends Service
             'carts' => $this->cartsPage(),
             'orders' => $this->ordersPage(),
             'order' => $this->orderPage((int) ($this->context['order'] ?? 0)),
+            'captureOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'capture'),
+            'cancelOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'cancel'),
+            'refundOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'refund'),
+            'reconcileOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'reconcile'),
             'system' => $this->systemPage(),
             'operations' => $this->operationsPage(),
             default => $this->dashboard(),
@@ -578,6 +586,49 @@ class AdminAccessService extends Service
         );
     }
 
+    private function transitionOrder(int $orderId, string $action): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Order management requires the order.manage permission.');
+        }
+
+        $transition = $this->lifecycle->transition($orderId, $action, $this->payload);
+
+        if (!$transition['successful']) {
+            return $this->ordersResponse(
+                title: (string) ($transition['title'] ?? 'Order update failed'),
+                headline: 'Order lifecycle update failed',
+                summary: (string) ($transition['message'] ?? 'The requested order transition could not be completed.'),
+                status: (int) ($transition['status'] ?? 422),
+                message: (string) ($transition['message'] ?? '')
+            );
+        }
+
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return $this->ordersResponse(
+                title: 'Order not found',
+                headline: 'The updated order could not be loaded',
+                summary: 'The lifecycle change completed, but the order could not be reloaded afterward.',
+                status: 404,
+                message: 'Refresh the administrative order list and try again.'
+            );
+        }
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
+                summary: 'Detailed order lifecycle, stored addresses, and available management actions.',
+                status: 200,
+                message: (string) ($transition['message'] ?? 'Order action completed successfully.'),
+                order: $this->adminOrderDetail($order)
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
     private function operationsPage(): array
     {
         if (!$this->auth->hasPermission('admin.system.view')) {
@@ -790,7 +841,6 @@ class AdminAccessService extends Service
     {
         $actions = [];
         $orderId = (int) ($order['id'] ?? 0);
-        $paymentStatus = (string) ($order['payment_status'] ?? '');
         $nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];
         $reference = trim((string) ($order['payment_reference'] ?? ''));
 
@@ -810,20 +860,8 @@ class AdminAccessService extends Service
             $actions['continue_payment'] = (string) $nextAction['url'];
         }
 
-        if (in_array($paymentStatus, ['authorized', 'partially_captured'], true)) {
-            $actions['capture'] = '/orders/' . $orderId . '/capture';
-        }
-
-        if (in_array($paymentStatus, ['authorized', 'requires_action', 'processing', 'pending_review'], true)) {
-            $actions['reconcile'] = '/orders/' . $orderId . '/reconcile';
-        }
-
-        if (in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {
-            $actions['refund'] = '/orders/' . $orderId . '/refund';
-        }
-
-        if (!in_array($paymentStatus, ['cancelled', 'refunded'], true)) {
-            $actions['cancel'] = '/orders/' . $orderId . '/cancel';
+        foreach ($this->lifecycle->availableTransitions($order) as $transition) {
+            $actions[$transition] = '/admin/orders/' . $orderId . '/' . $transition;
         }
 
         return $actions;
@@ -891,11 +929,7 @@ class AdminAccessService extends Service
             }
 
             $items = $this->cartItems->summaryForCart((int) $cart->getKey());
-            $subtotal = array_reduce(
-                $items,
-                static fn(int $carry, array $item): int => $carry + (int) ($item['line_total_minor'] ?? 0),
-                0
-            );
+            $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
 
             return [
                 'id' => (int) $cart->getKey(),
@@ -904,7 +938,8 @@ class AdminAccessService extends Service
                 'status' => (string) ($cart->getAttribute('status') ?? 'active'),
                 'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
                 'items' => count($items),
-                'subtotal' => $this->formatMoneyMinor($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
+                'subtotal' => (string) ($totals['subtotal'] ?? ''),
+                'total' => (string) ($totals['total'] ?? ''),
             ];
         }, array_values(array_filter($this->carts->all(), static fn(mixed $cart): bool => $cart instanceof Cart)));
     }

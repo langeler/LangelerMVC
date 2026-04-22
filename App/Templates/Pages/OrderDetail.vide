@@ -39,11 +39,17 @@
             'items' => [
                 'Order number' => $order['order_number'] ?? '',
                 'Status' => $order['status'] ?? '',
+                'Fulfillment status' => $order['fulfillment_status'] ?? '',
+                'Inventory status' => $order['inventory_status'] ?? '',
                 'Payment status' => $order['payment_status'] ?? '',
                 'Payment method' => $order['payment_method'] ?? '',
                 'Payment flow' => $order['payment_flow'] ?? '',
                 'Payment reference' => $order['payment_reference'] ?? '',
                 'Provider reference' => $order['payment_provider_reference'] ?? '',
+                'Subtotal' => $order['subtotal'] ?? '',
+                'Discount' => $order['discount'] ?? '',
+                'Shipping' => $order['shipping'] ?? '',
+                'Tax' => $order['tax'] ?? '',
                 'Total' => $order['total'] ?? '',
             ],
         ])

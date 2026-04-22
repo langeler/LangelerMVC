@@ -134,6 +134,38 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function captureOrder(string $order): ResponseInterface
+    {
+        $this->action = 'captureOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function cancelOrder(string $order): ResponseInterface
+    {
+        $this->action = 'cancelOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function refundOrder(string $order): ResponseInterface
+    {
+        $this->action = 'refundOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function reconcileOrder(string $order): ResponseInterface
+    {
+        $this->action = 'reconcileOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
     public function system(): ResponseInterface
     {
         $this->action = 'system';

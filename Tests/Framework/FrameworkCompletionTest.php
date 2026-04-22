@@ -28,6 +28,7 @@ use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\CartModule\Seeds\CartSeed;
 use App\Modules\CartModule\Services\CartService;
 use App\Modules\OrderModule\Listeners\OrderLifecycleNotificationListener;
+use App\Modules\OrderModule\Migrations\AddOrderCommerceStateColumns;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
 use App\Modules\OrderModule\Presenters\OrderResource;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
@@ -56,6 +57,9 @@ use App\Providers\ExceptionProvider;
 use App\Providers\NotificationProvider;
 use App\Providers\PaymentProvider;
 use App\Providers\QueueProvider;
+use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\InventoryManager;
+use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Payments\PaymentIntent;
 use App\Utilities\Managers\Async\DatabaseFailedJobStore;
 use App\Utilities\Managers\Async\EventDispatcher;
@@ -339,6 +343,7 @@ final class FrameworkCompletionTest extends TestCase
         $errors = new ErrorManager(new ExceptionProvider());
         $modules = new TestModuleManager([
             CreateOrderTables::class,
+            AddOrderCommerceStateColumns::class,
             OrderSeed::class,
             CreatePagesTable::class,
             PageSeed::class,
@@ -369,6 +374,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('CreateOrderTables', $executedMigrations, true),
             array_search('CreateCartTables', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('AddOrderCommerceStateColumns', $executedMigrations, true),
+            array_search('CreateOrderTables', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('CartSeed', $executedSeeds, true),
@@ -601,6 +610,110 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('/orders', $returned['lookup']['orders_url']);
     }
 
+    public function testCheckoutAppliesFinancialBreakdownAndRestoresInventoryOnCancel(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $product = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertNotNull($product);
+        $initialStock = (int) ($product?->getAttribute('stock') ?? 0);
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        $cart = $stack['cartService']->forAction('show')->execute();
+
+        self::assertSame(9900, $cart['cart']['subtotal_minor']);
+        self::assertSame(1490, $cart['cart']['shipping_minor']);
+        self::assertSame(2848, $cart['cart']['tax_minor']);
+        self::assertSame(14238, $cart['cart']['total_minor']);
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+        ])->execute();
+
+        self::assertSame(201, $checkout['status']);
+        self::assertSame(9900, $checkout['order']['subtotal_minor']);
+        self::assertSame(1490, $checkout['order']['shipping_minor']);
+        self::assertSame(2848, $checkout['order']['tax_minor']);
+        self::assertSame(14238, $checkout['order']['total_minor']);
+        self::assertSame('reserved', $checkout['order']['inventory_status']);
+        self::assertSame('unfulfilled', $checkout['order']['fulfillment_status']);
+
+        $stockAfterCheckout = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertSame($initialStock - 1, (int) ($stockAfterCheckout?->getAttribute('stock') ?? -1));
+
+        $cancelled = $stack['orderService']->forAction('cancel', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $cancelled['status']);
+        self::assertSame('cancelled', $cancelled['order']['payment_status']);
+        self::assertSame('released', $cancelled['order']['inventory_status']);
+        self::assertSame('cancelled', $cancelled['order']['fulfillment_status']);
+
+        $stockAfterCancellation = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertSame($initialStock, (int) ($stockAfterCancellation?->getAttribute('stock') ?? -1));
+    }
+
+    public function testAdminOrderActionsUseDashboardWrappersAndSharedLifecycleTransitions(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+        ])->execute();
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $detail = $stack['adminService']->forAction('order', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/capture', $detail['order']['actions']['capture'] ?? null);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/cancel', $detail['order']['actions']['cancel'] ?? null);
+
+        $captured = $stack['adminService']->forAction('captureOrder', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $captured['status']);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'], $captured['redirect']);
+        self::assertSame('captured', $captured['order']['payment_status']);
+        self::assertSame('ready_to_fulfill', $captured['order']['fulfillment_status']);
+        self::assertSame('committed', $captured['order']['inventory_status']);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/refund', $captured['order']['actions']['refund'] ?? null);
+    }
+
     public function testPaymentCatalogExposesFrameworkDriversForSupportedProviders(): void
     {
         $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
@@ -802,6 +915,7 @@ final class FrameworkCompletionTest extends TestCase
             ShopSeed::class,
             CreateCartTables::class,
             CreateOrderTables::class,
+            AddOrderCommerceStateColumns::class,
             MergeCartOnLoginListener::class,
             CatalogActivityNotificationListener::class,
             OrderLifecycleNotificationListener::class,
@@ -907,15 +1021,22 @@ final class FrameworkCompletionTest extends TestCase
         $orders = new OrderRepository($database);
         $orderItems = new OrderItemRepository($database);
         $addresses = new OrderAddressRepository($database);
+        $totals = new CommerceTotalsCalculator($config);
+        $inventory = new InventoryManager($products);
+        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory);
 
         $catalogService = new CatalogService($products, $categories);
-        $cartService = new CartService($carts, $cartItems, $products, $session, $auth);
+        $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $totals);
         $orderService = new OrderService(
+            $database,
             $orders,
             $orderItems,
             $addresses,
             $carts,
             $cartItems,
+            $totals,
+            $inventory,
+            $lifecycle,
             $payments,
             $events,
             $auth,
@@ -935,6 +1056,8 @@ final class FrameworkCompletionTest extends TestCase
             $orders,
             $orderItems,
             $addresses,
+            $totals,
+            $lifecycle,
             $modules,
             $cache,
             $sessionManager,
@@ -977,14 +1100,19 @@ final class FrameworkCompletionTest extends TestCase
             'cartService' => $cartService,
             'carts' => $carts,
             'catalogService' => $catalogService,
+            'config' => $config,
             'database' => $database,
             'events' => $events,
+            'inventory' => $inventory,
+            'lifecycle' => $lifecycle,
             'mail' => $mail,
             'notifications' => $notifications,
             'orderService' => $orderService,
             'orders' => $orders,
             'payments' => $payments,
+            'products' => $products,
             'queue' => $queue,
+            'totals' => $totals,
         ];
     }
 
@@ -1105,6 +1233,24 @@ final class FrameworkCompletionTest extends TestCase
                         'METHODS' => ['bnpl'],
                         'FLOWS' => ['redirect', 'authorize_capture'],
                     ],
+                ],
+            ],
+            'commerce' => [
+                'CURRENCY' => 'SEK',
+                'TAX' => [
+                    'RATE_BPS' => 2500,
+                ],
+                'SHIPPING' => [
+                    'FLAT_RATE_MINOR' => 1490,
+                    'FREE_OVER_MINOR' => 50000,
+                ],
+                'DISCOUNT' => [
+                    'RATE_BPS' => 0,
+                    'MAX_MINOR' => 0,
+                ],
+                'INVENTORY' => [
+                    'RESERVE_ON_CHECKOUT' => true,
+                    'RELEASE_ON_CANCEL' => true,
                 ],
             ],
             'queue' => [

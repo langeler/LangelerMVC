@@ -20,6 +20,10 @@ return static function (Router $router): void {
     $router->get('/admin/carts', AdminController::class, 'carts', ['as' => 'admin.carts', 'middleware' => $adminMiddleware]);
     $router->get('/admin/orders', AdminController::class, 'orders', ['as' => 'admin.orders', 'middleware' => $adminMiddleware]);
     $router->get('/admin/orders/{order:\\d+}', AdminController::class, 'order', ['as' => 'admin.orders.show', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/capture', AdminController::class, 'captureOrder', ['as' => 'admin.orders.capture', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/cancel', AdminController::class, 'cancelOrder', ['as' => 'admin.orders.cancel', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/refund', AdminController::class, 'refundOrder', ['as' => 'admin.orders.refund', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/reconcile', AdminController::class, 'reconcileOrder', ['as' => 'admin.orders.reconcile', 'middleware' => $adminMiddleware]);
     $router->get('/admin/system', AdminController::class, 'system', ['as' => 'admin.system', 'middleware' => $adminMiddleware]);
     $router->get('/admin/operations', AdminController::class, 'operations', ['as' => 'admin.operations', 'middleware' => $adminMiddleware]);
 
@@ -36,6 +40,10 @@ return static function (Router $router): void {
     $router->get('/api/admin/carts', AdminController::class, 'carts', ['as' => 'api.admin.carts', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/orders', AdminController::class, 'orders', ['as' => 'api.admin.orders', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/orders/{order:\\d+}', AdminController::class, 'order', ['as' => 'api.admin.orders.show', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/capture', AdminController::class, 'captureOrder', ['as' => 'api.admin.orders.capture', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/cancel', AdminController::class, 'cancelOrder', ['as' => 'api.admin.orders.cancel', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/refund', AdminController::class, 'refundOrder', ['as' => 'api.admin.orders.refund', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/reconcile', AdminController::class, 'reconcileOrder', ['as' => 'api.admin.orders.reconcile', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/system', AdminController::class, 'system', ['as' => 'api.admin.system', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/operations', AdminController::class, 'operations', ['as' => 'api.admin.operations', 'middleware' => $adminMiddleware]);
 };

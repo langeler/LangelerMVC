@@ -11,6 +11,22 @@ class ProductRepository extends Repository
 {
     protected string $modelClass = Product::class;
 
+    public function adjustStock(int $productId, int $delta): ?Product
+    {
+        $product = $this->find($productId);
+
+        if (!$product instanceof Product) {
+            return null;
+        }
+
+        $stock = max(0, (int) ($product->getAttribute('stock') ?? 0) + $delta);
+        $this->update($productId, ['stock' => $stock]);
+
+        $fresh = $this->find($productId);
+
+        return $fresh instanceof Product ? $fresh : null;
+    }
+
     public function findBySlug(string $slug): ?Product
     {
         $product = $this->findOneBy(['slug' => $slug]);

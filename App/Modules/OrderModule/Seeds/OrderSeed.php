@@ -12,6 +12,7 @@ use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
+use App\Support\Commerce\CommerceTotalsCalculator;
 
 class OrderSeed extends Seed
 {
@@ -30,6 +31,7 @@ class OrderSeed extends Seed
         private readonly CartRepository $carts,
         private readonly CartItemRepository $cartItems,
         private readonly UserRepository $users,
+        private readonly CommerceTotalsCalculator $totals,
         Database $database
     ) {
         parent::__construct($repository, $database);
@@ -59,7 +61,10 @@ class OrderSeed extends Seed
             return;
         }
 
-        $subtotal = array_reduce($cartItems, static fn(int $carry, array $item): int => $carry + (int) ($item['line_total_minor'] ?? 0), 0);
+        $currency = (string) ($cart->getAttribute('currency') ?? 'SEK');
+        $totals = $this->totals->calculate($cartItems, $currency);
+        $subtotal = (int) ($totals['subtotal_minor'] ?? 0);
+        $total = (int) ($totals['total_minor'] ?? 0);
         $order = $this->orders()->create([
             'user_id' => (int) $customer->getKey(),
             'cart_id' => (int) $cart->getKey(),
@@ -77,13 +82,18 @@ class OrderSeed extends Seed
             'payment_webhook_reference' => 'wh-demo-seed-order',
             'payment_idempotency_key' => 'seed-order-customer-2',
             'payment_customer_action_required' => false,
-            'currency' => 'SEK',
+            'currency' => $currency,
             'subtotal_minor' => $subtotal,
-            'total_minor' => $subtotal,
+            'discount_minor' => (int) ($totals['discount_minor'] ?? 0),
+            'shipping_minor' => (int) ($totals['shipping_minor'] ?? 0),
+            'tax_minor' => (int) ($totals['tax_minor'] ?? 0),
+            'total_minor' => $total,
+            'fulfillment_status' => 'ready_to_fulfill',
+            'inventory_status' => 'committed',
             'payment_next_action' => $this->toJson([], JSON_THROW_ON_ERROR),
             'payment_intent' => $this->toJson([
-                'amount' => $subtotal,
-                'currency' => 'SEK',
+                'amount' => $total,
+                'currency' => $currency,
                 'method' => 'card',
                 'flow' => 'purchase',
                 'reference' => 'demo-seed-order',
@@ -94,8 +104,8 @@ class OrderSeed extends Seed
                 'nextAction' => [],
                 'customerActionRequired' => false,
                 'status' => 'captured',
-                'authorizedAmount' => $subtotal,
-                'capturedAmount' => $subtotal,
+                'authorizedAmount' => $total,
+                'capturedAmount' => $total,
                 'refundedAmount' => 0,
             ], JSON_THROW_ON_ERROR),
         ]);

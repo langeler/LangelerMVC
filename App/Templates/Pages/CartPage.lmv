@@ -72,6 +72,10 @@
                 'Currency' => $cart['currency'] ?? '',
                 'Items' => $cart['item_count'] ?? 0,
                 'Subtotal' => $cart['subtotal'] ?? '',
+                'Discount' => $cart['discount'] ?? '',
+                'Shipping' => $cart['shipping'] ?? '',
+                'Tax' => $cart['tax'] ?? '',
+                'Total' => $cart['total'] ?? '',
             ],
         ]) ?>
 

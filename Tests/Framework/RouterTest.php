@@ -154,9 +154,17 @@ class RouterTest extends TestCase
         self::assertContains('admin.catalog.categories.store', $names);
         self::assertContains('admin.catalog.products.store', $names);
         self::assertContains('admin.orders.show', $names);
+        self::assertContains('admin.orders.capture', $names);
+        self::assertContains('admin.orders.cancel', $names);
+        self::assertContains('admin.orders.refund', $names);
+        self::assertContains('admin.orders.reconcile', $names);
         self::assertContains('api.admin.catalog.categories.store', $names);
         self::assertContains('api.admin.catalog.products.store', $names);
         self::assertContains('api.admin.orders.show', $names);
+        self::assertContains('api.admin.orders.capture', $names);
+        self::assertContains('api.admin.orders.cancel', $names);
+        self::assertContains('api.admin.orders.refund', $names);
+        self::assertContains('api.admin.orders.reconcile', $names);
         self::assertContains('cart.show', $names);
         self::assertContains('orders.checkout.form', $names);
         self::assertContains('orders.complete', $names);

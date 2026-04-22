@@ -7,6 +7,7 @@ namespace App\Modules\OrderModule\Services;
 use App\Abstracts\Http\Service;
 use App\Contracts\Async\EventDispatcherInterface;
 use App\Contracts\Support\AuditLoggerInterface;
+use App\Core\Database;
 use App\Core\Session;
 use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
@@ -14,6 +15,9 @@ use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\InventoryManager;
+use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
 use App\Support\Payments\PaymentMethod;
@@ -36,11 +40,15 @@ class OrderService extends Service
     private array $context = [];
 
     public function __construct(
+        private readonly Database $database,
         private readonly OrderRepository $orders,
         private readonly OrderItemRepository $orderItems,
         private readonly OrderAddressRepository $addresses,
         private readonly CartRepository $carts,
         private readonly CartItemRepository $cartItems,
+        private readonly CommerceTotalsCalculator $totals,
+        private readonly InventoryManager $inventory,
+        private readonly OrderLifecycleManager $lifecycle,
         private readonly PaymentManager $payments,
         private readonly EventDispatcherInterface $events,
         private readonly AuthManager $auth,
@@ -135,6 +143,12 @@ class OrderService extends Service
             return $this->response('Checkout unavailable', 'The current cart does not contain any items.', 422);
         }
 
+        $availability = $this->inventory->ensureAvailable((array) ($cartPayload['items'] ?? []));
+
+        if (!$availability['available']) {
+            return $this->response('Checkout unavailable', implode(' ', $availability['issues']), 409);
+        }
+
         $requestedDriver = trim((string) ($this->payload['payment_driver'] ?? ''));
         $paymentDriver = $this->resolveRequestedPaymentDriver();
 
@@ -164,80 +178,111 @@ class OrderService extends Service
             ];
         }
 
-        $intent = $this->payments->createIntent(
-            (int) ($cartPayload['subtotal_minor'] ?? 0),
-            (string) ($cartPayload['currency'] ?? 'SEK'),
-            'Order checkout',
-            [
-                'cart_id' => (int) $cart->getKey(),
-                'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
-            ],
-            $paymentMethod,
-            $paymentFlow,
-            $idempotencyKey,
-            $paymentDriver
-        );
-        $payment = $this->payments->authorize($intent);
         $contactName = (string) ($this->payload['name'] ?? '');
         $contactEmail = (string) ($this->payload['email'] ?? '');
-        $orderStatus = $this->orderStatusForIntent($payment->intent);
 
-        $order = $this->orders->create([
-            'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
-            'cart_id' => (int) $cart->getKey(),
-            'order_number' => $this->orders->nextOrderNumber(),
-            'contact_name' => $contactName,
-            'contact_email' => $contactEmail,
-            'status' => $orderStatus,
-            'payment_status' => $payment->intent->status,
-            'payment_driver' => $payment->driver,
-            'payment_method' => $payment->intent->method,
-            'payment_flow' => $payment->intent->flow,
-            'payment_reference' => $payment->intent->reference,
-            'payment_provider_reference' => $payment->intent->providerReference,
-            'payment_external_reference' => $payment->intent->externalReference,
-            'payment_webhook_reference' => $payment->intent->webhookReference,
-            'payment_idempotency_key' => $payment->intent->idempotencyKey,
-            'payment_customer_action_required' => $payment->intent->customerActionRequired,
-            'currency' => (string) ($cartPayload['currency'] ?? 'SEK'),
-            'subtotal_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
-            'total_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
-            'payment_next_action' => $this->toJson(
-                $payment->intent->nextAction,
-                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
-            ),
-            'payment_intent' => $this->toJson(
-                $payment->intent->toArray(),
-                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
-            ),
-        ]);
+        $this->database->beginTransaction();
 
-        foreach ((array) ($cartPayload['items'] ?? []) as $item) {
-            $this->orderItems->create([
-                'order_id' => (int) $order->getKey(),
-                'product_id' => (int) ($item['product_id'] ?? 0),
-                'product_name' => (string) ($item['name'] ?? ''),
-                'quantity' => (int) ($item['quantity'] ?? 0),
-                'unit_price_minor' => (int) ($item['unit_price_minor'] ?? 0),
-                'line_total_minor' => (int) ($item['line_total_minor'] ?? 0),
-                'metadata' => $this->toJson(['slug' => $item['slug'] ?? ''], JSON_THROW_ON_ERROR),
+        try {
+            $reservation = $this->inventory->reserve((array) ($cartPayload['items'] ?? []));
+
+            if (!$reservation['reserved']) {
+                $this->database->rollBack();
+
+                return $this->response('Checkout unavailable', implode(' ', $reservation['issues']), 409);
+            }
+
+            $intent = $this->payments->createIntent(
+                (int) ($cartPayload['total_minor'] ?? 0),
+                (string) ($cartPayload['currency'] ?? 'SEK'),
+                'Order checkout',
+                [
+                    'cart_id' => (int) $cart->getKey(),
+                    'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
+                ],
+                $paymentMethod,
+                $paymentFlow,
+                $idempotencyKey,
+                $paymentDriver
+            );
+            $payment = $this->payments->authorize($intent);
+
+            if (!$payment->successful) {
+                $this->database->rollBack();
+
+                return $this->response('Payment unavailable', $payment->message, 422);
+            }
+
+            $orderStatus = $this->lifecycle->orderStatusForIntent($payment->intent);
+            $fulfillmentStatus = $this->lifecycle->fulfillmentStatusForIntent($payment->intent);
+            $inventoryStatus = $this->lifecycle->inventoryStatusForIntent($payment->intent, 'reserved');
+
+            $order = $this->orders->create([
+                'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
+                'cart_id' => (int) $cart->getKey(),
+                'order_number' => $this->orders->nextOrderNumber(),
+                'contact_name' => $contactName,
+                'contact_email' => $contactEmail,
+                'status' => $orderStatus,
+                'payment_status' => $payment->intent->status,
+                'payment_driver' => $payment->driver,
+                'payment_method' => $payment->intent->method,
+                'payment_flow' => $payment->intent->flow,
+                'payment_reference' => $payment->intent->reference,
+                'payment_provider_reference' => $payment->intent->providerReference,
+                'payment_external_reference' => $payment->intent->externalReference,
+                'payment_webhook_reference' => $payment->intent->webhookReference,
+                'payment_idempotency_key' => $payment->intent->idempotencyKey,
+                'payment_customer_action_required' => $payment->intent->customerActionRequired,
+                'currency' => (string) ($cartPayload['currency'] ?? 'SEK'),
+                'subtotal_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
+                'discount_minor' => (int) ($cartPayload['discount_minor'] ?? 0),
+                'shipping_minor' => (int) ($cartPayload['shipping_minor'] ?? 0),
+                'tax_minor' => (int) ($cartPayload['tax_minor'] ?? 0),
+                'total_minor' => (int) ($cartPayload['total_minor'] ?? 0),
+                'fulfillment_status' => $fulfillmentStatus,
+                'inventory_status' => $inventoryStatus,
+                'payment_next_action' => $this->toJson(
+                    $payment->intent->nextAction,
+                    JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+                ),
+                'payment_intent' => $this->toJson(
+                    $payment->intent->toArray(),
+                    JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+                ),
             ]);
+
+            foreach ((array) ($cartPayload['items'] ?? []) as $item) {
+                $this->orderItems->create([
+                    'order_id' => (int) $order->getKey(),
+                    'product_id' => (int) ($item['product_id'] ?? 0),
+                    'product_name' => (string) ($item['name'] ?? ''),
+                    'quantity' => (int) ($item['quantity'] ?? 0),
+                    'unit_price_minor' => (int) ($item['unit_price_minor'] ?? 0),
+                    'line_total_minor' => (int) ($item['line_total_minor'] ?? 0),
+                    'metadata' => $this->toJson(['slug' => $item['slug'] ?? ''], JSON_THROW_ON_ERROR),
+                ]);
+            }
+
+            $this->addresses->create([
+                'order_id' => (int) $order->getKey(),
+                'type' => 'shipping',
+                'name' => $contactName,
+                'line_one' => (string) ($this->payload['line_one'] ?? ''),
+                'line_two' => (string) ($this->payload['line_two'] ?? ''),
+                'postal_code' => (string) ($this->payload['postal_code'] ?? ''),
+                'city' => (string) ($this->payload['city'] ?? ''),
+                'country' => (string) ($this->payload['country'] ?? ''),
+                'email' => $contactEmail,
+                'phone' => (string) ($this->payload['phone'] ?? ''),
+            ]);
+
+            $this->carts->updateStatus((int) $cart->getKey(), 'checked_out');
+            $this->database->commit();
+        } catch (\Throwable $exception) {
+            $this->database->rollBack();
+            throw $exception;
         }
-
-        $this->addresses->create([
-            'order_id' => (int) $order->getKey(),
-            'type' => 'shipping',
-            'name' => $contactName,
-            'line_one' => (string) ($this->payload['line_one'] ?? ''),
-            'line_two' => (string) ($this->payload['line_two'] ?? ''),
-            'postal_code' => (string) ($this->payload['postal_code'] ?? ''),
-            'city' => (string) ($this->payload['city'] ?? ''),
-            'country' => (string) ($this->payload['country'] ?? ''),
-            'email' => $contactEmail,
-            'phone' => (string) ($this->payload['phone'] ?? ''),
-        ]);
-
-        $this->carts->updateStatus((int) $cart->getKey(), 'checked_out');
 
         if (!$this->auth->check()) {
             $this->session->forget('cart.session_key');
@@ -261,7 +306,9 @@ class OrderService extends Service
             'payment_method' => $payment->intent->method,
             'payment_flow' => $payment->intent->flow,
             'payment_idempotency_key' => $payment->intent->idempotencyKey,
-            'total_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
+            'total_minor' => (int) ($cartPayload['total_minor'] ?? 0),
+            'fulfillment_status' => (string) ($order->getAttribute('fulfillment_status') ?? ''),
+            'inventory_status' => (string) ($order->getAttribute('inventory_status') ?? ''),
         ], 'order');
 
         return [
@@ -411,65 +458,24 @@ class OrderService extends Service
      */
     private function transitionPayment(int $orderId, string $action): array
     {
-        $order = $this->orders->find($orderId);
+        $transition = $this->lifecycle->transition($orderId, $action, $this->payload);
 
-        if ($order === null) {
-            return $this->response('Order not found', 'The requested order could not be found.', 404);
+        if (!$transition['successful']) {
+            return $this->response(
+                (string) ($transition['title'] ?? 'Payment transition failed'),
+                (string) ($transition['message'] ?? 'The payment lifecycle transition could not be completed.'),
+                (int) ($transition['status'] ?? 422)
+            );
         }
 
-        $intent = PaymentIntent::fromArray($this->decodeIntent((string) ($order->getAttribute('payment_intent') ?? '{}')));
-        $result = match ($action) {
-            'capture' => $this->payments->capture($intent),
-            'refund' => $this->payments->refund($intent),
-            'reconcile' => $this->payments->reconcile($intent, $this->payload),
-            default => $this->payments->cancel($intent),
-        };
+        $updated = $this->orders->find($orderId);
 
-        if (!$result->successful) {
-            return $this->response('Payment transition failed', $result->message, 422);
+        if (!$updated instanceof \App\Modules\OrderModule\Models\Order) {
+            return $this->response('Order not found', 'The updated order could not be reloaded.', 404);
         }
-
-        $status = $this->orderStatusForIntent($result->intent);
-        $updated = $this->orders->updateLifecycle($orderId, [
-            'status' => $status,
-            'payment_status' => $result->intent->status,
-            'payment_driver' => $result->driver,
-            'payment_method' => $result->intent->method,
-            'payment_flow' => $result->intent->flow,
-            'payment_reference' => $result->intent->reference,
-            'payment_provider_reference' => $result->intent->providerReference,
-            'payment_external_reference' => $result->intent->externalReference,
-            'payment_webhook_reference' => $result->intent->webhookReference,
-            'payment_idempotency_key' => $result->intent->idempotencyKey,
-            'payment_customer_action_required' => $result->intent->customerActionRequired,
-            'payment_next_action' => $this->toJson(
-                $result->intent->nextAction,
-                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
-            ),
-            'payment_intent' => $this->toJson(
-                $result->intent->toArray(),
-                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
-            ),
-        ]);
-
-        $event = $this->eventForPaymentTransition($action, $result->intent);
-
-        if ($event !== null) {
-            $this->events->dispatch($event, ['order_id' => $orderId]);
-        }
-
-        $this->audit->record('order.' . $action, [
-            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
-            'order_id' => (string) $orderId,
-            'payment_driver' => $result->driver,
-            'payment_status' => $result->intent->status,
-            'payment_method' => $result->intent->method,
-            'payment_flow' => $result->intent->flow,
-            'status' => $status,
-        ], 'order');
 
         return [
-            ...$this->response('Order updated', ucfirst($action) . ' completed successfully.', 200),
+            ...$this->response((string) ($transition['title'] ?? 'Order updated'), (string) ($transition['message'] ?? ''), 200),
             'order' => $this->orderPayload((int) $updated->getKey()),
             'redirect' => $this->redirectPathForOrder($updated),
         ];
@@ -532,19 +538,14 @@ class OrderService extends Service
     {
         $cart = $this->currentCart();
         $items = $this->cartItems->summaryForCart((int) $cart->getKey());
-        $subtotal = array_reduce(
-            $items,
-            static fn(int $carry, array $item): int => $carry + (int) ($item['line_total_minor'] ?? 0),
-            0
-        );
+        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
 
         return [
             'id' => (int) $cart->getKey(),
             'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
             'item_count' => count($items),
-            'subtotal_minor' => $subtotal,
-            'subtotal' => $this->formatMoneyMinor($subtotal, (string) ($cart->getAttribute('currency') ?? 'SEK')),
             'items' => $items,
+            ...$totals,
         ];
     }
 
@@ -632,32 +633,6 @@ class OrderService extends Service
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function decodeIntent(string $payload): array
-    {
-        try {
-            $decoded = $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return [];
-        }
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    private function orderStatusForIntent(PaymentIntent $intent): string
-    {
-        return match ($intent->status) {
-            'captured' => 'processing',
-            'partially_refunded', 'refunded' => 'refunded',
-            'cancelled' => 'cancelled',
-            'requires_action' => 'awaiting_payment_action',
-            'processing', 'pending_review' => 'pending_payment',
-            default => 'placed',
-        };
-    }
-
     private function responseStatusForIntent(PaymentIntent $intent): int
     {
         return in_array($intent->status, ['requires_action', 'processing', 'pending_review'], true) ? 202 : 201;
@@ -671,17 +646,6 @@ class OrderService extends Service
             'pending_review' => 'The order has been created and is waiting for manual payment review.',
             'captured' => 'The order has been created and payment completed immediately.',
             default => 'The order has been created and payment authorized by the configured driver.',
-        };
-    }
-
-    private function eventForPaymentTransition(string $action, PaymentIntent $intent): ?string
-    {
-        return match ($action) {
-            'capture' => 'order.paid',
-            'refund' => 'order.refunded',
-            'cancel' => 'order.cancelled',
-            'reconcile' => $intent->status === 'captured' ? 'order.paid' : null,
-            default => null,
         };
     }
 
@@ -824,25 +788,22 @@ class OrderService extends Service
             $actions['continue_payment'] = (string) $nextAction['url'];
         }
 
-        if ($this->auth->hasPermission('order.manage')) {
-            if (in_array($paymentStatus, ['authorized', 'partially_captured'], true)) {
-                $actions['capture'] = '/orders/' . $orderId . '/capture';
+        foreach ($this->lifecycle->availableTransitions($order) as $transition) {
+            if (!in_array($transition, ['capture', 'refund', 'reconcile'], true) && $transition !== 'cancel') {
+                continue;
             }
 
-            if (in_array($paymentStatus, ['authorized', 'requires_action', 'processing', 'pending_review'], true)) {
-                $actions['reconcile'] = '/orders/' . $orderId . '/reconcile';
+            if ($transition === 'cancel') {
+                if ($this->auth->hasPermission('order.manage') || ($this->auth->check() && $this->canAccessOrder($orderId, $ownerId))) {
+                    $actions['cancel'] = '/orders/' . $orderId . '/cancel';
+                }
+
+                continue;
             }
 
-            if (in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {
-                $actions['refund'] = '/orders/' . $orderId . '/refund';
+            if ($this->auth->hasPermission('order.manage')) {
+                $actions[$transition] = '/orders/' . $orderId . '/' . $transition;
             }
-        }
-
-        if (
-            ($this->auth->hasPermission('order.manage') || ($this->auth->check() && $this->canAccessOrder($orderId, $ownerId)))
-            && !in_array($paymentStatus, ['cancelled', 'refunded'], true)
-        ) {
-            $actions['cancel'] = '/orders/' . $orderId . '/cancel';
         }
 
         return $actions;

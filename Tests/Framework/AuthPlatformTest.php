@@ -23,6 +23,7 @@ use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\ShippingManager;
 use App\Modules\UserModule\Migrations\CreateUserPlatformTables;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
@@ -425,6 +426,7 @@ class AuthPlatformTest extends TestCase
             $this->createStub(CatalogLifecycleManager::class),
             new CommerceTotalsCalculator($stack['config']),
             $this->createStub(OrderLifecycleManager::class),
+            $this->createStub(ShippingManager::class),
             $moduleManager,
             $cache,
             $stack['sessionManager'],

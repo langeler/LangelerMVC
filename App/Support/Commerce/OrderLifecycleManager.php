@@ -24,7 +24,8 @@ class OrderLifecycleManager
         private readonly EventDispatcherInterface $events,
         private readonly AuthManager $auth,
         private readonly AuditLoggerInterface $audit,
-        private readonly InventoryManager $inventory
+        private readonly InventoryManager $inventory,
+        private readonly ShippingManager $shipping
     ) {
     }
 
@@ -170,22 +171,38 @@ class OrderLifecycleManager
             'deliver' => 'completed',
             default => (string) ($summary['status'] ?? 'processing'),
         };
+        $transitionAttributes = $this->fulfillmentAttributesForAction($action, $summary, $payload);
+
+        if (($transitionAttributes['successful'] ?? true) === false) {
+            return [
+                'successful' => false,
+                'status' => (int) ($transitionAttributes['status'] ?? 422),
+                'title' => (string) ($transitionAttributes['title'] ?? 'Fulfillment update failed'),
+                'message' => (string) ($transitionAttributes['message'] ?? 'The requested fulfillment step could not be completed.'),
+                'order' => $summary,
+            ];
+        }
 
         $updated = $this->orders->updateLifecycle($orderId, [
             'status' => $nextStatus,
             'fulfillment_status' => $nextFulfillmentStatus,
+            ...(is_array($transitionAttributes['attributes'] ?? null) ? $transitionAttributes['attributes'] : []),
         ]);
 
         $this->events->dispatch('order.fulfillment.updated', [
             'order_id' => $orderId,
             'action' => $action,
             'fulfillment_status' => $nextFulfillmentStatus,
+            'tracking_number' => (string) ($updated->getAttribute('tracking_number') ?? ''),
+            'shipping_carrier' => (string) ($updated->getAttribute('shipping_carrier') ?? ''),
         ]);
         $this->audit->record('order.fulfillment.' . $action, [
             'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
             'order_id' => (string) $orderId,
             'status' => $nextStatus,
             'fulfillment_status' => $nextFulfillmentStatus,
+            'shipping_carrier' => (string) ($updated->getAttribute('shipping_carrier') ?? ''),
+            'tracking_number' => (string) ($updated->getAttribute('tracking_number') ?? ''),
         ], 'order');
 
         return [
@@ -317,5 +334,41 @@ class OrderLifecycleManager
         }
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function fulfillmentAttributesForAction(string $action, array $order, array $payload): array
+    {
+        if ($action === 'ship') {
+            return $this->shipping->prepareShipmentUpdate($order, $payload);
+        }
+
+        if ($action === 'deliver') {
+            return $this->shipping->markDelivered($order);
+        }
+
+        if ($action === 'pack' && trim((string) ($order['shipment_reference'] ?? '')) === '') {
+            return [
+                'successful' => true,
+                'status' => 200,
+                'attributes' => [
+                    'shipment_reference' => sprintf(
+                        'SHP-%s-%s',
+                        preg_replace('/[^A-Z0-9]+/', '', strtoupper((string) ($order['order_number'] ?? 'ORD'))) ?: 'ORDER',
+                        strtoupper(substr(bin2hex(random_bytes(4)), 0, 6))
+                    ),
+                ],
+            ];
+        }
+
+        return [
+            'successful' => true,
+            'status' => 200,
+            'attributes' => [],
+        ];
     }
 }

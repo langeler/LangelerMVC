@@ -1,6 +1,19 @@
-<?php $order = is_array($order ?? null) ? $order : []; ?>
-<?php $lookup = is_array($lookup ?? null) ? $lookup : []; ?>
-<?php $actions = is_array($order['actions'] ?? null) ? $order['actions'] : []; ?>
+<?php
+
+$order = is_array($order ?? null) ? $order : [];
+$lookup = is_array($lookup ?? null) ? $lookup : [];
+$actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
+$trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
+$trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
+$nextActionItems = !empty($order['payment_next_action']) && is_array($order['payment_next_action'])
+    ? array_map(
+        static fn(mixed $value): string => is_scalar($value) || $value === null
+            ? (string) $value
+            : (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        $order['payment_next_action']
+    )
+    : [];
+?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
         'eyebrow' => 'OrderModule',
@@ -36,6 +49,14 @@
                 'Payment flow' => $order['payment_flow'] ?? '',
                 'Payment reference' => $order['payment_reference'] ?? '',
                 'Provider reference' => $order['payment_provider_reference'] ?? '',
+                'Shipping country' => $order['shipping_country'] ?? '',
+                'Shipping zone' => $order['shipping_zone'] ?? '',
+                'Shipping option' => $order['shipping_option_label'] ?? '',
+                'Carrier' => $order['shipping_carrier_label'] ?? '',
+                'Service' => $order['shipping_service_label'] ?? '',
+                'Service point' => $order['shipping_service_point_name'] ?? '',
+                'Shipment reference' => $order['shipment_reference'] ?? '',
+                'Tracking number' => $order['tracking_number'] ?? '',
                 'Subtotal' => $order['subtotal'] ?? '',
                 'Discount' => $order['discount'] ?? '',
                 'Shipping' => $order['shipping'] ?? '',
@@ -67,17 +88,61 @@
         </div>
     <?php endif; ?>
 
-    <?php if (!empty($order['payment_next_action']) && is_array($order['payment_next_action'])): ?>
+    <div class="section">
+        <h2>Shipment and tracking</h2>
+        <?= $view->renderComponent('DefinitionGrid', [
+            'items' => [
+                'Carrier portal' => $order['tracking_url'] ?? '',
+                'Tracking number' => $order['tracking_number'] ?? '',
+                'Shipped at' => $order['shipped_at'] ?? '',
+                'Delivered at' => $order['delivered_at'] ?? '',
+            ],
+        ]) ?>
+
+        <?php if (!empty($order['tracking_url'])): ?>
+            <p><a href="<?= $view->escape((string) $order['tracking_url']) ?>">Open carrier tracking portal</a></p>
+        <?php endif; ?>
+    </div>
+
+    <?php if ($trackingApps !== []): ?>
+        <div class="section">
+            <h2>Tracking apps</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'label' => 'App',
+                    'platforms' => 'Platforms',
+                    'note' => 'Note',
+                ],
+                'rows' => array_map(static fn(array $app): array => [
+                    'label' => (string) ($app['label'] ?? ''),
+                    'platforms' => implode(', ', (array) ($app['platforms'] ?? [])),
+                    'note' => (string) ($app['note'] ?? ''),
+                ], $trackingApps),
+                'empty' => 'No tracking apps are currently suggested for this order.',
+            ]) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($trackingEvents !== []): ?>
+        <div class="section">
+            <h2>Tracking timeline</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'occurred_at' => 'When',
+                    'status' => 'Status',
+                    'label' => 'Update',
+                    'location' => 'Location',
+                ],
+                'rows' => $trackingEvents,
+                'empty' => 'No tracking events are available yet.',
+            ]) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($nextActionItems !== []): ?>
         <div class="section">
             <h2>Payment next action</h2>
-            <?= $view->renderComponent('DefinitionGrid', [
-                'items' => array_map(
-                    static fn(mixed $value): string => is_scalar($value) || $value === null
-                        ? (string) $value
-                        : json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                    $order['payment_next_action']
-                ),
-            ]) ?>
+            <?= $view->renderComponent('DefinitionGrid', ['items' => $nextActionItems]) ?>
         </div>
     <?php endif; ?>
 

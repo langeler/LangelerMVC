@@ -95,6 +95,8 @@ class SettingsManager
         'CACHE_MEMCACHE_PORT' => ['file' => 'cache', 'path' => ['MEMCACHE_PORT'], 'type' => 'int'],
         'COMMERCE_CURRENCY' => ['file' => 'commerce', 'path' => ['CURRENCY']],
         'COMMERCE_TAX_RATE_BPS' => ['file' => 'commerce', 'path' => ['TAX', 'RATE_BPS'], 'type' => 'int'],
+        'COMMERCE_SHIPPING_DEFAULT_COUNTRY' => ['file' => 'commerce', 'path' => ['SHIPPING', 'DEFAULT_COUNTRY']],
+        'COMMERCE_SHIPPING_DEFAULT_OPTION' => ['file' => 'commerce', 'path' => ['SHIPPING', 'DEFAULT_OPTION']],
         'COMMERCE_SHIPPING_FLAT_RATE_MINOR' => ['file' => 'commerce', 'path' => ['SHIPPING', 'FLAT_RATE_MINOR'], 'type' => 'int'],
         'COMMERCE_SHIPPING_FREE_OVER_MINOR' => ['file' => 'commerce', 'path' => ['SHIPPING', 'FREE_OVER_MINOR'], 'type' => 'int'],
         'COMMERCE_DISCOUNT_RATE_BPS' => ['file' => 'commerce', 'path' => ['DISCOUNT', 'RATE_BPS'], 'type' => 'int'],

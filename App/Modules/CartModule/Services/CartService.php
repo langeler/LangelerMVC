@@ -11,6 +11,7 @@ use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
 use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\ShippingManager;
 use App\Utilities\Managers\Security\AuthManager;
 
 class CartService extends Service
@@ -33,7 +34,8 @@ class CartService extends Service
         private readonly ProductRepository $products,
         private readonly Session $session,
         private readonly AuthManager $auth,
-        private readonly CommerceTotalsCalculator $totals
+        private readonly CommerceTotalsCalculator $totals,
+        private readonly ShippingManager $shipping
     ) {
     }
 
@@ -235,7 +237,10 @@ class CartService extends Service
     private function cartPayload(Cart $cart): array
     {
         $items = $this->items->summaryForCart((int) $cart->getKey());
-        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
+        $quote = $this->shipping->quote($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
+        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
+            'shipping_minor' => (int) (($quote['selected']['effective_rate_minor'] ?? $quote['selected']['rate_minor'] ?? 0)),
+        ]);
 
         return [
             'id' => (int) $cart->getKey(),
@@ -243,6 +248,13 @@ class CartService extends Service
             'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
             'items' => $items,
             'item_count' => count($items),
+            'shipping_country' => (string) ($quote['country'] ?? 'SE'),
+            'shipping_zone' => (string) ($quote['zone'] ?? 'SE'),
+            'shipping_option' => (string) (($quote['selected']['code'] ?? '')),
+            'shipping_option_label' => (string) (($quote['selected']['label'] ?? '')),
+            'shipping_carrier' => (string) (($quote['selected']['carrier_code'] ?? '')),
+            'shipping_carrier_label' => (string) (($quote['selected']['carrier_label'] ?? '')),
+            'shipping_quote' => $quote,
             ...$totals,
         ];
     }

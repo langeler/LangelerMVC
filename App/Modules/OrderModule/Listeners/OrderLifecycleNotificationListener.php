@@ -90,6 +90,8 @@ class OrderLifecycleNotificationListener implements ListenerInterface
             'fulfillment_status' => $summary['fulfillment_status'],
             'payment_status' => $summary['payment_status'],
             'payment_method' => $summary['payment_method'],
+            'shipping_carrier_label' => $summary['shipping_carrier_label'] ?? '',
+            'tracking_number' => $summary['tracking_number'] ?? '',
             'total' => $summary['total'],
         ]);
 

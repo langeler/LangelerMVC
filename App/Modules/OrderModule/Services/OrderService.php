@@ -18,6 +18,7 @@ use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\ShippingManager;
 use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
 use App\Support\Payments\PaymentMethod;
@@ -49,6 +50,7 @@ class OrderService extends Service
         private readonly CommerceTotalsCalculator $totals,
         private readonly InventoryManager $inventory,
         private readonly OrderLifecycleManager $lifecycle,
+        private readonly ShippingManager $shipping,
         private readonly PaymentManager $payments,
         private readonly EventDispatcherInterface $events,
         private readonly AuthManager $auth,
@@ -100,9 +102,10 @@ class OrderService extends Service
             'title' => 'Checkout',
             'headline' => 'Review and place your order',
             'summary' => 'Orders snapshot the current cart and flow through the framework payment and event layers.',
-            'cart' => $this->currentCartPayload(),
+            'cart' => $cart = $this->currentCartPayload(),
             'payment' => $this->paymentPayload($defaultDriver),
             'checkout' => $this->checkoutPayload($defaultDriver),
+            'shipping' => $this->shippingPayload($cart),
             'lookup' => $this->lookupPayload(),
         ];
     }
@@ -240,6 +243,7 @@ class OrderService extends Service
                 'shipping_minor' => (int) ($cartPayload['shipping_minor'] ?? 0),
                 'tax_minor' => (int) ($cartPayload['tax_minor'] ?? 0),
                 'total_minor' => (int) ($cartPayload['total_minor'] ?? 0),
+                ...$this->shipping->orderSnapshot((array) ($cartPayload['shipping_quote'] ?? []), $this->payload),
                 'fulfillment_status' => $fulfillmentStatus,
                 'inventory_status' => $inventoryStatus,
                 'payment_next_action' => $this->toJson(
@@ -502,6 +506,7 @@ class OrderService extends Service
             }, $items),
             'addresses' => $includeSensitive ? $addresses : [],
             'actions' => $includeSensitive ? $this->orderActions($summary) : $this->publicOrderActions($summary),
+            ...$this->shipping->presentation($summary),
         ];
 
         if (!$includeSensitive) {
@@ -538,13 +543,26 @@ class OrderService extends Service
     {
         $cart = $this->currentCart();
         $items = $this->cartItems->summaryForCart((int) $cart->getKey());
-        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
+        $quote = $this->shipping->quote($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
+            'country' => (string) ($this->payload['country'] ?? $this->shipping->defaultCountry()),
+            'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
+        ]);
+        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
+            'shipping_minor' => (int) (($quote['selected']['effective_rate_minor'] ?? $quote['selected']['rate_minor'] ?? 0)),
+        ]);
 
         return [
             'id' => (int) $cart->getKey(),
             'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
             'item_count' => count($items),
             'items' => $items,
+            'shipping_country' => (string) ($quote['country'] ?? 'SE'),
+            'shipping_zone' => (string) ($quote['zone'] ?? 'SE'),
+            'shipping_option' => (string) (($quote['selected']['code'] ?? '')),
+            'shipping_option_label' => (string) (($quote['selected']['label'] ?? '')),
+            'shipping_carrier' => (string) (($quote['selected']['carrier_code'] ?? '')),
+            'shipping_carrier_label' => (string) (($quote['selected']['carrier_label'] ?? '')),
+            'shipping_quote' => $quote,
             ...$totals,
         ];
     }
@@ -626,9 +644,10 @@ class OrderService extends Service
             'headline' => $title,
             'summary' => $message,
             'message' => $message,
-            'cart' => $this->currentCartPayload(),
+            'cart' => $cart = $this->currentCartPayload(),
             'payment' => $this->paymentPayload($paymentDriver),
             'checkout' => $this->checkoutPayload($paymentDriver),
+            'shipping' => $this->shippingPayload($cart),
             'lookup' => $this->lookupPayload(),
         ];
     }
@@ -673,6 +692,10 @@ class OrderService extends Service
     private function checkoutPayload(string $paymentDriver): array
     {
         $defaultIntent = $this->payments->createIntent(0, driver: $paymentDriver);
+        $quote = $this->shipping->quote([], 'SEK', [
+            'country' => trim((string) ($this->payload['country'] ?? $this->shipping->defaultCountry())),
+            'shipping_option' => trim((string) ($this->payload['shipping_option'] ?? $this->shipping->defaultOptionCode())),
+        ]);
 
         return [
             'name' => trim((string) ($this->payload['name'] ?? '')),
@@ -681,12 +704,45 @@ class OrderService extends Service
             'line_two' => trim((string) ($this->payload['line_two'] ?? '')),
             'postal_code' => trim((string) ($this->payload['postal_code'] ?? '')),
             'city' => trim((string) ($this->payload['city'] ?? '')),
-            'country' => trim((string) ($this->payload['country'] ?? 'SE')),
+            'country' => trim((string) ($this->payload['country'] ?? $this->shipping->defaultCountry())),
             'phone' => trim((string) ($this->payload['phone'] ?? '')),
+            'shipping_option' => trim((string) ($this->payload['shipping_option'] ?? ($quote['selected']['code'] ?? $this->shipping->defaultOptionCode()))),
+            'service_point_id' => trim((string) ($this->payload['service_point_id'] ?? '')),
+            'service_point_name' => trim((string) ($this->payload['service_point_name'] ?? '')),
             'payment_driver' => $paymentDriver,
             'payment_method' => (string) ($this->payload['payment_method'] ?? $defaultIntent->method),
             'payment_flow' => (string) ($this->payload['payment_flow'] ?? $defaultIntent->flow),
             'idempotency_key' => trim((string) ($this->payload['idempotency_key'] ?? '')),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $cart
+     * @return array<string, mixed>
+     */
+    private function shippingPayload(array $cart): array
+    {
+        $quote = is_array($cart['shipping_quote'] ?? null)
+            ? $cart['shipping_quote']
+            : $this->shipping->quote((array) ($cart['items'] ?? []), (string) ($cart['currency'] ?? 'SEK'), [
+                'country' => (string) ($this->payload['country'] ?? $this->shipping->defaultCountry()),
+                'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
+            ]);
+
+        return [
+            'country' => (string) ($quote['country'] ?? $this->shipping->defaultCountry()),
+            'zone' => (string) ($quote['zone'] ?? 'SE'),
+            'selected_option' => (string) (($quote['selected']['code'] ?? '')),
+            'selected_label' => (string) (($quote['selected']['label'] ?? '')),
+            'selected_rate' => (string) (($quote['selected']['effective_rate'] ?? '')),
+            'selected_carrier' => (string) (($quote['selected']['carrier_label'] ?? '')),
+            'selected_service' => (string) (($quote['selected']['service_label'] ?? '')),
+            'service_point_required' => (bool) (($quote['selected']['service_point_required'] ?? false)),
+            'options' => is_array($quote['options'] ?? null) ? $quote['options'] : [],
+            'carriers' => is_array($quote['carriers'] ?? null) ? $quote['carriers'] : [],
+            'tracking_apps' => is_array($quote['tracking_apps'] ?? null) ? $quote['tracking_apps'] : [],
+            'service_point_id' => trim((string) ($this->payload['service_point_id'] ?? '')),
+            'service_point_name' => trim((string) ($this->payload['service_point_name'] ?? '')),
         ];
     }
 

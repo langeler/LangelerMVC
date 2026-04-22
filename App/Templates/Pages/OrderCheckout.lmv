@@ -1,8 +1,35 @@
-<?php $cart = is_array($cart ?? null) ? $cart : []; ?>
-<?php $payment = is_array($payment ?? null) ? $payment : []; ?>
-<?php $checkout = is_array($checkout ?? null) ? $checkout : []; ?>
-<?php $lookup = is_array($lookup ?? null) ? $lookup : []; ?>
-<?php $items = is_array($cart['items'] ?? null) ? $cart['items'] : []; ?>
+<?php
+
+$cart = is_array($cart ?? null) ? $cart : [];
+$payment = is_array($payment ?? null) ? $payment : [];
+$checkout = is_array($checkout ?? null) ? $checkout : [];
+$shipping = is_array($shipping ?? null) ? $shipping : [];
+$lookup = is_array($lookup ?? null) ? $lookup : [];
+$items = is_array($cart['items'] ?? null) ? $cart['items'] : [];
+$providerRows = [];
+$shippingRows = [];
+
+foreach (is_array($payment['catalog'] ?? null) ? array_values($payment['catalog']) : [] as $provider) {
+    $providerRows[] = [
+        'driver' => $provider['driver'] ?? '',
+        'label' => $provider['label'] ?? '',
+        'regions' => implode(', ', (array) ($provider['regions'] ?? [])),
+        'methods' => implode(', ', (array) ($provider['methods'] ?? [])),
+        'flows' => implode(', ', (array) ($provider['flows'] ?? [])),
+        'mode' => $provider['mode'] ?? '',
+    ];
+}
+
+foreach (is_array($shipping['options'] ?? null) ? array_values($shipping['options']) : [] as $option) {
+    $shippingRows[] = [
+        'label' => $option['label'] ?? '',
+        'carrier' => $option['carrier_label'] ?? '',
+        'service' => $option['service_label'] ?? '',
+        'rate' => $option['effective_rate'] ?? ($option['rate'] ?? ''),
+        'service_point' => !empty($option['service_point_required']) ? 'Required' : 'Optional',
+    ];
+}
+?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
         'eyebrow' => 'OrderModule',
@@ -36,7 +63,7 @@
     </div>
 
     <div class="section">
-        <h2>Customer and delivery details</h2>
+        <h2>Customer, delivery, and shipping details</h2>
         <form method="post" action="/orders/checkout" class="stack">
             <label>
                 Full name
@@ -76,6 +103,28 @@
             <label>
                 Country
                 <input type="text" name="country" value="<?= $view->escape((string) ($checkout['country'] ?? 'SE')) ?>" required>
+            </label>
+
+            <label>
+                Shipping option
+                <select name="shipping_option">
+                    <?php foreach ((array) ($shipping['options'] ?? []) as $option): ?>
+                        <?php $entry = is_array($option) ? $option : []; ?>
+                        <option value="<?= $view->escape((string) ($entry['code'] ?? '')) ?>"<?php if (($checkout['shipping_option'] ?? $shipping['selected_option'] ?? '') === ($entry['code'] ?? '')): ?> selected<?php endif; ?>>
+                            <?= $view->escape((string) ($entry['label'] ?? 'Shipping')) ?> - <?= $view->escape((string) ($entry['effective_rate'] ?? ($entry['rate'] ?? ''))) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Service point ID
+                <input type="text" name="service_point_id" value="<?= $view->escape((string) ($checkout['service_point_id'] ?? $shipping['service_point_id'] ?? '')) ?>" placeholder="Optional for locker/service point deliveries">
+            </label>
+
+            <label>
+                Service point name
+                <input type="text" name="service_point_name" value="<?= $view->escape((string) ($checkout['service_point_name'] ?? $shipping['service_point_name'] ?? '')) ?>" placeholder="Optional delivery point name">
             </label>
 
             <label>
@@ -129,6 +178,11 @@
             'items' => [
                 'Currency' => $cart['currency'] ?? '',
                 'Items' => $cart['item_count'] ?? 0,
+                'Shipping country' => $shipping['country'] ?? '',
+                'Shipping zone' => $shipping['zone'] ?? '',
+                'Selected shipping' => $shipping['selected_label'] ?? '',
+                'Carrier' => $shipping['selected_carrier'] ?? '',
+                'Service' => $shipping['selected_service'] ?? '',
                 'Subtotal' => $cart['subtotal'] ?? '',
                 'Discount' => $cart['discount'] ?? '',
                 'Shipping' => $cart['shipping'] ?? '',
@@ -138,6 +192,40 @@
                 'Default method' => $payment['default_method'] ?? '',
                 'Default flow' => $payment['default_flow'] ?? '',
             ],
+        ]) ?>
+    </div>
+
+    <?php if (!empty($shipping['tracking_apps']) && is_array($shipping['tracking_apps'])): ?>
+        <div class="section">
+            <h2>Tracking apps</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'label' => 'App',
+                    'platforms' => 'Platforms',
+                    'note' => 'Note',
+                ],
+                'rows' => array_map(static fn(array $app): array => [
+                    'label' => (string) ($app['label'] ?? ''),
+                    'platforms' => implode(', ', (array) ($app['platforms'] ?? [])),
+                    'note' => (string) ($app['note'] ?? ''),
+                ], $shipping['tracking_apps']),
+                'empty' => 'No tracking apps are currently suggested for this shipment profile.',
+            ]) ?>
+        </div>
+    <?php endif; ?>
+
+    <div class="section">
+        <h2>Shipping options</h2>
+        <?= $view->renderComponent('DataTable', [
+            'columns' => [
+                'label' => 'Option',
+                'carrier' => 'Carrier',
+                'service' => 'Service',
+                'rate' => 'Rate',
+                'service_point' => 'Service point',
+            ],
+            'rows' => $shippingRows,
+            'empty' => 'No shipping options are currently available for the selected destination.',
         ]) ?>
     </div>
 
@@ -165,16 +253,7 @@
                 'flows' => 'Flows',
                 'mode' => 'Mode',
             ],
-            'rows' => array_map(static function (array $provider): array {
-                return [
-                    'driver' => $provider['driver'] ?? '',
-                    'label' => $provider['label'] ?? '',
-                    'regions' => implode(', ', (array) ($provider['regions'] ?? [])),
-                    'methods' => implode(', ', (array) ($provider['methods'] ?? [])),
-                    'flows' => implode(', ', (array) ($provider['flows'] ?? [])),
-                    'mode' => $provider['mode'] ?? '',
-                ];
-            }, is_array($payment['catalog'] ?? null) ? array_values($payment['catalog']) : []),
+            'rows' => $providerRows,
             'empty' => 'No payment providers are currently enabled.',
         ]) ?>
     </div>

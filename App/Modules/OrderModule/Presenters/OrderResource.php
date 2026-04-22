@@ -19,6 +19,7 @@ class OrderResource extends Resource
             'cart' => is_array($payload['cart'] ?? null) ? $payload['cart'] : [],
             'payment' => is_array($payload['payment'] ?? null) ? $payload['payment'] : [],
             'checkout' => is_array($payload['checkout'] ?? null) ? $payload['checkout'] : [],
+            'shipping' => is_array($payload['shipping'] ?? null) ? $payload['shipping'] : [],
             'lookup' => is_array($payload['lookup'] ?? null) ? $payload['lookup'] : [],
             'order' => is_array($payload['order'] ?? null) ? $payload['order'] : [],
             'orders' => is_array($payload['orders'] ?? null) ? $payload['orders'] : [],

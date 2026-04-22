@@ -22,6 +22,7 @@ use App\Modules\ShopModule\Repositories\ProductRepository;
 use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\ShippingManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
@@ -62,6 +63,7 @@ class AdminAccessService extends Service
         private readonly CatalogLifecycleManager $catalogLifecycle,
         private readonly CommerceTotalsCalculator $totals,
         private readonly OrderLifecycleManager $lifecycle,
+        private readonly ShippingManager $shipping,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
@@ -919,6 +921,7 @@ class AdminAccessService extends Service
 
         return [
             ...$summary,
+            ...$this->shipping->presentation($summary),
             'items' => array_map(function (array $item) use ($currency): array {
                 return [
                     ...$item,
@@ -928,6 +931,7 @@ class AdminAccessService extends Service
             }, $this->orderItems->summaryForOrder($orderId)),
             'addresses' => $this->orderAddresses->summaryForOrder($orderId),
             'actions' => $this->adminOrderActions($summary),
+            'available_carriers' => $this->shipping->carrierCatalog((string) ($summary['shipping_country'] ?? 'SE')),
             'view_path' => '/admin/orders/' . $orderId,
             'public_path' => '/orders/' . $orderId,
             'return_path' => $reference !== '' ? '/orders/complete/' . $reference : '/orders/complete',

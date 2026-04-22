@@ -29,6 +29,7 @@ use App\Modules\CartModule\Seeds\CartSeed;
 use App\Modules\CartModule\Services\CartService;
 use App\Modules\OrderModule\Listeners\OrderLifecycleNotificationListener;
 use App\Modules\OrderModule\Migrations\AddOrderCommerceStateColumns;
+use App\Modules\OrderModule\Migrations\AddOrderShipmentTrackingColumns;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
 use App\Modules\OrderModule\Presenters\OrderResource;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
@@ -61,6 +62,7 @@ use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\ShippingManager;
 use App\Support\Payments\PaymentIntent;
 use App\Utilities\Managers\Async\DatabaseFailedJobStore;
 use App\Utilities\Managers\Async\EventDispatcher;
@@ -345,6 +347,7 @@ final class FrameworkCompletionTest extends TestCase
         $modules = new TestModuleManager([
             CreateOrderTables::class,
             AddOrderCommerceStateColumns::class,
+            AddOrderShipmentTrackingColumns::class,
             OrderSeed::class,
             CreatePagesTable::class,
             PageSeed::class,
@@ -379,6 +382,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('AddOrderCommerceStateColumns', $executedMigrations, true),
             array_search('CreateOrderTables', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('AddOrderShipmentTrackingColumns', $executedMigrations, true),
+            array_search('AddOrderCommerceStateColumns', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('CartSeed', $executedSeeds, true),
@@ -575,7 +582,13 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('/orders/cancelled', $form['lookup']['cancelled_url']);
         self::assertArrayHasKey('payment', $formJson['data']);
         self::assertArrayHasKey('checkout', $formJson['data']);
+        self::assertArrayHasKey('shipping', $formJson['data']);
         self::assertArrayHasKey('lookup', $formJson['data']);
+        self::assertSame('SE', $form['shipping']['country']);
+        self::assertContains('Mina Paket', array_map(
+            static fn(array $app): string => (string) ($app['label'] ?? ''),
+            (array) ($form['shipping']['tracking_apps'] ?? [])
+        ));
 
         $checkout = $stack['orderService']->forAction('checkout', [
             'name' => 'Guest Customer',
@@ -634,6 +647,8 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame(1490, $cart['cart']['shipping_minor']);
         self::assertSame(2848, $cart['cart']['tax_minor']);
         self::assertSame(14238, $cart['cart']['total_minor']);
+        self::assertSame('postnord-service-point', $cart['cart']['shipping_option']);
+        self::assertSame('PostNord', $cart['cart']['shipping_carrier_label']);
 
         $checkout = $stack['orderService']->forAction('checkout', [
             'name' => 'Demo Customer',
@@ -642,13 +657,19 @@ final class FrameworkCompletionTest extends TestCase
             'postal_code' => '12345',
             'city' => 'Stockholm',
             'country' => 'Sweden',
+            'shipping_option' => 'instabox-locker',
+            'service_point_id' => 'IBOX-123',
+            'service_point_name' => 'Instabox Hornstull',
         ])->execute();
 
         self::assertSame(201, $checkout['status']);
         self::assertSame(9900, $checkout['order']['subtotal_minor']);
-        self::assertSame(1490, $checkout['order']['shipping_minor']);
-        self::assertSame(2848, $checkout['order']['tax_minor']);
-        self::assertSame(14238, $checkout['order']['total_minor']);
+        self::assertSame(990, $checkout['order']['shipping_minor']);
+        self::assertSame(2723, $checkout['order']['tax_minor']);
+        self::assertSame(13613, $checkout['order']['total_minor']);
+        self::assertSame('instabox-locker', $checkout['order']['shipping_option']);
+        self::assertSame('Instabox', $checkout['order']['shipping_carrier_label']);
+        self::assertSame('Instabox Hornstull', $checkout['order']['shipping_service_point_name']);
         self::assertSame('reserved', $checkout['order']['inventory_status']);
         self::assertSame('unfulfilled', $checkout['order']['fulfillment_status']);
 
@@ -688,6 +709,7 @@ final class FrameworkCompletionTest extends TestCase
             'postal_code' => '12345',
             'city' => 'Stockholm',
             'country' => 'Sweden',
+            'shipping_option' => 'budbee-home',
         ])->execute();
 
         $stack['auth']->logout();
@@ -712,6 +734,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('captured', $captured['order']['payment_status']);
         self::assertSame('ready_to_fulfill', $captured['order']['fulfillment_status']);
         self::assertSame('committed', $captured['order']['inventory_status']);
+        self::assertSame('Budbee', $captured['order']['shipping_carrier_label']);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/pack', $captured['order']['actions']['pack'] ?? null);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/refund', $captured['order']['actions']['refund'] ?? null);
 
@@ -724,13 +747,25 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('processing', $packed['order']['status']);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/ship', $packed['order']['actions']['ship'] ?? null);
 
-        $shipped = $stack['adminService']->forAction('shipOrder', [], [
+        $shipped = $stack['adminService']->forAction('shipOrder', [
+            'carrier_code' => 'budbee',
+            'tracking_number' => 'BDBEE123456SE',
+            'shipment_reference' => 'SHIP-BUDBEE-001',
+        ], [
             'order' => (int) $checkout['order']['id'],
         ])->execute();
 
         self::assertSame(200, $shipped['status']);
         self::assertSame('shipped', $shipped['order']['fulfillment_status']);
         self::assertSame('fulfilled', $shipped['order']['status']);
+        self::assertSame('Budbee', $shipped['order']['shipping_carrier_label']);
+        self::assertSame('BDBEE123456SE', $shipped['order']['tracking_number']);
+        self::assertSame('SHIP-BUDBEE-001', $shipped['order']['shipment_reference']);
+        self::assertSame('https://budbee.com', $shipped['order']['tracking_url']);
+        self::assertContains('Mina Paket', array_map(
+            static fn(array $app): string => (string) ($app['label'] ?? ''),
+            (array) ($shipped['order']['tracking_apps'] ?? [])
+        ));
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/deliver', $shipped['order']['actions']['deliver'] ?? null);
 
         $delivered = $stack['adminService']->forAction('deliverOrder', [], [
@@ -740,6 +775,8 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame(200, $delivered['status']);
         self::assertSame('delivered', $delivered['order']['fulfillment_status']);
         self::assertSame('completed', $delivered['order']['status']);
+        self::assertNotSame('', (string) ($delivered['order']['delivered_at'] ?? ''));
+        self::assertCount(2, (array) ($delivered['order']['tracking_events'] ?? []));
         self::assertArrayNotHasKey('deliver', $delivered['order']['actions']);
     }
 
@@ -1047,6 +1084,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateCartTables::class,
             CreateOrderTables::class,
             AddOrderCommerceStateColumns::class,
+            AddOrderShipmentTrackingColumns::class,
             MergeCartOnLoginListener::class,
             CatalogActivityNotificationListener::class,
             OrderLifecycleNotificationListener::class,
@@ -1153,12 +1191,13 @@ final class FrameworkCompletionTest extends TestCase
         $orderItems = new OrderItemRepository($database);
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
+        $shipping = new ShippingManager($config);
         $inventory = new InventoryManager($products);
         $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
-        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory);
+        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping);
 
         $catalogService = new CatalogService($products, $categories);
-        $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $totals);
+        $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $totals, $shipping);
         $orderService = new OrderService(
             $database,
             $orders,
@@ -1169,6 +1208,7 @@ final class FrameworkCompletionTest extends TestCase
             $totals,
             $inventory,
             $lifecycle,
+            $shipping,
             $payments,
             $events,
             $auth,
@@ -1191,6 +1231,7 @@ final class FrameworkCompletionTest extends TestCase
             $catalogLifecycle,
             $totals,
             $lifecycle,
+            $shipping,
             $modules,
             $cache,
             $sessionManager,
@@ -1246,6 +1287,7 @@ final class FrameworkCompletionTest extends TestCase
             'payments' => $payments,
             'products' => $products,
             'queue' => $queue,
+            'shipping' => $shipping,
             'totals' => $totals,
         ];
     }

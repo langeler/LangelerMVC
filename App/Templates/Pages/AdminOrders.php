@@ -16,7 +16,6 @@ $submitActions = [
     'refund' => 'Refund payment',
     'cancel' => 'Cancel order',
     'pack' => 'Pack order',
-    'ship' => 'Ship order',
     'deliver' => 'Mark delivered',
 ];
 $confirmActions = [
@@ -24,6 +23,8 @@ $confirmActions = [
     'cancel' => 'Cancel this order and release its inventory?',
     'deliver' => 'Mark this order as delivered?',
 ];
+$trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
+$trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
 ?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
@@ -54,6 +55,17 @@ $confirmActions = [
                     'Payment flow' => $order['payment_flow'] ?? '',
                     'Reference' => $order['payment_reference'] ?? '',
                     'Provider reference' => $order['payment_provider_reference'] ?? '',
+                    'Shipping country' => $order['shipping_country'] ?? '',
+                    'Shipping zone' => $order['shipping_zone'] ?? '',
+                    'Shipping option' => $order['shipping_option_label'] ?? '',
+                    'Carrier' => $order['shipping_carrier_label'] ?? '',
+                    'Service' => $order['shipping_service_label'] ?? '',
+                    'Service point' => $order['shipping_service_point_name'] ?? '',
+                    'Shipment reference' => $order['shipment_reference'] ?? '',
+                    'Tracking number' => $order['tracking_number'] ?? '',
+                    'Tracking portal' => $order['tracking_url'] ?? '',
+                    'Shipped at' => $order['shipped_at'] ?? '',
+                    'Delivered at' => $order['delivered_at'] ?? '',
                     'Subtotal' => $order['subtotal'] ?? '',
                     'Discount' => $order['discount'] ?? '',
                     'Shipping' => $order['shipping'] ?? '',
@@ -81,6 +93,84 @@ $confirmActions = [
                         </form>
                     <?php endif; ?>
                 <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($actions['ship'])): ?>
+            <div class="section">
+                <h2>Ship order</h2>
+                <form method="post" action="<?= $view->escape((string) $actions['ship']) ?>" class="stack">
+                    <label>
+                        Carrier
+                        <select name="carrier_code">
+                            <?php foreach ((array) ($order['available_carriers'] ?? []) as $carrier): ?>
+                                <?php $entry = is_array($carrier) ? $carrier : []; ?>
+                                <option value="<?= $view->escape((string) ($entry['code'] ?? '')) ?>"<?php if (($order['shipping_carrier'] ?? '') === ($entry['code'] ?? '')): ?> selected<?php endif; ?>>
+                                    <?= $view->escape((string) ($entry['label'] ?? '')) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        Tracking number
+                        <input type="text" name="tracking_number" value="<?= $view->escape((string) ($order['tracking_number'] ?? '')) ?>" required>
+                    </label>
+
+                    <label>
+                        Shipment reference
+                        <input type="text" name="shipment_reference" value="<?= $view->escape((string) ($order['shipment_reference'] ?? '')) ?>">
+                    </label>
+
+                    <label>
+                        Service point ID
+                        <input type="text" name="service_point_id" value="<?= $view->escape((string) ($order['shipping_service_point_id'] ?? '')) ?>">
+                    </label>
+
+                    <label>
+                        Service point name
+                        <input type="text" name="service_point_name" value="<?= $view->escape((string) ($order['shipping_service_point_name'] ?? '')) ?>">
+                    </label>
+
+                    <div>
+                        <button type="submit">Ship order</button>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($trackingApps !== []): ?>
+            <div class="section">
+                <h2>Tracking apps</h2>
+                <?= $view->renderComponent('DataTable', [
+                    'columns' => [
+                        'label' => 'App',
+                        'platforms' => 'Platforms',
+                        'note' => 'Note',
+                    ],
+                    'rows' => array_map(static fn(array $app): array => [
+                        'label' => (string) ($app['label'] ?? ''),
+                        'platforms' => implode(', ', (array) ($app['platforms'] ?? [])),
+                        'note' => (string) ($app['note'] ?? ''),
+                    ], $trackingApps),
+                    'empty' => 'No tracking apps are currently suggested for this order.',
+                ]) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($trackingEvents !== []): ?>
+            <div class="section">
+                <h2>Tracking timeline</h2>
+                <?= $view->renderComponent('DataTable', [
+                    'columns' => [
+                        'occurred_at' => 'When',
+                        'status' => 'Status',
+                        'label' => 'Update',
+                        'location' => 'Location',
+                    ],
+                    'rows' => $trackingEvents,
+                    'empty' => 'No tracking events are available yet.',
+                ]) ?>
             </div>
         <?php endif; ?>
 
@@ -128,8 +218,8 @@ $confirmActions = [
                         <th>Email</th>
                         <th>Status</th>
                         <th>Fulfillment</th>
+                        <th>Carrier</th>
                         <th>Payment</th>
-                        <th>Method</th>
                         <th>Driver</th>
                         <th>Total</th>
                         <th>View</th>
@@ -144,8 +234,8 @@ $confirmActions = [
                             <td><?= $view->escape((string) ($row['contact_email'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['status'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['fulfillment_status'] ?? '')) ?></td>
+                            <td><?= $view->escape((string) ($row['shipping_carrier_label'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_status'] ?? '')) ?></td>
-                            <td><?= $view->escape((string) ($row['payment_method'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_driver'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['total'] ?? '')) ?></td>
                             <td>

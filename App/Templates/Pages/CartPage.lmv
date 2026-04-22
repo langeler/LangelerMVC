@@ -1,5 +1,12 @@
 <?php $cart = is_array($cart ?? null) ? $cart : []; ?>
 <?php $items = is_array($cart['items'] ?? null) ? $cart['items'] : []; ?>
+<?php $shippingQuote = is_array($cart['shipping_quote'] ?? null) ? $cart['shipping_quote'] : []; ?>
+<?php $shippingRows = array_map(static fn(array $option): array => [
+    'label' => (string) ($option['label'] ?? ''),
+    'carrier' => (string) ($option['carrier_label'] ?? ''),
+    'service' => (string) ($option['service_label'] ?? ''),
+    'rate' => (string) ($option['effective_rate'] ?? ($option['rate'] ?? '')),
+], is_array($shippingQuote['options'] ?? null) ? $shippingQuote['options'] : []); ?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
         'eyebrow' => 'CartModule',
@@ -71,6 +78,10 @@
                 'Status' => $cart['status'] ?? '',
                 'Currency' => $cart['currency'] ?? '',
                 'Items' => $cart['item_count'] ?? 0,
+                'Shipping country' => $cart['shipping_country'] ?? '',
+                'Shipping zone' => $cart['shipping_zone'] ?? '',
+                'Shipping option' => $cart['shipping_option_label'] ?? '',
+                'Carrier' => $cart['shipping_carrier_label'] ?? '',
                 'Subtotal' => $cart['subtotal'] ?? '',
                 'Discount' => $cart['discount'] ?? '',
                 'Shipping' => $cart['shipping'] ?? '',
@@ -86,4 +97,20 @@
             <?php endif; ?>
         </p>
     </div>
+
+    <?php if ($shippingRows !== []): ?>
+        <div class="section">
+            <h2>Shipping preview</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'label' => 'Option',
+                    'carrier' => 'Carrier',
+                    'service' => 'Service',
+                    'rate' => 'Rate',
+                ],
+                'rows' => $shippingRows,
+                'empty' => 'No shipping preview is currently available.',
+            ]) ?>
+        </div>
+    <?php endif; ?>
 </section>

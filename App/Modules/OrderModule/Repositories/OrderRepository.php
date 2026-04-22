@@ -120,6 +120,14 @@ class OrderRepository extends Repository
 
         $nextAction = $this->isArray($nextAction) ? $nextAction : [];
 
+        try {
+            $trackingEvents = $this->fromJson((string) ($order->getAttribute('tracking_events') ?? '[]'), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            $trackingEvents = [];
+        }
+
+        $trackingEvents = $this->isArray($trackingEvents) ? array_values($trackingEvents) : [];
+
         return [
             'id' => (int) $order->getKey(),
             'user_id' => (int) ($order->getAttribute('user_id') ?? 0),
@@ -144,6 +152,22 @@ class OrderRepository extends Repository
             'shipping_minor' => (int) ($order->getAttribute('shipping_minor') ?? 0),
             'tax_minor' => (int) ($order->getAttribute('tax_minor') ?? 0),
             'total_minor' => (int) ($order->getAttribute('total_minor') ?? 0),
+            'shipping_country' => (string) ($order->getAttribute('shipping_country') ?? 'SE'),
+            'shipping_zone' => (string) ($order->getAttribute('shipping_zone') ?? 'SE'),
+            'shipping_option' => (string) ($order->getAttribute('shipping_option') ?? ''),
+            'shipping_option_label' => (string) ($order->getAttribute('shipping_option_label') ?? ''),
+            'shipping_carrier' => (string) ($order->getAttribute('shipping_carrier') ?? ''),
+            'shipping_carrier_label' => (string) ($order->getAttribute('shipping_carrier_label') ?? ''),
+            'shipping_service' => (string) ($order->getAttribute('shipping_service') ?? ''),
+            'shipping_service_label' => (string) ($order->getAttribute('shipping_service_label') ?? ''),
+            'shipping_service_point_id' => (string) ($order->getAttribute('shipping_service_point_id') ?? ''),
+            'shipping_service_point_name' => (string) ($order->getAttribute('shipping_service_point_name') ?? ''),
+            'tracking_number' => (string) ($order->getAttribute('tracking_number') ?? ''),
+            'tracking_url' => (string) ($order->getAttribute('tracking_url') ?? ''),
+            'shipment_reference' => (string) ($order->getAttribute('shipment_reference') ?? ''),
+            'tracking_events' => $trackingEvents,
+            'shipped_at' => (string) ($order->getAttribute('shipped_at') ?? ''),
+            'delivered_at' => (string) ($order->getAttribute('delivered_at') ?? ''),
             'subtotal' => $this->formatMoneyMinor((int) ($order->getAttribute('subtotal_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
             'discount' => $this->formatMoneyMinor((int) ($order->getAttribute('discount_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
             'shipping' => $this->formatMoneyMinor((int) ($order->getAttribute('shipping_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),

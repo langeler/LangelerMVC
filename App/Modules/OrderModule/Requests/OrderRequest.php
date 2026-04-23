@@ -32,6 +32,7 @@ class OrderRequest extends InboundRequest
                 'shipping_option' => ['methods' => 'string', 'required' => false],
                 'service_point_id' => ['methods' => 'string', 'required' => false],
                 'service_point_name' => ['methods' => 'string', 'required' => false],
+                'coupon_code' => ['methods' => 'string', 'required' => false],
                 'payment_driver' => ['methods' => 'string', 'required' => false],
                 'payment_method' => ['methods' => 'string', 'required' => false],
                 'payment_flow' => ['methods' => 'string', 'required' => false],
@@ -53,6 +54,7 @@ class OrderRequest extends InboundRequest
                 'country' => ['methods' => 'string', 'rules' => ['notEmpty']],
                 'shipping_option' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[a-z0-9-]{4,80}$/']],
                 'service_point_id' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z0-9._:-]{2,120}$/']],
+                'coupon_code' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z0-9-]{4,64}$/']],
                 'payment_driver' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(testing|card|crypto|paypal|klarna|swish|qliro|walley)$/']],
                 'payment_method' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(card|wallet|bank_transfer|bnpl|local_instant|manual|crypto)$/']],
                 'payment_flow' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(authorize_capture|purchase|redirect|async|manual_review)$/']],
@@ -60,5 +62,14 @@ class OrderRequest extends InboundRequest
             ],
             default => [],
         };
+    }
+
+    protected function transformInput(array $data): array
+    {
+        if (isset($data['coupon_code']) && is_string($data['coupon_code'])) {
+            $data['coupon_code'] = strtoupper(trim($data['coupon_code']));
+        }
+
+        return $data;
     }
 }

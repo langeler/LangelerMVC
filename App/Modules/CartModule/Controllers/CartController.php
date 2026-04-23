@@ -64,6 +64,21 @@ class CartController extends Controller
         return $this->run();
     }
 
+    public function applyDiscount(): ResponseInterface
+    {
+        $this->cartRequest->forScenario('applyDiscount');
+        $this->action = 'applyDiscount';
+
+        return $this->run();
+    }
+
+    public function removeDiscount(): ResponseInterface
+    {
+        $this->action = 'removeDiscount';
+
+        return $this->run();
+    }
+
     protected function execute(): mixed
     {
         return $this->cartService->forAction($this->action, $this->request->all(), $this->context)->execute();

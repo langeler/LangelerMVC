@@ -21,6 +21,7 @@ use App\Drivers\Queue\DatabaseQueueDriver;
 use App\Modules\AdminModule\Presenters\AdminResource;
 use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\CartModule\Listeners\MergeCartOnLoginListener;
+use App\Modules\CartModule\Migrations\AddCartDiscountColumns;
 use App\Modules\CartModule\Migrations\CreateCartTables;
 use App\Modules\CartModule\Presenters\CartResource;
 use App\Modules\CartModule\Repositories\CartItemRepository;
@@ -29,6 +30,7 @@ use App\Modules\CartModule\Seeds\CartSeed;
 use App\Modules\CartModule\Services\CartService;
 use App\Modules\OrderModule\Listeners\OrderLifecycleNotificationListener;
 use App\Modules\OrderModule\Migrations\AddOrderCommerceStateColumns;
+use App\Modules\OrderModule\Migrations\AddOrderDiscountSnapshotColumns;
 use App\Modules\OrderModule\Migrations\AddOrderShipmentTrackingColumns;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
 use App\Modules\OrderModule\Presenters\OrderResource;
@@ -59,9 +61,11 @@ use App\Providers\NotificationProvider;
 use App\Providers\PaymentProvider;
 use App\Providers\QueueProvider;
 use App\Support\Commerce\CatalogLifecycleManager;
+use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\PromotionManager;
 use App\Support\Commerce\ShippingManager;
 use App\Support\Payments\PaymentIntent;
 use App\Utilities\Managers\Async\DatabaseFailedJobStore;
@@ -689,6 +693,94 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame($initialStock, (int) ($stockAfterCancellation?->getAttribute('stock') ?? -1));
     }
 
+    public function testPromotionCodesUpdateCartPricingAndPersistIntoOrderSnapshots(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        $applied = $stack['cartService']->forAction('applyDiscount', [
+            'coupon_code' => 'LOCKER49',
+        ])->execute();
+
+        self::assertSame(200, $applied['status']);
+        self::assertSame('LOCKER49', $applied['cart']['discount_code']);
+        self::assertSame(1000, $applied['cart']['discount_minor']);
+        self::assertSame(1490, $applied['cart']['shipping_base_minor']);
+        self::assertSame(1000, $applied['cart']['shipping_discount_minor']);
+        self::assertSame(490, $applied['cart']['shipping_minor']);
+        self::assertSame(12988, $applied['cart']['total_minor']);
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'shipping_option' => 'instabox-locker',
+            'service_point_id' => 'IBOX-123',
+            'service_point_name' => 'Instabox Hornstull',
+        ])->execute();
+
+        self::assertSame(201, $checkout['status']);
+        self::assertSame('LOCKER49', $checkout['order']['discount_code']);
+        self::assertSame('Locker 49 kr', $checkout['order']['discount_label']);
+        self::assertSame(500, $checkout['order']['discount_minor']);
+        self::assertSame(990, $checkout['order']['shipping_base_minor']);
+        self::assertSame(500, $checkout['order']['shipping_discount_minor']);
+        self::assertSame(490, $checkout['order']['shipping_minor']);
+        self::assertSame(12988, $checkout['order']['total_minor']);
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $detail = $stack['adminService']->forAction('order', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame('LOCKER49', $detail['order']['discount_code']);
+        self::assertSame(500, $detail['order']['shipping_discount_minor']);
+    }
+
+    public function testCheckoutRejectsIneligiblePromotionForSelectedShippingMethod(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'shipping_option' => 'budbee-home',
+            'coupon_code' => 'FRIFRAKT',
+        ])->execute();
+
+        self::assertSame(422, $checkout['status']);
+        self::assertStringContainsString('free-shipping eligible', (string) ($checkout['message'] ?? ''));
+    }
+
     public function testAdminOrderActionsUseDashboardWrappersAndSharedLifecycleTransitions(): void
     {
         $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
@@ -1082,8 +1174,10 @@ final class FrameworkCompletionTest extends TestCase
             CreateShopTables::class,
             ShopSeed::class,
             CreateCartTables::class,
+            AddCartDiscountColumns::class,
             CreateOrderTables::class,
             AddOrderCommerceStateColumns::class,
+            AddOrderDiscountSnapshotColumns::class,
             AddOrderShipmentTrackingColumns::class,
             MergeCartOnLoginListener::class,
             CatalogActivityNotificationListener::class,
@@ -1192,12 +1286,14 @@ final class FrameworkCompletionTest extends TestCase
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
         $shipping = new ShippingManager($config);
+        $promotions = new PromotionManager($config);
+        $pricing = new CartPricingManager($shipping, $promotions, $totals);
         $inventory = new InventoryManager($products);
         $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
         $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping);
 
         $catalogService = new CatalogService($products, $categories);
-        $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $totals, $shipping);
+        $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $pricing);
         $orderService = new OrderService(
             $database,
             $orders,
@@ -1205,7 +1301,7 @@ final class FrameworkCompletionTest extends TestCase
             $addresses,
             $carts,
             $cartItems,
-            $totals,
+            $pricing,
             $inventory,
             $lifecycle,
             $shipping,
@@ -1229,6 +1325,7 @@ final class FrameworkCompletionTest extends TestCase
             $orderItems,
             $addresses,
             $catalogLifecycle,
+            $pricing,
             $totals,
             $lifecycle,
             $shipping,
@@ -1285,7 +1382,9 @@ final class FrameworkCompletionTest extends TestCase
             'orderService' => $orderService,
             'orders' => $orders,
             'payments' => $payments,
+            'pricing' => $pricing,
             'products' => $products,
+            'promotions' => $promotions,
             'queue' => $queue,
             'shipping' => $shipping,
             'totals' => $totals,
@@ -1423,6 +1522,34 @@ final class FrameworkCompletionTest extends TestCase
                 'DISCOUNT' => [
                     'RATE_BPS' => 0,
                     'MAX_MINOR' => 0,
+                ],
+                'PROMOTIONS' => [
+                    'VALKOMMEN10' => [
+                        'LABEL' => 'Valkommen 10%',
+                        'TYPE' => 'percentage',
+                        'RATE_BPS' => 1000,
+                        'MAX_DISCOUNT_MINOR' => 3000,
+                        'MIN_SUBTOTAL_MINOR' => 5000,
+                        'ALLOWED_COUNTRIES' => ['SE', 'NO', 'DK', 'FI'],
+                        'ALLOWED_ZONES' => ['SE', 'NORDIC'],
+                    ],
+                    'FRIFRAKT' => [
+                        'LABEL' => 'Fri Frakt',
+                        'TYPE' => 'free_shipping',
+                        'MIN_SUBTOTAL_MINOR' => 5000,
+                        'FREE_SHIPPING_ELIGIBLE_ONLY' => true,
+                        'ALLOWED_COUNTRIES' => ['SE'],
+                        'ALLOWED_ZONES' => ['SE'],
+                    ],
+                    'LOCKER49' => [
+                        'LABEL' => 'Locker 49 kr',
+                        'TYPE' => 'shipping_fixed',
+                        'SHIPPING_RATE_MINOR' => 490,
+                        'ALLOWED_COUNTRIES' => ['SE'],
+                        'ALLOWED_ZONES' => ['SE'],
+                        'ALLOWED_CARRIERS' => ['instabox', 'budbee', 'postnord'],
+                        'ALLOWED_SHIPPING_OPTIONS' => ['instabox-locker', 'budbee-box', 'postnord-service-point'],
+                    ],
                 ],
                 'INVENTORY' => [
                     'RESERVE_ON_CHECKOUT' => true,

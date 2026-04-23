@@ -25,6 +25,10 @@ class CartRequest extends InboundRequest
                 'slug' => ['methods' => 'string', 'required' => false],
                 'quantity' => ['methods' => 'integer', 'required' => false],
             ],
+            'applyDiscount' => [
+                'coupon_code' => ['methods' => 'string'],
+                'discount_code' => ['methods' => 'string', 'required' => false],
+            ],
             default => [],
         };
     }
@@ -37,6 +41,10 @@ class CartRequest extends InboundRequest
             ],
             'updateItem' => [
                 'quantity' => ['methods' => 'integer', 'rules' => ['min' => [1]]],
+            ],
+            'applyDiscount' => [
+                'coupon_code' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z0-9-]{4,64}$/']],
+                'discount_code' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z0-9-]{4,64}$/']],
             ],
             default => [],
         };
@@ -54,6 +62,16 @@ class CartRequest extends InboundRequest
 
         if (isset($data['slug']) && is_string($data['slug'])) {
             $data['slug'] = trim($data['slug']);
+        }
+
+        foreach (['coupon_code', 'discount_code'] as $key) {
+            if (isset($data[$key]) && is_string($data[$key])) {
+                $data[$key] = strtoupper(trim($data[$key]));
+            }
+        }
+
+        if (($data['coupon_code'] ?? '') === '' && ($data['discount_code'] ?? '') !== '') {
+            $data['coupon_code'] = $data['discount_code'];
         }
 
         return $data;

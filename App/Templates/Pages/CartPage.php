@@ -1,12 +1,20 @@
 <?php $cart = is_array($cart ?? null) ? $cart : []; ?>
 <?php $items = is_array($cart['items'] ?? null) ? $cart['items'] : []; ?>
 <?php $shippingQuote = is_array($cart['shipping_quote'] ?? null) ? $cart['shipping_quote'] : []; ?>
+<?php $promotion = is_array($cart['promotion'] ?? null) ? $cart['promotion'] : []; ?>
+<?php $promotionCatalog = is_array($cart['promotion_catalog'] ?? null) ? $cart['promotion_catalog'] : []; ?>
 <?php $shippingRows = array_map(static fn(array $option): array => [
     'label' => (string) ($option['label'] ?? ''),
     'carrier' => (string) ($option['carrier_label'] ?? ''),
     'service' => (string) ($option['service_label'] ?? ''),
     'rate' => (string) ($option['effective_rate'] ?? ($option['rate'] ?? '')),
 ], is_array($shippingQuote['options'] ?? null) ? $shippingQuote['options'] : []); ?>
+<?php $promotionRows = array_map(static fn(array $entry): array => [
+    'code' => (string) ($entry['code'] ?? ''),
+    'label' => (string) ($entry['label'] ?? ''),
+    'effect' => (string) ($entry['effect'] ?? ''),
+    'eligibility' => !empty($entry['eligible']) ? 'Eligible' : ((string) ($entry['message'] ?? 'Unavailable')),
+], $promotionCatalog); ?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
         'eyebrow' => 'CartModule',
@@ -71,6 +79,29 @@
     </div>
 
     <div class="section">
+        <h2>Promotion code</h2>
+        <form method="post" action="/cart/discount" class="stack">
+            <label>
+                Code
+                <input type="text" name="coupon_code" value="<?= $view->escape((string) ($cart['discount_code'] ?? '')) ?>" placeholder="FRIFRAKT">
+            </label>
+            <div>
+                <button type="submit">Apply code</button>
+                <?php if (($cart['discount_code'] ?? '') !== ''): ?>
+                    <button type="submit" formaction="/cart/discount/remove">Remove code</button>
+                <?php endif; ?>
+            </div>
+        </form>
+
+        <?php if (($cart['discount_code'] ?? '') !== ''): ?>
+            <p>
+                Applied: <strong><?= $view->escape((string) ($cart['discount_label'] ?? $cart['discount_code'] ?? 'Promotion')) ?></strong>
+                (<?= $view->escape((string) ($cart['discount_code'] ?? '')) ?>)
+            </p>
+        <?php endif; ?>
+    </div>
+
+    <div class="section">
         <h2>Cart summary</h2>
         <?= $view->renderComponent('DefinitionGrid', [
             'items' => [
@@ -82,8 +113,11 @@
                 'Shipping zone' => $cart['shipping_zone'] ?? '',
                 'Shipping option' => $cart['shipping_option_label'] ?? '',
                 'Carrier' => $cart['shipping_carrier_label'] ?? '',
+                'Promotion code' => $cart['discount_code'] ?? '',
                 'Subtotal' => $cart['subtotal'] ?? '',
                 'Discount' => $cart['discount'] ?? '',
+                'Shipping before discount' => $cart['shipping_base'] ?? '',
+                'Shipping discount' => $cart['shipping_discount'] ?? '',
                 'Shipping' => $cart['shipping'] ?? '',
                 'Tax' => $cart['tax'] ?? '',
                 'Total' => $cart['total'] ?? '',
@@ -110,6 +144,22 @@
                 ],
                 'rows' => $shippingRows,
                 'empty' => 'No shipping preview is currently available.',
+            ]) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($promotionRows !== []): ?>
+        <div class="section">
+            <h2>Available promotions</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'code' => 'Code',
+                    'label' => 'Offer',
+                    'effect' => 'Effect',
+                    'eligibility' => 'Status',
+                ],
+                'rows' => $promotionRows,
+                'empty' => 'No promotions are currently configured.',
             ]) ?>
         </div>
     <?php endif; ?>

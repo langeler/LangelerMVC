@@ -10,8 +10,7 @@ use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
-use App\Support\Commerce\CommerceTotalsCalculator;
-use App\Support\Commerce\ShippingManager;
+use App\Support\Commerce\CartPricingManager;
 use App\Utilities\Managers\Security\AuthManager;
 
 class CartService extends Service
@@ -34,8 +33,7 @@ class CartService extends Service
         private readonly ProductRepository $products,
         private readonly Session $session,
         private readonly AuthManager $auth,
-        private readonly CommerceTotalsCalculator $totals,
-        private readonly ShippingManager $shipping
+        private readonly CartPricingManager $pricing
     ) {
     }
 
@@ -58,6 +56,8 @@ class CartService extends Service
             'addItem' => $this->addItem(),
             'updateItem' => $this->updateItem((int) ($this->context['item'] ?? 0)),
             'removeItem' => $this->removeItem((int) ($this->context['item'] ?? 0)),
+            'applyDiscount' => $this->applyDiscount(),
+            'removeDiscount' => $this->removeDiscount(),
             default => $this->show(),
         };
     }
@@ -92,6 +92,15 @@ class CartService extends Service
                 'slug' => '',
                 'currency' => (string) (($this->decodeMetadata((string) ($item->getAttribute('metadata') ?? '{}'))['currency'] ?? 'SEK')),
             ], (int) ($item->getAttribute('quantity') ?? 1));
+        }
+
+        if ((string) ($userCart->getAttribute('discount_code') ?? '') === '' && (string) ($guestCart->getAttribute('discount_code') ?? '') !== '') {
+            $userCart = $this->carts->syncDiscountState(
+                (int) $userCart->getKey(),
+                (string) ($guestCart->getAttribute('discount_code') ?? ''),
+                (string) ($guestCart->getAttribute('discount_label') ?? ''),
+                ($guestCart->getAttribute('discount_snapshot') !== null ? (string) $guestCart->getAttribute('discount_snapshot') : null)
+            );
         }
 
         $this->carts->deleteModel($guestCart);
@@ -197,6 +206,59 @@ class CartService extends Service
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function applyDiscount(): array
+    {
+        $cart = $this->currentCart();
+        $code = strtoupper(trim((string) ($this->payload['coupon_code'] ?? $this->payload['discount_code'] ?? '')));
+
+        if ($code === '') {
+            return [
+                ...$this->response('Promotion unavailable', 'Enter a promotion code before applying it to the cart.', 422),
+                'cart' => $this->cartPayload($cart),
+                'redirect' => '/cart',
+            ];
+        }
+
+        $pricing = $this->cartPayload($cart, [
+            'discount_code' => $code,
+        ]);
+        $promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];
+
+        if (!($promotion['applied'] ?? false)) {
+            return [
+                ...$this->response('Promotion unavailable', (string) ($promotion['message'] ?? 'The promotion code could not be applied to the current cart.'), 422),
+                'cart' => $this->cartPayload($cart),
+                'redirect' => '/cart',
+            ];
+        }
+
+        $this->persistDiscountState($cart, $promotion);
+
+        return [
+            ...$this->response('Promotion applied', (string) ($promotion['message'] ?? 'The promotion code was applied to the cart.'), 200),
+            'cart' => $this->cartPayload($cart),
+            'redirect' => '/cart',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function removeDiscount(): array
+    {
+        $cart = $this->currentCart();
+        $this->clearDiscountState($cart);
+
+        return [
+            ...$this->response('Promotion removed', 'The stored promotion code was removed from the cart.', 200),
+            'cart' => $this->cartPayload($cart),
+            'redirect' => '/cart',
+        ];
+    }
+
     private function currentCart(): Cart
     {
         $userId = $this->auth->check() ? (int) $this->auth->id() : null;
@@ -234,13 +296,29 @@ class CartService extends Service
     /**
      * @return array<string, mixed>
      */
-    private function cartPayload(Cart $cart): array
+    private function cartPayload(Cart $cart, array $context = []): array
     {
         $items = $this->items->summaryForCart((int) $cart->getKey());
-        $quote = $this->shipping->quote($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
-        $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
-            'shipping_minor' => (int) (($quote['selected']['effective_rate_minor'] ?? $quote['selected']['rate_minor'] ?? 0)),
+        $pricing = $this->pricing->price($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
+            'country' => (string) ($this->payload['country'] ?? ''),
+            'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
+            'discount_code' => (string) ($context['discount_code'] ?? $cart->getAttribute('discount_code') ?? ''),
         ]);
+        $promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];
+        $storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));
+
+        if ($storedCode !== '') {
+            if (($promotion['applied'] ?? false) && strtoupper((string) ($promotion['code'] ?? '')) === $storedCode) {
+                $this->persistDiscountState($cart, $promotion);
+            } elseif (($promotion['requested_code'] ?? '') === $storedCode) {
+                $this->clearDiscountState($cart);
+                $promotion = [];
+                $pricing = $this->pricing->price($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
+                    'country' => (string) ($this->payload['country'] ?? ''),
+                    'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
+                ]);
+            }
+        }
 
         return [
             'id' => (int) $cart->getKey(),
@@ -248,14 +326,7 @@ class CartService extends Service
             'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
             'items' => $items,
             'item_count' => count($items),
-            'shipping_country' => (string) ($quote['country'] ?? 'SE'),
-            'shipping_zone' => (string) ($quote['zone'] ?? 'SE'),
-            'shipping_option' => (string) (($quote['selected']['code'] ?? '')),
-            'shipping_option_label' => (string) (($quote['selected']['label'] ?? '')),
-            'shipping_carrier' => (string) (($quote['selected']['carrier_code'] ?? '')),
-            'shipping_carrier_label' => (string) (($quote['selected']['carrier_label'] ?? '')),
-            'shipping_quote' => $quote,
-            ...$totals,
+            ...$pricing,
         ];
     }
 
@@ -286,5 +357,30 @@ class CartService extends Service
         }
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param array<string, mixed> $promotion
+     */
+    private function persistDiscountState(Cart $cart, array $promotion): void
+    {
+        $snapshot = is_array($promotion['snapshot'] ?? null)
+            ? $this->toJson($promotion['snapshot'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)
+            : null;
+
+        $fresh = $this->carts->syncDiscountState(
+            (int) $cart->getKey(),
+            (string) ($promotion['code'] ?? ''),
+            (string) ($promotion['label'] ?? ''),
+            $snapshot
+        );
+
+        $cart->forceFill($fresh->getAttributes());
+    }
+
+    private function clearDiscountState(Cart $cart): void
+    {
+        $fresh = $this->carts->clearDiscountState((int) $cart->getKey());
+        $cart->forceFill($fresh->getAttributes());
     }
 }

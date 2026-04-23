@@ -15,6 +15,9 @@ class Cart extends Model
         'session_key',
         'status',
         'currency',
+        'discount_code',
+        'discount_label',
+        'discount_snapshot',
         'created_at',
         'updated_at',
     ];

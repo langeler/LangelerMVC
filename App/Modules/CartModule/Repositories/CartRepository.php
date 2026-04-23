@@ -70,4 +70,23 @@ class CartRepository extends Repository
 
         $this->db->execute($query['sql'], $query['bindings']);
     }
+
+    public function syncDiscountState(int $cartId, ?string $code, ?string $label = null, ?string $snapshot = null): Cart
+    {
+        $this->update($cartId, [
+            'discount_code' => $code !== null && trim($code) !== '' ? strtoupper(trim($code)) : null,
+            'discount_label' => $label !== null && trim($label) !== '' ? trim($label) : null,
+            'discount_snapshot' => $snapshot,
+        ]);
+
+        /** @var Cart $cart */
+        $cart = $this->find($cartId);
+
+        return $cart;
+    }
+
+    public function clearDiscountState(int $cartId): Cart
+    {
+        return $this->syncDiscountState($cartId, null, null, null);
+    }
 }

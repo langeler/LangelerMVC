@@ -59,6 +59,8 @@ $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking
                     'Shipping zone' => $order['shipping_zone'] ?? '',
                     'Shipping option' => $order['shipping_option_label'] ?? '',
                     'Carrier' => $order['shipping_carrier_label'] ?? '',
+                    'Promotion code' => $order['discount_code'] ?? '',
+                    'Promotion' => $order['discount_label'] ?? '',
                     'Service' => $order['shipping_service_label'] ?? '',
                     'Service point' => $order['shipping_service_point_name'] ?? '',
                     'Shipment reference' => $order['shipment_reference'] ?? '',
@@ -68,6 +70,8 @@ $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking
                     'Delivered at' => $order['delivered_at'] ?? '',
                     'Subtotal' => $order['subtotal'] ?? '',
                     'Discount' => $order['discount'] ?? '',
+                    'Shipping before discount' => $order['shipping_base'] ?? '',
+                    'Shipping discount' => $order['shipping_discount'] ?? '',
                     'Shipping' => $order['shipping'] ?? '',
                     'Tax' => $order['tax'] ?? '',
                     'Total' => $order['total'] ?? '',
@@ -218,6 +222,7 @@ $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking
                         <th>Email</th>
                         <th>Status</th>
                         <th>Fulfillment</th>
+                        <th>Promo</th>
                         <th>Carrier</th>
                         <th>Payment</th>
                         <th>Driver</th>
@@ -234,6 +239,7 @@ $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking
                             <td><?= $view->escape((string) ($row['contact_email'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['status'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['fulfillment_status'] ?? '')) ?></td>
+                            <td><?= $view->escape((string) ($row['discount_code'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['shipping_carrier_label'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_status'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($row['payment_driver'] ?? '')) ?></td>

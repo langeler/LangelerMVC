@@ -128,6 +128,20 @@ class OrderRepository extends Repository
 
         $trackingEvents = $this->isArray($trackingEvents) ? array_values($trackingEvents) : [];
 
+        try {
+            $discountSnapshot = $this->fromJson((string) ($order->getAttribute('discount_snapshot') ?? '[]'), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            $discountSnapshot = [];
+        }
+
+        $discountSnapshot = $this->isArray($discountSnapshot) ? $discountSnapshot : [];
+        $shippingBaseMinor = max(
+            (int) ($order->getAttribute('shipping_minor') ?? 0),
+            (int) ($discountSnapshot['shipping_base_minor'] ?? ($order->getAttribute('shipping_minor') ?? 0))
+        );
+        $shippingDiscountMinor = max(0, (int) ($discountSnapshot['shipping_discount_minor'] ?? 0));
+        $itemDiscountMinor = max(0, (int) ($discountSnapshot['item_discount_minor'] ?? ($order->getAttribute('discount_minor') ?? 0)));
+
         return [
             'id' => (int) $order->getKey(),
             'user_id' => (int) ($order->getAttribute('user_id') ?? 0),
@@ -148,6 +162,12 @@ class OrderRepository extends Repository
             'payment_customer_action_required' => (bool) ($order->getAttribute('payment_customer_action_required') ?? false),
             'currency' => (string) ($order->getAttribute('currency') ?? 'SEK'),
             'subtotal_minor' => (int) ($order->getAttribute('subtotal_minor') ?? 0),
+            'discount_code' => (string) ($order->getAttribute('discount_code') ?? ''),
+            'discount_label' => (string) ($order->getAttribute('discount_label') ?? ''),
+            'discount_snapshot' => $discountSnapshot,
+            'item_discount_minor' => $itemDiscountMinor,
+            'shipping_base_minor' => $shippingBaseMinor,
+            'shipping_discount_minor' => $shippingDiscountMinor,
             'discount_minor' => (int) ($order->getAttribute('discount_minor') ?? 0),
             'shipping_minor' => (int) ($order->getAttribute('shipping_minor') ?? 0),
             'tax_minor' => (int) ($order->getAttribute('tax_minor') ?? 0),
@@ -169,6 +189,9 @@ class OrderRepository extends Repository
             'shipped_at' => (string) ($order->getAttribute('shipped_at') ?? ''),
             'delivered_at' => (string) ($order->getAttribute('delivered_at') ?? ''),
             'subtotal' => $this->formatMoneyMinor((int) ($order->getAttribute('subtotal_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
+            'item_discount' => $this->formatMoneyMinor($itemDiscountMinor, (string) ($order->getAttribute('currency') ?? 'SEK')),
+            'shipping_base' => $this->formatMoneyMinor($shippingBaseMinor, (string) ($order->getAttribute('currency') ?? 'SEK')),
+            'shipping_discount' => $this->formatMoneyMinor($shippingDiscountMinor, (string) ($order->getAttribute('currency') ?? 'SEK')),
             'discount' => $this->formatMoneyMinor((int) ($order->getAttribute('discount_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
             'shipping' => $this->formatMoneyMinor((int) ($order->getAttribute('shipping_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),
             'tax' => $this->formatMoneyMinor((int) ($order->getAttribute('tax_minor') ?? 0), (string) ($order->getAttribute('currency') ?? 'SEK')),

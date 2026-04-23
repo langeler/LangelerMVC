@@ -20,6 +20,7 @@ use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\ShopModule\Repositories\CategoryRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
 use App\Support\Commerce\CatalogLifecycleManager;
+use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\ShippingManager;
@@ -61,6 +62,7 @@ class AdminAccessService extends Service
         private readonly OrderItemRepository $orderItems,
         private readonly OrderAddressRepository $orderAddresses,
         private readonly CatalogLifecycleManager $catalogLifecycle,
+        private readonly CartPricingManager $pricing,
         private readonly CommerceTotalsCalculator $totals,
         private readonly OrderLifecycleManager $lifecycle,
         private readonly ShippingManager $shipping,
@@ -327,6 +329,11 @@ class AdminAccessService extends Service
                     'flows' => $this->payments->supportedFlows(),
                     'capabilities' => $this->payments->capabilities(),
                     'catalog' => $this->payments->driverCatalog(),
+                ],
+                'commerce' => [
+                    'currency' => (string) $this->config->get('commerce', 'CURRENCY', 'SEK'),
+                    'shipping' => $this->config->get('commerce', 'SHIPPING', []),
+                    'promotions' => $this->config->get('commerce', 'PROMOTIONS', []),
                 ],
                 'health' => $this->health->report(),
                 'audit' => $this->audit->summary(),
@@ -1039,7 +1046,9 @@ class AdminAccessService extends Service
             }
 
             $items = $this->cartItems->summaryForCart((int) $cart->getKey());
-            $totals = $this->totals->calculate($items, (string) ($cart->getAttribute('currency') ?? 'SEK'));
+            $totals = $this->pricing->price($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
+                'discount_code' => (string) ($cart->getAttribute('discount_code') ?? ''),
+            ]);
 
             return [
                 'id' => (int) $cart->getKey(),
@@ -1048,6 +1057,8 @@ class AdminAccessService extends Service
                 'status' => (string) ($cart->getAttribute('status') ?? 'active'),
                 'currency' => (string) ($cart->getAttribute('currency') ?? 'SEK'),
                 'items' => count($items),
+                'discount_code' => (string) ($totals['discount_code'] ?? ''),
+                'discount' => (string) ($totals['discount'] ?? ''),
                 'subtotal' => (string) ($totals['subtotal'] ?? ''),
                 'total' => (string) ($totals['total'] ?? ''),
             ];

@@ -8,6 +8,7 @@ $lookup = is_array($lookup ?? null) ? $lookup : [];
 $items = is_array($cart['items'] ?? null) ? $cart['items'] : [];
 $providerRows = [];
 $shippingRows = [];
+$promotionRows = [];
 
 foreach (is_array($payment['catalog'] ?? null) ? array_values($payment['catalog']) : [] as $provider) {
     $providerRows[] = [
@@ -27,6 +28,15 @@ foreach (is_array($shipping['options'] ?? null) ? array_values($shipping['option
         'service' => $option['service_label'] ?? '',
         'rate' => $option['effective_rate'] ?? ($option['rate'] ?? ''),
         'service_point' => !empty($option['service_point_required']) ? 'Required' : 'Optional',
+    ];
+}
+
+foreach (is_array($cart['promotion_catalog'] ?? null) ? array_values($cart['promotion_catalog']) : [] as $promotion) {
+    $promotionRows[] = [
+        'code' => $promotion['code'] ?? '',
+        'label' => $promotion['label'] ?? '',
+        'effect' => $promotion['effect'] ?? '',
+        'eligibility' => !empty($promotion['eligible']) ? 'Eligible' : ($promotion['message'] ?? 'Unavailable'),
     ];
 }
 ?>
@@ -128,6 +138,11 @@ foreach (is_array($shipping['options'] ?? null) ? array_values($shipping['option
             </label>
 
             <label>
+                Promotion code
+                <input type="text" name="coupon_code" value="<?= $view->escape((string) ($checkout['coupon_code'] ?? '')) ?>" placeholder="VALKOMMEN10">
+            </label>
+
+            <label>
                 Payment driver
                 <select name="payment_driver">
                     <?php foreach ((array) ($payment['available_drivers'] ?? []) as $driver): ?>
@@ -183,8 +198,11 @@ foreach (is_array($shipping['options'] ?? null) ? array_values($shipping['option
                 'Selected shipping' => $shipping['selected_label'] ?? '',
                 'Carrier' => $shipping['selected_carrier'] ?? '',
                 'Service' => $shipping['selected_service'] ?? '',
+                'Promotion code' => $cart['discount_code'] ?? '',
                 'Subtotal' => $cart['subtotal'] ?? '',
                 'Discount' => $cart['discount'] ?? '',
+                'Shipping before discount' => $cart['shipping_base'] ?? '',
+                'Shipping discount' => $cart['shipping_discount'] ?? '',
                 'Shipping' => $cart['shipping'] ?? '',
                 'Tax' => $cart['tax'] ?? '',
                 'Grand total' => $cart['total'] ?? '',
@@ -210,6 +228,22 @@ foreach (is_array($shipping['options'] ?? null) ? array_values($shipping['option
                     'note' => (string) ($app['note'] ?? ''),
                 ], $shipping['tracking_apps']),
                 'empty' => 'No tracking apps are currently suggested for this shipment profile.',
+            ]) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($promotionRows !== []): ?>
+        <div class="section">
+            <h2>Promotion catalog</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'code' => 'Code',
+                    'label' => 'Offer',
+                    'effect' => 'Effect',
+                    'eligibility' => 'Status',
+                ],
+                'rows' => $promotionRows,
+                'empty' => 'No promotion codes are currently configured.',
             ]) ?>
         </div>
     <?php endif; ?>

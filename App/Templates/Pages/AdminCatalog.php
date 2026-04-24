@@ -185,6 +185,35 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
             </label>
 
             <label>
+                Fulfillment type
+                <select name="fulfillment_type">
+                    <?php foreach ([
+                        'physical_shipping' => 'Physical shipping',
+                        'digital_download' => 'Digital download',
+                        'virtual_access' => 'Virtual / online access',
+                        'store_pickup' => 'Pickup at store',
+                        'scheduled_pickup' => 'Scheduled pickup',
+                        'preorder' => 'Pre-order',
+                        'subscription' => 'Subscription / recurring',
+                    ] as $value => $label): ?>
+                        <option value="<?= $view->escape($value) ?>"<?php if (($productForm['fulfillment_type'] ?? 'physical_shipping') === $value): ?> selected<?php endif; ?>>
+                            <?= $view->escape($label) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                Available at
+                <input type="text" name="available_at" value="<?= $view->escape((string) ($productForm['available_at'] ?? '')) ?>" placeholder="Optional: 2026-05-01 09:00:00">
+            </label>
+
+            <label>
+                Fulfillment policy
+                <textarea name="fulfillment_policy" rows="3" placeholder='Optional JSON, e.g. {"download_limit":3,"access_days":365}'><?= $view->escape((string) ($productForm['fulfillment_policy'] ?? '')) ?></textarea>
+            </label>
+
+            <label>
                 Media paths
                 <textarea name="media" rows="3" placeholder="/assets/images/example.svg, /assets/images/example-2.svg"><?= $view->escape((string) ($productForm['media'] ?? '')) ?></textarea>
             </label>
@@ -210,8 +239,10 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
                             'Category' => $entry['category'] ?? '',
                             'Slug' => $entry['slug'] ?? '',
                             'Visibility' => $entry['status'] ?? ($entry['visibility'] ?? ''),
+                            'Fulfillment' => $entry['fulfillment_label'] ?? '',
                             'Price' => $entry['price'] ?? '',
                             'Stock' => $entry['stock'] ?? 0,
+                            'Available at' => $entry['available_at'] ?? '',
                             'Storefront' => $entry['storefront_path'] ?? '',
                         ],
                     ]) ?>
@@ -268,6 +299,35 @@ $catalogMetrics = is_array($catalog_metrics ?? null) ? $catalog_metrics : [];
                         <label>
                             Stock
                             <input type="number" name="stock" min="0" value="<?= (int) ($entry['stock'] ?? 0) ?>">
+                        </label>
+
+                        <label>
+                            Fulfillment type
+                            <select name="fulfillment_type">
+                                <?php foreach ([
+                                    'physical_shipping' => 'Physical shipping',
+                                    'digital_download' => 'Digital download',
+                                    'virtual_access' => 'Virtual / online access',
+                                    'store_pickup' => 'Pickup at store',
+                                    'scheduled_pickup' => 'Scheduled pickup',
+                                    'preorder' => 'Pre-order',
+                                    'subscription' => 'Subscription / recurring',
+                                ] as $value => $label): ?>
+                                    <option value="<?= $view->escape($value) ?>"<?php if (($entry['fulfillment_type'] ?? 'physical_shipping') === $value): ?> selected<?php endif; ?>>
+                                        <?= $view->escape($label) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+
+                        <label>
+                            Available at
+                            <input type="text" name="available_at" value="<?= $view->escape((string) ($entry['available_at'] ?? '')) ?>">
+                        </label>
+
+                        <label>
+                            Fulfillment policy
+                            <textarea name="fulfillment_policy" rows="3"><?= $view->escape((string) ($entry['fulfillment_policy_input'] ?? '')) ?></textarea>
                         </label>
 
                         <label>

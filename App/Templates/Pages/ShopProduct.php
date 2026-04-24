@@ -31,7 +31,9 @@
                 'Name' => $product['name'] ?? '',
                 'Price' => $product['price'] ?? '',
                 'Availability' => $product['availability'] ?? '',
+                'Fulfillment' => $product['fulfillment_label'] ?? '',
                 'Stock' => $product['stock'] ?? '',
+                'Available at' => $product['available_at'] ?? '',
                 'Slug' => $product['slug'] ?? '',
                 'Category' => $category['name'] ?? 'Uncategorized',
                 'Description' => $product['description'] ?? '',
@@ -52,7 +54,7 @@
 
                 <label>
                     Quantity
-                    <input type="number" name="quantity" min="1" max="<?= (int) ($product['stock'] ?? 1) ?>" value="1">
+                    <input type="number" name="quantity" min="1"<?php if (!empty($product['stock_managed'])): ?> max="<?= max(1, (int) ($product['stock'] ?? 1)) ?>"<?php endif; ?> value="1">
                 </label>
 
                 <div>

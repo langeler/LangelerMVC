@@ -20,6 +20,9 @@ class Product extends Model
         'visibility',
         'media',
         'stock',
+        'fulfillment_type',
+        'fulfillment_policy',
+        'available_at',
         'created_at',
         'updated_at',
     ];

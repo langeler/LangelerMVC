@@ -23,6 +23,7 @@ $headingTag = $headingLevel >= 2 && $headingLevel <= 6 ? 'h' . $headingLevel : '
             $price = (string) ($entry['price'] ?? '');
             $stock = (int) ($entry['stock'] ?? 0);
             $availability = (string) ($entry['availability'] ?? ($stock > 0 ? 'In stock' : 'Out of stock'));
+            $fulfillment = (string) ($entry['fulfillment_label'] ?? 'Physical shipping');
             $isInStock = (bool) ($entry['is_in_stock'] ?? ($stock > 0));
             $headingTagOpen = '<' . $headingTag . ' class="product-card__title">';
             $headingTagClose = '</' . $headingTag . '>';
@@ -35,7 +36,7 @@ $headingTag = $headingLevel >= 2 && $headingLevel <= 6 ? 'h' . $headingLevel : '
                 @endif
 
                 <div class="product-card__body">
-                    <p class="product-card__eyebrow">{{ $availability }}@if($stock > 0) · {{ $stock }} available@endif</p>
+                    <p class="product-card__eyebrow">{{ $availability }} · {{ $fulfillment }}@if($stock > 0) · {{ $stock }} available@endif</p>
 
                     {!! $headingTagOpen !!}{{ $name }}{!! $headingTagClose !!}
 

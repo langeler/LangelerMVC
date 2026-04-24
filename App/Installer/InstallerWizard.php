@@ -26,6 +26,8 @@ final class InstallerWizard
     private const SUPPORTED_PAYMENT_DRIVERS = ['testing', 'card', 'paypal', 'klarna', 'swish', 'qliro', 'walley', 'crypto'];
     private const SUPPORTED_PAYMENT_METHODS = ['card', 'wallet', 'bank_transfer', 'bnpl', 'local_instant', 'manual', 'crypto'];
     private const SUPPORTED_PAYMENT_FLOWS = ['authorize_capture', 'purchase', 'redirect', 'async', 'manual_review'];
+    private const SUPPORTED_FULFILLMENT_TYPES = ['physical_shipping', 'digital_download', 'virtual_access', 'store_pickup', 'scheduled_pickup', 'preorder', 'subscription'];
+    private const SUPPORTED_SUBSCRIPTION_INTERVALS = ['weekly', 'monthly', 'quarterly', 'yearly'];
 
     /**
      * @var list<string>
@@ -38,6 +40,7 @@ final class InstallerWizard
         'SESSION_EXPIRE_ON_CLOSE',
         'SESSION_SECURE_COOKIE',
         'SESSION_HTTPONLY_COOKIE',
+        'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE',
     ];
 
     private string $basePath;
@@ -112,6 +115,8 @@ final class InstallerWizard
             'queueDrivers' => self::SUPPORTED_QUEUE_DRIVERS,
             'contentSources' => self::SUPPORTED_CONTENT_SOURCES,
             'paymentDrivers' => self::SUPPORTED_PAYMENT_DRIVERS,
+            'fulfillmentTypes' => self::SUPPORTED_FULFILLMENT_TYPES,
+            'subscriptionIntervals' => self::SUPPORTED_SUBSCRIPTION_INTERVALS,
             'installState' => [
                 'status' => (string) ($installState['status'] ?? 'idle'),
                 'stage' => (string) ($installState['stage'] ?? 'idle'),
@@ -252,6 +257,9 @@ final class InstallerWizard
         $data['APP_LOCALE'] = strtolower((string) ($data['APP_LOCALE'] ?? 'en'));
         $data['APP_FALLBACK_LOCALE'] = strtolower((string) ($data['APP_FALLBACK_LOCALE'] ?? 'en'));
         $data['PAYMENT_CURRENCY'] = strtoupper((string) ($data['PAYMENT_CURRENCY'] ?? 'SEK'));
+        $data['COMMERCE_CURRENCY'] = strtoupper((string) ($data['COMMERCE_CURRENCY'] ?? $data['PAYMENT_CURRENCY'] ?? 'SEK'));
+        $data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] = strtolower((string) ($data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? 'physical_shipping'));
+        $data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] = strtolower((string) ($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? 'monthly'));
         $data['MAIL_FROM_NAME'] = trim((string) ($data['MAIL_FROM_NAME'] ?? ''));
 
         if (($data['DB_CONNECTION'] ?? '') === 'sqlite' && ($data['DB_DATABASE'] ?? '') === '') {
@@ -334,6 +342,14 @@ final class InstallerWizard
             throw new \InvalidArgumentException('Unsupported payment flow selected.');
         }
 
+        if (!in_array($data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'], self::SUPPORTED_FULFILLMENT_TYPES, true)) {
+            throw new \InvalidArgumentException('Unsupported default fulfillment type selected.');
+        }
+
+        if (!in_array($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'], self::SUPPORTED_SUBSCRIPTION_INTERVALS, true)) {
+            throw new \InvalidArgumentException('Unsupported default subscription interval selected.');
+        }
+
         if (!in_array($data['ENCRYPTION_TYPE'], ['openssl', 'sodium'], true)) {
             throw new \InvalidArgumentException('Unsupported encryption driver selected.');
         }
@@ -360,6 +376,11 @@ final class InstallerWizard
             'AUTH_REMEMBER_ME_DAYS' => 'remember me days',
             'AUTH_OTP_TRUSTED_DEVICE_DAYS' => 'trusted device days',
             'ENCRYPTION_PBKDF2_ITERATIONS' => 'PBKDF2 iterations',
+            'COMMERCE_TAX_RATE_BPS' => 'commerce tax rate basis points',
+            'COMMERCE_SHIPPING_FLAT_RATE_MINOR' => 'commerce shipping flat rate',
+            'COMMERCE_SHIPPING_FREE_OVER_MINOR' => 'commerce free shipping threshold',
+            'COMMERCE_DISCOUNT_RATE_BPS' => 'commerce default discount rate basis points',
+            'COMMERCE_DISCOUNT_MAX_MINOR' => 'commerce default discount cap',
         ] as $key => $label) {
             if (($data[$key] ?? '') !== '' && (!ctype_digit((string) $data[$key]) || (int) $data[$key] < 0)) {
                 throw new \InvalidArgumentException(sprintf('The %s must be a non-negative integer.', $label));
@@ -368,6 +389,10 @@ final class InstallerWizard
 
         if (($data['PAYMENT_CURRENCY'] ?? '') === '' || preg_match('/^[A-Z]{3}$/', $data['PAYMENT_CURRENCY']) !== 1) {
             throw new \InvalidArgumentException('Payment currency must be a 3-letter ISO currency code.');
+        }
+
+        if (($data['COMMERCE_CURRENCY'] ?? '') === '' || preg_match('/^[A-Z]{3}$/', $data['COMMERCE_CURRENCY']) !== 1) {
+            throw new \InvalidArgumentException('Commerce currency must be a 3-letter ISO currency code.');
         }
 
         if (($data['AUTH_PASSKEY_ORIGINS'] ?? '') !== '' && filter_var($data['AUTH_PASSKEY_ORIGINS'], FILTER_VALIDATE_URL) === false) {
@@ -621,6 +646,19 @@ final class InstallerWizard
                 'PAYMENT_CURRENCY',
                 'PAYMENT_DEFAULT_METHOD',
                 'PAYMENT_DEFAULT_FLOW',
+            ],
+            'COMMERCE' => [
+                'COMMERCE_CURRENCY',
+                'COMMERCE_TAX_RATE_BPS',
+                'COMMERCE_DISCOUNT_RATE_BPS',
+                'COMMERCE_DISCOUNT_MAX_MINOR',
+                'COMMERCE_SHIPPING_DEFAULT_COUNTRY',
+                'COMMERCE_SHIPPING_DEFAULT_OPTION',
+                'COMMERCE_SHIPPING_FLAT_RATE_MINOR',
+                'COMMERCE_SHIPPING_FREE_OVER_MINOR',
+                'COMMERCE_FULFILLMENT_DEFAULT_TYPE',
+                'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE',
+                'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL',
             ],
             'WEBMODULE' => [
                 'WEBMODULE_CONTENT_SOURCE',
@@ -999,6 +1037,17 @@ final class InstallerWizard
             'PAYMENT_CURRENCY' => 'SEK',
             'PAYMENT_DEFAULT_METHOD' => 'card',
             'PAYMENT_DEFAULT_FLOW' => 'authorize_capture',
+            'COMMERCE_CURRENCY' => 'SEK',
+            'COMMERCE_TAX_RATE_BPS' => '2500',
+            'COMMERCE_DISCOUNT_RATE_BPS' => '0',
+            'COMMERCE_DISCOUNT_MAX_MINOR' => '0',
+            'COMMERCE_SHIPPING_DEFAULT_COUNTRY' => 'SE',
+            'COMMERCE_SHIPPING_DEFAULT_OPTION' => 'postnord-service-point',
+            'COMMERCE_SHIPPING_FLAT_RATE_MINOR' => '1490',
+            'COMMERCE_SHIPPING_FREE_OVER_MINOR' => '50000',
+            'COMMERCE_FULFILLMENT_DEFAULT_TYPE' => 'physical_shipping',
+            'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE' => 'true',
+            'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL' => 'monthly',
             'WEBMODULE_CONTENT_SOURCE' => 'database',
         ];
     }

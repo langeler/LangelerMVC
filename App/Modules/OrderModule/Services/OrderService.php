@@ -239,7 +239,9 @@ class OrderService extends Service
 
             $orderStatus = $this->lifecycle->orderStatusForIntent($payment->intent);
             $fulfillmentStatus = $this->lifecycle->fulfillmentStatusForIntent($payment->intent);
-            $inventoryStatus = $this->lifecycle->inventoryStatusForIntent($payment->intent, 'reserved');
+            $inventoryStatus = ((array) ($reservation['items'] ?? [])) === []
+                ? 'not_required'
+                : $this->lifecycle->inventoryStatusForIntent($payment->intent, 'reserved');
 
             $order = $this->orders->create([
                 'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
@@ -291,7 +293,13 @@ class OrderService extends Service
                     'quantity' => (int) ($item['quantity'] ?? 0),
                     'unit_price_minor' => (int) ($item['unit_price_minor'] ?? 0),
                     'line_total_minor' => (int) ($item['line_total_minor'] ?? 0),
-                    'metadata' => $this->toJson(['slug' => $item['slug'] ?? ''], JSON_THROW_ON_ERROR),
+                    'metadata' => $this->toJson([
+                        'slug' => $item['slug'] ?? '',
+                        'category_id' => (int) ($item['category_id'] ?? 0),
+                        'fulfillment_type' => $item['fulfillment_type'] ?? 'physical_shipping',
+                        'fulfillment_label' => $item['fulfillment_label'] ?? 'Physical shipping',
+                        'fulfillment_policy' => is_array($item['fulfillment_policy'] ?? null) ? $item['fulfillment_policy'] : [],
+                    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                 ]);
             }
 
@@ -771,6 +779,7 @@ class OrderService extends Service
             'selected_carrier' => (string) (($quote['selected']['carrier_label'] ?? '')),
             'selected_service' => (string) (($quote['selected']['service_label'] ?? '')),
             'service_point_required' => (bool) (($quote['selected']['service_point_required'] ?? false)),
+            'fulfillment' => is_array($quote['fulfillment'] ?? null) ? $quote['fulfillment'] : [],
             'options' => is_array($quote['options'] ?? null) ? $quote['options'] : [],
             'carriers' => is_array($quote['carriers'] ?? null) ? $quote['carriers'] : [],
             'tracking_apps' => is_array($quote['tracking_apps'] ?? null) ? $quote['tracking_apps'] : [],

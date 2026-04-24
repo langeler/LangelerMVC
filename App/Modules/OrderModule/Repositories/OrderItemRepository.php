@@ -28,6 +28,14 @@ class OrderItemRepository extends Repository
     public function summaryForOrder(int $orderId): array
     {
         return array_map(function (OrderItem $item): array {
+            try {
+                $metadata = $this->fromJson((string) ($item->getAttribute('metadata') ?? '[]'), true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                $metadata = [];
+            }
+
+            $metadata = $this->isArray($metadata) ? $metadata : [];
+
             return [
                 'id' => (int) $item->getKey(),
                 'product_id' => (int) ($item->getAttribute('product_id') ?? 0),
@@ -35,6 +43,11 @@ class OrderItemRepository extends Repository
                 'quantity' => (int) ($item->getAttribute('quantity') ?? 0),
                 'unit_price_minor' => (int) ($item->getAttribute('unit_price_minor') ?? 0),
                 'line_total_minor' => (int) ($item->getAttribute('line_total_minor') ?? 0),
+                'slug' => (string) ($metadata['slug'] ?? ''),
+                'category_id' => (int) ($metadata['category_id'] ?? 0),
+                'fulfillment_type' => (string) ($metadata['fulfillment_type'] ?? 'physical_shipping'),
+                'fulfillment_label' => (string) ($metadata['fulfillment_label'] ?? 'Physical shipping'),
+                'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],
             ];
         }, $this->forOrder($orderId));
     }

@@ -131,6 +131,9 @@ class ProductRepository extends Repository
                 'products.currency',
                 'products.stock',
                 'products.media',
+                'products.fulfillment_type',
+                'products.fulfillment_policy',
+                'products.available_at',
                 'categories.name AS category_name',
             ])
             ->joinTable(
@@ -153,6 +156,11 @@ class ProductRepository extends Repository
                 'currency' => (string) ($row['currency'] ?? 'SEK'),
                 'price' => $this->formatMoneyMinor((int) ($row['price_minor'] ?? 0), (string) ($row['currency'] ?? 'SEK')),
                 'stock' => (int) ($row['stock'] ?? 0),
+                'fulfillment_type' => $this->normalizeFulfillmentType((string) ($row['fulfillment_type'] ?? 'physical_shipping')),
+                'fulfillment_label' => $this->fulfillmentLabel((string) ($row['fulfillment_type'] ?? 'physical_shipping')),
+                'fulfillment_policy' => $this->decodePolicy((string) ($row['fulfillment_policy'] ?? '[]')),
+                'fulfillment_policy_input' => (string) ($row['fulfillment_policy'] ?? ''),
+                'available_at' => (string) ($row['available_at'] ?? ''),
                 'status' => match ((string) ($row['visibility'] ?? 'draft')) {
                     'published' => 'Published',
                     'archived' => 'Archived',
@@ -177,6 +185,9 @@ class ProductRepository extends Repository
     public function mapProductData(Product $product): array
     {
         $stock = (int) ($product->getAttribute('stock') ?? 0);
+        $fulfillmentType = $this->normalizeFulfillmentType((string) ($product->getAttribute('fulfillment_type') ?? 'physical_shipping'));
+        $stockManaged = $this->stockManagedFulfillment($fulfillmentType);
+        $inStock = !$stockManaged || $stock > 0;
 
         return [
             'id' => (int) $product->getKey(),
@@ -189,8 +200,13 @@ class ProductRepository extends Repository
             'price' => $this->formatMoneyMinor((int) ($product->getAttribute('price_minor') ?? 0), (string) ($product->getAttribute('currency') ?? 'SEK')),
             'visibility' => (string) ($product->getAttribute('visibility') ?? 'draft'),
             'stock' => $stock,
-            'is_in_stock' => $stock > 0,
-            'availability' => $stock > 0 ? 'In stock' : 'Out of stock',
+            'stock_managed' => $stockManaged,
+            'is_in_stock' => $inStock,
+            'availability' => $this->availabilityLabel($fulfillmentType, $stock, $stockManaged),
+            'fulfillment_type' => $fulfillmentType,
+            'fulfillment_label' => $this->fulfillmentLabel($fulfillmentType),
+            'fulfillment_policy' => $this->decodePolicy((string) ($product->getAttribute('fulfillment_policy') ?? '[]')),
+            'available_at' => (string) ($product->getAttribute('available_at') ?? ''),
             'media' => $this->decodeMedia((string) ($product->getAttribute('media') ?? '[]')),
         ];
     }
@@ -229,6 +245,74 @@ class ProductRepository extends Repository
             'price_high' => $query->orderBy('price_minor', 'DESC'),
             default => $query->orderBy('id', 'DESC'),
         };
+    }
+
+    private function normalizeFulfillmentType(string $type): string
+    {
+        $type = strtolower(trim($type));
+
+        return in_array($type, [
+            'physical_shipping',
+            'digital_download',
+            'virtual_access',
+            'store_pickup',
+            'scheduled_pickup',
+            'preorder',
+            'subscription',
+        ], true) ? $type : 'physical_shipping';
+    }
+
+    private function fulfillmentLabel(string $type): string
+    {
+        return match ($this->normalizeFulfillmentType($type)) {
+            'digital_download' => 'Digital download',
+            'virtual_access' => 'Virtual / online access',
+            'store_pickup' => 'Pickup at store',
+            'scheduled_pickup' => 'Scheduled pickup',
+            'preorder' => 'Pre-order',
+            'subscription' => 'Subscription / recurring',
+            default => 'Physical shipping',
+        };
+    }
+
+    private function stockManagedFulfillment(string $type): bool
+    {
+        return in_array($this->normalizeFulfillmentType($type), [
+            'physical_shipping',
+            'store_pickup',
+            'scheduled_pickup',
+        ], true);
+    }
+
+    private function availabilityLabel(string $type, int $stock, bool $stockManaged): string
+    {
+        return match ($this->normalizeFulfillmentType($type)) {
+            'digital_download' => 'Digital delivery available',
+            'virtual_access' => 'Online access available',
+            'preorder' => 'Pre-order available',
+            'subscription' => 'Recurring access available',
+            'store_pickup' => $stock > 0 ? 'Available for pickup' : 'Pickup unavailable',
+            'scheduled_pickup' => $stock > 0 ? 'Available for scheduled pickup' : 'Scheduled pickup unavailable',
+            default => $stockManaged && $stock <= 0 ? 'Out of stock' : 'In stock',
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodePolicy(string $payload): array
+    {
+        if (trim($payload) === '') {
+            return [];
+        }
+
+        try {
+            $decoded = $this->fromJson($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+
+        return $this->isArray($decoded) ? $decoded : [];
     }
 
     /**

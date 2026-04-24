@@ -315,6 +315,10 @@ class OrderLifecycleManager
 
     private function inventoryStatusForTransition(string $action, PaymentIntent $intent, string $current): string
     {
+        if ($current === 'not_required') {
+            return 'not_required';
+        }
+
         if ($action === 'cancel') {
             return 'released';
         }

@@ -54,6 +54,10 @@ class CartItemRepository extends Repository
             'metadata' => $this->toJson([
                 'slug' => $product['slug'] ?? null,
                 'currency' => $product['currency'] ?? 'SEK',
+                'category_id' => (int) ($product['category_id'] ?? 0),
+                'fulfillment_type' => $product['fulfillment_type'] ?? 'physical_shipping',
+                'fulfillment_label' => $product['fulfillment_label'] ?? 'Physical shipping',
+                'fulfillment_policy' => $product['fulfillment_policy'] ?? [],
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -121,6 +125,10 @@ class CartItemRepository extends Repository
                 'line_total_minor' => (int) ($item->getAttribute('line_total_minor') ?? 0),
                 'line_total' => $this->formatMoneyMinor((int) ($item->getAttribute('line_total_minor') ?? 0), (string) (($metadata['currency'] ?? 'SEK'))),
                 'slug' => (string) ($metadata['slug'] ?? ''),
+                'category_id' => (int) ($metadata['category_id'] ?? 0),
+                'fulfillment_type' => (string) ($metadata['fulfillment_type'] ?? 'physical_shipping'),
+                'fulfillment_label' => (string) ($metadata['fulfillment_label'] ?? 'Physical shipping'),
+                'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],
             ];
         }, $this->forCart($cartId));
     }

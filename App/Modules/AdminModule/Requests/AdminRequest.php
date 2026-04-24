@@ -36,6 +36,9 @@ class AdminRequest extends InboundRequest
                 'visibility' => ['methods' => 'string', 'required' => false],
                 'stock' => ['methods' => 'integer', 'required' => false],
                 'media' => ['methods' => 'string', 'required' => false],
+                'fulfillment_type' => ['methods' => 'string', 'required' => false],
+                'fulfillment_policy' => ['methods' => 'string', 'required' => false],
+                'available_at' => ['methods' => 'string', 'required' => false],
             ],
             default => [],
         };
@@ -68,6 +71,7 @@ class AdminRequest extends InboundRequest
                 'currency' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z]{3,12}$/']],
                 'visibility' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(draft|published|archived)$/']],
                 'stock' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'fulfillment_type' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(physical_shipping|digital_download|virtual_access|store_pickup|scheduled_pickup|preorder|subscription)$/']],
             ],
             default => [],
         };
@@ -82,7 +86,7 @@ class AdminRequest extends InboundRequest
             }
         }
 
-        foreach (['name', 'slug', 'description', 'currency', 'visibility', 'media'] as $key) {
+        foreach (['name', 'slug', 'description', 'currency', 'visibility', 'media', 'fulfillment_type', 'fulfillment_policy', 'available_at'] as $key) {
             if (isset($data[$key]) && is_string($data[$key])) {
                 $data[$key] = trim($data[$key]);
             }
@@ -106,6 +110,10 @@ class AdminRequest extends InboundRequest
 
         if (isset($data['visibility']) && is_string($data['visibility'])) {
             $data['visibility'] = strtolower($data['visibility']);
+        }
+
+        if (isset($data['fulfillment_type']) && is_string($data['fulfillment_type'])) {
+            $data['fulfillment_type'] = strtolower($data['fulfillment_type']);
         }
 
         if (array_key_exists('is_published', $data)) {

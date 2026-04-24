@@ -42,6 +42,7 @@ class CartPricingManager
             'shipping_carrier' => (string) (($quote['selected']['carrier_code'] ?? '')),
             'shipping_carrier_label' => (string) (($quote['selected']['carrier_label'] ?? '')),
             'shipping_quote' => $quote,
+            'fulfillment' => is_array($quote['fulfillment'] ?? null) ? $quote['fulfillment'] : [],
             'promotion' => $promotion,
             'promotion_catalog' => $this->promotions->catalog($items, $currency, $quote, $context),
             'discount_code' => (string) ($promotion['code'] ?? ''),

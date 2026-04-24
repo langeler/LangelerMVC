@@ -84,13 +84,18 @@ class CartService extends Service
         $mergedItems = 0;
 
         foreach ($this->items->forCart((int) $guestCart->getKey()) as $item) {
+            $metadata = $this->decodeMetadata((string) ($item->getAttribute('metadata') ?? '{}'));
             $mergedItems += (int) ($item->getAttribute('quantity') ?? 1);
             $this->items->addOrIncrement((int) $userCart->getKey(), [
                 'id' => (int) ($item->getAttribute('product_id') ?? 0),
                 'name' => (string) ($item->getAttribute('product_name') ?? ''),
                 'price_minor' => (int) ($item->getAttribute('unit_price_minor') ?? 0),
-                'slug' => '',
-                'currency' => (string) (($this->decodeMetadata((string) ($item->getAttribute('metadata') ?? '{}'))['currency'] ?? 'SEK')),
+                'slug' => (string) ($metadata['slug'] ?? ''),
+                'currency' => (string) ($metadata['currency'] ?? 'SEK'),
+                'category_id' => (int) ($metadata['category_id'] ?? 0),
+                'fulfillment_type' => (string) ($metadata['fulfillment_type'] ?? 'physical_shipping'),
+                'fulfillment_label' => (string) ($metadata['fulfillment_label'] ?? 'Physical shipping'),
+                'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],
             ], (int) ($item->getAttribute('quantity') ?? 1));
         }
 
@@ -143,7 +148,8 @@ class CartService extends Service
             return $this->response('Unable to add item', 'The requested product could not be found.', 404);
         }
 
-        if ((int) ($product->getAttribute('stock') ?? 0) < $quantity) {
+        if ($this->requiresStock((string) ($product->getAttribute('fulfillment_type') ?? 'physical_shipping'))
+            && (int) ($product->getAttribute('stock') ?? 0) < $quantity) {
             return $this->response('Unable to add item', 'The requested quantity is not currently available.', 409);
         }
 
@@ -175,7 +181,9 @@ class CartService extends Service
         $quantity = max(1, (int) ($this->payload['quantity'] ?? 1));
         $product = $this->products->find((int) ($item->getAttribute('product_id') ?? 0));
 
-        if ($product !== null && (int) ($product->getAttribute('stock') ?? 0) < $quantity) {
+        if ($product !== null
+            && $this->requiresStock((string) ($product->getAttribute('fulfillment_type') ?? 'physical_shipping'))
+            && (int) ($product->getAttribute('stock') ?? 0) < $quantity) {
             return $this->response('Unable to update item', 'The requested quantity exceeds the currently available stock.', 409);
         }
 
@@ -357,6 +365,15 @@ class CartService extends Service
         }
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function requiresStock(string $fulfillmentType): bool
+    {
+        return in_array(strtolower(trim($fulfillmentType)), [
+            'physical_shipping',
+            'store_pickup',
+            'scheduled_pickup',
+        ], true);
     }
 
     /**

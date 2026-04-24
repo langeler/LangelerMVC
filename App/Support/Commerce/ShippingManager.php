@@ -33,10 +33,12 @@ class ShippingManager
             static fn(int $carry, array $item): int => $carry + max(0, (int) ($item['line_total_minor'] ?? 0)),
             0
         );
+        $fulfillment = $this->fulfillmentProfile($items);
 
         $requestedCode = trim((string) ($context['shipping_option'] ?? $context['option'] ?? ''));
-        $options = $this->availableOptions($country, $currency, $subtotalMinor);
+        $options = $this->availableOptions($country, $currency, $subtotalMinor, $fulfillment);
         $selected = $this->selectOption($options, $requestedCode)
+            ?? (!$fulfillment['requires_shipping'] ? $this->nonShippingOption($currency, $country, $zone) : null)
             ?? $this->selectOption($options, $this->defaultOptionCode($country))
             ?? ($options[0] ?? $this->fallbackOption($currency, $country, $zone, $subtotalMinor));
 
@@ -45,6 +47,7 @@ class ShippingManager
             'country' => $country,
             'zone' => $zone,
             'subtotal_minor' => $subtotalMinor,
+            'fulfillment' => $fulfillment,
             'selected' => $selected,
             'options' => $options,
             'carriers' => $this->carrierCatalog($country),
@@ -279,14 +282,23 @@ class ShippingManager
     /**
      * @return list<array<string, mixed>>
      */
-    private function availableOptions(string $country, string $currency, int $subtotalMinor): array
+    private function availableOptions(string $country, string $currency, int $subtotalMinor, array $fulfillment = []): array
     {
         $zone = $this->zoneForCountry($country);
         $freeShippingOverMinor = max(0, (int) $this->config->get('commerce', 'SHIPPING.FREE_OVER_MINOR', 0));
         $options = array_replace_recursive($this->defaultOptions(), $this->configuredOptions());
         $results = [];
+        $requiresShipping = (bool) ($fulfillment['requires_shipping'] ?? true);
+
+        if (!$requiresShipping) {
+            $results[] = $this->nonShippingOption($currency, $country, $zone);
+        }
 
         foreach ($options as $code => $option) {
+            if (!$requiresShipping) {
+                continue;
+            }
+
             $optionCode = strtolower((string) ($option['code'] ?? $code));
             $zones = array_map('strtoupper', array_map('strval', (array) ($option['zones'] ?? [])));
 
@@ -327,6 +339,10 @@ class ShippingManager
             ];
         }
 
+        foreach ($this->pickupOptions($country, $currency, $zone) as $pickupOption) {
+            $results[] = $pickupOption;
+        }
+
         return array_values($results);
     }
 
@@ -347,6 +363,125 @@ class ShippingManager
         }
 
         return null;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     * @return array<string, mixed>
+     */
+    private function fulfillmentProfile(array $items): array
+    {
+        $defaultType = strtolower(trim((string) $this->config->get('commerce', 'FULFILLMENT.DEFAULT_TYPE', 'physical_shipping')));
+        $shippingTypes = array_map('strtolower', array_map('strval', (array) $this->config->get('commerce', 'FULFILLMENT.SHIPPING_REQUIRED_TYPES', ['physical_shipping', 'preorder'])));
+        $pickupTypes = array_map('strtolower', array_map('strval', (array) $this->config->get('commerce', 'FULFILLMENT.PICKUP_TYPES', ['store_pickup', 'scheduled_pickup'])));
+        $stockManagedTypes = array_map('strtolower', array_map('strval', (array) $this->config->get('commerce', 'FULFILLMENT.STOCK_MANAGED_TYPES', ['physical_shipping', 'store_pickup', 'scheduled_pickup'])));
+        $types = [];
+
+        foreach ($items as $item) {
+            $type = strtolower(trim((string) ($item['fulfillment_type'] ?? $defaultType)));
+            $types[] = $type !== '' ? $type : $defaultType;
+        }
+
+        $types = array_values(array_unique($types));
+        $requiresShipping = $types === [] || array_intersect($types, $shippingTypes) !== [];
+        $allowsPickup = array_intersect($types, $shippingTypes) !== [] || array_intersect($types, $pickupTypes) !== [];
+        $requiresStock = array_intersect($types, $stockManagedTypes) !== [];
+
+        return [
+            'types' => $types,
+            'primary_type' => $types[0] ?? $defaultType,
+            'requires_shipping' => $requiresShipping,
+            'allows_pickup' => $allowsPickup,
+            'requires_stock' => $requiresStock,
+            'is_mixed' => count($types) > 1,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function nonShippingOption(string $currency, string $country, string $zone): array
+    {
+        $configured = $this->config->get('commerce', 'FULFILLMENT.DIGITAL_DELIVERY_OPTION', []);
+        $configured = is_array($configured) ? array_change_key_case($configured, CASE_LOWER) : [];
+        $code = strtolower((string) ($configured['code'] ?? 'digital-delivery'));
+        $label = (string) ($configured['label'] ?? 'Digital / online delivery');
+        $serviceLabel = (string) ($configured['service_label'] ?? 'Instant access after payment');
+
+        return [
+            'code' => $code,
+            'label' => $label,
+            'carrier_code' => '',
+            'carrier_label' => '',
+            'service_code' => 'digital_delivery',
+            'service_label' => $serviceLabel,
+            'rate_minor' => 0,
+            'effective_rate_minor' => 0,
+            'rate' => $this->formatMoneyMinor(0, $currency),
+            'effective_rate' => $this->formatMoneyMinor(0, $currency),
+            'service_point_required' => false,
+            'service_level' => 'digital',
+            'free_shipping_eligible' => false,
+            'tracking_portal_url' => '',
+            'tracking_apps' => [],
+            'zones' => [$zone],
+            'countries' => [$country],
+            'fulfillment_method' => 'digital_delivery',
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function pickupOptions(string $country, string $currency, string $zone): array
+    {
+        $configured = $this->config->get('commerce', 'FULFILLMENT.PICKUP_OPTIONS', []);
+        $configured = is_array($configured) ? $this->normalizeConfigKeys($configured) : [];
+        $results = [];
+
+        foreach ($configured as $code => $option) {
+            if (!is_array($option)) {
+                continue;
+            }
+
+            $zones = array_map('strtoupper', array_map('strval', (array) ($option['zones'] ?? [])));
+            if ($zones !== [] && !in_array($zone, $zones, true)) {
+                continue;
+            }
+
+            $countries = array_map([$this, 'normalizeCountryCode'], array_map('strval', (array) ($option['countries'] ?? [])));
+            if ($countries !== [] && !in_array($country, $countries, true)) {
+                continue;
+            }
+
+            $optionCode = strtolower((string) ($option['code'] ?? $code));
+            $rateMinor = max(0, (int) ($option['rate_minor'] ?? 0));
+            $serviceCode = (string) ($option['service_code'] ?? $optionCode);
+
+            $results[] = [
+                'code' => $optionCode,
+                'label' => (string) ($option['label'] ?? ucfirst(str_replace('-', ' ', $optionCode))),
+                'carrier_code' => '',
+                'carrier_label' => '',
+                'service_code' => $serviceCode,
+                'service_label' => (string) ($option['service_label'] ?? (string) ($option['label'] ?? 'Pickup')),
+                'rate_minor' => $rateMinor,
+                'effective_rate_minor' => $rateMinor,
+                'rate' => $this->formatMoneyMinor($rateMinor, $currency),
+                'effective_rate' => $this->formatMoneyMinor($rateMinor, $currency),
+                'service_point_required' => (bool) ($option['location_required'] ?? true),
+                'service_level' => $serviceCode,
+                'free_shipping_eligible' => false,
+                'tracking_portal_url' => '',
+                'tracking_apps' => [],
+                'zones' => $zones,
+                'countries' => $countries,
+                'fulfillment_method' => $serviceCode,
+                'schedule_required' => (bool) ($option['schedule_required'] ?? false),
+            ];
+        }
+
+        return $results;
     }
 
     /**

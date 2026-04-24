@@ -40,6 +40,7 @@ use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\OrderModule\Seeds\OrderSeed;
 use App\Modules\OrderModule\Services\OrderService;
 use App\Modules\ShopModule\Listeners\CatalogActivityNotificationListener;
+use App\Modules\ShopModule\Migrations\AddProductFulfillmentColumns;
 use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Modules\ShopModule\Presenters\ShopResource;
 use App\Modules\ShopModule\Repositories\CategoryRepository;
@@ -358,6 +359,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateCartTables::class,
             CartSeed::class,
             CreateShopTables::class,
+            AddProductFulfillmentColumns::class,
             ShopSeed::class,
             CreateUserPlatformTables::class,
             UserPlatformSeed::class,
@@ -390,6 +392,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('AddOrderShipmentTrackingColumns', $executedMigrations, true),
             array_search('AddOrderCommerceStateColumns', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('AddProductFulfillmentColumns', $executedMigrations, true),
+            array_search('CreateShopTables', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('CartSeed', $executedSeeds, true),
@@ -710,7 +716,7 @@ final class FrameworkCompletionTest extends TestCase
             'coupon_code' => 'LOCKER49',
         ])->execute();
 
-        self::assertSame(200, $applied['status']);
+        self::assertSame(200, $applied['status'], (string) ($applied['message'] ?? ''));
         self::assertSame('LOCKER49', $applied['cart']['discount_code']);
         self::assertSame(1000, $applied['cart']['discount_minor']);
         self::assertSame(1490, $applied['cart']['shipping_base_minor']);
@@ -751,6 +757,61 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame('LOCKER49', $detail['order']['discount_code']);
         self::assertSame(500, $detail['order']['shipping_discount_minor']);
+    }
+
+    public function testDigitalFulfillmentSkipsShippingAndSupportsCriteriaPromotions(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $product = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertNotNull($product);
+        $productId = (int) $product?->getKey();
+        $stack['products']->update($productId, [
+            'stock' => 0,
+            'fulfillment_type' => 'digital_download',
+            'fulfillment_policy' => json_encode(['download_limit' => 3], JSON_THROW_ON_ERROR),
+        ]);
+
+        $added = $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 2])
+            ->execute();
+
+        self::assertSame(200, $added['status']);
+        self::assertSame('digital_download', $added['cart']['items'][0]['fulfillment_type']);
+        self::assertSame('digital-delivery', $added['cart']['shipping_option']);
+        self::assertSame(0, $added['cart']['shipping_minor']);
+        self::assertSame(['digital_download'], $added['cart']['fulfillment']['types']);
+
+        $applied = $stack['cartService']
+            ->forAction('applyDiscount', ['coupon_code' => 'DIGITAL25'])
+            ->execute();
+
+        self::assertSame(200, $applied['status']);
+        self::assertSame('DIGITAL25', $applied['cart']['discount_code']);
+        self::assertSame(4950, $applied['cart']['discount_minor']);
+        self::assertSame(0, $applied['cart']['shipping_minor']);
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Digital Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Online',
+            'postal_code' => '00000',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+        ])->execute();
+
+        self::assertSame(201, $checkout['status']);
+        self::assertSame('digital-delivery', $checkout['order']['shipping_option']);
+        self::assertSame('', $checkout['order']['shipping_carrier']);
+        self::assertSame(0, $checkout['order']['shipping_minor']);
+        self::assertSame('not_required', $checkout['order']['inventory_status']);
+        self::assertSame('DIGITAL25', $checkout['order']['discount_code']);
+        self::assertSame(4950, $checkout['order']['discount_minor']);
     }
 
     public function testCheckoutRejectsIneligiblePromotionForSelectedShippingMethod(): void
@@ -1172,6 +1233,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateUserPlatformTables::class,
             UserPlatformSeed::class,
             CreateShopTables::class,
+            AddProductFulfillmentColumns::class,
             ShopSeed::class,
             CreateCartTables::class,
             AddCartDiscountColumns::class,
@@ -1550,10 +1612,34 @@ final class FrameworkCompletionTest extends TestCase
                         'ALLOWED_CARRIERS' => ['instabox', 'budbee', 'postnord'],
                         'ALLOWED_SHIPPING_OPTIONS' => ['instabox-locker', 'budbee-box', 'postnord-service-point'],
                     ],
+                    'DIGITAL25' => [
+                        'LABEL' => 'Digital 25%',
+                        'TYPE' => 'percentage',
+                        'APPLIES_TO' => 'qualified_items',
+                        'RATE_BPS' => 2500,
+                        'MAX_DISCOUNT_MINOR_BY_CURRENCY' => [
+                            'SEK' => 5000,
+                        ],
+                        'ALLOWED_FULFILLMENT_TYPES' => ['digital_download', 'virtual_access'],
+                        'ALLOWED_CURRENCIES' => ['SEK'],
+                    ],
                 ],
                 'INVENTORY' => [
                     'RESERVE_ON_CHECKOUT' => true,
                     'RELEASE_ON_CANCEL' => true,
+                ],
+                'FULFILLMENT' => [
+                    'DEFAULT_TYPE' => 'physical_shipping',
+                    'AUTO_READY_ON_CAPTURE' => true,
+                    'NO_SHIPPING_TYPES' => ['digital_download', 'virtual_access', 'subscription'],
+                    'SHIPPING_REQUIRED_TYPES' => ['physical_shipping', 'preorder'],
+                    'PICKUP_TYPES' => ['store_pickup', 'scheduled_pickup'],
+                    'STOCK_MANAGED_TYPES' => ['physical_shipping', 'store_pickup', 'scheduled_pickup'],
+                    'DIGITAL_DELIVERY_OPTION' => [
+                        'CODE' => 'digital-delivery',
+                        'LABEL' => 'Digital / online delivery',
+                        'SERVICE_LABEL' => 'Instant access after payment',
+                    ],
                 ],
             ],
             'queue' => [

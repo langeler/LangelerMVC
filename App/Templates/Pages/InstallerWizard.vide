@@ -16,6 +16,9 @@
         $paymentDriver = $form['PAYMENT_DRIVER'] ?? '';
         $paymentMethod = $form['PAYMENT_DEFAULT_METHOD'] ?? '';
         $paymentFlow = $form['PAYMENT_DEFAULT_FLOW'] ?? '';
+        $fulfillmentType = $form['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? '';
+        $subscriptionInterval = $form['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? '';
+        $autoReadyOnCapture = ($form['COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE'] ?? 'true') === 'true';
         $encryptionType = $form['ENCRYPTION_TYPE'] ?? '';
         $sessionSameSite = strtolower((string) ($form['SESSION_SAME_SITE'] ?? ''));
         $isInstalled = (bool) ($status['installed'] ?? false);
@@ -32,6 +35,8 @@
         $mailDrivers = $status['mailDrivers'] ?? [];
         $queueDrivers = $status['queueDrivers'] ?? [];
         $contentSources = $status['contentSources'] ?? [];
+        $fulfillmentTypes = $status['fulfillmentTypes'] ?? [];
+        $subscriptionIntervals = $status['subscriptionIntervals'] ?? [];
     @endphp
     <div class="stack">
         @if($errors !== [])
@@ -377,6 +382,63 @@
                             <input id="PAYMENT_CURRENCY" name="PAYMENT_CURRENCY" type="text" value="{{ $form['PAYMENT_CURRENCY'] ?? '' }}">
                         </div>
                         <div class="field">
+                            <label for="COMMERCE_CURRENCY">Commerce Currency</label>
+                            <input id="COMMERCE_CURRENCY" name="COMMERCE_CURRENCY" type="text" value="{{ $form['COMMERCE_CURRENCY'] ?? '' }}">
+                            <small>Used by cart totals, promotions, shipping rates, and seeded shop defaults.</small>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_TAX_RATE_BPS">Tax Rate (basis points)</label>
+                            <input id="COMMERCE_TAX_RATE_BPS" name="COMMERCE_TAX_RATE_BPS" type="text" value="{{ $form['COMMERCE_TAX_RATE_BPS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DISCOUNT_RATE_BPS">Default Discount Rate (basis points)</label>
+                            <input id="COMMERCE_DISCOUNT_RATE_BPS" name="COMMERCE_DISCOUNT_RATE_BPS" type="text" value="{{ $form['COMMERCE_DISCOUNT_RATE_BPS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DISCOUNT_MAX_MINOR">Default Discount Cap Minor</label>
+                            <input id="COMMERCE_DISCOUNT_MAX_MINOR" name="COMMERCE_DISCOUNT_MAX_MINOR" type="text" value="{{ $form['COMMERCE_DISCOUNT_MAX_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_DEFAULT_COUNTRY">Default Fulfillment Country</label>
+                            <input id="COMMERCE_SHIPPING_DEFAULT_COUNTRY" name="COMMERCE_SHIPPING_DEFAULT_COUNTRY" type="text" value="{{ $form['COMMERCE_SHIPPING_DEFAULT_COUNTRY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_DEFAULT_OPTION">Default Shipping Option</label>
+                            <input id="COMMERCE_SHIPPING_DEFAULT_OPTION" name="COMMERCE_SHIPPING_DEFAULT_OPTION" type="text" value="{{ $form['COMMERCE_SHIPPING_DEFAULT_OPTION'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_FLAT_RATE_MINOR">Fallback Shipping Rate Minor</label>
+                            <input id="COMMERCE_SHIPPING_FLAT_RATE_MINOR" name="COMMERCE_SHIPPING_FLAT_RATE_MINOR" type="text" value="{{ $form['COMMERCE_SHIPPING_FLAT_RATE_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_FREE_OVER_MINOR">Free Shipping Over Minor</label>
+                            <input id="COMMERCE_SHIPPING_FREE_OVER_MINOR" name="COMMERCE_SHIPPING_FREE_OVER_MINOR" type="text" value="{{ $form['COMMERCE_SHIPPING_FREE_OVER_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_FULFILLMENT_DEFAULT_TYPE">Default Product Fulfillment</label>
+                            <select id="COMMERCE_FULFILLMENT_DEFAULT_TYPE" name="COMMERCE_FULFILLMENT_DEFAULT_TYPE">
+                                @foreach([
+                                    'physical_shipping' => 'Physical shipping',
+                                    'digital_download' => 'Digital download',
+                                    'virtual_access' => 'Virtual / online access',
+                                    'store_pickup' => 'Pickup at store',
+                                    'scheduled_pickup' => 'Scheduled pickup',
+                                    'preorder' => 'Pre-order',
+                                    'subscription' => 'Subscription / recurring',
+                                ] as $value => $label)
+                                    <option value="{{ $value }}" @if($fulfillmentType === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL">Default Subscription Interval</label>
+                            <select id="COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL" name="COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL">
+                                @foreach(['weekly' => 'Weekly', 'monthly' => 'Monthly', 'quarterly' => 'Quarterly', 'yearly' => 'Yearly'] as $value => $label)
+                                    <option value="{{ $value }}" @if($subscriptionInterval === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
                             <label for="PAYMENT_DEFAULT_METHOD">Default Payment Method</label>
                             <select id="PAYMENT_DEFAULT_METHOD" name="PAYMENT_DEFAULT_METHOD">
                                 @foreach(['card' => 'Card', 'wallet' => 'Wallet', 'bank_transfer' => 'Bank Transfer', 'bnpl' => 'Buy Now Pay Later', 'local_instant' => 'Local Instant', 'manual' => 'Manual', 'crypto' => 'Crypto'] as $value => $label)
@@ -392,6 +454,10 @@
                                 @endforeach
                             </select>
                         </div>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="false">
+                        <label><input type="checkbox" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="true" @if($autoReadyOnCapture) checked @endif> Move captured orders into ready-to-fulfill automatically</label>
                     </div>
                 </section>
 

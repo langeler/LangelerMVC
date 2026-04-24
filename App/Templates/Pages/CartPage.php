@@ -36,6 +36,7 @@
                 <thead>
                     <tr>
                         <th>Product</th>
+                        <th>Fulfillment</th>
                         <th>Unit price</th>
                         <th>Line total</th>
                         <th>Update quantity</th>
@@ -55,6 +56,7 @@
                                     <?= $view->escape((string) ($entry['name'] ?? 'Product')) ?>
                                 <?php endif; ?>
                             </td>
+                            <td><?= $view->escape((string) ($entry['fulfillment_label'] ?? 'Physical shipping')) ?></td>
                             <td><?= $view->escape((string) ($entry['unit_price'] ?? '')) ?></td>
                             <td><?= $view->escape((string) ($entry['line_total'] ?? '')) ?></td>
                             <td>
@@ -109,6 +111,7 @@
                 'Status' => $cart['status'] ?? '',
                 'Currency' => $cart['currency'] ?? '',
                 'Items' => $cart['item_count'] ?? 0,
+                'Fulfillment types' => implode(', ', (array) ($cart['fulfillment']['types'] ?? [])),
                 'Shipping country' => $cart['shipping_country'] ?? '',
                 'Shipping zone' => $cart['shipping_zone'] ?? '',
                 'Shipping option' => $cart['shipping_option_label'] ?? '',

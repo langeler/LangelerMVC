@@ -27,6 +27,7 @@ if ($products === []) {
         $price = (string) ($entry['price'] ?? '');
         $stock = (int) ($entry['stock'] ?? 0);
         $availability = (string) ($entry['availability'] ?? ($stock > 0 ? 'In stock' : 'Out of stock'));
+        $fulfillment = (string) ($entry['fulfillment_label'] ?? 'Physical shipping');
         $isInStock = (bool) ($entry['is_in_stock'] ?? ($stock > 0));
         ?>
         <article class="product-card">
@@ -37,7 +38,7 @@ if ($products === []) {
             <?php endif; ?>
 
             <div class="product-card__body">
-                <p class="product-card__eyebrow"><?= $view->escape($availability) ?><?php if ($stock > 0): ?> · <?= $view->escape($stock) ?> available<?php endif; ?></p>
+                <p class="product-card__eyebrow"><?= $view->escape($availability) ?> · <?= $view->escape($fulfillment) ?><?php if ($stock > 0): ?> · <?= $view->escape($stock) ?> available<?php endif; ?></p>
 
                 <<?= $headingTag ?> class="product-card__title"><?= $view->escape($name) ?></<?= $headingTag ?>>
 

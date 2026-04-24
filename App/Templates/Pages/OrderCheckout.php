@@ -24,7 +24,7 @@ foreach (is_array($payment['catalog'] ?? null) ? array_values($payment['catalog'
 foreach (is_array($shipping['options'] ?? null) ? array_values($shipping['options']) : [] as $option) {
     $shippingRows[] = [
         'label' => $option['label'] ?? '',
-        'carrier' => $option['carrier_label'] ?? '',
+        'carrier' => ($option['carrier_label'] ?? '') !== '' ? $option['carrier_label'] : 'Not required',
         'service' => $option['service_label'] ?? '',
         'rate' => $option['effective_rate'] ?? ($option['rate'] ?? ''),
         'service_point' => !empty($option['service_point_required']) ? 'Required' : 'Optional',
@@ -63,6 +63,7 @@ foreach (is_array($cart['promotion_catalog'] ?? null) ? array_values($cart['prom
         <?= $view->renderComponent('DataTable', [
             'columns' => [
                 'name' => 'Product',
+                'fulfillment_label' => 'Fulfillment',
                 'quantity' => 'Qty',
                 'unit_price' => 'Unit price',
                 'line_total' => 'Line total',
@@ -73,7 +74,7 @@ foreach (is_array($cart['promotion_catalog'] ?? null) ? array_values($cart['prom
     </div>
 
     <div class="section">
-        <h2>Customer, delivery, and shipping details</h2>
+        <h2>Customer, fulfillment, and delivery details</h2>
         <form method="post" action="/orders/checkout" class="stack">
             <label>
                 Full name
@@ -116,7 +117,7 @@ foreach (is_array($cart['promotion_catalog'] ?? null) ? array_values($cart['prom
             </label>
 
             <label>
-                Shipping option
+                Fulfillment / shipping option
                 <select name="shipping_option">
                     <?php foreach ((array) ($shipping['options'] ?? []) as $option): ?>
                         <?php $entry = is_array($option) ? $option : []; ?>
@@ -193,9 +194,10 @@ foreach (is_array($cart['promotion_catalog'] ?? null) ? array_values($cart['prom
             'items' => [
                 'Currency' => $cart['currency'] ?? '',
                 'Items' => $cart['item_count'] ?? 0,
+                'Fulfillment types' => implode(', ', (array) ($shipping['fulfillment']['types'] ?? [])),
                 'Shipping country' => $shipping['country'] ?? '',
                 'Shipping zone' => $shipping['zone'] ?? '',
-                'Selected shipping' => $shipping['selected_label'] ?? '',
+                'Selected fulfillment' => $shipping['selected_label'] ?? '',
                 'Carrier' => $shipping['selected_carrier'] ?? '',
                 'Service' => $shipping['selected_service'] ?? '',
                 'Promotion code' => $cart['discount_code'] ?? '',

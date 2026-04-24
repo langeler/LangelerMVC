@@ -19,6 +19,7 @@ use App\Drivers\Session\FileSessionDriver;
 use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\CartModule\Migrations\CreateCartTables;
 use App\Modules\CartModule\Repositories\CartItemRepository;
+use App\Modules\ShopModule\Migrations\AddProductFulfillmentColumns;
 use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CartPricingManager;
@@ -367,6 +368,7 @@ class AuthPlatformTest extends TestCase
         $modules = $this->makeModuleManagerStub([
             CreateUserPlatformTables::class,
             CreateShopTables::class,
+            AddProductFulfillmentColumns::class,
             CreateCartTables::class,
         ]);
         $errors = new ErrorManager(new ExceptionProvider());

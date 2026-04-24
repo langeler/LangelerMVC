@@ -22,6 +22,10 @@ class InventoryManager
         $issues = [];
 
         foreach ($this->normalizeItems($items) as $item) {
+            if (!$this->requiresStock((string) ($item['fulfillment_type'] ?? 'physical_shipping'))) {
+                continue;
+            }
+
             $product = $this->products->find((int) $item['product_id']);
 
             if (!$product instanceof Product) {
@@ -67,6 +71,10 @@ class InventoryManager
         $reserved = [];
 
         foreach ($this->normalizeItems($items) as $item) {
+            if (!$this->requiresStock((string) ($item['fulfillment_type'] ?? 'physical_shipping'))) {
+                continue;
+            }
+
             $product = $this->products->adjustStock((int) $item['product_id'], -((int) $item['quantity']));
 
             if ($product instanceof Product) {
@@ -94,6 +102,10 @@ class InventoryManager
         $released = [];
 
         foreach ($this->normalizeItems($items) as $item) {
+            if (!$this->requiresStock((string) ($item['fulfillment_type'] ?? 'physical_shipping'))) {
+                continue;
+            }
+
             $product = $this->products->adjustStock((int) $item['product_id'], (int) $item['quantity']);
 
             if ($product instanceof Product) {
@@ -113,7 +125,7 @@ class InventoryManager
 
     /**
      * @param list<array<string, mixed>> $items
-     * @return list<array{product_id:int,quantity:int}>
+     * @return list<array{product_id:int,quantity:int,fulfillment_type:string}>
      */
     private function normalizeItems(array $items): array
     {
@@ -130,9 +142,19 @@ class InventoryManager
             $normalized[] = [
                 'product_id' => $productId,
                 'quantity' => $quantity,
+                'fulfillment_type' => strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping'))) ?: 'physical_shipping',
             ];
         }
 
         return $normalized;
+    }
+
+    private function requiresStock(string $fulfillmentType): bool
+    {
+        return in_array(strtolower(trim($fulfillmentType)), [
+            'physical_shipping',
+            'store_pickup',
+            'scheduled_pickup',
+        ], true);
     }
 }

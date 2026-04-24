@@ -526,6 +526,9 @@ class AdminAccessService extends Service
         }
 
         $media = $this->normalizeMediaList((string) ($this->payload['media'] ?? ''));
+        $fulfillmentType = $this->normalizeFulfillmentType((string) ($this->payload['fulfillment_type'] ?? 'physical_shipping'));
+        $fulfillmentPolicy = $this->normalizeFulfillmentPolicy((string) ($this->payload['fulfillment_policy'] ?? ''));
+        $availableAt = trim((string) ($this->payload['available_at'] ?? ''));
         $attributes = [
             'category_id' => $categoryId,
             'name' => $name,
@@ -538,6 +541,9 @@ class AdminAccessService extends Service
                 : 'published',
             'stock' => max(0, (int) ($this->payload['stock'] ?? 0)),
             'media' => $this->toJson($media, JSON_THROW_ON_ERROR),
+            'fulfillment_type' => $fulfillmentType,
+            'fulfillment_policy' => $this->toJson($fulfillmentPolicy, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'available_at' => $availableAt !== '' ? $availableAt : null,
         ];
         $isUpdate = $existing !== null;
 
@@ -555,6 +561,7 @@ class AdminAccessService extends Service
             'slug' => $slug,
             'visibility' => $attributes['visibility'],
             'stock' => (int) $attributes['stock'],
+            'fulfillment_type' => $fulfillmentType,
         ], 'admin');
         $this->events->dispatch('shop.product.saved', [
             'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
@@ -564,6 +571,7 @@ class AdminAccessService extends Service
             'name' => $name,
             'slug' => $slug,
             'state' => (string) $attributes['visibility'],
+            'fulfillment_type' => $fulfillmentType,
             'message' => sprintf('Product "%s" was saved in the admin catalog.', $name),
         ]);
 
@@ -894,6 +902,9 @@ class AdminAccessService extends Service
                 : 'published',
             'stock' => max(0, (int) ($input['stock'] ?? 0)),
             'media' => trim((string) ($input['media'] ?? '')),
+            'fulfillment_type' => $this->normalizeFulfillmentType((string) ($input['fulfillment_type'] ?? 'physical_shipping')),
+            'fulfillment_policy' => trim((string) ($input['fulfillment_policy'] ?? '')),
+            'available_at' => trim((string) ($input['available_at'] ?? '')),
             'store_path' => '/admin/catalog/products',
         ];
     }
@@ -1010,6 +1021,41 @@ class AdminAccessService extends Service
             static fn(string $item): string => trim($item),
             $parts
         ), static fn(string $item): bool => $item !== ''));
+    }
+
+    private function normalizeFulfillmentType(string $type): string
+    {
+        $type = strtolower(trim($type));
+
+        return in_array($type, [
+            'physical_shipping',
+            'digital_download',
+            'virtual_access',
+            'store_pickup',
+            'scheduled_pickup',
+            'preorder',
+            'subscription',
+        ], true) ? $type : 'physical_shipping';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalizeFulfillmentPolicy(string $input): array
+    {
+        $input = trim($input);
+
+        if ($input === '') {
+            return [];
+        }
+
+        try {
+            $decoded = $this->fromJson($input, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return ['note' => $input];
+        }
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**

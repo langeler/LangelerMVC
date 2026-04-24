@@ -19,6 +19,7 @@ use App\Drivers\Session\FileSessionDriver;
 use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\CartModule\Migrations\CreateCartTables;
 use App\Modules\CartModule\Repositories\CartItemRepository;
+use App\Modules\CartModule\Repositories\PromotionRepository;
 use App\Modules\ShopModule\Migrations\AddProductFulfillmentColumns;
 use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Support\Commerce\CatalogLifecycleManager;
@@ -425,6 +426,7 @@ class AuthPlatformTest extends TestCase
             $this->createStub(\App\Modules\ShopModule\Repositories\CategoryRepository::class),
             $this->createStub(\App\Modules\CartModule\Repositories\CartRepository::class),
             $this->createStub(\App\Modules\CartModule\Repositories\CartItemRepository::class),
+            $this->createStub(PromotionRepository::class),
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderRepository::class),
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderItemRepository::class),
             $this->createStub(\App\Modules\OrderModule\Repositories\OrderAddressRepository::class),
@@ -565,6 +567,7 @@ class AuthPlatformTest extends TestCase
 
         self::assertContains('user.login', $names);
         self::assertContains('admin.dashboard', $names);
+        self::assertContains('admin.promotions', $names);
         self::assertContains('api.user.passkeys.login.options', $names);
         self::assertContains('user.passkeys.register.options', $names);
 
@@ -706,6 +709,7 @@ class AuthPlatformTest extends TestCase
                             'user.profile.view',
                             'user.profile.update',
                             'shop.catalog.manage',
+                            'promotion.manage',
                             'cart.manage',
                             'order.manage',
                         ],

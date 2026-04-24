@@ -2,15 +2,18 @@
 
 This folder contains the current LangelerMVC project documentation plus a small set of historical reference files kept in the repository for context.
 
-As of `2026-04-21`, the framework status and architecture documents below are the primary source of truth for what is implemented today.
+As of `2026-04-24`, the framework status, release readiness, and architecture documents below are the primary source of truth for what is implemented today.
 
 ## Start Here
 
 - `../readme.md`: project overview, installation, run commands, and quick links into the documentation set.
 - `../CONTRIBUTING.md`: contributor workflow, verification expectations, and coding standards for framework work.
 - `../SECURITY.md`: supported versions and responsible vulnerability disclosure guidance.
+- `../CHANGELOG.md`: release-facing change history.
+- `../RELEASE.md`: production preflight and tagging checklist.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.
+- `ReleaseReadinessPlan.md`: current P0/P1/P2 completion map and remaining release gaps.
 
 ## Structure And Layout
 

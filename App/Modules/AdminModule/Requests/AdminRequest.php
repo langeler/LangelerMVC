@@ -40,6 +40,40 @@ class AdminRequest extends InboundRequest
                 'fulfillment_policy' => ['methods' => 'string', 'required' => false],
                 'available_at' => ['methods' => 'string', 'required' => false],
             ],
+            'savePromotion' => [
+                'code' => ['methods' => 'string'],
+                'label' => ['methods' => 'string'],
+                'description' => ['methods' => 'string', 'required' => false],
+                'type' => ['methods' => 'string', 'required' => false],
+                'applies_to' => ['methods' => 'string', 'required' => false],
+                'active' => ['methods' => 'string', 'required' => false],
+                'rate_bps' => ['methods' => 'integer', 'required' => false],
+                'amount_minor' => ['methods' => 'integer', 'required' => false],
+                'shipping_rate_minor' => ['methods' => 'integer', 'required' => false],
+                'min_subtotal_minor' => ['methods' => 'integer', 'required' => false],
+                'max_subtotal_minor' => ['methods' => 'integer', 'required' => false],
+                'max_discount_minor' => ['methods' => 'integer', 'required' => false],
+                'min_items' => ['methods' => 'integer', 'required' => false],
+                'max_items' => ['methods' => 'integer', 'required' => false],
+                'usage_limit' => ['methods' => 'integer', 'required' => false],
+                'starts_at' => ['methods' => 'string', 'required' => false],
+                'ends_at' => ['methods' => 'string', 'required' => false],
+                'criteria_json' => ['methods' => 'string', 'required' => false],
+                'allowed_currencies' => ['methods' => 'string', 'required' => false],
+                'allowed_countries' => ['methods' => 'string', 'required' => false],
+                'allowed_zones' => ['methods' => 'string', 'required' => false],
+                'allowed_carriers' => ['methods' => 'string', 'required' => false],
+                'allowed_shipping_options' => ['methods' => 'string', 'required' => false],
+                'allowed_product_ids' => ['methods' => 'string', 'required' => false],
+                'allowed_product_slugs' => ['methods' => 'string', 'required' => false],
+                'allowed_category_ids' => ['methods' => 'string', 'required' => false],
+                'allowed_fulfillment_types' => ['methods' => 'string', 'required' => false],
+                'excluded_product_ids' => ['methods' => 'string', 'required' => false],
+                'excluded_product_slugs' => ['methods' => 'string', 'required' => false],
+                'excluded_fulfillment_types' => ['methods' => 'string', 'required' => false],
+                'required_fulfillment_types' => ['methods' => 'string', 'required' => false],
+                'free_shipping_eligible_only' => ['methods' => 'string', 'required' => false],
+            ],
             default => [],
         };
     }
@@ -73,6 +107,21 @@ class AdminRequest extends InboundRequest
                 'stock' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
                 'fulfillment_type' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(physical_shipping|digital_download|virtual_access|store_pickup|scheduled_pickup|preorder|subscription)$/']],
             ],
+            'savePromotion' => [
+                'code' => ['methods' => 'regexp', 'rules' => ['notEmpty'], 'options' => ['pattern' => '/^[A-Za-z0-9_-]{2,64}$/']],
+                'label' => ['methods' => 'string', 'rules' => ['notEmpty', 'minLength' => [2]]],
+                'type' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(percentage|fixed_amount|free_shipping|shipping_fixed|shipping_percentage)$/']],
+                'applies_to' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^(cart_subtotal|qualified_items)$/']],
+                'rate_bps' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'amount_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'shipping_rate_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'min_subtotal_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'max_subtotal_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'max_discount_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'min_items' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'max_items' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'usage_limit' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+            ],
             default => [],
         };
     }
@@ -86,7 +135,37 @@ class AdminRequest extends InboundRequest
             }
         }
 
-        foreach (['name', 'slug', 'description', 'currency', 'visibility', 'media', 'fulfillment_type', 'fulfillment_policy', 'available_at'] as $key) {
+        foreach ([
+            'name',
+            'slug',
+            'description',
+            'currency',
+            'visibility',
+            'media',
+            'fulfillment_type',
+            'fulfillment_policy',
+            'available_at',
+            'code',
+            'label',
+            'type',
+            'applies_to',
+            'starts_at',
+            'ends_at',
+            'criteria_json',
+            'allowed_currencies',
+            'allowed_countries',
+            'allowed_zones',
+            'allowed_carriers',
+            'allowed_shipping_options',
+            'allowed_product_ids',
+            'allowed_product_slugs',
+            'allowed_category_ids',
+            'allowed_fulfillment_types',
+            'excluded_product_ids',
+            'excluded_product_slugs',
+            'excluded_fulfillment_types',
+            'required_fulfillment_types',
+        ] as $key) {
             if (isset($data[$key]) && is_string($data[$key])) {
                 $data[$key] = trim($data[$key]);
             }
@@ -104,8 +183,28 @@ class AdminRequest extends InboundRequest
             $data['stock'] = max(0, (int) $data['stock']);
         }
 
+        foreach ([
+            'rate_bps',
+            'amount_minor',
+            'shipping_rate_minor',
+            'min_subtotal_minor',
+            'max_subtotal_minor',
+            'max_discount_minor',
+            'min_items',
+            'max_items',
+            'usage_limit',
+        ] as $key) {
+            if (isset($data[$key])) {
+                $data[$key] = max(0, (int) $data[$key]);
+            }
+        }
+
         if (isset($data['currency']) && is_string($data['currency'])) {
             $data['currency'] = strtoupper($data['currency']);
+        }
+
+        if (isset($data['code']) && is_string($data['code'])) {
+            $data['code'] = strtoupper($data['code']);
         }
 
         if (isset($data['visibility']) && is_string($data['visibility'])) {
@@ -116,6 +215,12 @@ class AdminRequest extends InboundRequest
             $data['fulfillment_type'] = strtolower($data['fulfillment_type']);
         }
 
+        foreach (['type', 'applies_to'] as $key) {
+            if (isset($data[$key]) && is_string($data[$key])) {
+                $data[$key] = strtolower($data[$key]);
+            }
+        }
+
         if (array_key_exists('is_published', $data)) {
             $value = $data['is_published'];
             $normalized = is_bool($value) ? $value : in_array(
@@ -124,6 +229,17 @@ class AdminRequest extends InboundRequest
                 true
             );
             $data['is_published'] = $normalized;
+        }
+
+        foreach (['active', 'free_shipping_eligible_only'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $value = $data[$key];
+                $data[$key] = is_bool($value) ? $value : in_array(
+                    strtolower(trim((string) $value)),
+                    ['1', 'true', 'yes', 'on', 'active'],
+                    true
+                );
+            }
         }
 
         return $data;

@@ -20,6 +20,7 @@
                 ['href' => '/admin/users', 'label' => 'Users'],
                 ['href' => '/admin/roles', 'label' => 'Roles'],
                 ['href' => '/admin/catalog', 'label' => 'Catalog'],
+                ['href' => '/admin/promotions', 'label' => 'Promotions'],
                 ['href' => '/admin/carts', 'label' => 'Carts'],
                 ['href' => '/admin/orders', 'label' => 'Orders'],
                 ['href' => '/admin/system', 'label' => 'System'],

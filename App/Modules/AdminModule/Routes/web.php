@@ -24,6 +24,12 @@ return static function (Router $router): void {
     $router->post('/admin/catalog/products/{product:\\d+}/draft', AdminController::class, 'draftProduct', ['as' => 'admin.catalog.products.draft', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/products/{product:\\d+}/archive', AdminController::class, 'archiveProduct', ['as' => 'admin.catalog.products.archive', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/products/{product:\\d+}/delete', AdminController::class, 'deleteProduct', ['as' => 'admin.catalog.products.delete', 'middleware' => $adminMiddleware]);
+    $router->get('/admin/promotions', AdminController::class, 'promotions', ['as' => 'admin.promotions', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/promotions', AdminController::class, 'savePromotion', ['as' => 'admin.promotions.store', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/promotions/{promotion:\\d+}/update', AdminController::class, 'updatePromotion', ['as' => 'admin.promotions.update', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/promotions/{promotion:\\d+}/activate', AdminController::class, 'activatePromotion', ['as' => 'admin.promotions.activate', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/promotions/{promotion:\\d+}/deactivate', AdminController::class, 'deactivatePromotion', ['as' => 'admin.promotions.deactivate', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/promotions/{promotion:\\d+}/delete', AdminController::class, 'deletePromotion', ['as' => 'admin.promotions.delete', 'middleware' => $adminMiddleware]);
     $router->get('/admin/carts', AdminController::class, 'carts', ['as' => 'admin.carts', 'middleware' => $adminMiddleware]);
     $router->get('/admin/orders', AdminController::class, 'orders', ['as' => 'admin.orders', 'middleware' => $adminMiddleware]);
     $router->get('/admin/orders/{order:\\d+}', AdminController::class, 'order', ['as' => 'admin.orders.show', 'middleware' => $adminMiddleware]);
@@ -56,6 +62,12 @@ return static function (Router $router): void {
     $router->post('/api/admin/catalog/products/{product:\\d+}/draft', AdminController::class, 'draftProduct', ['as' => 'api.admin.catalog.products.draft', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/products/{product:\\d+}/archive', AdminController::class, 'archiveProduct', ['as' => 'api.admin.catalog.products.archive', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/products/{product:\\d+}/delete', AdminController::class, 'deleteProduct', ['as' => 'api.admin.catalog.products.delete', 'middleware' => $adminMiddleware]);
+    $router->get('/api/admin/promotions', AdminController::class, 'promotions', ['as' => 'api.admin.promotions', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/promotions', AdminController::class, 'savePromotion', ['as' => 'api.admin.promotions.store', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/promotions/{promotion:\\d+}/update', AdminController::class, 'updatePromotion', ['as' => 'api.admin.promotions.update', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/promotions/{promotion:\\d+}/activate', AdminController::class, 'activatePromotion', ['as' => 'api.admin.promotions.activate', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/promotions/{promotion:\\d+}/deactivate', AdminController::class, 'deactivatePromotion', ['as' => 'api.admin.promotions.deactivate', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/promotions/{promotion:\\d+}/delete', AdminController::class, 'deletePromotion', ['as' => 'api.admin.promotions.delete', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/carts', AdminController::class, 'carts', ['as' => 'api.admin.carts', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/orders', AdminController::class, 'orders', ['as' => 'api.admin.orders', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/orders/{order:\\d+}', AdminController::class, 'order', ['as' => 'api.admin.orders.show', 'middleware' => $adminMiddleware]);

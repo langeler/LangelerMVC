@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Support\Commerce;
 
 use App\Core\Config;
+use App\Modules\CartModule\Repositories\PromotionRepository;
 use App\Utilities\Traits\MoneyFormattingTrait;
 
 class PromotionManager
 {
     use MoneyFormattingTrait;
 
-    public function __construct(private readonly Config $config)
-    {
+    public function __construct(
+        private readonly Config $config,
+        private readonly ?PromotionRepository $repository = null
+    ) {
     }
 
     /**
@@ -61,6 +64,7 @@ class PromotionManager
                 'label' => (string) ($promotion['label'] ?? ''),
                 'description' => (string) ($promotion['description'] ?? ''),
                 'type' => (string) ($promotion['type'] ?? 'fixed_amount'),
+                'source' => (string) ($promotion['source'] ?? 'config'),
                 'active' => (bool) ($promotion['active'] ?? true),
                 'eligible' => (bool) ($evaluation['valid'] ?? false),
                 'message' => (string) ($evaluation['message'] ?? ''),
@@ -84,6 +88,8 @@ class PromotionManager
                 'allowed_shipping_options' => (array) ($promotion['allowed_shipping_options'] ?? []),
                 'allowed_fulfillment_types' => (array) ($promotion['allowed_fulfillment_types'] ?? []),
                 'required_fulfillment_types' => (array) ($promotion['required_fulfillment_types'] ?? []),
+                'usage_limit' => (int) ($promotion['usage_limit'] ?? 0),
+                'usage_count' => (int) ($promotion['usage_count'] ?? 0),
             ];
         }
 
@@ -157,6 +163,16 @@ class PromotionManager
             return [
                 ...$base,
                 'message' => 'This promotion code is not currently active.',
+            ];
+        }
+
+        $usageLimit = max(0, (int) ($promotion['usage_limit'] ?? 0));
+        $usageCount = max(0, (int) ($promotion['usage_count'] ?? 0));
+
+        if ($usageLimit > 0 && $usageCount >= $usageLimit) {
+            return [
+                ...$base,
+                'message' => 'This promotion has reached its usage limit.',
             ];
         }
 
@@ -357,22 +373,39 @@ class PromotionManager
     private function configuredPromotions(string $currency): array
     {
         $configured = $this->config->get('commerce', 'PROMOTIONS', []);
-
-        if (!is_array($configured)) {
-            return [];
-        }
-
         $promotions = [];
 
-        foreach ($configured as $code => $definition) {
-            if (!is_array($definition)) {
-                continue;
-            }
+        if (is_array($configured)) {
+            foreach ($configured as $code => $definition) {
+                if (!is_array($definition)) {
+                    continue;
+                }
 
-            $promotions[] = $this->normalizePromotion((string) $code, $definition, $currency);
+                $promotions[] = $this->normalizePromotion((string) $code, [
+                    ...$definition,
+                    'SOURCE' => 'config',
+                ], $currency);
+            }
         }
 
-        return $promotions;
+        foreach ($this->databasePromotions($currency) as $definition) {
+            $promotions[] = $this->normalizePromotion((string) ($definition['CODE'] ?? ''), [
+                ...$definition,
+                'SOURCE' => 'database',
+            ], $currency);
+        }
+
+        $byCode = [];
+
+        foreach ($promotions as $promotion) {
+            $code = (string) ($promotion['code'] ?? '');
+
+            if ($code !== '') {
+                $byCode[$code] = $promotion;
+            }
+        }
+
+        return array_values($byCode);
     }
 
     /**
@@ -416,6 +449,8 @@ class PromotionManager
             'min_items' => max(0, (int) ($definition['MIN_ITEMS'] ?? $definition['min_items'] ?? 0)),
             'max_items' => max(0, (int) ($definition['MAX_ITEMS'] ?? $definition['max_items'] ?? 0)),
             'free_shipping_eligible_only' => (bool) ($definition['FREE_SHIPPING_ELIGIBLE_ONLY'] ?? $definition['free_shipping_eligible_only'] ?? false),
+            'usage_limit' => max(0, (int) ($definition['USAGE_LIMIT'] ?? $definition['usage_limit'] ?? 0)),
+            'usage_count' => max(0, (int) ($definition['USAGE_COUNT'] ?? $definition['usage_count'] ?? 0)),
             'starts_at' => trim((string) ($definition['STARTS_AT'] ?? $definition['starts_at'] ?? '')),
             'ends_at' => trim((string) ($definition['ENDS_AT'] ?? $definition['ends_at'] ?? '')),
             'allowed_currencies' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_CURRENCIES'] ?? $definition['allowed_currencies'] ?? [])))),
@@ -431,8 +466,25 @@ class PromotionManager
             'excluded_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_PRODUCT_SLUGS'] ?? $definition['excluded_product_slugs'] ?? [])))),
             'excluded_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_FULFILLMENT_TYPES'] ?? $definition['excluded_fulfillment_types'] ?? [])))),
             'required_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_FULFILLMENT_TYPES'] ?? $definition['required_fulfillment_types'] ?? [])))),
+            'source' => strtolower(trim((string) ($definition['SOURCE'] ?? $definition['source'] ?? 'config'))),
             'currency' => $currency,
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function databasePromotions(string $currency): array
+    {
+        if ($this->repository === null) {
+            return [];
+        }
+
+        try {
+            return $this->repository->definitionCatalog($currency);
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /**

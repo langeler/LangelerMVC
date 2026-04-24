@@ -160,6 +160,12 @@ class RouterTest extends TestCase
         self::assertContains('admin.catalog.products.draft', $names);
         self::assertContains('admin.catalog.products.archive', $names);
         self::assertContains('admin.catalog.products.delete', $names);
+        self::assertContains('admin.promotions', $names);
+        self::assertContains('admin.promotions.store', $names);
+        self::assertContains('admin.promotions.update', $names);
+        self::assertContains('admin.promotions.activate', $names);
+        self::assertContains('admin.promotions.deactivate', $names);
+        self::assertContains('admin.promotions.delete', $names);
         self::assertContains('admin.orders.show', $names);
         self::assertContains('admin.orders.capture', $names);
         self::assertContains('admin.orders.cancel', $names);
@@ -179,6 +185,12 @@ class RouterTest extends TestCase
         self::assertContains('api.admin.catalog.products.draft', $names);
         self::assertContains('api.admin.catalog.products.archive', $names);
         self::assertContains('api.admin.catalog.products.delete', $names);
+        self::assertContains('api.admin.promotions', $names);
+        self::assertContains('api.admin.promotions.store', $names);
+        self::assertContains('api.admin.promotions.update', $names);
+        self::assertContains('api.admin.promotions.activate', $names);
+        self::assertContains('api.admin.promotions.deactivate', $names);
+        self::assertContains('api.admin.promotions.delete', $names);
         self::assertContains('api.admin.orders.show', $names);
         self::assertContains('api.admin.orders.capture', $names);
         self::assertContains('api.admin.orders.cancel', $names);

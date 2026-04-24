@@ -78,6 +78,7 @@ class SettingsManager
         'AUTH_OTP_TRUSTED_DEVICE_COOKIE' => ['file' => 'auth', 'path' => ['OTP', 'TRUSTED_DEVICE_COOKIE']],
         'AUTH_PASSKEY_RP_ID' => ['file' => 'auth', 'path' => ['PASSKEY', 'RP_ID']],
         'AUTH_PASSKEY_RP_NAME' => ['file' => 'auth', 'path' => ['PASSKEY', 'RP_NAME']],
+        'AUTH_PASSKEY_ORIGINS' => ['file' => 'auth', 'path' => ['PASSKEY', 'ORIGINS'], 'type' => 'list'],
         'AUTH_PASSKEY_ALLOW_SUBDOMAINS' => ['file' => 'auth', 'path' => ['PASSKEY', 'ALLOW_SUBDOMAINS']],
         'AUTH_PASSKEY_CHALLENGE_TTL' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_TTL'], 'type' => 'int'],
         'AUTH_PASSKEY_CHALLENGE_BYTES' => ['file' => 'auth', 'path' => ['PASSKEY', 'CHALLENGE_BYTES'], 'type' => 'int'],
@@ -137,7 +138,7 @@ class SettingsManager
         'MAIL_FROM_NAME' => ['file' => 'mail', 'path' => ['FROM_NAME']],
         'MAIL_REPLY_TO' => ['file' => 'mail', 'path' => ['REPLY']],
         'MAIL_LOG_ENABLED' => ['file' => 'mail', 'path' => ['LOG']],
-        'NOTIFICATIONS_DEFAULT_CHANNELS' => ['file' => 'notifications', 'path' => ['DEFAULT_CHANNELS']],
+        'NOTIFICATIONS_DEFAULT_CHANNELS' => ['file' => 'notifications', 'path' => ['DEFAULT_CHANNELS'], 'type' => 'list'],
         'NOTIFICATIONS_QUEUE_NAME' => ['file' => 'notifications', 'path' => ['QUEUE_NAME']],
         'OPERATIONS_HEALTH_ENABLED' => ['file' => 'operations', 'path' => ['HEALTH', 'ENABLED']],
         'OPERATIONS_AUDIT_ENABLED' => ['file' => 'operations', 'path' => ['AUDIT', 'ENABLED']],
@@ -725,6 +726,7 @@ class SettingsManager
 
         return match ($type) {
             'int' => $this->coerceIntegerValue($normalized),
+            'list' => $this->coerceListValue($normalized),
             default => $normalized,
         };
     }
@@ -798,6 +800,26 @@ class SettingsManager
         }
 
         return $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function coerceListValue(mixed $value): array
+    {
+        if ($this->isArray($value)) {
+            return array_values(array_filter(array_map(
+                static fn(mixed $item): string => trim((string) $item),
+                $value
+            ), static fn(string $item): bool => $item !== ''));
+        }
+
+        $parts = preg_split('/[\s,]+/', trim((string) ($value ?? ''))) ?: [];
+
+        return array_values(array_filter(array_map(
+            static fn(string $item): string => trim($item),
+            $parts
+        ), static fn(string $item): bool => $item !== ''));
     }
 
     /**

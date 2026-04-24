@@ -168,6 +168,54 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function promotions(): ResponseInterface
+    {
+        $this->action = 'promotions';
+
+        return $this->run();
+    }
+
+    public function savePromotion(): ResponseInterface
+    {
+        $this->adminRequest->forScenario('savePromotion');
+        $this->action = 'savePromotion';
+
+        return $this->run();
+    }
+
+    public function updatePromotion(string $promotion): ResponseInterface
+    {
+        $this->adminRequest->forScenario('savePromotion');
+        $this->action = 'updatePromotion';
+        $this->context = ['promotion' => (int) $promotion];
+
+        return $this->run();
+    }
+
+    public function activatePromotion(string $promotion): ResponseInterface
+    {
+        $this->action = 'activatePromotion';
+        $this->context = ['promotion' => (int) $promotion];
+
+        return $this->run();
+    }
+
+    public function deactivatePromotion(string $promotion): ResponseInterface
+    {
+        $this->action = 'deactivatePromotion';
+        $this->context = ['promotion' => (int) $promotion];
+
+        return $this->run();
+    }
+
+    public function deletePromotion(string $promotion): ResponseInterface
+    {
+        $this->action = 'deletePromotion';
+        $this->context = ['promotion' => (int) $promotion];
+
+        return $this->run();
+    }
+
     public function carts(): ResponseInterface
     {
         $this->action = 'carts';

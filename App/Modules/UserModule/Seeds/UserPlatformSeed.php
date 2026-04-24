@@ -35,6 +35,7 @@ class UserPlatformSeed extends Seed
             'user.profile.view' => 'View user profile data',
             'user.profile.update' => 'Update user profile data',
             'shop.catalog.manage' => 'Manage the shop catalog',
+            'promotion.manage' => 'Manage promotions and coupons',
             'cart.manage' => 'Manage carts',
             'order.manage' => 'Manage orders',
         ] as $name => $description) {

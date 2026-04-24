@@ -29,6 +29,7 @@ return [
         'user.profile.view',
         'user.profile.update',
         'shop.catalog.manage',
+        'promotion.manage',
         'cart.manage',
         'order.manage',
     ],

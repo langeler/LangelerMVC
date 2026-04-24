@@ -23,9 +23,11 @@ use App\Modules\AdminModule\Services\AdminAccessService;
 use App\Modules\CartModule\Listeners\MergeCartOnLoginListener;
 use App\Modules\CartModule\Migrations\AddCartDiscountColumns;
 use App\Modules\CartModule\Migrations\CreateCartTables;
+use App\Modules\CartModule\Migrations\CreatePromotionTables;
 use App\Modules\CartModule\Presenters\CartResource;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
+use App\Modules\CartModule\Repositories\PromotionRepository;
 use App\Modules\CartModule\Seeds\CartSeed;
 use App\Modules\CartModule\Services\CartService;
 use App\Modules\OrderModule\Listeners\OrderLifecycleNotificationListener;
@@ -361,6 +363,8 @@ final class FrameworkCompletionTest extends TestCase
             CreatePagesTable::class,
             PageSeed::class,
             CreateCartTables::class,
+            AddCartDiscountColumns::class,
+            CreatePromotionTables::class,
             CartSeed::class,
             CreateShopTables::class,
             AddProductFulfillmentColumns::class,
@@ -388,6 +392,14 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('CreateOrderTables', $executedMigrations, true),
             array_search('CreateCartTables', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('AddCartDiscountColumns', $executedMigrations, true),
+            array_search('CreateCartTables', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('CreatePromotionTables', $executedMigrations, true),
+            array_search('AddCartDiscountColumns', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('AddOrderCommerceStateColumns', $executedMigrations, true),
@@ -765,6 +777,122 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame('LOCKER49', $detail['order']['discount_code']);
         self::assertSame(500, $detail['order']['shipping_discount_minor']);
+    }
+
+    public function testAdminPromotionManagementPersistsDatabaseBackedCoupons(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $created = $stack['adminService']->forAction('savePromotion', [
+            'code' => 'ADMIN250',
+            'label' => 'Admin 250 SEK',
+            'description' => 'Database-backed exact amount coupon for admin workflow coverage.',
+            'type' => 'fixed_amount',
+            'applies_to' => 'cart_subtotal',
+            'active' => '1',
+            'amount_minor' => 2500,
+            'min_subtotal_minor' => 5000,
+            'usage_limit' => 5,
+            'allowed_currencies' => 'SEK',
+            'allowed_countries' => 'SE',
+            'allowed_product_slugs' => 'starter-platform-license',
+            'allowed_fulfillment_types' => 'physical_shipping',
+        ])->execute();
+
+        self::assertSame(200, $created['status'], (string) ($created['message'] ?? ''));
+        self::assertSame('/admin/promotions', $created['redirect']);
+        self::assertSame(1, $created['promotion_metrics']['database_promotions']);
+        self::assertSame(1, $created['promotion_metrics']['active_database_promotions']);
+
+        $promotion = null;
+
+        foreach ($created['promotions'] as $entry) {
+            if (($entry['code'] ?? '') === 'ADMIN250') {
+                $promotion = $entry;
+                break;
+            }
+        }
+
+        self::assertIsArray($promotion);
+        self::assertSame('/admin/promotions/' . $promotion['id'] . '/deactivate', $promotion['deactivate_path'] ?? null);
+        self::assertSame(['SEK'], $promotion['criteria']['allowed_currencies'] ?? []);
+        self::assertSame(['starter-platform-license'], $promotion['criteria']['allowed_product_slugs'] ?? []);
+
+        $json = (new AdminResource($created))->toArray();
+        self::assertSame('AdminModule', $json['meta']['module']);
+        self::assertArrayHasKey('promotions', $json['data']);
+        self::assertArrayHasKey('promotion_metrics', $json['data']);
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        $applied = $stack['cartService']->forAction('applyDiscount', [
+            'coupon_code' => 'ADMIN250',
+        ])->execute();
+
+        self::assertSame(200, $applied['status'], (string) ($applied['message'] ?? ''));
+        self::assertSame('ADMIN250', $applied['cart']['discount_code']);
+        self::assertSame(2500, $applied['cart']['discount_minor']);
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $deactivated = $stack['adminService']->forAction('deactivatePromotion', [], [
+            'promotion' => (int) ($promotion['id'] ?? 0),
+        ])->execute();
+
+        self::assertSame(200, $deactivated['status']);
+        self::assertSame(1, $deactivated['promotion_metrics']['inactive_database_promotions']);
+
+        $blocked = $stack['promotions']->evaluate('ADMIN250', [[
+            'product_id' => 1,
+            'slug' => 'starter-platform-license',
+            'category_id' => 1,
+            'fulfillment_type' => 'physical_shipping',
+            'quantity' => 1,
+            'line_total_minor' => 9900,
+        ]], 'SEK', [
+            'country' => 'SE',
+            'zone' => 'SE',
+            'selected' => [
+                'carrier_code' => 'postnord',
+                'code' => 'postnord-service-point',
+                'effective_rate_minor' => 990,
+            ],
+        ]);
+
+        self::assertFalse($blocked['applied']);
+        self::assertSame('This promotion code is not currently active.', $blocked['message']);
+
+        $reactivated = $stack['adminService']->forAction('activatePromotion', [], [
+            'promotion' => (int) ($promotion['id'] ?? 0),
+        ])->execute();
+
+        self::assertSame(200, $reactivated['status']);
+        self::assertSame(1, $reactivated['promotion_metrics']['active_database_promotions']);
+
+        $deleted = $stack['adminService']->forAction('deletePromotion', [], [
+            'promotion' => (int) ($promotion['id'] ?? 0),
+        ])->execute();
+
+        self::assertSame(200, $deleted['status']);
+        self::assertSame(0, $deleted['promotion_metrics']['database_promotions']);
+        self::assertNull($stack['promotionRepository']->findByCode('ADMIN250'));
     }
 
     public function testDigitalFulfillmentSkipsShippingAndSupportsCriteriaPromotions(): void
@@ -1177,6 +1305,7 @@ final class FrameworkCompletionTest extends TestCase
 
         $orders = $stack['adminService']->forAction('orders')->execute();
         $catalogAdmin = $stack['adminService']->forAction('catalog')->execute();
+        $promotionsAdmin = $stack['adminService']->forAction('promotions')->execute();
         $cartsAdmin = $stack['adminService']->forAction('carts')->execute();
         $operations = $stack['adminService']->forAction('operations')->execute();
         $adminJson = (new AdminResource($operations))->toArray();
@@ -1186,6 +1315,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('category_form', $catalogAdmin);
         self::assertArrayHasKey('product_form', $catalogAdmin);
         self::assertArrayHasKey('catalog_metrics', $catalogAdmin);
+        self::assertSame(200, $promotionsAdmin['status']);
+        self::assertArrayHasKey('promotion_form', $promotionsAdmin);
+        self::assertArrayHasKey('promotion_metrics', $promotionsAdmin);
+        self::assertNotEmpty($promotionsAdmin['configured_promotions']);
         self::assertSame(200, $cartsAdmin['status']);
         self::assertNotEmpty($cartsAdmin['carts']);
         self::assertSame(200, $orders['status']);
@@ -1305,6 +1438,7 @@ final class FrameworkCompletionTest extends TestCase
             ShopSeed::class,
             CreateCartTables::class,
             AddCartDiscountColumns::class,
+            CreatePromotionTables::class,
             CreateOrderTables::class,
             AddOrderCommerceStateColumns::class,
             AddOrderDiscountSnapshotColumns::class,
@@ -1412,13 +1546,14 @@ final class FrameworkCompletionTest extends TestCase
         $categories = new CategoryRepository($database);
         $carts = new CartRepository($database);
         $cartItems = new CartItemRepository($database);
+        $promotionRepository = new PromotionRepository($database);
         $orders = new OrderRepository($database);
         $orderItems = new OrderItemRepository($database);
         $entitlementRepository = new OrderEntitlementRepository($database);
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
         $shipping = new ShippingManager($config);
-        $promotions = new PromotionManager($config);
+        $promotions = new PromotionManager($config, $promotionRepository);
         $pricing = new CartPricingManager($shipping, $promotions, $totals);
         $inventory = new InventoryManager($products);
         $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
@@ -1455,6 +1590,7 @@ final class FrameworkCompletionTest extends TestCase
             $categories,
             $carts,
             $cartItems,
+            $promotionRepository,
             $orders,
             $orderItems,
             $addresses,
@@ -1522,6 +1658,7 @@ final class FrameworkCompletionTest extends TestCase
             'pricing' => $pricing,
             'products' => $products,
             'promotions' => $promotions,
+            'promotionRepository' => $promotionRepository,
             'queue' => $queue,
             'shipping' => $shipping,
             'totals' => $totals,

@@ -84,6 +84,10 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertSame('localhost', $defaults['AUTH_PASSKEY_RP_ID']);
         self::assertSame('http://localhost', $defaults['AUTH_PASSKEY_ORIGINS']);
         self::assertSame('no-reply@langelermvc.test', $defaults['MAIL_FROM_ADDRESS']);
+        self::assertSame('3', $defaults['QUEUE_MAX_ATTEMPTS']);
+        self::assertSame('database,mail', $defaults['NOTIFICATIONS_DEFAULT_CHANNELS']);
+        self::assertSame('true', $defaults['OPERATIONS_HEALTH_ENABLED']);
+        self::assertSame('true', $defaults['COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT']);
     }
 
     public function testInstallerAndModuleViewsExposeProductionTemplates(): void
@@ -118,7 +122,7 @@ final class InstallerAndViewCoverageTest extends TestCase
         $matrix = [
             [new WebView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['Home', 'NotFound']],
             [new UserView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['UserLogin', 'UserRegister', 'UserPasswordForgot', 'UserPasswordReset', 'UserProfile', 'UserStatus']],
-            [new AdminView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['AdminDashboard', 'AdminUsers', 'AdminRoles', 'AdminCatalog', 'AdminCarts', 'AdminOrders', 'AdminSystem', 'AdminOperations']],
+            [new AdminView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['AdminDashboard', 'AdminUsers', 'AdminRoles', 'AdminCatalog', 'AdminPromotions', 'AdminCarts', 'AdminOrders', 'AdminSystem', 'AdminOperations']],
             [new ShopView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['ShopCatalog', 'ShopProduct']],
             [new CartView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['CartPage']],
             [new OrderView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['OrderCheckout', 'OrderList', 'OrderDetail']],

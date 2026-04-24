@@ -10,9 +10,9 @@ The remaining work is the final production layer: release hygiene, installer tru
 
 ## P0 - Release Blockers
 
-- Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated.
-- Update stale release documentation, status files, setup references, and test counts before tagging a release.
-- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface.
+- Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. Current slice removes the tracked secure cache key and keeps `Storage/Secure` ignored except for its README.
+- Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md` and `RELEASE.md` now exist as release-facing anchors.
+- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current slice adds queue worker, notification, HTTP/auth, operations, commerce inventory, and list-style env handling coverage.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Verify the full database/cache/session matrix before release, not only the default local regression suite.
 
@@ -34,12 +34,12 @@ Promotions should be treated as rules plus benefits.
 
 - Benefit types should include percentage, fixed amount, currency-specific exact amount, free shipping, fixed shipping rate, and shipping percentage discounts.
 - Criteria should include currency, subtotal ranges, item counts, product IDs, product slugs, category IDs, fulfillment types, shipping countries, zones, carriers, shipping options, active windows, and excluded products/types.
-- Promotions should eventually move from config-only to admin/database-managed records with audit history, activation windows, usage limits, and reporting.
+- Promotions now have database-managed admin records with audit events, activation windows, usage limits, and runtime catalog integration. Remaining breadth is deeper reporting, usage ledgers, and per-customer/per-segment limits.
 
 ## P1 - Admin Operator Completion
 
 - Convert raw system/operations pages into structured operator panels.
-- Add admin-native promotion/coupon management.
+- Add admin-native promotion/coupon management. Current slice adds protected admin routes, controller actions, service workflows, resource payloads, and native `.vide` templates for promotion operations.
 - Add WebModule page authoring and publishing.
 - Add richer filters, bulk actions, audit drilldowns, and lifecycle confirmations.
 

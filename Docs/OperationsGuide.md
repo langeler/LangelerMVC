@@ -78,6 +78,16 @@ The framework payment layer is now designed as a gateway-agnostic compatibility 
 - Order records now persist payment method, flow, idempotency key, provider/external/webhook references, and next-action metadata so admin and audit surfaces can inspect them consistently.
 - Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer and configuration boundary so those providers stay plug-and-play from the application/module perspective.
 
+## Promotion Operations
+
+The admin dashboard now includes database-backed promotion and coupon management at `/admin/promotions`.
+
+- Operators can create, update, activate, deactivate, and delete promotions without leaving the admin surface.
+- Runtime pricing merges config-backed baseline promotions with database-backed admin promotions, with database records taking precedence by code.
+- Supported benefit families include percentage, fixed amount, free shipping, fixed shipping rate, and shipping percentage discounts.
+- Supported criteria include currency, subtotal ranges, item counts, product IDs/slugs, categories, fulfillment types, shipping countries/zones/carriers/options, active windows, exclusions, free-shipping eligibility, and usage limits.
+- Config-backed promotions remain useful for immutable baseline/demo promotions; database-backed promotions are the production operator workflow.
+
 ## Audit Logging
 
 The framework now ships with a built-in audit logger backed by the `framework_audit_log` table.
@@ -88,6 +98,7 @@ Current first-party audit events include:
 - OTP enable/disable, recovery regeneration, and trusted-device actions
 - passkey registration, authentication, and deletion
 - role and permission synchronization from the admin surface
+- promotion creation/update, activation, deactivation, and deletion from the admin surface
 - order creation and payment-state transitions
 
 Audit logging is configured through `Config/operations.php`.

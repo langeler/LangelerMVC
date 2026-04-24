@@ -11,6 +11,7 @@ use App\Contracts\Support\HealthManagerInterface;
 use App\Core\Config;
 use App\Core\Router;
 use App\Modules\CartModule\Models\Cart;
+use App\Modules\CartModule\Repositories\PromotionRepository;
 use App\Modules\OrderModule\Models\Order;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
@@ -59,6 +60,7 @@ class AdminAccessService extends Service
         private readonly CategoryRepository $categories,
         private readonly CartRepository $carts,
         private readonly CartItemRepository $cartItems,
+        private readonly PromotionRepository $promotions,
         private readonly OrderRepository $orders,
         private readonly OrderItemRepository $orderItems,
         private readonly OrderAddressRepository $orderAddresses,
@@ -114,6 +116,12 @@ class AdminAccessService extends Service
             'draftProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'draft'),
             'archiveProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'archived'),
             'deleteProduct' => $this->transitionProduct((int) ($this->context['product'] ?? 0), 'delete'),
+            'promotions' => $this->promotionsPage(),
+            'savePromotion' => $this->savePromotion(),
+            'updatePromotion' => $this->savePromotion((int) ($this->context['promotion'] ?? 0)),
+            'activatePromotion' => $this->transitionPromotion((int) ($this->context['promotion'] ?? 0), true),
+            'deactivatePromotion' => $this->transitionPromotion((int) ($this->context['promotion'] ?? 0), false),
+            'deletePromotion' => $this->deletePromotion((int) ($this->context['promotion'] ?? 0)),
             'carts' => $this->cartsPage(),
             'orders' => $this->ordersPage(),
             'order' => $this->orderPage((int) ($this->context['order'] ?? 0)),
@@ -155,6 +163,7 @@ class AdminAccessService extends Service
                 'modules' => count($this->modules->getModules()),
                 'routes' => count($this->router->listRoutes()),
                 'products' => $this->products->count([]),
+                'promotions' => $this->promotions->count([]),
                 'carts' => $this->carts->count([]),
                 'orders' => $this->orders->count([]),
                 'failed_jobs' => count($this->queue->failed()),
@@ -346,6 +355,7 @@ class AdminAccessService extends Service
                     'currency' => (string) $this->config->get('commerce', 'CURRENCY', 'SEK'),
                     'shipping' => $this->config->get('commerce', 'SHIPPING', []),
                     'promotions' => $this->config->get('commerce', 'PROMOTIONS', []),
+                    'database_promotions' => $this->promotions->allSummary((string) $this->config->get('commerce', 'CURRENCY', 'SEK')),
                 ],
                 'health' => $this->health->report(),
                 'audit' => $this->audit->summary(),
@@ -618,6 +628,164 @@ class AdminAccessService extends Service
                 message: (string) ($result['message'] ?? '')
             ),
             'redirect' => '/admin/catalog',
+        ];
+    }
+
+    private function promotionsPage(): array
+    {
+        if (!$this->canManagePromotions()) {
+            return $this->forbidden('AdminPromotions', 'Promotion administration requires promotion.manage or shop.catalog.manage permission.');
+        }
+
+        return $this->promotionsResponse();
+    }
+
+    private function savePromotion(int $promotionId = 0): array
+    {
+        if (!$this->canManagePromotions()) {
+            return $this->forbidden('AdminPromotions', 'Promotion administration requires promotion.manage or shop.catalog.manage permission.');
+        }
+
+        $existing = $promotionId > 0 ? $this->promotions->find($promotionId) : null;
+
+        if ($promotionId > 0 && $existing === null) {
+            return $this->promotionsResponse(
+                title: 'Promotion not found',
+                headline: 'Unable to update promotion',
+                summary: 'The requested promotion could not be resolved.',
+                status: 404,
+                message: 'Choose another promotion record and try again.',
+                promotionForm: $this->payload
+            );
+        }
+
+        $code = strtoupper(trim((string) ($this->payload['code'] ?? '')));
+        $label = trim((string) ($this->payload['label'] ?? ''));
+
+        if ($code === '' || $label === '') {
+            return $this->promotionsResponse(
+                title: 'Promotion update failed',
+                headline: 'Promotion details are incomplete',
+                summary: 'Provide at least a promotion code and label before saving.',
+                status: 422,
+                message: 'Promotion code and label are required.',
+                promotionForm: $this->payload
+            );
+        }
+
+        $collision = $this->promotions->findByCode($code);
+
+        if ($collision !== null && (int) $collision->getKey() !== $promotionId) {
+            return $this->promotionsResponse(
+                title: 'Promotion update failed',
+                headline: 'Promotion code is already in use',
+                summary: 'Choose a different promotion code before saving.',
+                status: 422,
+                message: 'Promotion codes must remain unique.',
+                promotionForm: $this->payload
+            );
+        }
+
+        $attributes = $this->promotionAttributes($this->payload);
+        $promotion = $this->promotions->savePromotion($attributes, $promotionId);
+        $this->audit->record('admin.promotion.saved', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'promotion_id' => (string) $promotion->getKey(),
+            'code' => (string) ($promotion->getAttribute('code') ?? ''),
+            'type' => (string) ($promotion->getAttribute('type') ?? ''),
+            'active' => (bool) ($promotion->getAttribute('active') ?? false),
+        ], 'admin');
+        $this->events->dispatch('promotion.saved', [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'promotion_id' => (int) $promotion->getKey(),
+            'code' => (string) ($promotion->getAttribute('code') ?? ''),
+            'type' => (string) ($promotion->getAttribute('type') ?? ''),
+            'active' => (bool) ($promotion->getAttribute('active') ?? false),
+        ]);
+
+        return [
+            ...$this->promotionsResponse(
+                title: 'Promotion administration',
+                headline: 'Promotion saved',
+                summary: 'Promotion rules were stored in the database-backed promotion catalog.',
+                status: 200,
+                message: 'Promotion changes saved successfully.'
+            ),
+            'redirect' => '/admin/promotions',
+        ];
+    }
+
+    private function transitionPromotion(int $promotionId, bool $active): array
+    {
+        if (!$this->canManagePromotions()) {
+            return $this->forbidden('AdminPromotions', 'Promotion administration requires promotion.manage or shop.catalog.manage permission.');
+        }
+
+        $promotion = $this->promotions->setActive($promotionId, $active);
+
+        if ($promotion === null) {
+            return $this->promotionsResponse(
+                title: 'Promotion not found',
+                headline: 'Promotion lifecycle update failed',
+                summary: 'The requested promotion could not be resolved.',
+                status: 404,
+                message: 'Choose another promotion record and try again.'
+            );
+        }
+
+        $this->audit->record('admin.promotion.' . ($active ? 'activated' : 'deactivated'), [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'promotion_id' => (string) $promotionId,
+            'code' => (string) ($promotion->getAttribute('code') ?? ''),
+        ], 'admin');
+
+        return [
+            ...$this->promotionsResponse(
+                title: 'Promotion administration',
+                headline: 'Promotion lifecycle updated',
+                summary: $active ? 'The promotion is now active.' : 'The promotion is now inactive.',
+                status: 200,
+                message: $active ? 'Promotion activated.' : 'Promotion deactivated.'
+            ),
+            'redirect' => '/admin/promotions',
+        ];
+    }
+
+    private function deletePromotion(int $promotionId): array
+    {
+        if (!$this->canManagePromotions()) {
+            return $this->forbidden('AdminPromotions', 'Promotion administration requires promotion.manage or shop.catalog.manage permission.');
+        }
+
+        $promotion = $this->promotions->find($promotionId);
+
+        if ($promotion === null) {
+            return $this->promotionsResponse(
+                title: 'Promotion not found',
+                headline: 'Promotion deletion failed',
+                summary: 'The requested promotion could not be resolved.',
+                status: 404,
+                message: 'Choose another promotion record and try again.'
+            );
+        }
+
+        $code = (string) ($promotion->getAttribute('code') ?? '');
+        $this->promotions->delete($promotionId);
+        $this->audit->record('admin.promotion.deleted', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'promotion_id' => (string) $promotionId,
+            'code' => $code,
+        ], 'admin');
+
+        return [
+            ...$this->promotionsResponse(
+                title: 'Promotion administration',
+                headline: 'Promotion deleted',
+                summary: 'The promotion was removed from the database-backed promotion catalog.',
+                status: 200,
+                message: 'Promotion deleted successfully.'
+            ),
+            'redirect' => '/admin/promotions',
         ];
     }
 
@@ -919,6 +1087,41 @@ class AdminAccessService extends Service
     }
 
     /**
+     * @param array<string, mixed> $promotionForm
+     * @return array<string, mixed>
+     */
+    private function promotionsResponse(
+        string $title = 'Promotion administration',
+        string $headline = 'Promotion and coupon management',
+        string $summary = 'Create, audit, and operate database-backed promotions while preserving configured baseline promotions.',
+        int $status = 200,
+        string $message = '',
+        array $promotionForm = []
+    ): array {
+        $currency = (string) $this->config->get('commerce', 'CURRENCY', 'SEK');
+        $databasePromotions = $this->promotions->allSummary($currency);
+        $configuredPromotions = $this->configuredPromotionSummaries($currency);
+
+        return [
+            'template' => 'AdminPromotions',
+            'status' => $status,
+            'title' => $title,
+            'headline' => $headline,
+            'summary' => $summary,
+            'message' => $message,
+            'promotions' => $databasePromotions,
+            'configured_promotions' => $configuredPromotions,
+            'promotion_form' => $this->promotionFormPayload($promotionForm),
+            'promotion_metrics' => [
+                'database_promotions' => count($databasePromotions),
+                'configured_promotions' => count($configuredPromotions),
+                'active_database_promotions' => count(array_filter($databasePromotions, static fn(array $promotion): bool => !empty($promotion['active']))),
+                'inactive_database_promotions' => count(array_filter($databasePromotions, static fn(array $promotion): bool => empty($promotion['active']))),
+            ],
+        ];
+    }
+
+    /**
      * @param list<array<string, mixed>> $categories
      * @param list<array<string, mixed>> $catalog
      * @return array<string, int>
@@ -977,6 +1180,215 @@ class AdminAccessService extends Service
             'available_at' => trim((string) ($input['available_at'] ?? '')),
             'store_path' => '/admin/catalog/products',
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function promotionFormPayload(array $input = []): array
+    {
+        $criteria = $this->criteriaFromPayload($input);
+
+        return [
+            'code' => strtoupper(trim((string) ($input['code'] ?? ''))),
+            'label' => trim((string) ($input['label'] ?? '')),
+            'description' => trim((string) ($input['description'] ?? '')),
+            'type' => $this->normalizePromotionType((string) ($input['type'] ?? 'fixed_amount')),
+            'applies_to' => in_array((string) ($input['applies_to'] ?? 'cart_subtotal'), ['cart_subtotal', 'qualified_items'], true)
+                ? (string) ($input['applies_to'] ?? 'cart_subtotal')
+                : 'cart_subtotal',
+            'active' => array_key_exists('active', $input) ? !empty($input['active']) : true,
+            'rate_bps' => max(0, (int) ($input['rate_bps'] ?? 0)),
+            'amount_minor' => max(0, (int) ($input['amount_minor'] ?? 0)),
+            'shipping_rate_minor' => max(0, (int) ($input['shipping_rate_minor'] ?? 0)),
+            'min_subtotal_minor' => max(0, (int) ($input['min_subtotal_minor'] ?? 0)),
+            'max_subtotal_minor' => max(0, (int) ($input['max_subtotal_minor'] ?? 0)),
+            'max_discount_minor' => max(0, (int) ($input['max_discount_minor'] ?? 0)),
+            'min_items' => max(0, (int) ($input['min_items'] ?? 0)),
+            'max_items' => max(0, (int) ($input['max_items'] ?? 0)),
+            'usage_limit' => max(0, (int) ($input['usage_limit'] ?? 0)),
+            'starts_at' => trim((string) ($input['starts_at'] ?? '')),
+            'ends_at' => trim((string) ($input['ends_at'] ?? '')),
+            'criteria' => $criteria,
+            'criteria_json' => $criteria === []
+                ? ''
+                : $this->toJson($criteria, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'store_path' => '/admin/promotions',
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function configuredPromotionSummaries(string $currency): array
+    {
+        $configured = $this->config->get('commerce', 'PROMOTIONS', []);
+
+        if (!is_array($configured)) {
+            return [];
+        }
+
+        return array_values(array_map(function (string|int $code, mixed $definition) use ($currency): array {
+            $definition = is_array($definition) ? $definition : [];
+            $type = strtolower((string) ($definition['TYPE'] ?? $definition['type'] ?? 'fixed_amount'));
+            $rateBps = max(0, (int) ($definition['RATE_BPS'] ?? $definition['rate_bps'] ?? 0));
+            $amountMinor = $this->promotionCurrencyAmount($definition, 'AMOUNT_MINOR_BY_CURRENCY', 'amount_minor_by_currency', $currency)
+                ?? max(0, (int) ($definition['AMOUNT_MINOR'] ?? $definition['amount_minor'] ?? 0));
+
+            return [
+                'code' => strtoupper((string) ($definition['CODE'] ?? $code)),
+                'label' => (string) ($definition['LABEL'] ?? $definition['label'] ?? $code),
+                'description' => (string) ($definition['DESCRIPTION'] ?? $definition['description'] ?? ''),
+                'type' => $type,
+                'active' => (bool) ($definition['ACTIVE'] ?? $definition['active'] ?? true),
+                'rate_bps' => $rateBps,
+                'amount_minor' => $amountMinor,
+                'amount' => $this->formatMoneyMinor($amountMinor, $currency),
+                'source' => 'config',
+            ];
+        }, array_keys($configured), array_values($configured)));
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     */
+    private function promotionCurrencyAmount(array $definition, string $upperKey, string $lowerKey, string $currency): ?int
+    {
+        $map = $definition[$upperKey] ?? $definition[$lowerKey] ?? null;
+
+        if (!is_array($map)) {
+            return null;
+        }
+
+        foreach ($map as $key => $value) {
+            if (strtoupper((string) $key) === strtoupper($currency)) {
+                return max(0, (int) $value);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function promotionAttributes(array $payload): array
+    {
+        return [
+            'code' => strtoupper(trim((string) ($payload['code'] ?? ''))),
+            'label' => trim((string) ($payload['label'] ?? '')),
+            'description' => trim((string) ($payload['description'] ?? '')),
+            'type' => $this->normalizePromotionType((string) ($payload['type'] ?? 'fixed_amount')),
+            'applies_to' => in_array((string) ($payload['applies_to'] ?? 'cart_subtotal'), ['cart_subtotal', 'qualified_items'], true)
+                ? (string) ($payload['applies_to'] ?? 'cart_subtotal')
+                : 'cart_subtotal',
+            'active' => !empty($payload['active']),
+            'rate_bps' => max(0, (int) ($payload['rate_bps'] ?? 0)),
+            'amount_minor' => max(0, (int) ($payload['amount_minor'] ?? 0)),
+            'shipping_rate_minor' => max(0, (int) ($payload['shipping_rate_minor'] ?? 0)),
+            'min_subtotal_minor' => max(0, (int) ($payload['min_subtotal_minor'] ?? 0)),
+            'max_subtotal_minor' => max(0, (int) ($payload['max_subtotal_minor'] ?? 0)),
+            'max_discount_minor' => max(0, (int) ($payload['max_discount_minor'] ?? 0)),
+            'min_items' => max(0, (int) ($payload['min_items'] ?? 0)),
+            'max_items' => max(0, (int) ($payload['max_items'] ?? 0)),
+            'usage_limit' => max(0, (int) ($payload['usage_limit'] ?? 0)),
+            'starts_at' => trim((string) ($payload['starts_at'] ?? '')),
+            'ends_at' => trim((string) ($payload['ends_at'] ?? '')),
+            'criteria' => $this->criteriaFromPayload($payload),
+            'source' => 'database',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function criteriaFromPayload(array $payload): array
+    {
+        $criteria = [];
+        $criteriaPayload = $payload['criteria_json'] ?? null;
+
+        if (!is_string($criteriaPayload) && is_string($payload['criteria'] ?? null)) {
+            $criteriaPayload = $payload['criteria'];
+        }
+
+        if (is_array($payload['criteria'] ?? null)) {
+            $criteria = $payload['criteria'];
+        }
+
+        $json = trim(is_string($criteriaPayload) ? $criteriaPayload : '');
+
+        if ($json !== '') {
+            try {
+                $decoded = $this->fromJson($json, true, 512, JSON_THROW_ON_ERROR);
+                if (is_array($decoded)) {
+                    $criteria = $decoded;
+                }
+            } catch (\JsonException) {
+                $criteria['note'] = $json;
+            }
+        }
+
+        foreach ([
+            'allowed_currencies',
+            'allowed_countries',
+            'allowed_zones',
+            'allowed_carriers',
+            'allowed_shipping_options',
+            'allowed_product_slugs',
+            'allowed_fulfillment_types',
+            'excluded_product_slugs',
+            'excluded_fulfillment_types',
+            'required_fulfillment_types',
+        ] as $key) {
+            $values = $this->splitList((string) ($payload[$key] ?? ''));
+            if ($values !== []) {
+                $criteria[$key] = $values;
+            }
+        }
+
+        foreach ([
+            'allowed_product_ids',
+            'allowed_category_ids',
+            'excluded_product_ids',
+        ] as $key) {
+            $values = $this->splitIntList((string) ($payload[$key] ?? ''));
+            if ($values !== []) {
+                $criteria[$key] = $values;
+            }
+        }
+
+        if (array_key_exists('free_shipping_eligible_only', $payload)) {
+            $criteria['free_shipping_eligible_only'] = !empty($payload['free_shipping_eligible_only']);
+        }
+
+        return $criteria;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function splitList(string $input): array
+    {
+        $parts = preg_split('/[\s,]+/', trim($input)) ?: [];
+
+        return array_values(array_filter(array_map(
+            static fn(string $value): string => trim($value),
+            $parts
+        ), static fn(string $value): bool => $value !== ''));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function splitIntList(string $input): array
+    {
+        return array_values(array_filter(array_map(
+            static fn(string $value): int => max(0, (int) $value),
+            $this->splitList($input)
+        ), static fn(int $value): bool => $value > 0));
     }
 
     /**
@@ -1143,6 +1555,21 @@ class AdminAccessService extends Service
         }
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function normalizePromotionType(string $type): string
+    {
+        $type = strtolower(trim($type));
+
+        return in_array($type, ['percentage', 'fixed_amount', 'free_shipping', 'shipping_fixed', 'shipping_percentage'], true)
+            ? $type
+            : 'fixed_amount';
+    }
+
+    private function canManagePromotions(): bool
+    {
+        return $this->auth->hasPermission('promotion.manage')
+            || $this->auth->hasPermission('shop.catalog.manage');
     }
 
     /**

@@ -22,6 +22,7 @@ use App\Modules\ShopModule\Repositories\ProductRepository;
 use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\ShippingManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
@@ -66,6 +67,7 @@ class AdminAccessService extends Service
         private readonly CommerceTotalsCalculator $totals,
         private readonly OrderLifecycleManager $lifecycle,
         private readonly ShippingManager $shipping,
+        private readonly EntitlementManager $entitlements,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
@@ -122,6 +124,16 @@ class AdminAccessService extends Service
             'packOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'pack'),
             'shipOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'ship'),
             'deliverOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'deliver'),
+            'activateEntitlement' => $this->transitionEntitlement(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['entitlement'] ?? 0),
+                'active'
+            ),
+            'revokeEntitlement' => $this->transitionEntitlement(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['entitlement'] ?? 0),
+                'revoked'
+            ),
             'system' => $this->systemPage(),
             'operations' => $this->operationsPage(),
             default => $this->dashboard(),
@@ -747,6 +759,64 @@ class AdminAccessService extends Service
         ];
     }
 
+    private function transitionEntitlement(int $orderId, int $entitlementId, string $status): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Entitlement management requires the order.manage permission.');
+        }
+
+        $belongsToOrder = array_filter(
+            $this->entitlements->summariesForOrder($orderId),
+            static fn(array $entitlement): bool => (int) ($entitlement['id'] ?? 0) === $entitlementId
+        ) !== [];
+
+        if (!$belongsToOrder) {
+            return $this->ordersResponse(
+                title: 'Entitlement update failed',
+                headline: 'Purchased access could not be updated',
+                summary: 'The requested entitlement does not belong to this order.',
+                status: 404,
+                message: 'Choose a valid entitlement for this order and try again.'
+            );
+        }
+
+        $transition = $this->entitlements->transition($entitlementId, $status, 'admin');
+
+        if (!$transition['successful']) {
+            return $this->ordersResponse(
+                title: 'Entitlement update failed',
+                headline: 'Purchased access could not be updated',
+                summary: (string) ($transition['message'] ?? 'The requested entitlement transition could not be completed.'),
+                status: (int) ($transition['status'] ?? 422),
+                message: (string) ($transition['message'] ?? '')
+            );
+        }
+
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return $this->ordersResponse(
+                title: 'Order not found',
+                headline: 'The updated order could not be loaded',
+                summary: 'The entitlement change completed, but the order could not be reloaded afterward.',
+                status: 404,
+                message: 'Refresh the administrative order list and try again.'
+            );
+        }
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
+                summary: 'Detailed order lifecycle, stored addresses, purchased access, and available management actions.',
+                status: 200,
+                message: (string) ($transition['message'] ?? 'Entitlement updated successfully.'),
+                order: $this->adminOrderDetail($order)
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
     private function operationsPage(): array
     {
         if (!$this->auth->hasPermission('admin.system.view')) {
@@ -947,6 +1017,7 @@ class AdminAccessService extends Service
                     'line_total' => $this->formatMoneyMinor((int) ($item['line_total_minor'] ?? 0), $currency),
                 ];
             }, $this->orderItems->summaryForOrder($orderId)),
+            'entitlements' => $this->entitlementSummariesForAdmin($orderId),
             'addresses' => $this->orderAddresses->summaryForOrder($orderId),
             'actions' => $this->adminOrderActions($summary),
             'available_carriers' => $this->shipping->carrierCatalog((string) ($summary['shipping_country'] ?? 'SE')),
@@ -955,6 +1026,22 @@ class AdminAccessService extends Service
             'return_path' => $reference !== '' ? '/orders/complete/' . $reference : '/orders/complete',
             'cancelled_path' => $reference !== '' ? '/orders/cancelled/' . $reference : '/orders/cancelled',
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function entitlementSummariesForAdmin(int $orderId): array
+    {
+        return array_map(function (array $entitlement) use ($orderId): array {
+            $id = (int) ($entitlement['id'] ?? 0);
+
+            return [
+                ...$entitlement,
+                'activate_path' => '/admin/orders/' . $orderId . '/entitlements/' . $id . '/activate',
+                'revoke_path' => '/admin/orders/' . $orderId . '/entitlements/' . $id . '/revoke',
+            ];
+        }, $this->entitlements->summariesForOrder($orderId));
     }
 
     /**

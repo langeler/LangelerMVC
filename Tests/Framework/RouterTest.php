@@ -168,6 +168,8 @@ class RouterTest extends TestCase
         self::assertContains('admin.orders.pack', $names);
         self::assertContains('admin.orders.ship', $names);
         self::assertContains('admin.orders.deliver', $names);
+        self::assertContains('admin.orders.entitlements.activate', $names);
+        self::assertContains('admin.orders.entitlements.revoke', $names);
         self::assertContains('api.admin.catalog.categories.store', $names);
         self::assertContains('api.admin.catalog.categories.publish', $names);
         self::assertContains('api.admin.catalog.categories.unpublish', $names);
@@ -185,6 +187,8 @@ class RouterTest extends TestCase
         self::assertContains('api.admin.orders.pack', $names);
         self::assertContains('api.admin.orders.ship', $names);
         self::assertContains('api.admin.orders.deliver', $names);
+        self::assertContains('api.admin.orders.entitlements.activate', $names);
+        self::assertContains('api.admin.orders.entitlements.revoke', $names);
         self::assertContains('cart.show', $names);
         self::assertContains('cart.discount.apply', $names);
         self::assertContains('cart.discount.remove', $names);
@@ -193,8 +197,10 @@ class RouterTest extends TestCase
         self::assertContains('orders.checkout.form', $names);
         self::assertContains('orders.complete', $names);
         self::assertContains('orders.cancelled', $names);
+        self::assertContains('orders.entitlements.access', $names);
         self::assertContains('api.orders.complete', $names);
         self::assertContains('api.orders.cancelled', $names);
+        self::assertContains('api.orders.entitlements.access', $names);
         self::assertContains('web.page', $names);
         self::assertContains('api.web.page', $names);
     }

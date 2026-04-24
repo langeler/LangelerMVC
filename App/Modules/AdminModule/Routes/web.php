@@ -34,6 +34,8 @@ return static function (Router $router): void {
     $router->post('/admin/orders/{order:\\d+}/pack', AdminController::class, 'packOrder', ['as' => 'admin.orders.pack', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/ship', AdminController::class, 'shipOrder', ['as' => 'admin.orders.ship', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/deliver', AdminController::class, 'deliverOrder', ['as' => 'admin.orders.deliver', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/activate', AdminController::class, 'activateEntitlement', ['as' => 'admin.orders.entitlements.activate', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/revoke', AdminController::class, 'revokeEntitlement', ['as' => 'admin.orders.entitlements.revoke', 'middleware' => $adminMiddleware]);
     $router->get('/admin/system', AdminController::class, 'system', ['as' => 'admin.system', 'middleware' => $adminMiddleware]);
     $router->get('/admin/operations', AdminController::class, 'operations', ['as' => 'admin.operations', 'middleware' => $adminMiddleware]);
 
@@ -64,6 +66,8 @@ return static function (Router $router): void {
     $router->post('/api/admin/orders/{order:\\d+}/pack', AdminController::class, 'packOrder', ['as' => 'api.admin.orders.pack', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/ship', AdminController::class, 'shipOrder', ['as' => 'api.admin.orders.ship', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/deliver', AdminController::class, 'deliverOrder', ['as' => 'api.admin.orders.deliver', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/activate', AdminController::class, 'activateEntitlement', ['as' => 'api.admin.orders.entitlements.activate', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/revoke', AdminController::class, 'revokeEntitlement', ['as' => 'api.admin.orders.entitlements.revoke', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/system', AdminController::class, 'system', ['as' => 'api.admin.system', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/operations', AdminController::class, 'operations', ['as' => 'api.admin.operations', 'middleware' => $adminMiddleware]);
 };

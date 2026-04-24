@@ -25,7 +25,8 @@ class OrderLifecycleManager
         private readonly AuthManager $auth,
         private readonly AuditLoggerInterface $audit,
         private readonly InventoryManager $inventory,
-        private readonly ShippingManager $shipping
+        private readonly ShippingManager $shipping,
+        private readonly EntitlementManager $entitlements
     ) {
     }
 
@@ -94,6 +95,24 @@ class OrderLifecycleManager
                 'fulfillment_status' => $fulfillmentStatus,
                 'inventory_status' => $inventoryStatus,
             ]);
+
+            if (in_array($result->intent->status, ['captured', 'partially_captured'], true)) {
+                $entitlementSync = $this->entitlements->syncForOrder($orderId, 'payment.' . $action);
+
+                if (
+                    (int) ($entitlementSync['eligible'] ?? 0) > 0
+                    && !((bool) ($entitlementSync['physical_fulfillment_required'] ?? true))
+                ) {
+                    $updated = $this->orders->updateLifecycle($orderId, [
+                        'status' => 'completed',
+                        'fulfillment_status' => 'access_granted',
+                    ]);
+                }
+            }
+
+            if (in_array($result->intent->status, ['cancelled', 'refunded'], true)) {
+                $this->entitlements->revokeForOrder($orderId, 'payment.' . $action);
+            }
 
             $this->database->commit();
         } catch (\Throwable $exception) {
@@ -257,6 +276,10 @@ class OrderLifecycleManager
         }
 
         if (in_array($status, ['cancelled', 'refunded', 'completed'], true)) {
+            return [];
+        }
+
+        if (in_array($fulfillmentStatus, ['access_granted', 'not_required'], true)) {
             return [];
         }
 

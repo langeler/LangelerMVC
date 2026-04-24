@@ -3,6 +3,7 @@
 $order = is_array($order ?? null) ? $order : [];
 $lookup = is_array($lookup ?? null) ? $lookup : [];
 $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
+$entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
 $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
 $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
 $nextActionItems = !empty($order['payment_next_action']) && is_array($order['payment_next_action'])
@@ -147,6 +148,45 @@ $nextActionItems = !empty($order['payment_next_action']) && is_array($order['pay
         <div class="section">
             <h2>Payment next action</h2>
             <?= $view->renderComponent('DefinitionGrid', ['items' => $nextActionItems]) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($entitlements !== []): ?>
+        <div class="section">
+            <h2>Purchased access</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Access</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Downloads</th>
+                        <th>Window</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($entitlements as $entitlement): ?>
+                        <?php
+                            $row = is_array($entitlement) ? $entitlement : [];
+                            $limit = (int) ($row['download_limit'] ?? 0);
+                            $used = (int) ($row['downloads_used'] ?? 0);
+                        ?>
+                        <tr>
+                            <td>
+                                <?php if (!empty($row['access_path'])): ?>
+                                    <a href="<?= $view->escape((string) $row['access_path']) ?>"><?= $view->escape((string) ($row['label'] ?? 'Access content')) ?></a>
+                                <?php else: ?>
+                                    <?= $view->escape((string) ($row['label'] ?? 'Access content')) ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= $view->escape((string) ($row['type'] ?? '')) ?></td>
+                            <td><?= $view->escape((string) ($row['status'] ?? '')) ?></td>
+                            <td><?= $view->escape($limit > 0 ? $used . ' / ' . $limit : 'Unlimited') ?></td>
+                            <td><?= $view->escape((string) ($row['starts_at'] ?? '')) ?> <?php if (!empty($row['expires_at'])): ?> to <?= $view->escape((string) $row['expires_at']) ?> <?php endif; ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     <?php endif; ?>
 

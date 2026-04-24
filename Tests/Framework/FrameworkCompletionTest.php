@@ -32,9 +32,11 @@ use App\Modules\OrderModule\Listeners\OrderLifecycleNotificationListener;
 use App\Modules\OrderModule\Migrations\AddOrderCommerceStateColumns;
 use App\Modules\OrderModule\Migrations\AddOrderDiscountSnapshotColumns;
 use App\Modules\OrderModule\Migrations\AddOrderShipmentTrackingColumns;
+use App\Modules\OrderModule\Migrations\CreateOrderEntitlementsTable;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
 use App\Modules\OrderModule\Presenters\OrderResource;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
+use App\Modules\OrderModule\Repositories\OrderEntitlementRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\OrderModule\Seeds\OrderSeed;
@@ -64,6 +66,7 @@ use App\Providers\QueueProvider;
 use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\PromotionManager;
@@ -353,6 +356,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateOrderTables::class,
             AddOrderCommerceStateColumns::class,
             AddOrderShipmentTrackingColumns::class,
+            CreateOrderEntitlementsTable::class,
             OrderSeed::class,
             CreatePagesTable::class,
             PageSeed::class,
@@ -392,6 +396,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('AddOrderShipmentTrackingColumns', $executedMigrations, true),
             array_search('AddOrderCommerceStateColumns', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('CreateOrderEntitlementsTable', $executedMigrations, true),
+            array_search('AddOrderShipmentTrackingColumns', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('AddProductFulfillmentColumns', $executedMigrations, true),
@@ -774,7 +782,11 @@ final class FrameworkCompletionTest extends TestCase
         $stack['products']->update($productId, [
             'stock' => 0,
             'fulfillment_type' => 'digital_download',
-            'fulfillment_policy' => json_encode(['download_limit' => 3], JSON_THROW_ON_ERROR),
+            'fulfillment_policy' => json_encode([
+                'download_limit' => 3,
+                'download_url' => 'https://downloads.langelermvc.test/starter-platform-license.zip',
+                'access_days' => 30,
+            ], JSON_THROW_ON_ERROR),
         ]);
 
         $added = $stack['cartService']
@@ -803,15 +815,71 @@ final class FrameworkCompletionTest extends TestCase
             'postal_code' => '00000',
             'city' => 'Stockholm',
             'country' => 'Sweden',
+            'payment_flow' => 'purchase',
         ])->execute();
 
         self::assertSame(201, $checkout['status']);
+        self::assertSame('captured', $checkout['order']['payment_status']);
+        self::assertSame('completed', $checkout['order']['status']);
+        self::assertSame('access_granted', $checkout['order']['fulfillment_status']);
         self::assertSame('digital-delivery', $checkout['order']['shipping_option']);
         self::assertSame('', $checkout['order']['shipping_carrier']);
         self::assertSame(0, $checkout['order']['shipping_minor']);
         self::assertSame('not_required', $checkout['order']['inventory_status']);
         self::assertSame('DIGITAL25', $checkout['order']['discount_code']);
         self::assertSame(4950, $checkout['order']['discount_minor']);
+        self::assertCount(1, $checkout['order']['entitlements']);
+
+        $entitlement = $checkout['order']['entitlements'][0];
+        self::assertSame('digital_download', $entitlement['type']);
+        self::assertSame('active', $entitlement['status']);
+        self::assertSame(6, $entitlement['download_limit']);
+        self::assertSame('https://downloads.langelermvc.test/starter-platform-license.zip', $entitlement['access_url']);
+        self::assertNotSame('', $entitlement['access_key']);
+
+        $access = $stack['orderService']->forAction('accessEntitlement', [], [
+            'key' => (string) $entitlement['access_key'],
+        ])->execute();
+
+        self::assertSame(200, $access['status']);
+        self::assertSame(1, $access['entitlement']['downloads_used']);
+        self::assertSame('https://downloads.langelermvc.test/starter-platform-license.zip', $access['entitlement']['access_url']);
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $detail = $stack['adminService']->forAction('order', [], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertArrayNotHasKey('pack', $detail['order']['actions']);
+        self::assertSame('active', $detail['order']['entitlements'][0]['status']);
+        self::assertNotEmpty($detail['order']['entitlements'][0]['revoke_path']);
+
+        $revoked = $stack['adminService']->forAction('revokeEntitlement', [], [
+            'order' => (int) $checkout['order']['id'],
+            'entitlement' => (int) $entitlement['id'],
+        ])->execute();
+
+        self::assertSame(200, $revoked['status']);
+        self::assertSame('revoked', $revoked['order']['entitlements'][0]['status']);
+
+        $blocked = $stack['orderService']->forAction('accessEntitlement', [], [
+            'key' => (string) $entitlement['access_key'],
+        ])->execute();
+
+        self::assertSame(403, $blocked['status']);
+
+        $reactivated = $stack['adminService']->forAction('activateEntitlement', [], [
+            'order' => (int) $checkout['order']['id'],
+            'entitlement' => (int) $entitlement['id'],
+        ])->execute();
+
+        self::assertSame(200, $reactivated['status']);
+        self::assertSame('active', $reactivated['order']['entitlements'][0]['status']);
     }
 
     public function testCheckoutRejectsIneligiblePromotionForSelectedShippingMethod(): void
@@ -1241,6 +1309,7 @@ final class FrameworkCompletionTest extends TestCase
             AddOrderCommerceStateColumns::class,
             AddOrderDiscountSnapshotColumns::class,
             AddOrderShipmentTrackingColumns::class,
+            CreateOrderEntitlementsTable::class,
             MergeCartOnLoginListener::class,
             CatalogActivityNotificationListener::class,
             OrderLifecycleNotificationListener::class,
@@ -1345,6 +1414,7 @@ final class FrameworkCompletionTest extends TestCase
         $cartItems = new CartItemRepository($database);
         $orders = new OrderRepository($database);
         $orderItems = new OrderItemRepository($database);
+        $entitlementRepository = new OrderEntitlementRepository($database);
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
         $shipping = new ShippingManager($config);
@@ -1352,7 +1422,8 @@ final class FrameworkCompletionTest extends TestCase
         $pricing = new CartPricingManager($shipping, $promotions, $totals);
         $inventory = new InventoryManager($products);
         $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
-        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping);
+        $entitlements = new EntitlementManager($entitlementRepository, $orders, $orderItems, $events, $auth, $audit, $config);
+        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping, $entitlements);
 
         $catalogService = new CatalogService($products, $categories);
         $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $pricing);
@@ -1367,6 +1438,7 @@ final class FrameworkCompletionTest extends TestCase
             $inventory,
             $lifecycle,
             $shipping,
+            $entitlements,
             $payments,
             $events,
             $auth,
@@ -1391,6 +1463,7 @@ final class FrameworkCompletionTest extends TestCase
             $totals,
             $lifecycle,
             $shipping,
+            $entitlements,
             $modules,
             $cache,
             $sessionManager,
@@ -1437,6 +1510,8 @@ final class FrameworkCompletionTest extends TestCase
             'config' => $config,
             'database' => $database,
             'events' => $events,
+            'entitlements' => $entitlements,
+            'entitlementRepository' => $entitlementRepository,
             'inventory' => $inventory,
             'lifecycle' => $lifecycle,
             'mail' => $mail,

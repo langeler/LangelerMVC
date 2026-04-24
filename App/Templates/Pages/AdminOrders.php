@@ -25,6 +25,7 @@ $confirmActions = [
 ];
 $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
 $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
+$entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
 ?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
@@ -191,6 +192,56 @@ $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking
                 'empty' => 'No order items are available.',
             ]) ?>
         </div>
+
+        <?php if ($entitlements !== []): ?>
+            <div class="section">
+                <h2>Purchased access</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Downloads</th>
+                            <th>Access</th>
+                            <th>Admin action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($entitlements as $entitlement): ?>
+                            <?php
+                                $row = is_array($entitlement) ? $entitlement : [];
+                                $limit = (int) ($row['download_limit'] ?? 0);
+                                $used = (int) ($row['downloads_used'] ?? 0);
+                                $status = (string) ($row['status'] ?? '');
+                            ?>
+                            <tr>
+                                <td><?= $view->escape((string) ($row['label'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['type'] ?? '')) ?></td>
+                                <td><?= $view->escape($status) ?></td>
+                                <td><?= $view->escape($limit > 0 ? $used . ' / ' . $limit : 'Unlimited') ?></td>
+                                <td>
+                                    <?php if (!empty($row['access_path'])): ?>
+                                        <a href="<?= $view->escape((string) $row['access_path']) ?>">Open access surface</a>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($status === 'active' && !empty($row['revoke_path'])): ?>
+                                        <form method="post" action="<?= $view->escape((string) $row['revoke_path']) ?>" onsubmit="return confirm('Revoke this purchased access?');">
+                                            <button type="submit">Revoke</button>
+                                        </form>
+                                    <?php elseif ($status !== 'active' && !empty($row['activate_path'])): ?>
+                                        <form method="post" action="<?= $view->escape((string) $row['activate_path']) ?>">
+                                            <button type="submit">Activate</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
 
         <div class="section">
             <h2>Stored addresses</h2>

@@ -48,6 +48,7 @@ class OrderItemRepository extends Repository
                 'fulfillment_type' => (string) ($metadata['fulfillment_type'] ?? 'physical_shipping'),
                 'fulfillment_label' => (string) ($metadata['fulfillment_label'] ?? 'Physical shipping'),
                 'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],
+                'available_at' => (string) ($metadata['available_at'] ?? ''),
             ];
         }, $this->forOrder($orderId));
     }

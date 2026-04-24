@@ -58,6 +58,7 @@ class CartItemRepository extends Repository
                 'fulfillment_type' => $product['fulfillment_type'] ?? 'physical_shipping',
                 'fulfillment_label' => $product['fulfillment_label'] ?? 'Physical shipping',
                 'fulfillment_policy' => $product['fulfillment_policy'] ?? [],
+                'available_at' => $product['available_at'] ?? null,
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -129,6 +130,7 @@ class CartItemRepository extends Repository
                 'fulfillment_type' => (string) ($metadata['fulfillment_type'] ?? 'physical_shipping'),
                 'fulfillment_label' => (string) ($metadata['fulfillment_label'] ?? 'Physical shipping'),
                 'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],
+                'available_at' => (string) ($metadata['available_at'] ?? ''),
             ];
         }, $this->forCart($cartId));
     }

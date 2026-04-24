@@ -246,6 +246,28 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function activateEntitlement(string $order, string $entitlement): ResponseInterface
+    {
+        $this->action = 'activateEntitlement';
+        $this->context = [
+            'order' => (int) $order,
+            'entitlement' => (int) $entitlement,
+        ];
+
+        return $this->run();
+    }
+
+    public function revokeEntitlement(string $order, string $entitlement): ResponseInterface
+    {
+        $this->action = 'revokeEntitlement';
+        $this->context = [
+            'order' => (int) $order,
+            'entitlement' => (int) $entitlement,
+        ];
+
+        return $this->run();
+    }
+
     public function system(): ResponseInterface
     {
         $this->action = 'system';

@@ -62,6 +62,14 @@ class OrderController extends Controller
         return $this->run();
     }
 
+    public function entitlement(string $key): ResponseInterface
+    {
+        $this->action = 'accessEntitlement';
+        $this->context = ['key' => $key];
+
+        return $this->run();
+    }
+
     public function capture(string $order): ResponseInterface
     {
         $this->action = 'capture';

@@ -319,6 +319,14 @@ return [
             'LABEL' => 'Digital / online delivery',
             'SERVICE_LABEL' => 'Instant access after payment',
         ],
+        'ACCESS' => [
+            'ELIGIBLE_TYPES' => ['digital_download', 'virtual_access', 'subscription'],
+            'ISSUE_ON_PAYMENT_STATUSES' => ['captured', 'partially_captured'],
+            'REVOKE_ON_PAYMENT_STATUSES' => ['cancelled', 'refunded'],
+            'DEFAULT_DOWNLOAD_LIMIT' => 0,
+            'DEFAULT_ACCESS_DAYS' => 0,
+            'ACCESS_KEY_PREFIX' => 'ent',
+        ],
         'PICKUP_OPTIONS' => [
             'store-pickup' => [
                 'LABEL' => 'Pickup at store',

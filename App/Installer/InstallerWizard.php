@@ -381,6 +381,8 @@ final class InstallerWizard
             'COMMERCE_SHIPPING_FREE_OVER_MINOR' => 'commerce free shipping threshold',
             'COMMERCE_DISCOUNT_RATE_BPS' => 'commerce default discount rate basis points',
             'COMMERCE_DISCOUNT_MAX_MINOR' => 'commerce default discount cap',
+            'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT' => 'commerce default download limit',
+            'COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS' => 'commerce default access days',
         ] as $key => $label) {
             if (($data[$key] ?? '') !== '' && (!ctype_digit((string) $data[$key]) || (int) $data[$key] < 0)) {
                 throw new \InvalidArgumentException(sprintf('The %s must be a non-negative integer.', $label));
@@ -658,6 +660,9 @@ final class InstallerWizard
                 'COMMERCE_SHIPPING_FREE_OVER_MINOR',
                 'COMMERCE_FULFILLMENT_DEFAULT_TYPE',
                 'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE',
+                'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT',
+                'COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS',
+                'COMMERCE_ACCESS_KEY_PREFIX',
                 'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL',
             ],
             'WEBMODULE' => [
@@ -1047,6 +1052,9 @@ final class InstallerWizard
             'COMMERCE_SHIPPING_FREE_OVER_MINOR' => '50000',
             'COMMERCE_FULFILLMENT_DEFAULT_TYPE' => 'physical_shipping',
             'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE' => 'true',
+            'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT' => '0',
+            'COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS' => '0',
+            'COMMERCE_ACCESS_KEY_PREFIX' => 'ent',
             'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL' => 'monthly',
             'WEBMODULE_CONTENT_SOURCE' => 'database',
         ];

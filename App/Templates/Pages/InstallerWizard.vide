@@ -439,6 +439,18 @@
                             </select>
                         </div>
                         <div class="field">
+                            <label for="COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT">Default Download Limit</label>
+                            <input id="COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT" name="COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT" type="text" value="{{ $form['COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT'] ?? '0' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS">Default Access Days</label>
+                            <input id="COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS" name="COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS" type="text" value="{{ $form['COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS'] ?? '0' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_ACCESS_KEY_PREFIX">Access Key Prefix</label>
+                            <input id="COMMERCE_ACCESS_KEY_PREFIX" name="COMMERCE_ACCESS_KEY_PREFIX" type="text" value="{{ $form['COMMERCE_ACCESS_KEY_PREFIX'] ?? 'ent' }}">
+                        </div>
+                        <div class="field">
                             <label for="PAYMENT_DEFAULT_METHOD">Default Payment Method</label>
                             <select id="PAYMENT_DEFAULT_METHOD" name="PAYMENT_DEFAULT_METHOD">
                                 @foreach(['card' => 'Card', 'wallet' => 'Wallet', 'bank_transfer' => 'Bank Transfer', 'bnpl' => 'Buy Now Pay Later', 'local_instant' => 'Local Instant', 'manual' => 'Manual', 'crypto' => 'Crypto'] as $value => $label)

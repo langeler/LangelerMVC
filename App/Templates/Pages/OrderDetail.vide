@@ -2,6 +2,7 @@
     $order = is_array($order ?? null) ? $order : [];
     $lookup = is_array($lookup ?? null) ? $lookup : [];
     $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
+    $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
     $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
     $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
     $nextActionItems = !empty($order['payment_next_action']) && is_array($order['payment_next_action'])
@@ -146,6 +147,45 @@
         <div class="section">
             <h2>Payment next action</h2>
             @component('DefinitionGrid', ['items' => $nextActionItems])
+        </div>
+    @endif
+
+    @if($entitlements !== [])
+        <div class="section">
+            <h2>Purchased access</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Access</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Downloads</th>
+                        <th>Window</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($entitlements as $entitlement)
+                        @php
+                            $row = is_array($entitlement) ? $entitlement : [];
+                            $limit = (int) ($row['download_limit'] ?? 0);
+                            $used = (int) ($row['downloads_used'] ?? 0);
+                        @endphp
+                        <tr>
+                            <td>
+                                @if(!empty($row['access_path']))
+                                    <a href="{{ (string) $row['access_path'] }}">{{ (string) ($row['label'] ?? 'Access content') }}</a>
+                                @else
+                                    {{ (string) ($row['label'] ?? 'Access content') }}
+                                @endif
+                            </td>
+                            <td>{{ (string) ($row['type'] ?? '') }}</td>
+                            <td>{{ (string) ($row['status'] ?? '') }}</td>
+                            <td>{{ $limit > 0 ? $used . ' / ' . $limit : 'Unlimited' }}</td>
+                            <td>{{ (string) ($row['starts_at'] ?? '') }} @if(!empty($row['expires_at'])) to {{ (string) $row['expires_at'] }} @endif</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     @endif
 

@@ -16,6 +16,7 @@ use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Support\Commerce\CartPricingManager;
+use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\ShippingManager;
@@ -51,6 +52,7 @@ class OrderService extends Service
         private readonly InventoryManager $inventory,
         private readonly OrderLifecycleManager $lifecycle,
         private readonly ShippingManager $shipping,
+        private readonly EntitlementManager $entitlements,
         private readonly PaymentManager $payments,
         private readonly EventDispatcherInterface $events,
         private readonly AuthManager $auth,
@@ -85,6 +87,7 @@ class OrderService extends Service
             'cancel' => $this->cancel((int) ($this->context['order'] ?? 0)),
             'refund' => $this->refund((int) ($this->context['order'] ?? 0)),
             'reconcile' => $this->reconcile((int) ($this->context['order'] ?? 0)),
+            'accessEntitlement' => $this->accessEntitlement((string) ($this->context['key'] ?? '')),
             default => $this->checkoutForm(),
         };
     }
@@ -299,6 +302,7 @@ class OrderService extends Service
                         'fulfillment_type' => $item['fulfillment_type'] ?? 'physical_shipping',
                         'fulfillment_label' => $item['fulfillment_label'] ?? 'Physical shipping',
                         'fulfillment_policy' => is_array($item['fulfillment_policy'] ?? null) ? $item['fulfillment_policy'] : [],
+                        'available_at' => $item['available_at'] ?? '',
                     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                 ]);
             }
@@ -332,6 +336,18 @@ class OrderService extends Service
         ]);
 
         if ($payment->intent->status === 'captured') {
+            $entitlementSync = $this->entitlements->syncForOrder((int) $order->getKey(), 'checkout');
+
+            if (
+                (int) ($entitlementSync['eligible'] ?? 0) > 0
+                && !((bool) ($entitlementSync['physical_fulfillment_required'] ?? true))
+            ) {
+                $this->orders->updateLifecycle((int) $order->getKey(), [
+                    'status' => 'completed',
+                    'fulfillment_status' => 'access_granted',
+                ]);
+            }
+
             $this->events->dispatch('order.paid', [
                 'order_id' => (int) $order->getKey(),
             ]);
@@ -541,6 +557,7 @@ class OrderService extends Service
             }, $items),
             'addresses' => $includeSensitive ? $addresses : [],
             'actions' => $includeSensitive ? $this->orderActions($summary) : $this->publicOrderActions($summary),
+            'entitlements' => $this->entitlements->summariesForOrder($orderId),
             ...$this->shipping->presentation($summary),
         ];
 
@@ -549,6 +566,24 @@ class OrderService extends Service
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function accessEntitlement(string $key): array
+    {
+        $access = $this->entitlements->access($key);
+
+        return [
+            'template' => 'OrderEntitlement',
+            'status' => (int) ($access['status'] ?? 200),
+            'title' => (string) ($access['title'] ?? 'Purchased access'),
+            'headline' => (string) ($access['title'] ?? 'Purchased access'),
+            'summary' => (string) ($access['message'] ?? ''),
+            'message' => (string) ($access['message'] ?? ''),
+            'entitlement' => is_array($access['entitlement'] ?? null) ? $access['entitlement'] : [],
+        ];
     }
 
     private function currentCart(): Cart

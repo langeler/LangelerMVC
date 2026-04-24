@@ -24,6 +24,7 @@
     ];
     $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
     $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
+    $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
 @endphp
 <section class="stack">
     @include('PageIntro', [
@@ -189,6 +190,56 @@
                 'empty' => 'No order items are available.',
             ])
         </div>
+
+        @if($entitlements !== [])
+            <div class="section">
+                <h2>Purchased access</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Label</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Downloads</th>
+                            <th>Access</th>
+                            <th>Admin action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($entitlements as $entitlement)
+                            @php
+                                $row = is_array($entitlement) ? $entitlement : [];
+                                $limit = (int) ($row['download_limit'] ?? 0);
+                                $used = (int) ($row['downloads_used'] ?? 0);
+                                $status = (string) ($row['status'] ?? '');
+                            @endphp
+                            <tr>
+                                <td>{{ (string) ($row['label'] ?? '') }}</td>
+                                <td>{{ (string) ($row['type'] ?? '') }}</td>
+                                <td>{{ $status }}</td>
+                                <td>{{ $limit > 0 ? $used . ' / ' . $limit : 'Unlimited' }}</td>
+                                <td>
+                                    @if(!empty($row['access_path']))
+                                        <a href="{{ (string) $row['access_path'] }}">Open access surface</a>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($status === 'active' && !empty($row['revoke_path']))
+                                        <form method="post" action="{{ (string) $row['revoke_path'] }}" onsubmit="return confirm('Revoke this purchased access?');">
+                                            <button type="submit">Revoke</button>
+                                        </form>
+                                    @elseif($status !== 'active' && !empty($row['activate_path']))
+                                        <form method="post" action="{{ (string) $row['activate_path'] }}">
+                                            <button type="submit">Activate</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         <div class="section">
             <h2>Stored addresses</h2>

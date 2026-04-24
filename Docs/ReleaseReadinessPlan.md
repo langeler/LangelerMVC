@@ -21,8 +21,8 @@ The remaining work is the final production layer: release hygiene, installer tru
 Commerce must model fulfillment strategies, not assume every order is shipped.
 
 - Physical shipped products use carrier shipping, tracking, and shipment lifecycle states.
-- Digital downloads skip shipping and should later grant secure download entitlements.
-- Virtual or online access purchases skip shipping and should later grant gated content/access entitlements.
+- Digital downloads skip shipping and now grant order-scoped download entitlements with access keys, limits, windows, and admin revoke/reactivate controls.
+- Virtual or online access purchases skip shipping and use the same entitlement foundation for gated content/access URLs.
 - Store pickup and scheduled pickup use pickup fulfillment options rather than carrier delivery.
 - Pre-orders need availability dates, customer messaging, and release workflows.
 - Subscriptions need plans, recurring payment schedules, renewal orders, payment retry/dunning, pause/resume/cancel, and webhook-driven reconciliation.

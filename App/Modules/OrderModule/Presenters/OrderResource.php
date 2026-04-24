@@ -23,6 +23,7 @@ class OrderResource extends Resource
             'lookup' => is_array($payload['lookup'] ?? null) ? $payload['lookup'] : [],
             'order' => is_array($payload['order'] ?? null) ? $payload['order'] : [],
             'orders' => is_array($payload['orders'] ?? null) ? $payload['orders'] : [],
+            'entitlement' => is_array($payload['entitlement'] ?? null) ? $payload['entitlement'] : [],
         ];
     }
 

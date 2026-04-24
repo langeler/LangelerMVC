@@ -24,6 +24,7 @@ use App\Modules\ShopModule\Migrations\CreateShopTables;
 use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\PromotionManager;
 use App\Support\Commerce\ShippingManager;
@@ -436,6 +437,7 @@ class AuthPlatformTest extends TestCase
             new CommerceTotalsCalculator($stack['config']),
             $this->createStub(OrderLifecycleManager::class),
             $this->createStub(ShippingManager::class),
+            $this->createStub(EntitlementManager::class),
             $moduleManager,
             $cache,
             $stack['sessionManager'],

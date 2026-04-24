@@ -15,6 +15,7 @@ return static function (Router $router): void {
     $router->get('/orders/cancelled/{reference}', OrderController::class, 'cancelled', ['as' => 'orders.cancelled.reference']);
     $router->get('/orders', OrderController::class, 'index', ['as' => 'orders.index', 'middleware' => $authMiddleware]);
     $router->get('/orders/{order:\\d+}', OrderController::class, 'show', ['as' => 'orders.show', 'middleware' => $authMiddleware]);
+    $router->get('/orders/entitlements/{key}', OrderController::class, 'entitlement', ['as' => 'orders.entitlements.access']);
     $router->post('/orders/{order:\\d+}/capture', OrderController::class, 'capture', ['as' => 'orders.capture', 'middleware' => $authMiddleware]);
     $router->post('/orders/{order:\\d+}/cancel', OrderController::class, 'cancel', ['as' => 'orders.cancel', 'middleware' => $authMiddleware]);
     $router->post('/orders/{order:\\d+}/refund', OrderController::class, 'refund', ['as' => 'orders.refund', 'middleware' => $authMiddleware]);
@@ -27,6 +28,7 @@ return static function (Router $router): void {
     $router->post('/api/orders/checkout', OrderController::class, 'checkout', ['as' => 'api.orders.checkout']);
     $router->get('/api/orders', OrderController::class, 'index', ['as' => 'api.orders.index', 'middleware' => $authMiddleware]);
     $router->get('/api/orders/{order:\\d+}', OrderController::class, 'show', ['as' => 'api.orders.show', 'middleware' => $authMiddleware]);
+    $router->get('/api/orders/entitlements/{key}', OrderController::class, 'entitlement', ['as' => 'api.orders.entitlements.access']);
     $router->post('/api/orders/{order:\\d+}/capture', OrderController::class, 'capture', ['as' => 'api.orders.capture', 'middleware' => $authMiddleware]);
     $router->post('/api/orders/{order:\\d+}/cancel', OrderController::class, 'cancel', ['as' => 'api.orders.cancel', 'middleware' => $authMiddleware]);
     $router->post('/api/orders/{order:\\d+}/refund', OrderController::class, 'refund', ['as' => 'api.orders.refund', 'middleware' => $authMiddleware]);

@@ -71,6 +71,54 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function pages(): ResponseInterface
+    {
+        $this->action = 'pages';
+
+        return $this->run();
+    }
+
+    public function savePage(): ResponseInterface
+    {
+        $this->adminRequest->forScenario('savePage');
+        $this->action = 'savePage';
+
+        return $this->run();
+    }
+
+    public function updatePage(string $page): ResponseInterface
+    {
+        $this->adminRequest->forScenario('savePage');
+        $this->action = 'updatePage';
+        $this->context = ['page' => (int) $page];
+
+        return $this->run();
+    }
+
+    public function publishPage(string $page): ResponseInterface
+    {
+        $this->action = 'publishPage';
+        $this->context = ['page' => (int) $page];
+
+        return $this->run();
+    }
+
+    public function unpublishPage(string $page): ResponseInterface
+    {
+        $this->action = 'unpublishPage';
+        $this->context = ['page' => (int) $page];
+
+        return $this->run();
+    }
+
+    public function deletePage(string $page): ResponseInterface
+    {
+        $this->action = 'deletePage';
+        $this->context = ['page' => (int) $page];
+
+        return $this->run();
+    }
+
     public function catalog(): ResponseInterface
     {
         $this->action = 'catalog';

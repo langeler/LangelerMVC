@@ -110,6 +110,90 @@ class PromotionRepository extends Repository
     }
 
     /**
+     * @param array<string, mixed> $usage
+     */
+    public function recordUsage(array $usage): bool
+    {
+        $code = strtoupper(trim((string) ($usage['promotion_code'] ?? $usage['code'] ?? '')));
+
+        if ($code === '') {
+            return false;
+        }
+
+        try {
+            $promotion = $this->findByCode($code);
+            $promotionId = $promotion instanceof Promotion
+                ? (int) $promotion->getKey()
+                : max(0, (int) ($usage['promotion_id'] ?? 0));
+            $createdAt = gmdate('Y-m-d H:i:s');
+            $context = is_array($usage['context'] ?? null) ? $usage['context'] : [];
+
+            $query = $this->db->dataQuery('promotion_usages')->insert('promotion_usages', [
+                'promotion_id' => $promotionId > 0 ? $promotionId : null,
+                'promotion_code' => $code,
+                'order_id' => max(0, (int) ($usage['order_id'] ?? 0)) ?: null,
+                'cart_id' => max(0, (int) ($usage['cart_id'] ?? 0)) ?: null,
+                'user_id' => max(0, (int) ($usage['user_id'] ?? 0)) ?: null,
+                'currency' => strtoupper(trim((string) ($usage['currency'] ?? 'SEK'))),
+                'discount_minor' => max(0, (int) ($usage['discount_minor'] ?? 0)),
+                'item_discount_minor' => max(0, (int) ($usage['item_discount_minor'] ?? 0)),
+                'shipping_discount_minor' => max(0, (int) ($usage['shipping_discount_minor'] ?? 0)),
+                'source' => trim((string) ($usage['source'] ?? ($promotionId > 0 ? 'database' : 'config'))) ?: 'database',
+                'context' => $this->toJson($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+                'created_at' => $createdAt,
+            ])->toExecutable();
+
+            $this->db->execute($query['sql'], $query['bindings']);
+
+            if ($promotionId > 0) {
+                $this->incrementUsageCount($promotionId, $createdAt);
+            }
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function usageSummaries(int $limit = 25): array
+    {
+        try {
+            $query = $this->db
+                ->dataQuery('promotion_usages')
+                ->select(['*'])
+                ->orderBy('id', 'DESC')
+                ->limit(max(1, $limit))
+                ->toExecutable();
+
+            return array_map(
+                fn(array $row): array => $this->mapUsageSummary($row),
+                $this->db->fetchAll($query['sql'], $query['bindings'])
+            );
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function usageMetrics(): array
+    {
+        $rows = $this->usageSummaries(1000);
+
+        return [
+            'usage_records' => count($rows),
+            'database_promotion_usage' => count(array_filter($rows, static fn(array $row): bool => ($row['source'] ?? '') === 'database')),
+            'configured_promotion_usage' => count(array_filter($rows, static fn(array $row): bool => ($row['source'] ?? '') === 'config')),
+            'total_discount_minor' => array_reduce($rows, static fn(int $carry, array $row): int => $carry + max(0, (int) ($row['discount_minor'] ?? 0)), 0),
+            'shipping_discount_minor' => array_reduce($rows, static fn(int $carry, array $row): int => $carry + max(0, (int) ($row['shipping_discount_minor'] ?? 0)), 0),
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function mapSummary(Promotion $promotion, string $currency = 'SEK'): array
@@ -170,6 +254,7 @@ class PromotionRepository extends Repository
         $criteria = is_array($summary['criteria'] ?? null) ? $summary['criteria'] : [];
 
         return [
+            'ID' => (int) ($summary['id'] ?? 0),
             'CODE' => (string) ($summary['code'] ?? ''),
             'LABEL' => (string) ($summary['label'] ?? ''),
             'DESCRIPTION' => (string) ($summary['description'] ?? ''),
@@ -311,6 +396,38 @@ class PromotionRepository extends Repository
         return in_array($type, ['percentage', 'fixed_amount', 'free_shipping', 'shipping_fixed', 'shipping_percentage'], true)
             ? $type
             : 'fixed_amount';
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private function mapUsageSummary(array $row): array
+    {
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'promotion_id' => (int) ($row['promotion_id'] ?? 0),
+            'promotion_code' => (string) ($row['promotion_code'] ?? ''),
+            'order_id' => (int) ($row['order_id'] ?? 0),
+            'cart_id' => (int) ($row['cart_id'] ?? 0),
+            'user_id' => (int) ($row['user_id'] ?? 0),
+            'currency' => (string) ($row['currency'] ?? 'SEK'),
+            'discount_minor' => max(0, (int) ($row['discount_minor'] ?? 0)),
+            'item_discount_minor' => max(0, (int) ($row['item_discount_minor'] ?? 0)),
+            'shipping_discount_minor' => max(0, (int) ($row['shipping_discount_minor'] ?? 0)),
+            'source' => (string) ($row['source'] ?? 'database'),
+            'context' => $this->decodeCriteria((string) ($row['context'] ?? '[]')),
+            'created_at' => (string) ($row['created_at'] ?? ''),
+            'order_path' => ((int) ($row['order_id'] ?? 0)) > 0 ? '/admin/orders/' . (int) ($row['order_id'] ?? 0) : '',
+        ];
+    }
+
+    private function incrementUsageCount(int $promotionId, string $timestamp): void
+    {
+        $this->db->execute(
+            'UPDATE promotions SET usage_count = usage_count + 1, updated_at = ? WHERE id = ?',
+            [$timestamp, $promotionId]
+        );
     }
 
     private function nullableString(mixed $value): ?string

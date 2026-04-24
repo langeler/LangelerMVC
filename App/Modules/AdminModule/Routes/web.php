@@ -12,6 +12,12 @@ return static function (Router $router): void {
     $router->post('/admin/users/{user:\\d+}/roles', AdminController::class, 'assignRoles', ['as' => 'admin.users.roles', 'middleware' => $adminMiddleware]);
     $router->get('/admin/roles', AdminController::class, 'roles', ['as' => 'admin.roles', 'middleware' => $adminMiddleware]);
     $router->post('/admin/roles/{role:\\d+}/permissions', AdminController::class, 'syncPermissions', ['as' => 'admin.roles.permissions', 'middleware' => $adminMiddleware]);
+    $router->get('/admin/pages', AdminController::class, 'pages', ['as' => 'admin.pages', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/pages', AdminController::class, 'savePage', ['as' => 'admin.pages.store', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/pages/{page:\\d+}/update', AdminController::class, 'updatePage', ['as' => 'admin.pages.update', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/pages/{page:\\d+}/publish', AdminController::class, 'publishPage', ['as' => 'admin.pages.publish', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/pages/{page:\\d+}/unpublish', AdminController::class, 'unpublishPage', ['as' => 'admin.pages.unpublish', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/pages/{page:\\d+}/delete', AdminController::class, 'deletePage', ['as' => 'admin.pages.delete', 'middleware' => $adminMiddleware]);
     $router->get('/admin/catalog', AdminController::class, 'catalog', ['as' => 'admin.catalog', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/categories', AdminController::class, 'saveCategory', ['as' => 'admin.catalog.categories.store', 'middleware' => $adminMiddleware]);
     $router->post('/admin/catalog/categories/{category:\\d+}/update', AdminController::class, 'updateCategory', ['as' => 'admin.catalog.categories.update', 'middleware' => $adminMiddleware]);
@@ -50,6 +56,12 @@ return static function (Router $router): void {
     $router->post('/api/admin/users/{user:\\d+}/roles', AdminController::class, 'assignRoles', ['as' => 'api.admin.users.roles', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/roles', AdminController::class, 'roles', ['as' => 'api.admin.roles', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/roles/{role:\\d+}/permissions', AdminController::class, 'syncPermissions', ['as' => 'api.admin.roles.permissions', 'middleware' => $adminMiddleware]);
+    $router->get('/api/admin/pages', AdminController::class, 'pages', ['as' => 'api.admin.pages', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/pages', AdminController::class, 'savePage', ['as' => 'api.admin.pages.store', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/pages/{page:\\d+}/update', AdminController::class, 'updatePage', ['as' => 'api.admin.pages.update', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/pages/{page:\\d+}/publish', AdminController::class, 'publishPage', ['as' => 'api.admin.pages.publish', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/pages/{page:\\d+}/unpublish', AdminController::class, 'unpublishPage', ['as' => 'api.admin.pages.unpublish', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/pages/{page:\\d+}/delete', AdminController::class, 'deletePage', ['as' => 'api.admin.pages.delete', 'middleware' => $adminMiddleware]);
     $router->get('/api/admin/catalog', AdminController::class, 'catalog', ['as' => 'api.admin.catalog', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/categories', AdminController::class, 'saveCategory', ['as' => 'api.admin.catalog.categories.store', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/catalog/categories/{category:\\d+}/update', AdminController::class, 'updateCategory', ['as' => 'api.admin.catalog.categories.update', 'middleware' => $adminMiddleware]);

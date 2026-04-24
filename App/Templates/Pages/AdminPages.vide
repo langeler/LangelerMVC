@@ -1,0 +1,127 @@
+@php
+    $pages = is_array($pages ?? null) ? $pages : [];
+    $pageForm = is_array($page_form ?? null) ? $page_form : [];
+    $pageMetrics = is_array($page_metrics ?? null) ? $page_metrics : [];
+@endphp
+
+<section class="stack">
+    @include('PageIntro', [
+        'eyebrow' => 'AdminModule',
+        'headline' => $headline ?? 'Web pages',
+        'summary' => $summary ?? '',
+    ])
+
+    @if(!empty($message ?? ''))
+        @include('StatusMessage', [
+            'message' => $message,
+            'status' => $status ?? 200,
+        ])
+    @endif
+
+    <div class="section">
+        <h2>Content metrics</h2>
+        @component('DefinitionGrid', [
+            'items' => $pageMetrics,
+            'empty' => 'No page metrics are available.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Create page</h2>
+        <form method="post" action="/admin/pages" class="stack">
+            <label>
+                Title
+                <input type="text" name="title" value="{{ (string) ($pageForm['title'] ?? '') }}" placeholder="About our studio" required>
+            </label>
+
+            <label>
+                Slug
+                <input type="text" name="slug" value="{{ (string) ($pageForm['slug'] ?? '') }}" placeholder="about-our-studio">
+            </label>
+
+            <label>
+                Content
+                <textarea name="content" rows="8" required>{{ (string) ($pageForm['content'] ?? '') }}</textarea>
+            </label>
+
+            <label>
+                <input type="checkbox" name="is_published" value="1" @checked(!empty($pageForm['is_published'] ?? true))>
+                Publish immediately
+            </label>
+
+            <button type="submit">Create page</button>
+        </form>
+    </div>
+
+    <div class="section">
+        <h2>Managed pages</h2>
+        @if($pages === [])
+            <p>No database-backed pages are available yet.</p>
+        @else
+            @foreach($pages as $page)
+                @php
+                    $entry = is_array($page) ? $page : [];
+                    $isHome = ($entry['slug'] ?? '') === 'home';
+                @endphp
+                <article class="panel stack">
+                    @component('DefinitionGrid', [
+                        'items' => [
+                            'ID' => $entry['id'] ?? '',
+                            'Slug' => $entry['slug'] ?? '',
+                            'Status' => $entry['status'] ?? '',
+                            'Updated' => $entry['updated_at'] ?? '',
+                            'Public path' => $entry['view_path'] ?? '',
+                        ],
+                        'empty' => 'No page details are available.',
+                    ])
+
+                    @if(!empty($entry['excerpt'] ?? ''))
+                        <p>{{ (string) ($entry['excerpt'] ?? '') }}</p>
+                    @endif
+
+                    <form method="post" action="{{ (string) ($entry['update_path'] ?? '/admin/pages') }}" class="stack">
+                        <label>
+                            Title
+                            <input type="text" name="title" value="{{ (string) ($entry['title'] ?? '') }}" required>
+                        </label>
+
+                        <label>
+                            Slug
+                            <input type="text" name="slug" value="{{ (string) ($entry['slug'] ?? '') }}" required>
+                        </label>
+
+                        <label>
+                            Content
+                            <textarea name="content" rows="7" required>{{ (string) ($entry['content'] ?? '') }}</textarea>
+                        </label>
+
+                        <label>
+                            <input type="checkbox" name="is_published" value="1" @checked(!empty($entry['is_published'] ?? false))>
+                            Published
+                        </label>
+
+                        <button type="submit">Save page</button>
+                    </form>
+
+                    <div class="actions">
+                        @if(!empty($entry['is_published'] ?? false))
+                            <form method="post" action="{{ (string) ($entry['unpublish_path'] ?? '') }}" onsubmit="return confirm('Unpublish this page?');">
+                                <button type="submit">Unpublish</button>
+                            </form>
+                        @else
+                            <form method="post" action="{{ (string) ($entry['publish_path'] ?? '') }}">
+                                <button type="submit">Publish</button>
+                            </form>
+                        @endif
+
+                        @if(!$isHome)
+                            <form method="post" action="{{ (string) ($entry['delete_path'] ?? '') }}" onsubmit="return confirm('Delete this page? This cannot be undone.');">
+                                <button type="submit">Delete page</button>
+                            </form>
+                        @endif
+                    </div>
+                </article>
+            @endforeach
+        @endif
+    </div>
+</section>

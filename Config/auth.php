@@ -26,6 +26,7 @@ return [
         'admin.system.view',
         'admin.users.manage',
         'admin.roles.manage',
+        'content.manage',
         'user.profile.view',
         'user.profile.update',
         'shop.catalog.manage',

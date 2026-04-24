@@ -202,16 +202,16 @@ The application layer now ships with completed first-party reference slices and 
 
 Current concrete state:
 
-- `WebModule` is the database-backed starter/content slice.
+- `WebModule` is the database-backed starter/content slice with admin-native authoring and publishing.
 - `UserModule` is the full identity/platform slice.
 - `AdminModule` is the protected management slice.
 - `ShopModule`, `CartModule`, and `OrderModule` complete the first commerce stack.
 - `WebModule` has a controller, request, service, presenter, view, response, model, repository, route file, migration, and seed.
 - `UserModule` now provides registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA with trusted devices, and passkey/WebAuthn flows.
-- `AdminModule` now provides dashboard, user, role/permission, catalog, cart, order, health/readiness, and framework-inspection flows.
+- `AdminModule` now provides dashboard, user, role/permission, page authoring, catalog, promotion, cart, order, health/readiness, and framework-inspection flows.
 - `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
-- `CartModule` provides guest/auth cart persistence and merge-on-login behavior.
-- `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, payment-state handling, reconciliation hooks, and lifecycle notifications.
+- `CartModule` provides guest/auth cart persistence, merge-on-login behavior, promotion records, and usage ledgers.
+- `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, promotion usage recording, payment-state handling, reconciliation hooks, and lifecycle notifications.
 - Shared templates now live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components` with `.vide` as the canonical native template extension. `.lmv` and `.php` remain supported as compatibility fallbacks, but the first-party `.vide` tree is now maintained without raw PHP tags in source.
 
 This means the framework now has both a completed platform base and a real first-party application surface exercising it.

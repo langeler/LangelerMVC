@@ -39,6 +39,7 @@ use App\Modules\UserModule\Seeds\UserPlatformSeed;
 use App\Modules\UserModule\Services\UserAuthService;
 use App\Modules\UserModule\Services\UserPasskeyService;
 use App\Modules\UserModule\Services\UserProfileService;
+use App\Modules\WebModule\Repositories\PageRepository;
 use App\Providers\CoreProvider;
 use App\Providers\ExceptionProvider;
 use App\Utilities\Managers\CacheManager;
@@ -422,6 +423,7 @@ class AuthPlatformTest extends TestCase
             $stack['users'],
             $stack['roles'],
             $stack['permissions'],
+            $this->createStub(PageRepository::class),
             $this->createStub(\App\Modules\ShopModule\Repositories\ProductRepository::class),
             $this->createStub(\App\Modules\ShopModule\Repositories\CategoryRepository::class),
             $this->createStub(\App\Modules\CartModule\Repositories\CartRepository::class),
@@ -567,6 +569,7 @@ class AuthPlatformTest extends TestCase
 
         self::assertContains('user.login', $names);
         self::assertContains('admin.dashboard', $names);
+        self::assertContains('admin.pages', $names);
         self::assertContains('admin.promotions', $names);
         self::assertContains('api.user.passkeys.login.options', $names);
         self::assertContains('user.passkeys.register.options', $names);
@@ -706,6 +709,7 @@ class AuthPlatformTest extends TestCase
                             'admin.system.view',
                             'admin.users.manage',
                             'admin.roles.manage',
+                            'content.manage',
                             'user.profile.view',
                             'user.profile.update',
                             'shop.catalog.manage',

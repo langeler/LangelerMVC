@@ -33,9 +33,9 @@ Shared templates currently live in `App/Templates`, so modules can use a common 
 
 | Module | Status | Notes |
 | --- | --- | --- |
-| `WebModule` | Implemented starter slice | Contains the reference request/controller/service/presenter/view/response pipeline plus `pages` migration, seed, model, repository, and shared templates. |
-| `AdminModule` | Implemented management slice | Contains dashboard, user, role, system, catalog, cart, order, health, and operations management flows protected by the framework auth/RBAC layer. It intentionally orchestrates existing module/runtime persistence instead of owning a separate admin data model. |
-| `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, cart-merge notifications, presenters/resources, routes, migrations, seeds, and views. |
+| `WebModule` | Implemented starter/content slice | Contains the reference request/controller/service/presenter/view/response pipeline plus `pages` migration, seed, model, repository, shared templates, and admin-native authoring/publishing. |
+| `AdminModule` | Implemented management slice | Contains dashboard, user, role, pages, system, catalog, promotions, cart, order, health, and operations management flows protected by the framework auth/RBAC layer. It intentionally orchestrates existing module/runtime persistence instead of owning a separate admin data model. |
+| `CartModule` | Implemented commerce slice | Contains guest/auth cart handling, cart-merge notifications, promotion rules/usage ledgers, presenters/resources, routes, migrations, seeds, and views. |
 | `OrderModule` | Implemented commerce slice | Contains payment-method-aware checkout/order lifecycle services, listeners, notifications, presenters/resources, routes, migrations, seeds, and views. |
 | `ShopModule` | Implemented commerce slice | Contains catalog services, catalog lifecycle listeners/notifications, presenters/resources, routes, migrations, seeds, views, and product/category persistence. |
 | `UserModule` | Implemented identity slice | Contains registration, login, logout, password reset, email verification, RBAC, TOTP/recovery-code 2FA with trusted devices, and passkey/WebAuthn flows. |
@@ -64,6 +64,8 @@ It currently renders starter content through shared templates:
 
 By default, `PageService` uses `Config/webmodule.php` with `CONTENT_SOURCE=database`. The seeded `pages` table is now the normal starter path, while memory-backed content remains an explicit fallback/testing mode.
 
+The admin surface at `/admin/pages` now provides create, update, publish, unpublish, and delete flows for database-backed pages, with a deletion guardrail around the root home page.
+
 ## `UserModule` Today
 
 `UserModule` is the first full platform/business slice and currently demonstrates:
@@ -83,6 +85,8 @@ The module also contains framework-managed migrations and seeds for users, roles
 
 - admin dashboard metrics
 - user and role/permission management flows
+- WebModule page authoring and publishing flows
+- promotion/coupon management with checkout usage reporting
 - framework inspection surfaces for modules, cache capabilities, routing, config, and sessions
 - policy/permission-driven middleware for both HTML and JSON routes
 - shared admin templates composed from reusable presentation partials and components
@@ -119,6 +123,7 @@ It now also exposes management visibility for:
 - merge-on-login behavior wired through framework auth events
 - cart-merge notifications emitted through the framework notification layer
 - totals calculation in services
+- database-backed promotion records and checkout usage ledger migration
 - HTML + JSON parity through the framework presentation pipeline
 
 ## `OrderModule` Today

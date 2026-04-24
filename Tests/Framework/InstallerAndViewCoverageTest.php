@@ -122,7 +122,7 @@ final class InstallerAndViewCoverageTest extends TestCase
         $matrix = [
             [new WebView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['Home', 'NotFound']],
             [new UserView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['UserLogin', 'UserRegister', 'UserPasswordForgot', 'UserPasswordReset', 'UserProfile', 'UserStatus']],
-            [new AdminView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['AdminDashboard', 'AdminUsers', 'AdminRoles', 'AdminCatalog', 'AdminPromotions', 'AdminCarts', 'AdminOrders', 'AdminSystem', 'AdminOperations']],
+            [new AdminView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['AdminDashboard', 'AdminUsers', 'AdminRoles', 'AdminPages', 'AdminCatalog', 'AdminPromotions', 'AdminCarts', 'AdminOrders', 'AdminSystem', 'AdminOperations']],
             [new ShopView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['ShopCatalog', 'ShopProduct']],
             [new CartView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['CartPage']],
             [new OrderView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['OrderCheckout', 'OrderList', 'OrderDetail']],

@@ -1,13 +1,13 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-21`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-24`.
 
 ## Snapshot
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (104 tests, 2470 assertions)`
-- Project posture: complete first-party platform framework with starter, identity, admin, catalog, cart, and order slices implemented
+- Verification result: `OK (131 tests, 2870 assertions)`
+- Project posture: complete first-party platform framework with starter, identity, admin, WebModule content authoring, catalog, cart, promotions, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
 ## Implemented And Working
@@ -106,6 +106,7 @@ This document records the current implementation state of LangelerMVC based on t
 - route file
 - `pages` migration and seed
 - database-backed content by default
+- admin-native page authoring, publishing, unpublishing, deletion, and home-page deletion guardrails
 - shared HTML templates plus JSON/resource parity through the framework presentation pipeline
 
 ### `UserModule`
@@ -123,8 +124,10 @@ This document records the current implementation state of LangelerMVC based on t
 
 - protected dashboard
 - user and role/permission management
+- WebModule page authoring and publishing
 - module/config/cache/session visibility
 - catalog/cart/order visibility
+- database-backed promotion/coupon management with usage reporting
 - queue/notification/event/payment operational visibility where safe
 - framework health/readiness/capability visibility
 - audit-aware operational visibility where safe
@@ -156,6 +159,8 @@ This document records the current implementation state of LangelerMVC based on t
 - cart-merge notifications delivered through the framework notification subsystem
 - item add/update/remove flows
 - totals calculation in services
+- database-backed promotion catalog integration
+- checkout promotion usage ledgers and usage-limit counter updates
 - HTML + JSON parity
 
 ### `OrderModule`
@@ -163,6 +168,7 @@ This document records the current implementation state of LangelerMVC based on t
 - checkout orchestration
 - order, order-item, and order-address persistence
 - cart snapshotting into orders
+- promotion snapshotting and checkout usage recording
 - order status and payment-state lifecycles
 - payment-method-aware checkout with persisted payment flow, idempotency, provider/external/webhook references, and reconciliation support
 - payment manager integration through the first-party compatibility/reference driver
@@ -181,6 +187,8 @@ These framework/platform areas are now implemented rather than planned:
 - provider-specific payment driver coverage for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
 - top-level config surfaces for notifications, queues, payments, and HTTP security
 - passkey/WebAuthn and TOTP support behind framework-native boundaries
+- admin-native WebModule page authoring and publishing
+- database-backed promotions with checkout usage ledgers
 
 ## Remaining Hardening / Environment Work
 
@@ -200,8 +208,9 @@ The major framework-level auth and commerce flows are implemented. The next gain
 
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
-- deeper end-to-end tests around queue-backed notifications and payment-state transitions in non-SQLite environments
-- environment-specific operational tuning for audit retention, queue workers, and payment-driver expansion
+- subscription lifecycle depth, provider webhooks, and carrier booking/tracking integrations
+- deeper end-to-end tests around queue-backed notifications, payment-state transitions, and promotion/subscription behavior in non-SQLite environments
+- environment-specific operational tuning for audit retention, queue workers, fulfillment providers, and payment-driver expansion
 
 ### 4. CI And Environment Breadth
 

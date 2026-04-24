@@ -29,6 +29,7 @@ use App\Support\Commerce\ShippingManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
+use App\Modules\WebModule\Repositories\PageRepository;
 use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Managers\CacheManager;
 use App\Utilities\Managers\Data\ModuleManager;
@@ -56,6 +57,7 @@ class AdminAccessService extends Service
         private readonly UserRepository $users,
         private readonly RoleRepository $roles,
         private readonly PermissionRepository $permissions,
+        private readonly PageRepository $pages,
         private readonly ProductRepository $products,
         private readonly CategoryRepository $categories,
         private readonly CartRepository $carts,
@@ -104,6 +106,12 @@ class AdminAccessService extends Service
             'assignRoles' => $this->assignRoles(),
             'roles' => $this->rolesPage(),
             'syncPermissions' => $this->syncPermissions(),
+            'pages' => $this->pagesPage(),
+            'savePage' => $this->savePage(),
+            'updatePage' => $this->savePage((int) ($this->context['page'] ?? 0)),
+            'publishPage' => $this->transitionPage((int) ($this->context['page'] ?? 0), true),
+            'unpublishPage' => $this->transitionPage((int) ($this->context['page'] ?? 0), false),
+            'deletePage' => $this->deletePage((int) ($this->context['page'] ?? 0)),
             'catalog' => $this->catalogPage(),
             'saveCategory' => $this->saveCategory(),
             'updateCategory' => $this->saveCategory((int) ($this->context['category'] ?? 0)),
@@ -160,6 +168,7 @@ class AdminAccessService extends Service
                 'users' => $this->users->count([]),
                 'roles' => $this->roles->count([]),
                 'permissions' => $this->permissions->count([]),
+                'pages' => $this->pages->count([]),
                 'modules' => count($this->modules->getModules()),
                 'routes' => count($this->router->listRoutes()),
                 'products' => $this->products->count([]),
@@ -329,6 +338,10 @@ class AdminAccessService extends Service
             'summary' => 'Capabilities and current composition details from the implemented backend subsystems.',
             'modules' => array_keys($this->modules->getModules()),
             'system' => [
+                'web' => [
+                    'content_source' => (string) $this->config->get('webmodule', 'CONTENT_SOURCE', 'memory'),
+                    'pages' => $this->pages->adminSummaries(),
+                ],
                 'auth' => [
                     'guard' => (string) $this->config->get('auth', 'GUARD', 'session'),
                     'permissions' => $this->auth->availablePermissions(),
@@ -361,6 +374,193 @@ class AdminAccessService extends Service
                 'audit' => $this->audit->summary(),
                 'routes' => $this->router->listRoutes(),
             ],
+        ];
+    }
+
+    private function pagesPage(): array
+    {
+        if (!$this->canManagePages()) {
+            return $this->forbidden('AdminPages', 'Web page administration requires the content.manage permission.');
+        }
+
+        return $this->pagesResponse();
+    }
+
+    private function savePage(int $pageId = 0): array
+    {
+        if (!$this->canManagePages()) {
+            return $this->forbidden('AdminPages', 'Web page administration requires the content.manage permission.');
+        }
+
+        $existing = $pageId > 0 ? $this->pages->find($pageId) : null;
+
+        if ($pageId > 0 && $existing === null) {
+            return $this->pagesResponse(
+                title: 'Page not found',
+                headline: 'Unable to update page',
+                summary: 'The requested page could not be resolved.',
+                status: 404,
+                message: 'Choose another page record and try again.',
+                pageForm: $this->payload
+            );
+        }
+
+        $title = trim((string) ($this->payload['title'] ?? ''));
+        $slug = $this->normalizeSlug((string) ($this->payload['slug'] ?? ''), $title);
+        $content = trim((string) ($this->payload['content'] ?? ''));
+
+        if ($title === '' || $slug === '' || $content === '') {
+            return $this->pagesResponse(
+                title: 'Page update failed',
+                headline: 'Page details are incomplete',
+                summary: 'Provide a title, slug, and content body before saving.',
+                status: 422,
+                message: 'Page title, slug, and content are required.',
+                pageForm: $this->payload
+            );
+        }
+
+        $collision = $this->pages->findBySlug($slug);
+
+        if ($collision !== null && (int) $collision->getKey() !== $pageId) {
+            return $this->pagesResponse(
+                title: 'Page update failed',
+                headline: 'Page slug is already in use',
+                summary: 'Choose a different page slug before saving.',
+                status: 422,
+                message: 'Page slugs must remain unique.',
+                pageForm: $this->payload
+            );
+        }
+
+        $page = $this->pages->savePage([
+            'slug' => $slug,
+            'title' => $title,
+            'content' => $content,
+            'is_published' => array_key_exists('is_published', $this->payload)
+                ? !empty($this->payload['is_published'])
+                : true,
+        ], $pageId);
+        $isUpdate = $existing !== null;
+
+        $this->audit->record('admin.web.page.saved', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'page_id' => (string) $page->getKey(),
+            'slug' => (string) ($page->getAttribute('slug') ?? ''),
+            'published' => (bool) ($page->getAttribute('is_published') ?? false),
+        ], 'admin');
+        $this->events->dispatch('web.page.saved', [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'page_id' => (int) $page->getKey(),
+            'slug' => (string) ($page->getAttribute('slug') ?? ''),
+            'action' => $isUpdate ? 'updated' : 'created',
+            'state' => !empty($page->getAttribute('is_published')) ? 'published' : 'draft',
+        ]);
+
+        return [
+            ...$this->pagesResponse(
+                title: 'Page administration',
+                headline: 'Page saved',
+                summary: 'Web page content was stored through the WebModule repository layer.',
+                status: 200,
+                message: 'Page changes saved successfully.'
+            ),
+            'redirect' => '/admin/pages',
+        ];
+    }
+
+    private function transitionPage(int $pageId, bool $published): array
+    {
+        if (!$this->canManagePages()) {
+            return $this->forbidden('AdminPages', 'Web page administration requires the content.manage permission.');
+        }
+
+        $page = $this->pages->setPublished($pageId, $published);
+
+        if ($page === null) {
+            return $this->pagesResponse(
+                title: 'Page not found',
+                headline: 'Page lifecycle update failed',
+                summary: 'The requested page could not be resolved.',
+                status: 404,
+                message: 'Choose another page record and try again.'
+            );
+        }
+
+        $this->audit->record('admin.web.page.' . ($published ? 'published' : 'unpublished'), [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'page_id' => (string) $pageId,
+            'slug' => (string) ($page->getAttribute('slug') ?? ''),
+        ], 'admin');
+        $this->events->dispatch('web.page.' . ($published ? 'published' : 'unpublished'), [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'page_id' => $pageId,
+            'slug' => (string) ($page->getAttribute('slug') ?? ''),
+        ]);
+
+        return [
+            ...$this->pagesResponse(
+                title: 'Page administration',
+                headline: 'Page lifecycle updated',
+                summary: $published ? 'The page is now published.' : 'The page is now unpublished.',
+                status: 200,
+                message: $published ? 'Page published.' : 'Page unpublished.'
+            ),
+            'redirect' => '/admin/pages',
+        ];
+    }
+
+    private function deletePage(int $pageId): array
+    {
+        if (!$this->canManagePages()) {
+            return $this->forbidden('AdminPages', 'Web page administration requires the content.manage permission.');
+        }
+
+        $page = $this->pages->find($pageId);
+
+        if ($page === null) {
+            return $this->pagesResponse(
+                title: 'Page not found',
+                headline: 'Page deletion failed',
+                summary: 'The requested page could not be resolved.',
+                status: 404,
+                message: 'Choose another page record and try again.'
+            );
+        }
+
+        $slug = (string) ($page->getAttribute('slug') ?? '');
+
+        if ($slug === 'home') {
+            return $this->pagesResponse(
+                title: 'Page deletion blocked',
+                headline: 'The home page cannot be deleted',
+                summary: 'The home page anchors the public web surface. Unpublish or edit it instead.',
+                status: 409,
+                message: 'The home page is protected from deletion.'
+            );
+        }
+
+        $this->pages->delete($pageId);
+        $this->audit->record('admin.web.page.deleted', [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'page_id' => (string) $pageId,
+            'slug' => $slug,
+        ], 'admin');
+        $this->events->dispatch('web.page.deleted', [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'page_id' => $pageId,
+            'slug' => $slug,
+        ]);
+
+        return [
+            ...$this->pagesResponse(
+                title: 'Page administration',
+                headline: 'Page deleted',
+                summary: 'The page was removed from the database-backed content repository.',
+                status: 200,
+                message: 'Page deleted successfully.'
+            ),
+            'redirect' => '/admin/pages',
         ];
     }
 
@@ -1031,6 +1231,37 @@ class AdminAccessService extends Service
     }
 
     /**
+     * @param array<string, mixed> $pageForm
+     * @return array<string, mixed>
+     */
+    private function pagesResponse(
+        string $title = 'Page administration',
+        string $headline = 'Web page authoring',
+        string $summary = 'Create, publish, unpublish, and retire database-backed WebModule pages.',
+        int $status = 200,
+        string $message = '',
+        array $pageForm = []
+    ): array {
+        $pages = $this->pages->adminSummaries();
+
+        return [
+            'template' => 'AdminPages',
+            'status' => $status,
+            'title' => $title,
+            'headline' => $headline,
+            'summary' => $summary,
+            'message' => $message,
+            'pages' => $pages,
+            'page_form' => $this->pageFormPayload($pageForm),
+            'page_metrics' => [
+                'pages' => count($pages),
+                'published_pages' => count(array_filter($pages, static fn(array $page): bool => !empty($page['is_published']))),
+                'draft_pages' => count(array_filter($pages, static fn(array $page): bool => empty($page['is_published']))),
+            ],
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $categoryForm
      * @param array<string, mixed> $productForm
      * @return array<string, mixed>
@@ -1101,6 +1332,8 @@ class AdminAccessService extends Service
         $currency = (string) $this->config->get('commerce', 'CURRENCY', 'SEK');
         $databasePromotions = $this->promotions->allSummary($currency);
         $configuredPromotions = $this->configuredPromotionSummaries($currency);
+        $usage = $this->promotions->usageSummaries(20);
+        $usageMetrics = $this->promotions->usageMetrics();
 
         return [
             'template' => 'AdminPromotions',
@@ -1111,12 +1344,14 @@ class AdminAccessService extends Service
             'message' => $message,
             'promotions' => $databasePromotions,
             'configured_promotions' => $configuredPromotions,
+            'promotion_usage' => $usage,
             'promotion_form' => $this->promotionFormPayload($promotionForm),
             'promotion_metrics' => [
                 'database_promotions' => count($databasePromotions),
                 'configured_promotions' => count($configuredPromotions),
                 'active_database_promotions' => count(array_filter($databasePromotions, static fn(array $promotion): bool => !empty($promotion['active']))),
                 'inactive_database_promotions' => count(array_filter($databasePromotions, static fn(array $promotion): bool => empty($promotion['active']))),
+                ...$usageMetrics,
             ],
         ];
     }
@@ -1151,6 +1386,21 @@ class AdminAccessService extends Service
             'description' => trim((string) ($input['description'] ?? '')),
             'is_published' => array_key_exists('is_published', $input) ? !empty($input['is_published']) : true,
             'store_path' => '/admin/catalog/categories',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function pageFormPayload(array $input = []): array
+    {
+        return [
+            'title' => trim((string) ($input['title'] ?? '')),
+            'slug' => $this->normalizeSlug((string) ($input['slug'] ?? '')),
+            'content' => trim((string) ($input['content'] ?? '')),
+            'is_published' => array_key_exists('is_published', $input) ? !empty($input['is_published']) : true,
+            'store_path' => '/admin/pages',
         ];
     }
 
@@ -1570,6 +1820,12 @@ class AdminAccessService extends Service
     {
         return $this->auth->hasPermission('promotion.manage')
             || $this->auth->hasPermission('shop.catalog.manage');
+    }
+
+    private function canManagePages(): bool
+    {
+        return $this->auth->hasPermission('content.manage')
+            || $this->auth->hasPermission('admin.system.view');
     }
 
     /**

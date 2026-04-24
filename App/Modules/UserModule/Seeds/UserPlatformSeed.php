@@ -32,6 +32,7 @@ class UserPlatformSeed extends Seed
             'admin.system.view' => 'Inspect framework system surfaces',
             'admin.users.manage' => 'Manage platform users',
             'admin.roles.manage' => 'Manage roles and permissions',
+            'content.manage' => 'Manage web pages and publishing',
             'user.profile.view' => 'View user profile data',
             'user.profile.update' => 'Update user profile data',
             'shop.catalog.manage' => 'Manage the shop catalog',

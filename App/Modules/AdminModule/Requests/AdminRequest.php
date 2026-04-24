@@ -20,6 +20,12 @@ class AdminRequest extends InboundRequest
     protected function sanitizationRules(): array
     {
         return match ($this->scenario) {
+            'savePage' => [
+                'title' => ['methods' => 'string'],
+                'slug' => ['methods' => 'string', 'required' => false],
+                'content' => ['methods' => 'string'],
+                'is_published' => ['methods' => 'string', 'required' => false],
+            ],
             'saveCategory' => [
                 'name' => ['methods' => 'string'],
                 'slug' => ['methods' => 'string', 'required' => false],
@@ -81,6 +87,11 @@ class AdminRequest extends InboundRequest
     protected function validationRules(): array
     {
         return match ($this->scenario) {
+            'savePage' => [
+                'title' => ['methods' => 'string', 'rules' => ['notEmpty', 'minLength' => [2]]],
+                'slug' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[a-z0-9-]{2,191}$/']],
+                'content' => ['methods' => 'string', 'rules' => ['notEmpty', 'minLength' => [2]]],
+            ],
             'assignRoles' => [
                 'roles' => [
                     'required' => false,
@@ -138,6 +149,8 @@ class AdminRequest extends InboundRequest
         foreach ([
             'name',
             'slug',
+            'title',
+            'content',
             'description',
             'currency',
             'visibility',

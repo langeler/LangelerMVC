@@ -61,6 +61,7 @@ class PromotionManager
             $evaluation = $this->evaluatePromotion($promotion, $items, $currency, $quote, $context);
             $catalog[] = [
                 'code' => (string) ($promotion['code'] ?? ''),
+                'promotion_id' => (int) ($promotion['id'] ?? 0),
                 'label' => (string) ($promotion['label'] ?? ''),
                 'description' => (string) ($promotion['description'] ?? ''),
                 'type' => (string) ($promotion['type'] ?? 'fixed_amount'),
@@ -135,9 +136,11 @@ class PromotionManager
         $base = [
             'requested_code' => (string) ($promotion['code'] ?? ''),
             'code' => (string) ($promotion['code'] ?? ''),
+            'promotion_id' => (int) ($promotion['id'] ?? 0),
             'label' => (string) ($promotion['label'] ?? ''),
             'description' => (string) ($promotion['description'] ?? ''),
             'type' => (string) ($promotion['type'] ?? 'fixed_amount'),
+            'source' => (string) ($promotion['source'] ?? 'config'),
             'currency' => $currency,
             'valid' => false,
             'applied' => false,
@@ -351,6 +354,8 @@ class PromotionManager
             'carrier' => $carrier,
             'shipping_option' => $shippingOption,
             'fulfillment_types' => $fulfillmentTypes,
+            'promotion_id' => (int) ($promotion['id'] ?? 0),
+            'source' => (string) ($promotion['source'] ?? 'config'),
         ];
 
         return [
@@ -434,6 +439,7 @@ class PromotionManager
         $maxDiscountMinor = $this->currencyAmount($definition, 'MAX_DISCOUNT_MINOR_BY_CURRENCY', 'max_discount_minor_by_currency', $currency);
 
         return [
+            'id' => max(0, (int) ($definition['ID'] ?? $definition['id'] ?? 0)),
             'code' => strtoupper(trim((string) ($definition['CODE'] ?? $code))),
             'label' => trim((string) ($definition['LABEL'] ?? $definition['label'] ?? strtoupper($code))),
             'description' => trim((string) ($definition['DESCRIPTION'] ?? $definition['description'] ?? '')),
@@ -498,6 +504,7 @@ class PromotionManager
             'label' => '',
             'description' => '',
             'type' => '',
+            'source' => '',
             'currency' => $currency,
             'valid' => false,
             'applied' => false,

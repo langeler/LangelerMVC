@@ -19,6 +19,7 @@
             'links' => [
                 ['href' => '/admin/users', 'label' => 'Users'],
                 ['href' => '/admin/roles', 'label' => 'Roles'],
+                ['href' => '/admin/pages', 'label' => 'Pages'],
                 ['href' => '/admin/catalog', 'label' => 'Catalog'],
                 ['href' => '/admin/promotions', 'label' => 'Promotions'],
                 ['href' => '/admin/carts', 'label' => 'Carts'],

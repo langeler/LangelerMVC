@@ -6,12 +6,14 @@ namespace App\Modules\OrderModule\Services;
 
 use App\Abstracts\Http\Service;
 use App\Contracts\Async\EventDispatcherInterface;
+use App\Contracts\Database\ModelInterface;
 use App\Contracts\Support\AuditLoggerInterface;
 use App\Core\Database;
 use App\Core\Session;
 use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
+use App\Modules\CartModule\Repositories\PromotionRepository;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
@@ -58,7 +60,8 @@ class OrderService extends Service
         private readonly AuthManager $auth,
         private readonly Session $session,
         private readonly HttpSecurityManager $httpSecurity,
-        private readonly AuditLoggerInterface $audit
+        private readonly AuditLoggerInterface $audit,
+        private readonly ?PromotionRepository $promotionRepository = null
     ) {
     }
 
@@ -320,6 +323,7 @@ class OrderService extends Service
                 'phone' => (string) ($this->payload['phone'] ?? ''),
             ]);
 
+            $this->recordPromotionUsage($order, $cart, $cartPayload);
             $this->carts->updateStatus((int) $cart->getKey(), 'checked_out');
             $this->database->commit();
         } catch (\Throwable $exception) {
@@ -981,6 +985,51 @@ class OrderService extends Service
     {
         $fresh = $this->carts->clearDiscountState((int) $cart->getKey());
         $cart->forceFill($fresh->getAttributes());
+    }
+
+    /**
+     * @param array<string, mixed> $cartPayload
+     */
+    private function recordPromotionUsage(ModelInterface $order, Cart $cart, array $cartPayload): void
+    {
+        if ($this->promotionRepository === null) {
+            return;
+        }
+
+        $code = strtoupper(trim((string) ($cartPayload['discount_code'] ?? '')));
+        $discountMinor = max(0, (int) ($cartPayload['discount_minor'] ?? 0));
+
+        if ($code === '' || $discountMinor <= 0) {
+            return;
+        }
+
+        $snapshot = is_array($cartPayload['discount_snapshot'] ?? null)
+            ? $cartPayload['discount_snapshot']
+            : [];
+
+        $this->promotionRepository->recordUsage([
+            'promotion_id' => (int) ($snapshot['promotion_id'] ?? 0),
+            'promotion_code' => $code,
+            'order_id' => (int) $order->getKey(),
+            'cart_id' => (int) $cart->getKey(),
+            'user_id' => $this->auth->check() ? (int) $this->auth->id() : null,
+            'currency' => (string) ($cartPayload['currency'] ?? 'SEK'),
+            'discount_minor' => $discountMinor,
+            'item_discount_minor' => max(0, (int) ($cartPayload['item_discount_minor'] ?? $snapshot['item_discount_minor'] ?? 0)),
+            'shipping_discount_minor' => max(0, (int) ($cartPayload['shipping_discount_minor'] ?? $snapshot['shipping_discount_minor'] ?? 0)),
+            'source' => (string) ($snapshot['source'] ?? 'config'),
+            'context' => [
+                'discount_label' => (string) ($cartPayload['discount_label'] ?? ''),
+                'subtotal_minor' => (int) ($cartPayload['subtotal_minor'] ?? 0),
+                'shipping_minor' => (int) ($cartPayload['shipping_minor'] ?? 0),
+                'tax_minor' => (int) ($cartPayload['tax_minor'] ?? 0),
+                'total_minor' => (int) ($cartPayload['total_minor'] ?? 0),
+                'shipping_option' => (string) ($cartPayload['shipping_option'] ?? ''),
+                'shipping_carrier' => (string) ($cartPayload['shipping_carrier'] ?? ''),
+                'fulfillment' => is_array($cartPayload['fulfillment'] ?? null) ? $cartPayload['fulfillment'] : [],
+                'snapshot' => $snapshot,
+            ],
+        ]);
     }
 
     private function returnMessageForOrder(array $order, string $title): string

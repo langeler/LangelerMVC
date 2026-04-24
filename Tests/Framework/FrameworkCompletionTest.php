@@ -24,6 +24,7 @@ use App\Modules\CartModule\Listeners\MergeCartOnLoginListener;
 use App\Modules\CartModule\Migrations\AddCartDiscountColumns;
 use App\Modules\CartModule\Migrations\CreateCartTables;
 use App\Modules\CartModule\Migrations\CreatePromotionTables;
+use App\Modules\CartModule\Migrations\CreatePromotionUsageTable;
 use App\Modules\CartModule\Presenters\CartResource;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
@@ -365,6 +366,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateCartTables::class,
             AddCartDiscountColumns::class,
             CreatePromotionTables::class,
+            CreatePromotionUsageTable::class,
             CartSeed::class,
             CreateShopTables::class,
             AddProductFulfillmentColumns::class,
@@ -400,6 +402,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('CreatePromotionTables', $executedMigrations, true),
             array_search('AddCartDiscountColumns', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('CreatePromotionUsageTable', $executedMigrations, true),
+            array_search('CreatePromotionTables', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('AddOrderCommerceStateColumns', $executedMigrations, true),
@@ -846,6 +852,26 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('ADMIN250', $applied['cart']['discount_code']);
         self::assertSame(2500, $applied['cart']['discount_minor']);
 
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Demo Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+        ])->execute();
+
+        self::assertSame(201, $checkout['status'], (string) ($checkout['message'] ?? ''));
+        self::assertSame('ADMIN250', $checkout['order']['discount_code']);
+        self::assertSame(2500, $checkout['order']['discount_minor']);
+
+        $usage = $stack['promotionRepository']->usageSummaries();
+        self::assertCount(1, $usage);
+        self::assertSame('ADMIN250', $usage[0]['promotion_code']);
+        self::assertSame((int) $checkout['order']['id'], $usage[0]['order_id']);
+        self::assertSame(2500, $usage[0]['discount_minor']);
+        self::assertSame(1, (int) $stack['promotionRepository']->findByCode('ADMIN250')?->getAttribute('usage_count'));
+
         $stack['auth']->logout();
         self::assertTrue($stack['auth']->attempt([
             'email' => 'admin@langelermvc.test',
@@ -893,6 +919,87 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame(200, $deleted['status']);
         self::assertSame(0, $deleted['promotion_metrics']['database_promotions']);
         self::assertNull($stack['promotionRepository']->findByCode('ADMIN250'));
+    }
+
+    public function testAdminWebPageManagementPublishesAndRetiresDatabasePages(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $initial = $stack['adminService']->forAction('pages')->execute();
+        self::assertSame(200, $initial['status']);
+        self::assertSame(4, $initial['page_metrics']['pages']);
+        self::assertArrayHasKey('page_form', $initial);
+
+        $created = $stack['adminService']->forAction('savePage', [
+            'title' => 'Release Notes',
+            'slug' => 'release-notes',
+            'content' => 'Release notes authored through the admin dashboard.',
+            'is_published' => '0',
+        ])->execute();
+
+        self::assertSame(200, $created['status'], (string) ($created['message'] ?? ''));
+        self::assertSame('/admin/pages', $created['redirect']);
+        self::assertSame(5, $created['page_metrics']['pages']);
+        self::assertSame(1, $created['page_metrics']['draft_pages']);
+
+        $page = $stack['pages']->findBySlug('release-notes');
+        self::assertNotNull($page);
+        $pageId = (int) $page?->getKey();
+        self::assertGreaterThan(0, $pageId);
+
+        $json = (new AdminResource($created))->toArray();
+        self::assertArrayHasKey('pages', $json['data']);
+        self::assertArrayHasKey('page_metrics', $json['data']);
+
+        $published = $stack['adminService']->forAction('publishPage', [], [
+            'page' => $pageId,
+        ])->execute();
+
+        self::assertSame(200, $published['status']);
+        self::assertSame(5, $published['page_metrics']['published_pages']);
+
+        $pageService = new PageService(
+            $stack['pages'],
+            $stack['config'],
+            new ErrorManager(new ExceptionProvider())
+        );
+        $publicPage = $pageService->forSlug('release-notes')->execute();
+
+        self::assertSame('database', $publicPage['page']['source']);
+        self::assertSame('Release Notes', $publicPage['page']['title']);
+
+        $updated = $stack['adminService']->forAction('updatePage', [
+            'title' => 'Release Notes 2026',
+            'slug' => 'release-notes',
+            'content' => 'Updated release notes authored through the admin dashboard.',
+            'is_published' => '1',
+        ], [
+            'page' => $pageId,
+        ])->execute();
+
+        self::assertSame(200, $updated['status']);
+        self::assertSame('Release Notes 2026', $stack['pages']->findBySlug('release-notes')?->getAttribute('title'));
+
+        $home = $stack['pages']->findBySlug('home');
+        self::assertNotNull($home);
+        $blocked = $stack['adminService']->forAction('deletePage', [], [
+            'page' => (int) $home?->getKey(),
+        ])->execute();
+
+        self::assertSame(409, $blocked['status']);
+
+        $deleted = $stack['adminService']->forAction('deletePage', [], [
+            'page' => $pageId,
+        ])->execute();
+
+        self::assertSame(200, $deleted['status']);
+        self::assertSame(4, $deleted['page_metrics']['pages']);
+        self::assertNull($stack['pages']->findBySlug('release-notes'));
     }
 
     public function testDigitalFulfillmentSkipsShippingAndSupportsCriteriaPromotions(): void
@@ -1304,6 +1411,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('cart', $cartJson['data']);
 
         $orders = $stack['adminService']->forAction('orders')->execute();
+        $pagesAdmin = $stack['adminService']->forAction('pages')->execute();
         $catalogAdmin = $stack['adminService']->forAction('catalog')->execute();
         $promotionsAdmin = $stack['adminService']->forAction('promotions')->execute();
         $cartsAdmin = $stack['adminService']->forAction('carts')->execute();
@@ -1311,6 +1419,10 @@ final class FrameworkCompletionTest extends TestCase
         $adminJson = (new AdminResource($operations))->toArray();
 
         self::assertSame(200, $catalogAdmin['status']);
+        self::assertSame(200, $pagesAdmin['status']);
+        self::assertArrayHasKey('page_form', $pagesAdmin);
+        self::assertArrayHasKey('page_metrics', $pagesAdmin);
+        self::assertNotEmpty($pagesAdmin['pages']);
         self::assertNotEmpty($catalogAdmin['catalog']);
         self::assertArrayHasKey('category_form', $catalogAdmin);
         self::assertArrayHasKey('product_form', $catalogAdmin);
@@ -1318,6 +1430,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame(200, $promotionsAdmin['status']);
         self::assertArrayHasKey('promotion_form', $promotionsAdmin);
         self::assertArrayHasKey('promotion_metrics', $promotionsAdmin);
+        self::assertArrayHasKey('promotion_usage', $promotionsAdmin);
         self::assertNotEmpty($promotionsAdmin['configured_promotions']);
         self::assertSame(200, $cartsAdmin['status']);
         self::assertNotEmpty($cartsAdmin['carts']);
@@ -1439,6 +1552,7 @@ final class FrameworkCompletionTest extends TestCase
             CreateCartTables::class,
             AddCartDiscountColumns::class,
             CreatePromotionTables::class,
+            CreatePromotionUsageTable::class,
             CreateOrderTables::class,
             AddOrderCommerceStateColumns::class,
             AddOrderDiscountSnapshotColumns::class,
@@ -1542,6 +1656,7 @@ final class FrameworkCompletionTest extends TestCase
         $users = new UserRepository($database);
         $roles = new RoleRepository($database);
         $permissions = new PermissionRepository($database);
+        $pages = new PageRepository($database);
         $products = new ProductRepository($database);
         $categories = new CategoryRepository($database);
         $carts = new CartRepository($database);
@@ -1579,13 +1694,15 @@ final class FrameworkCompletionTest extends TestCase
             $auth,
             $session,
             $httpSecurity,
-            $audit
+            $audit,
+            $promotionRepository
         );
         $adminService = new AdminAccessService(
             $auth,
             $users,
             $roles,
             $permissions,
+            $pages,
             $products,
             $categories,
             $carts,
@@ -1654,6 +1771,7 @@ final class FrameworkCompletionTest extends TestCase
             'notifications' => $notifications,
             'orderService' => $orderService,
             'orders' => $orders,
+            'pages' => $pages,
             'payments' => $payments,
             'pricing' => $pricing,
             'products' => $products,

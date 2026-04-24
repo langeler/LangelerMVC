@@ -4,7 +4,7 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, commerce totals, payment driver contracts, Swedish carrier-aware shipping, promotions, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, Swedish carrier-aware shipping, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
 
 The remaining work is the final production layer: release hygiene, installer truth, live integrations, fulfillment breadth, operator polish, and deeper verification.
 
@@ -34,13 +34,13 @@ Promotions should be treated as rules plus benefits.
 
 - Benefit types should include percentage, fixed amount, currency-specific exact amount, free shipping, fixed shipping rate, and shipping percentage discounts.
 - Criteria should include currency, subtotal ranges, item counts, product IDs, product slugs, category IDs, fulfillment types, shipping countries, zones, carriers, shipping options, active windows, and excluded products/types.
-- Promotions now have database-managed admin records with audit events, activation windows, usage limits, and runtime catalog integration. Remaining breadth is deeper reporting, usage ledgers, and per-customer/per-segment limits.
+- Promotions now have database-managed admin records with audit events, activation windows, usage limits, runtime catalog integration, checkout usage ledgers, and admin usage reporting. Remaining breadth is per-customer/per-segment limits and deeper analytical reporting.
 
 ## P1 - Admin Operator Completion
 
 - Convert raw system/operations pages into structured operator panels.
-- Add admin-native promotion/coupon management. Current slice adds protected admin routes, controller actions, service workflows, resource payloads, and native `.vide` templates for promotion operations.
-- Add WebModule page authoring and publishing.
+- Add admin-native promotion/coupon management. Current implementation includes protected admin routes, controller actions, service workflows, resource payloads, native `.vide` templates, and checkout usage reporting for promotion operations.
+- Add WebModule page authoring and publishing. Current implementation includes admin-native create/update/publish/unpublish/delete flows, protected home-page deletion guardrails, resource payloads, route parity, and native `.vide` templates.
 - Add richer filters, bulk actions, audit drilldowns, and lifecycle confirmations.
 
 ## P1 - Live Integration Closure
@@ -54,5 +54,5 @@ Promotions should be treated as rules plus benefits.
 - Add inventory reservations, expiry, and ledger entries instead of direct stock decrement only.
 - Add returns, exchanges, partial refunds, VAT invoices, and order documents.
 - Add accessibility, responsive, and browser smoke passes for public and admin templates.
-- Add `CHANGELOG.md`, `RELEASE.md`, upgrade notes, and deployment recipes.
+- Add upgrade notes and deployment recipes beyond the current `CHANGELOG.md` and `RELEASE.md` anchors.
 - Deepen unit and integration tests around promotions, fulfillment strategies, installer output, webhooks, inventory, subscriptions, and cross-database behavior.

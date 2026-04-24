@@ -4,6 +4,7 @@ declare(strict_types=1);
 <?php 
     $promotions = is_array($promotions ?? null) ? $promotions : [];
     $configuredPromotions = is_array($configured_promotions ?? null) ? $configured_promotions : [];
+    $promotionUsage = is_array($promotion_usage ?? null) ? $promotion_usage : [];
     $promotionForm = is_array($promotion_form ?? null) ? $promotion_form : [];
     $promotionMetrics = is_array($promotion_metrics ?? null) ? $promotion_metrics : [];
     $promotionTypes = [
@@ -348,6 +349,25 @@ declare(strict_types=1);
                 </article>
             <?php endforeach; ?>
         <?php endif; ?>
+    </div>
+
+    <div class="section">
+        <h2>Recent usage</h2>
+        <?= $view->renderComponent(...(array) ['DataTable', [
+            'columns' => [
+                'promotion_code' => 'Code',
+                'source' => 'Source',
+                'order_id' => 'Order',
+                'user_id' => 'User',
+                'currency' => 'Currency',
+                'discount_minor' => 'Discount minor',
+                'shipping_discount_minor' => 'Shipping discount minor',
+                'created_at' => 'Used at',
+                'order_path' => 'Order path',
+            ],
+            'rows' => $promotionUsage,
+            'empty' => 'No promotion usage has been recorded yet.',
+        ]]); ?>
     </div>
 
     <div class="section">

@@ -78,6 +78,15 @@ The framework payment layer is now designed as a gateway-agnostic compatibility 
 - Order records now persist payment method, flow, idempotency key, provider/external/webhook references, and next-action metadata so admin and audit surfaces can inspect them consistently.
 - Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer and configuration boundary so those providers stay plug-and-play from the application/module perspective.
 
+## Content Operations
+
+The admin dashboard includes WebModule page authoring at `/admin/pages`.
+
+- Operators can create, update, publish, unpublish, and delete database-backed pages without leaving the admin surface.
+- The home page is protected from destructive deletion so the public root route always has a safe content anchor.
+- Published pages are served by the WebModule database content source; draft pages remain available only through the admin workflow until published.
+- Admin page actions emit audit records and framework events for saved, published, unpublished, and deleted pages.
+
 ## Promotion Operations
 
 The admin dashboard now includes database-backed promotion and coupon management at `/admin/promotions`.
@@ -86,6 +95,8 @@ The admin dashboard now includes database-backed promotion and coupon management
 - Runtime pricing merges config-backed baseline promotions with database-backed admin promotions, with database records taking precedence by code.
 - Supported benefit families include percentage, fixed amount, free shipping, fixed shipping rate, and shipping percentage discounts.
 - Supported criteria include currency, subtotal ranges, item counts, product IDs/slugs, categories, fulfillment types, shipping countries/zones/carriers/options, active windows, exclusions, free-shipping eligibility, and usage limits.
+- Checkout records promotion usage ledgers with order/cart/user context and increments database-backed usage counters for operational limit enforcement.
+- Admin promotion metrics include recent usage records and aggregate discount totals.
 - Config-backed promotions remain useful for immutable baseline/demo promotions; database-backed promotions are the production operator workflow.
 
 ## Audit Logging
@@ -98,6 +109,7 @@ Current first-party audit events include:
 - OTP enable/disable, recovery regeneration, and trusted-device actions
 - passkey registration, authentication, and deletion
 - role and permission synchronization from the admin surface
+- WebModule page save, publish, unpublish, and delete actions from the admin surface
 - promotion creation/update, activation, deactivation, and deletion from the admin surface
 - order creation and payment-state transitions
 

@@ -13,7 +13,7 @@ class CreatePagesTable extends Migration
     {
         $this->createTable('pages', function (Blueprint $table): void {
             $table->id();
-            $table->string('slug', 191);
+            $table->string('slug', 191, false, true);
             $table->string('title');
             $table->text('content', true);
             $table->boolean('is_published', false, true);

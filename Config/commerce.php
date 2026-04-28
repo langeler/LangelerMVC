@@ -12,6 +12,12 @@ return [
         'DEFAULT_OPTION' => 'postnord-service-point',
         'FLAT_RATE_MINOR' => 1490,
         'FREE_OVER_MINOR' => 50000,
+        'INTEGRATION' => [
+            'MODE' => 'reference',
+            'AUTO_BOOK_LABELS' => true,
+            'LABEL_FORMAT' => 'pdf',
+            'LABEL_BASE_URL' => 'https://shipments.langelermvc.test/labels',
+        ],
         'CARRIERS' => [
             'postnord' => [
                 'LABEL' => 'PostNord',

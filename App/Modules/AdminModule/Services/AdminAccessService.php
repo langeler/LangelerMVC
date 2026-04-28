@@ -138,7 +138,11 @@ class AdminAccessService extends Service
             'refundOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'refund'),
             'reconcileOrder' => $this->transitionOrder((int) ($this->context['order'] ?? 0), 'reconcile'),
             'packOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'pack'),
+            'servicePointsOrder' => $this->servicePointsOrder((int) ($this->context['order'] ?? 0)),
+            'bookShipmentOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'book_shipment'),
             'shipOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'ship'),
+            'syncTrackingOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'sync_tracking'),
+            'cancelShipmentOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'cancel_shipment'),
             'deliverOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'deliver'),
             'activateEntitlement' => $this->transitionEntitlement(
                 (int) ($this->context['order'] ?? 0),
@@ -1127,6 +1131,51 @@ class AdminAccessService extends Service
         ];
     }
 
+    private function servicePointsOrder(int $orderId): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Order management requires the order.manage permission.');
+        }
+
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return $this->ordersResponse(
+                title: 'Order not found',
+                headline: 'Unable to load service points',
+                summary: 'Choose a valid order before looking up carrier service points.',
+                status: 404,
+                message: 'The requested order could not be found.'
+            );
+        }
+
+        $lookup = $this->shipping->servicePoints($this->orders->mapSummary($order), $this->payload);
+
+        if (($lookup['successful'] ?? false) === false) {
+            return $this->ordersResponse(
+                title: (string) ($lookup['title'] ?? 'Service point lookup failed'),
+                headline: 'Unable to load service points',
+                summary: (string) ($lookup['message'] ?? 'Carrier service points could not be loaded.'),
+                status: (int) ($lookup['status'] ?? 422),
+                message: (string) ($lookup['message'] ?? ''),
+                order: $this->adminOrderDetail($order)
+            );
+        }
+
+        return $this->ordersResponse(
+            title: 'Order administration',
+            headline: 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
+            summary: 'Carrier service-point lookup is available from the admin order workspace.',
+            status: 200,
+            message: (string) ($lookup['message'] ?? 'Service points loaded successfully.'),
+            order: $this->adminOrderDetail($order),
+            extra: [
+                'service_points' => is_array($lookup['service_points'] ?? null) ? $lookup['service_points'] : [],
+                'service_point_carrier' => is_array($lookup['carrier'] ?? null) ? $lookup['carrier'] : [],
+            ]
+        );
+    }
+
     private function transitionEntitlement(int $orderId, int $entitlementId, string $status): array
     {
         if (!$this->auth->hasPermission('order.manage')) {
@@ -1303,7 +1352,8 @@ class AdminAccessService extends Service
         string $summary = 'Review order snapshots and payment lifecycle state from the completed order module.',
         int $status = 200,
         string $message = '',
-        array $order = []
+        array $order = [],
+        array $extra = []
     ): array {
         return [
             'template' => 'AdminOrders',
@@ -1314,6 +1364,7 @@ class AdminAccessService extends Service
             'message' => $message,
             'orders' => $this->adminOrderSummaries(),
             'order' => $order,
+            ...$extra,
         ];
     }
 
@@ -1738,10 +1789,28 @@ class AdminAccessService extends Service
         }
 
         foreach ($this->lifecycle->availableFulfillmentTransitions($order) as $transition) {
-            $actions[$transition] = '/admin/orders/' . $orderId . '/' . $transition;
+            $actions[$transition] = '/admin/orders/' . $orderId . '/' . $this->fulfillmentRouteSegment($transition);
+        }
+
+        if (
+            trim((string) ($order['shipping_carrier'] ?? '')) !== ''
+            && !in_array((string) ($order['status'] ?? ''), ['cancelled', 'refunded', 'completed'], true)
+            && !in_array((string) ($order['fulfillment_status'] ?? ''), ['delivered', 'access_granted', 'not_required', 'cancelled', 'refunded'], true)
+        ) {
+            $actions['service_points'] = '/admin/orders/' . $orderId . '/service-points';
         }
 
         return $actions;
+    }
+
+    private function fulfillmentRouteSegment(string $transition): string
+    {
+        return match ($transition) {
+            'book_shipment' => 'book-shipment',
+            'sync_tracking' => 'sync-tracking',
+            'cancel_shipment' => 'cancel-shipment',
+            default => $transition,
+        };
     }
 
     private function normalizeSlug(string $candidate, string $fallback = ''): string

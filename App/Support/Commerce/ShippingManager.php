@@ -140,38 +140,55 @@ class ShippingManager
             ];
         }
 
-        $trackingNumber = trim((string) ($payload['tracking_number'] ?? ''));
+        $bookingAttributes = [];
+        $trackingNumber = trim((string) ($payload['tracking_number'] ?? $order['tracking_number'] ?? ''));
+
+        if ($trackingNumber === '' && $this->shouldAutoBookShipment($payload)) {
+            $booking = $this->bookShipment($order, $payload);
+
+            if (($booking['successful'] ?? false) === false) {
+                return $booking;
+            }
+
+            $bookingAttributes = is_array($booking['attributes'] ?? null) ? $booking['attributes'] : [];
+            $trackingNumber = trim((string) ($bookingAttributes['tracking_number'] ?? ''));
+        }
 
         if ($trackingNumber === '') {
             return [
                 'successful' => false,
                 'status' => 422,
                 'title' => 'Shipment update failed',
-                'message' => 'A tracking number is required before the order can be marked as shipped.',
+                'message' => 'A tracking number or shipment booking is required before the order can be marked as shipped.',
             ];
         }
 
-        $shipmentReference = trim((string) ($payload['shipment_reference'] ?? $order['shipment_reference'] ?? ''));
+        $shipmentReference = trim((string) ($payload['shipment_reference'] ?? $bookingAttributes['shipment_reference'] ?? $order['shipment_reference'] ?? ''));
 
         if ($shipmentReference === '') {
             $shipmentReference = $this->generateShipmentReference((string) ($order['order_number'] ?? 'ORD'));
         }
 
-        $servicePointId = trim((string) ($payload['service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));
-        $servicePointName = trim((string) ($payload['service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));
-        $events = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
+        $servicePointId = trim((string) ($payload['service_point_id'] ?? $bookingAttributes['shipping_service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));
+        $servicePointName = trim((string) ($payload['service_point_name'] ?? $bookingAttributes['shipping_service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));
+        $events = $bookingAttributes !== [] && isset($bookingAttributes['tracking_events'])
+            ? $this->decodeTrackingEvents((string) $bookingAttributes['tracking_events'])
+            : $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
         $events[] = [
             'status' => 'shipped',
             'label' => sprintf('Shipment handed to %s.', (string) ($carrier['label'] ?? ucfirst($carrierCode))),
             'occurred_at' => gmdate(DATE_ATOM),
             'location' => $servicePointName !== '' ? $servicePointName : $country,
             'tracking_number' => $trackingNumber,
+            'shipment_reference' => $shipmentReference,
+            'carrier_code' => $carrierCode,
         ];
 
         return [
             'successful' => true,
             'status' => 200,
             'attributes' => [
+                ...$bookingAttributes,
                 'shipping_carrier' => $carrierCode,
                 'shipping_carrier_label' => (string) ($carrier['label'] ?? ucfirst($carrierCode)),
                 'tracking_number' => $trackingNumber,
@@ -184,6 +201,256 @@ class ShippingManager
             ],
             'carrier' => $carrier,
             'tracking_apps' => $this->trackingApps($carrierCode, $country),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function servicePoints(array $context, array $payload = []): array
+    {
+        $country = $this->normalizeCountryCode((string) ($payload['country'] ?? $context['shipping_country'] ?? $this->defaultCountry()));
+        $carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $context['shipping_carrier'] ?? '')));
+        $carrier = $this->carrierByCode($carrierCode);
+
+        if ($carrier === null) {
+            return [
+                'successful' => false,
+                'status' => 422,
+                'title' => 'Service point lookup failed',
+                'message' => 'Choose a valid carrier before looking up pickup or service points.',
+                'service_points' => [],
+            ];
+        }
+
+        if (!(bool) ($carrier['supports_service_points'] ?? false)) {
+            return [
+                'successful' => true,
+                'status' => 200,
+                'title' => 'No service points required',
+                'message' => (string) ($carrier['label'] ?? ucfirst($carrierCode)) . ' does not require service-point selection for this service.',
+                'carrier' => $carrier,
+                'service_points' => [],
+            ];
+        }
+
+        $postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');
+        $city = trim((string) ($payload['city'] ?? $context['shipping_city'] ?? 'Stockholm'));
+        $city = $city !== '' ? $city : 'Stockholm';
+        $serviceLevel = strtolower(trim((string) ($payload['service_level'] ?? $context['shipping_service'] ?? 'service_point')));
+        $prefix = $this->carrierReferencePrefix($carrierCode);
+        $seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);
+        $points = [];
+
+        foreach ([1, 2, 3] as $index) {
+            $points[] = [
+                'id' => sprintf('%s-SP-%s-%02d', $prefix, $seed, $index),
+                'label' => sprintf('%s %s %s %d', (string) ($carrier['label'] ?? ucfirst($carrierCode)), $serviceLevel === 'locker' ? 'Locker' : 'Service Point', $city, $index),
+                'carrier_code' => $carrierCode,
+                'carrier_label' => (string) ($carrier['label'] ?? ucfirst($carrierCode)),
+                'service_level' => $serviceLevel !== '' ? $serviceLevel : 'service_point',
+                'address_line' => sprintf('%s %d', $serviceLevel === 'locker' ? 'Locker Street' : 'Pickup Street', $index),
+                'postal_code' => $postalCode,
+                'city' => $city,
+                'country' => $country,
+                'distance_meters' => $index * 350,
+                'cutoff_time' => sprintf('%02d:00', 16 + $index),
+                'supports_locker' => in_array($carrierCode, ['instabox', 'budbee'], true) || $serviceLevel === 'locker',
+            ];
+        }
+
+        return [
+            'successful' => true,
+            'status' => 200,
+            'title' => 'Service points available',
+            'message' => 'Reference service points are available for the selected carrier.',
+            'carrier' => $carrier,
+            'service_points' => $points,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function bookShipment(array $order, array $payload = []): array
+    {
+        $country = $this->normalizeCountryCode((string) ($order['shipping_country'] ?? $this->defaultCountry()));
+        $carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $order['shipping_carrier'] ?? '')));
+        $carrier = $this->carrierByCode($carrierCode);
+
+        if ($carrier === null) {
+            return [
+                'successful' => false,
+                'status' => 422,
+                'title' => 'Shipment booking failed',
+                'message' => 'Choose a valid carrier before booking the shipment.',
+            ];
+        }
+
+        $shipmentReference = trim((string) ($payload['shipment_reference'] ?? ''));
+        $shipmentReference = $shipmentReference !== ''
+            ? $shipmentReference
+            : $this->generateShipmentReference((string) ($order['order_number'] ?? 'ORD'));
+        $trackingNumber = trim((string) ($payload['tracking_number'] ?? ''));
+        $trackingNumber = $trackingNumber !== ''
+            ? $trackingNumber
+            : $this->generateTrackingNumber($carrierCode, $shipmentReference);
+        $labelReference = trim((string) ($payload['label_reference'] ?? ''));
+        $labelReference = $labelReference !== ''
+            ? $labelReference
+            : sprintf('LBL-%s', $shipmentReference);
+        $labelFormat = strtolower(trim((string) ($payload['label_format'] ?? $this->config->get('commerce', 'SHIPPING.INTEGRATION.LABEL_FORMAT', 'pdf'))));
+        $labelFormat = $labelFormat !== '' ? $labelFormat : 'pdf';
+        $labelUrl = $this->labelUrl($carrierCode, $shipmentReference, $labelFormat);
+        $servicePointId = trim((string) ($payload['service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));
+        $servicePointName = trim((string) ($payload['service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));
+        $events = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
+        $events[] = [
+            'status' => 'booked',
+            'label' => sprintf('Shipment booked with %s.', (string) ($carrier['label'] ?? ucfirst($carrierCode))),
+            'occurred_at' => gmdate(DATE_ATOM),
+            'location' => $servicePointName !== '' ? $servicePointName : $country,
+            'tracking_number' => $trackingNumber,
+            'shipment_reference' => $shipmentReference,
+            'carrier_code' => $carrierCode,
+            'label_reference' => $labelReference,
+            'label_url' => $labelUrl,
+            'label_format' => $labelFormat,
+            'provider_reference' => sprintf('%s-%s', $this->carrierReferencePrefix($carrierCode), substr(hash('sha256', $shipmentReference), 0, 12)),
+        ];
+
+        return [
+            'successful' => true,
+            'status' => 200,
+            'title' => 'Shipment booked',
+            'message' => 'Shipment booking and label reference were prepared successfully.',
+            'attributes' => [
+                'shipping_carrier' => $carrierCode,
+                'shipping_carrier_label' => (string) ($carrier['label'] ?? ucfirst($carrierCode)),
+                'tracking_number' => $trackingNumber,
+                'tracking_url' => (string) ($carrier['portal_url'] ?? ''),
+                'shipment_reference' => $shipmentReference,
+                'shipping_service_point_id' => $servicePointId,
+                'shipping_service_point_name' => $servicePointName,
+                'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            ],
+            'carrier' => $carrier,
+            'tracking_apps' => $this->trackingApps($carrierCode, $country),
+            'label_reference' => $labelReference,
+            'label_url' => $labelUrl,
+            'label_format' => $labelFormat,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function syncTracking(array $order, array $payload = []): array
+    {
+        $trackingNumber = trim((string) ($order['tracking_number'] ?? $payload['tracking_number'] ?? ''));
+
+        if ($trackingNumber === '') {
+            return [
+                'successful' => false,
+                'status' => 422,
+                'title' => 'Tracking sync failed',
+                'message' => 'A shipment must be booked or assigned a tracking number before tracking can be synced.',
+            ];
+        }
+
+        $events = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
+        $status = strtolower(trim((string) ($payload['tracking_status'] ?? $payload['status'] ?? '')));
+        $status = $status !== '' ? $status : $this->nextTrackingStatus($events);
+        $status = str_replace('-', '_', $status);
+        $label = trim((string) ($payload['label'] ?? ''));
+        $label = $label !== '' ? $label : $this->labelForTrackingStatus($status);
+        $location = trim((string) ($payload['location'] ?? ''));
+        $location = $location !== ''
+            ? $location
+            : (string) ($order['shipping_service_point_name'] ?? $order['shipping_country'] ?? $this->defaultCountry());
+        $carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? $payload['carrier_code'] ?? '')));
+        $shipmentReference = trim((string) ($order['shipment_reference'] ?? $payload['shipment_reference'] ?? ''));
+
+        $events[] = [
+            'status' => $status,
+            'label' => $label,
+            'occurred_at' => gmdate(DATE_ATOM),
+            'location' => $location,
+            'tracking_number' => $trackingNumber,
+            'shipment_reference' => $shipmentReference,
+            'carrier_code' => $carrierCode,
+        ];
+
+        $attributes = [
+            'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+        ];
+
+        if ($status === 'delivered') {
+            $attributes['delivered_at'] = gmdate('Y-m-d H:i:s');
+        }
+
+        return [
+            'successful' => true,
+            'status' => 200,
+            'title' => 'Tracking synced',
+            'message' => 'Tracking status was synced successfully.',
+            'attributes' => $attributes,
+            'terminal' => $status === 'delivered',
+            'tracking_status' => $status,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function cancelShipment(array $order, array $payload = []): array
+    {
+        $trackingNumber = trim((string) ($order['tracking_number'] ?? ''));
+        $shipmentReference = trim((string) ($order['shipment_reference'] ?? ''));
+
+        if ($trackingNumber === '' && $shipmentReference === '') {
+            return [
+                'successful' => false,
+                'status' => 422,
+                'title' => 'Shipment cancellation failed',
+                'message' => 'There is no booked shipment or tracking reference to cancel.',
+            ];
+        }
+
+        $carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? '')));
+        $reason = trim((string) ($payload['reason'] ?? 'Operator cancelled the shipment booking.'));
+        $events = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
+        $events[] = [
+            'status' => 'cancelled',
+            'label' => $reason !== '' ? $reason : 'Shipment booking cancelled.',
+            'occurred_at' => gmdate(DATE_ATOM),
+            'location' => (string) ($order['shipping_country'] ?? $this->defaultCountry()),
+            'tracking_number' => $trackingNumber,
+            'shipment_reference' => $shipmentReference,
+            'carrier_code' => $carrierCode,
+        ];
+
+        return [
+            'successful' => true,
+            'status' => 200,
+            'title' => 'Shipment cancelled',
+            'message' => 'Shipment booking was cancelled and the order can be re-booked.',
+            'attributes' => [
+                'tracking_number' => '',
+                'tracking_url' => '',
+                'shipment_reference' => '',
+                'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+                'shipped_at' => null,
+                'delivered_at' => null,
+            ],
         ];
     }
 
@@ -220,6 +487,8 @@ class ShippingManager
     {
         $carrierCode = (string) ($order['shipping_carrier'] ?? '');
         $country = $this->normalizeCountryCode((string) ($order['shipping_country'] ?? $this->defaultCountry()));
+        $trackingEvents = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
+        $label = $this->latestShipmentLabel($trackingEvents);
 
         return [
             'shipping_country' => $country,
@@ -235,9 +504,12 @@ class ShippingManager
             'tracking_number' => (string) ($order['tracking_number'] ?? ''),
             'tracking_url' => (string) ($order['tracking_url'] ?? ''),
             'shipment_reference' => (string) ($order['shipment_reference'] ?? ''),
+            'shipment_label_reference' => (string) ($label['label_reference'] ?? ''),
+            'shipment_label_url' => (string) ($label['label_url'] ?? ''),
+            'shipment_label_format' => (string) ($label['label_format'] ?? ''),
             'shipped_at' => (string) ($order['shipped_at'] ?? ''),
             'delivered_at' => (string) ($order['delivered_at'] ?? ''),
-            'tracking_events' => $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? [])),
+            'tracking_events' => $trackingEvents,
             'tracking_apps' => $this->trackingApps($carrierCode, $country),
         ];
     }
@@ -581,6 +853,61 @@ class ShippingManager
         return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));
     }
 
+    private function generateTrackingNumber(string $carrierCode, string $shipmentReference): string
+    {
+        return sprintf('%s%sSE', $this->carrierReferencePrefix($carrierCode), strtoupper(substr(hash('sha256', $shipmentReference), 0, 10)));
+    }
+
+    private function carrierReferencePrefix(string $carrierCode): string
+    {
+        return match (strtolower($carrierCode)) {
+            'postnord' => 'PN',
+            'instabox' => 'IB',
+            'budbee' => 'BB',
+            'bring' => 'BR',
+            'dhl' => 'DHL',
+            'schenker' => 'SCH',
+            'earlybird' => 'EB',
+            'airmee' => 'AM',
+            'ups' => 'UPS',
+            default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $carrierCode) ?: 'CAR', 0, 3)),
+        };
+    }
+
+    private function shouldAutoBookShipment(array $payload): bool
+    {
+        if (array_key_exists('book_label', $payload) || array_key_exists('book_shipment', $payload)) {
+            return filter_var($payload['book_label'] ?? $payload['book_shipment'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return filter_var($this->config->get('commerce', 'SHIPPING.INTEGRATION.AUTO_BOOK_LABELS', true), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function labelUrl(string $carrierCode, string $shipmentReference, string $labelFormat): string
+    {
+        $base = trim((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.LABEL_BASE_URL', 'https://shipments.langelermvc.test/labels'));
+
+        if ($base === '') {
+            return '';
+        }
+
+        return rtrim($base, '/') . '/' . rawurlencode($carrierCode) . '/' . rawurlencode($shipmentReference) . '.' . rawurlencode($labelFormat);
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function decodeTrackingEvents(string $payload): array
+    {
+        try {
+            $events = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return [];
+        }
+
+        return is_array($events) ? $this->normalizeTrackingEvents($events) : [];
+    }
+
     /**
      * @param array<int, mixed> $events
      * @return list<array<string, string>>
@@ -600,10 +927,73 @@ class ShippingManager
                 'occurred_at' => (string) ($event['occurred_at'] ?? ''),
                 'location' => (string) ($event['location'] ?? ''),
                 'tracking_number' => (string) ($event['tracking_number'] ?? ''),
+                'shipment_reference' => (string) ($event['shipment_reference'] ?? ''),
+                'carrier_code' => (string) ($event['carrier_code'] ?? ''),
+                'label_reference' => (string) ($event['label_reference'] ?? ''),
+                'label_url' => (string) ($event['label_url'] ?? ''),
+                'label_format' => (string) ($event['label_format'] ?? ''),
+                'provider_reference' => (string) ($event['provider_reference'] ?? ''),
             ];
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param list<array<string, string>> $events
+     * @return array<string, string>
+     */
+    private function latestShipmentLabel(array $events): array
+    {
+        for ($index = count($events) - 1; $index >= 0; $index--) {
+            $event = $events[$index];
+
+            if (($event['status'] ?? '') === 'cancelled') {
+                return [];
+            }
+
+            if (($event['label_reference'] ?? '') !== '' || ($event['label_url'] ?? '') !== '') {
+                return $event;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param list<array<string, string>> $events
+     */
+    private function nextTrackingStatus(array $events): string
+    {
+        $lastStatus = '';
+
+        foreach ($events as $event) {
+            $status = (string) ($event['status'] ?? '');
+
+            if ($status !== '') {
+                $lastStatus = $status;
+            }
+        }
+
+        return match ($lastStatus) {
+            'booked', 'shipped' => 'in_transit',
+            'in_transit' => 'out_for_delivery',
+            'out_for_delivery' => 'delivered',
+            default => 'in_transit',
+        };
+    }
+
+    private function labelForTrackingStatus(string $status): string
+    {
+        return match ($status) {
+            'booked' => 'Shipment has been booked with the carrier.',
+            'shipped' => 'Shipment has been handed to the carrier.',
+            'in_transit' => 'Shipment is in transit.',
+            'out_for_delivery' => 'Shipment is out for delivery.',
+            'delivered' => 'Shipment has been delivered.',
+            'cancelled' => 'Shipment booking has been cancelled.',
+            default => 'Tracking status updated.',
+        };
     }
 
     /**

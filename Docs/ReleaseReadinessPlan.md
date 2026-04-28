@@ -4,7 +4,7 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment webhooks, Swedish carrier-aware shipping, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment webhooks, Swedish carrier-aware shipping with reference booking/label/tracking seams, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
 
 The remaining work is the final production layer: release hygiene, installer truth, live integrations, fulfillment breadth, operator polish, and deeper verification.
 
@@ -47,14 +47,14 @@ Promotions should be treated as rules plus benefits.
 ## P1 - Live Integration Closure
 
 - Payment webhook routes, signature verification, event idempotency, event ledgers, order reconciliation, and provider callback documentation are implemented.
-- Add carrier integration seams for labels, pickup/service-point lookup, booking, tracking sync, and cancellation.
+- Carrier integration seams are implemented in reference mode: label references, service-point lookup, shipment booking, tracking sync, cancellation, admin-native routes, installer/env settings, and coverage for the Swedish carrier catalog.
 - Add subscription provider events for recurring payment success, failure, retry, cancellation, and renewal.
 
 ## Exact Remaining Work After Current Slice
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
 - P0: complete final release hygiene by keeping status/test counts current and confirming no runtime-generated secrets or local artifacts are tracked.
-- P1: implement carrier provider seams beyond static Swedish carrier metadata: label creation, pickup/service-point lookup, shipment booking, tracking sync, and cancellation.
+- P1: replace the reference carrier adapter with live provider adapters/credentials where needed for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
 - P1: implement subscription runtime depth: plans, recurring schedules, renewal orders, retry/dunning, pause/resume/cancel, and provider-event reconciliation.
 - P1: improve admin operator ergonomics with structured operations panels, richer filters, bulk workflows, confirmation UX, and audit drilldowns.
 - P1: extend promotion limits with per-customer/per-segment usage controls and richer analytical reporting.

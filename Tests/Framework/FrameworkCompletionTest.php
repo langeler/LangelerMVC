@@ -1302,11 +1302,60 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('packed', $packed['order']['fulfillment_status']);
         self::assertSame('processing', $packed['order']['status']);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/ship', $packed['order']['actions']['ship'] ?? null);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/book-shipment', $packed['order']['actions']['book_shipment'] ?? null);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/service-points', $packed['order']['actions']['service_points'] ?? null);
+
+        $servicePoints = $stack['adminService']->forAction('servicePointsOrder', [
+            'carrier_code' => 'budbee',
+            'postal_code' => '11842',
+            'city' => 'Stockholm',
+            'service_level' => 'locker',
+        ], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $servicePoints['status']);
+        self::assertNotEmpty($servicePoints['service_points']);
+        self::assertStringStartsWith('BB-SP-', (string) ($servicePoints['service_points'][0]['id'] ?? ''));
+
+        $booked = $stack['adminService']->forAction('bookShipmentOrder', [
+            'carrier_code' => 'budbee',
+            'service_point_id' => (string) ($servicePoints['service_points'][0]['id'] ?? ''),
+            'service_point_name' => (string) ($servicePoints['service_points'][0]['label'] ?? ''),
+        ], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $booked['status']);
+        self::assertSame('packed', $booked['order']['fulfillment_status']);
+        self::assertNotSame('', (string) ($booked['order']['tracking_number'] ?? ''));
+        self::assertStringContainsString('/budbee/', (string) ($booked['order']['shipment_label_url'] ?? ''));
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/cancel-shipment', $booked['order']['actions']['cancel_shipment'] ?? null);
+
+        $cancelledShipment = $stack['adminService']->forAction('cancelShipmentOrder', [
+            'reason' => 'Operator selected a different service point.',
+        ], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $cancelledShipment['status']);
+        self::assertSame('packed', $cancelledShipment['order']['fulfillment_status']);
+        self::assertSame('', (string) ($cancelledShipment['order']['tracking_number'] ?? ''));
+        self::assertSame('cancelled', (string) ($cancelledShipment['order']['tracking_events'][1]['status'] ?? ''));
+
+        $bookedAgain = $stack['adminService']->forAction('bookShipmentOrder', [
+            'carrier_code' => 'budbee',
+            'service_point_id' => (string) ($servicePoints['service_points'][1]['id'] ?? ''),
+            'service_point_name' => (string) ($servicePoints['service_points'][1]['label'] ?? ''),
+        ], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $bookedAgain['status']);
+        self::assertNotSame('', (string) ($bookedAgain['order']['tracking_number'] ?? ''));
 
         $shipped = $stack['adminService']->forAction('shipOrder', [
             'carrier_code' => 'budbee',
-            'tracking_number' => 'BDBEE123456SE',
-            'shipment_reference' => 'SHIP-BUDBEE-001',
         ], [
             'order' => (int) $checkout['order']['id'],
         ])->execute();
@@ -1315,14 +1364,27 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('shipped', $shipped['order']['fulfillment_status']);
         self::assertSame('fulfilled', $shipped['order']['status']);
         self::assertSame('Budbee', $shipped['order']['shipping_carrier_label']);
-        self::assertSame('BDBEE123456SE', $shipped['order']['tracking_number']);
-        self::assertSame('SHIP-BUDBEE-001', $shipped['order']['shipment_reference']);
+        self::assertSame($bookedAgain['order']['tracking_number'], $shipped['order']['tracking_number']);
+        self::assertSame($bookedAgain['order']['shipment_reference'], $shipped['order']['shipment_reference']);
         self::assertSame('https://budbee.com', $shipped['order']['tracking_url']);
         self::assertContains('Mina Paket', array_map(
             static fn(array $app): string => (string) ($app['label'] ?? ''),
             (array) ($shipped['order']['tracking_apps'] ?? [])
         ));
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/sync-tracking', $shipped['order']['actions']['sync_tracking'] ?? null);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/cancel-shipment', $shipped['order']['actions']['cancel_shipment'] ?? null);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/deliver', $shipped['order']['actions']['deliver'] ?? null);
+
+        $synced = $stack['adminService']->forAction('syncTrackingOrder', [
+            'tracking_status' => 'in_transit',
+            'location' => 'Stockholm terminal',
+        ], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $synced['status']);
+        self::assertSame('shipped', $synced['order']['fulfillment_status']);
+        self::assertSame('in_transit', (string) ($synced['order']['tracking_events'][4]['status'] ?? ''));
 
         $delivered = $stack['adminService']->forAction('deliverOrder', [], [
             'order' => (int) $checkout['order']['id'],
@@ -1332,7 +1394,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('delivered', $delivered['order']['fulfillment_status']);
         self::assertSame('completed', $delivered['order']['status']);
         self::assertNotSame('', (string) ($delivered['order']['delivered_at'] ?? ''));
-        self::assertCount(2, (array) ($delivered['order']['tracking_events'] ?? []));
+        self::assertGreaterThanOrEqual(6, count((array) ($delivered['order']['tracking_events'] ?? [])));
         self::assertArrayNotHasKey('deliver', $delivered['order']['actions']);
     }
 

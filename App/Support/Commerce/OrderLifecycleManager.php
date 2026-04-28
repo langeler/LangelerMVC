@@ -178,18 +178,7 @@ class OrderLifecycleManager
         }
 
         $currentFulfillmentStatus = (string) ($summary['fulfillment_status'] ?? 'unfulfilled');
-        $nextFulfillmentStatus = match ($action) {
-            'pack' => 'packed',
-            'ship' => 'shipped',
-            'deliver' => 'delivered',
-            default => $currentFulfillmentStatus,
-        };
-        $nextStatus = match ($action) {
-            'pack' => 'processing',
-            'ship' => 'fulfilled',
-            'deliver' => 'completed',
-            default => (string) ($summary['status'] ?? 'processing'),
-        };
+        $currentStatus = (string) ($summary['status'] ?? 'processing');
         $transitionAttributes = $this->fulfillmentAttributesForAction($action, $summary, $payload);
 
         if (($transitionAttributes['successful'] ?? true) === false) {
@@ -201,6 +190,24 @@ class OrderLifecycleManager
                 'order' => $summary,
             ];
         }
+
+        $terminalTracking = (bool) ($transitionAttributes['terminal'] ?? false);
+        $nextFulfillmentStatus = match ($action) {
+            'pack' => 'packed',
+            'ship' => 'shipped',
+            'deliver' => 'delivered',
+            'sync_tracking' => $terminalTracking ? 'delivered' : $currentFulfillmentStatus,
+            'cancel_shipment' => 'packed',
+            default => $currentFulfillmentStatus,
+        };
+        $nextStatus = match ($action) {
+            'pack' => 'processing',
+            'ship' => 'fulfilled',
+            'deliver' => 'completed',
+            'sync_tracking' => $terminalTracking ? 'completed' : $currentStatus,
+            'cancel_shipment' => 'processing',
+            default => $currentStatus,
+        };
 
         $updated = $this->orders->updateLifecycle($orderId, [
             'status' => $nextStatus,
@@ -228,7 +235,7 @@ class OrderLifecycleManager
             'successful' => true,
             'status' => 200,
             'title' => 'Fulfillment updated',
-            'message' => ucfirst($action) . ' completed successfully.',
+            'message' => ucfirst(str_replace('_', ' ', $action)) . ' completed successfully.',
             'order' => $this->orders->mapSummary($updated),
         ];
     }
@@ -285,8 +292,10 @@ class OrderLifecycleManager
 
         return match ($fulfillmentStatus) {
             'ready_to_fulfill' => ['pack'],
-            'packed' => ['ship'],
-            'shipped' => ['deliver'],
+            'packed' => trim((string) ($order['tracking_number'] ?? '')) !== ''
+                ? ['ship', 'cancel_shipment']
+                : ['book_shipment', 'ship'],
+            'shipped' => ['sync_tracking', 'cancel_shipment', 'deliver'],
             default => [],
         };
     }
@@ -372,6 +381,18 @@ class OrderLifecycleManager
     {
         if ($action === 'ship') {
             return $this->shipping->prepareShipmentUpdate($order, $payload);
+        }
+
+        if ($action === 'book_shipment') {
+            return $this->shipping->bookShipment($order, $payload);
+        }
+
+        if ($action === 'sync_tracking') {
+            return $this->shipping->syncTracking($order, $payload);
+        }
+
+        if ($action === 'cancel_shipment') {
+            return $this->shipping->cancelShipment($order, $payload);
         }
 
         if ($action === 'deliver') {

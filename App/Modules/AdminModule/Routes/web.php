@@ -44,7 +44,11 @@ return static function (Router $router): void {
     $router->post('/admin/orders/{order:\\d+}/refund', AdminController::class, 'refundOrder', ['as' => 'admin.orders.refund', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/reconcile', AdminController::class, 'reconcileOrder', ['as' => 'admin.orders.reconcile', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/pack', AdminController::class, 'packOrder', ['as' => 'admin.orders.pack', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/service-points', AdminController::class, 'servicePointsOrder', ['as' => 'admin.orders.service-points', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/book-shipment', AdminController::class, 'bookShipmentOrder', ['as' => 'admin.orders.book-shipment', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/ship', AdminController::class, 'shipOrder', ['as' => 'admin.orders.ship', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/sync-tracking', AdminController::class, 'syncTrackingOrder', ['as' => 'admin.orders.sync-tracking', 'middleware' => $adminMiddleware]);
+    $router->post('/admin/orders/{order:\\d+}/cancel-shipment', AdminController::class, 'cancelShipmentOrder', ['as' => 'admin.orders.cancel-shipment', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/deliver', AdminController::class, 'deliverOrder', ['as' => 'admin.orders.deliver', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/activate', AdminController::class, 'activateEntitlement', ['as' => 'admin.orders.entitlements.activate', 'middleware' => $adminMiddleware]);
     $router->post('/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/revoke', AdminController::class, 'revokeEntitlement', ['as' => 'admin.orders.entitlements.revoke', 'middleware' => $adminMiddleware]);
@@ -88,7 +92,11 @@ return static function (Router $router): void {
     $router->post('/api/admin/orders/{order:\\d+}/refund', AdminController::class, 'refundOrder', ['as' => 'api.admin.orders.refund', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/reconcile', AdminController::class, 'reconcileOrder', ['as' => 'api.admin.orders.reconcile', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/pack', AdminController::class, 'packOrder', ['as' => 'api.admin.orders.pack', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/service-points', AdminController::class, 'servicePointsOrder', ['as' => 'api.admin.orders.service-points', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/book-shipment', AdminController::class, 'bookShipmentOrder', ['as' => 'api.admin.orders.book-shipment', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/ship', AdminController::class, 'shipOrder', ['as' => 'api.admin.orders.ship', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/sync-tracking', AdminController::class, 'syncTrackingOrder', ['as' => 'api.admin.orders.sync-tracking', 'middleware' => $adminMiddleware]);
+    $router->post('/api/admin/orders/{order:\\d+}/cancel-shipment', AdminController::class, 'cancelShipmentOrder', ['as' => 'api.admin.orders.cancel-shipment', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/deliver', AdminController::class, 'deliverOrder', ['as' => 'api.admin.orders.deliver', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/activate', AdminController::class, 'activateEntitlement', ['as' => 'api.admin.orders.entitlements.activate', 'middleware' => $adminMiddleware]);
     $router->post('/api/admin/orders/{order:\\d+}/entitlements/{entitlement:\\d+}/revoke', AdminController::class, 'revokeEntitlement', ['as' => 'api.admin.orders.entitlements.revoke', 'middleware' => $adminMiddleware]);

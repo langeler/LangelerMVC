@@ -211,7 +211,7 @@ The major framework-level auth and commerce flows are implemented. The next gain
 
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
-- subscription lifecycle depth, subscription provider events, and carrier booking/tracking integrations
+- subscription lifecycle depth, subscription provider events, and live carrier API adapters beyond the reference booking/tracking seam
 - deeper end-to-end tests around queue-backed notifications, payment-state transitions, and promotion/subscription behavior in non-SQLite environments
 - environment-specific operational tuning for audit retention, queue workers, fulfillment providers, and payment-driver expansion
 

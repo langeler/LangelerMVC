@@ -16,16 +16,21 @@ $submitActions = [
     'refund' => 'Refund payment',
     'cancel' => 'Cancel order',
     'pack' => 'Pack order',
+    'book_shipment' => 'Book shipment / label',
+    'sync_tracking' => 'Sync tracking',
+    'cancel_shipment' => 'Cancel shipment booking',
     'deliver' => 'Mark delivered',
 ];
 $confirmActions = [
     'refund' => 'Refund this order payment?',
     'cancel' => 'Cancel this order and release its inventory?',
+    'cancel_shipment' => 'Cancel this shipment booking and re-open fulfillment?',
     'deliver' => 'Mark this order as delivered?',
 ];
 $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
 $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
 $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
+$servicePoints = is_array($service_points ?? null) ? $service_points : [];
 ?>
 <section class="stack">
     <?= $view->renderPartial('PageIntro', [
@@ -65,6 +70,8 @@ $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'
                     'Service' => $order['shipping_service_label'] ?? '',
                     'Service point' => $order['shipping_service_point_name'] ?? '',
                     'Shipment reference' => $order['shipment_reference'] ?? '',
+                    'Label reference' => $order['shipment_label_reference'] ?? '',
+                    'Label URL' => $order['shipment_label_url'] ?? '',
                     'Tracking number' => $order['tracking_number'] ?? '',
                     'Tracking portal' => $order['tracking_url'] ?? '',
                     'Shipped at' => $order['shipped_at'] ?? '',
@@ -101,6 +108,93 @@ $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'
             </div>
         <?php endif; ?>
 
+        <?php if (!empty($actions['service_points'])): ?>
+            <div class="section">
+                <h2>Carrier service points</h2>
+                <form method="post" action="<?= $view->escape((string) $actions['service_points']) ?>" class="stack">
+                    <label>
+                        Carrier
+                        <select name="carrier_code">
+                            <?php foreach ((array) ($order['available_carriers'] ?? []) as $carrier): ?>
+                                <?php $entry = is_array($carrier) ? $carrier : []; ?>
+                                <option value="<?= $view->escape((string) ($entry['code'] ?? '')) ?>"<?php if (($order['shipping_carrier'] ?? '') === ($entry['code'] ?? '')): ?> selected<?php endif; ?>>
+                                    <?= $view->escape((string) ($entry['label'] ?? '')) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        Postal code
+                        <input type="text" name="postal_code" value="">
+                    </label>
+
+                    <label>
+                        City
+                        <input type="text" name="city" value="">
+                    </label>
+
+                    <div>
+                        <button type="submit">Lookup service points</button>
+                    </div>
+                </form>
+
+                <?php if ($servicePoints !== []): ?>
+                    <?= $view->renderComponent('DataTable', [
+                        'columns' => [
+                            'id' => 'ID',
+                            'label' => 'Name',
+                            'address_line' => 'Address',
+                            'postal_code' => 'Postal code',
+                            'city' => 'City',
+                            'distance_meters' => 'Distance (m)',
+                            'cutoff_time' => 'Cutoff',
+                        ],
+                        'rows' => $servicePoints,
+                        'empty' => 'No service points were returned for this lookup.',
+                    ]) ?>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($actions['book_shipment'])): ?>
+            <div class="section">
+                <h2>Book shipment and label</h2>
+                <form method="post" action="<?= $view->escape((string) $actions['book_shipment']) ?>" class="stack">
+                    <label>
+                        Carrier
+                        <select name="carrier_code">
+                            <?php foreach ((array) ($order['available_carriers'] ?? []) as $carrier): ?>
+                                <?php $entry = is_array($carrier) ? $carrier : []; ?>
+                                <option value="<?= $view->escape((string) ($entry['code'] ?? '')) ?>"<?php if (($order['shipping_carrier'] ?? '') === ($entry['code'] ?? '')): ?> selected<?php endif; ?>>
+                                    <?= $view->escape((string) ($entry['label'] ?? '')) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        Service point ID
+                        <input type="text" name="service_point_id" value="<?= $view->escape((string) ($order['shipping_service_point_id'] ?? '')) ?>">
+                    </label>
+
+                    <label>
+                        Service point name
+                        <input type="text" name="service_point_name" value="<?= $view->escape((string) ($order['shipping_service_point_name'] ?? '')) ?>">
+                    </label>
+
+                    <label>
+                        Label format
+                        <input type="text" name="label_format" value="pdf">
+                    </label>
+
+                    <div>
+                        <button type="submit">Book shipment / create label reference</button>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($actions['ship'])): ?>
             <div class="section">
                 <h2>Ship order</h2>
@@ -119,7 +213,7 @@ $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'
 
                     <label>
                         Tracking number
-                        <input type="text" name="tracking_number" value="<?= $view->escape((string) ($order['tracking_number'] ?? '')) ?>" required>
+                        <input type="text" name="tracking_number" value="<?= $view->escape((string) ($order['tracking_number'] ?? '')) ?>">
                     </label>
 
                     <label>
@@ -137,8 +231,38 @@ $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'
                         <input type="text" name="service_point_name" value="<?= $view->escape((string) ($order['shipping_service_point_name'] ?? '')) ?>">
                     </label>
 
+                    <label>
+                        <input type="checkbox" name="book_label" value="1" checked>
+                        Auto-book label if no tracking number is provided
+                    </label>
+
                     <div>
                         <button type="submit">Ship order</button>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($actions['sync_tracking'])): ?>
+            <div class="section">
+                <h2>Sync tracking</h2>
+                <form method="post" action="<?= $view->escape((string) $actions['sync_tracking']) ?>" class="stack">
+                    <label>
+                        Tracking status
+                        <select name="tracking_status">
+                            <?php foreach (['in_transit' => 'In transit', 'out_for_delivery' => 'Out for delivery', 'delivered' => 'Delivered'] as $value => $label): ?>
+                                <option value="<?= $view->escape($value) ?>"><?= $view->escape($label) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        Location
+                        <input type="text" name="location" value="<?= $view->escape((string) ($order['shipping_service_point_name'] ?? $order['shipping_country'] ?? '')) ?>">
+                    </label>
+
+                    <div>
+                        <button type="submit">Sync tracking status</button>
                     </div>
                 </form>
             </div>

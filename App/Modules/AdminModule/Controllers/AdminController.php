@@ -326,9 +326,41 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function servicePointsOrder(string $order): ResponseInterface
+    {
+        $this->action = 'servicePointsOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function bookShipmentOrder(string $order): ResponseInterface
+    {
+        $this->action = 'bookShipmentOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
     public function shipOrder(string $order): ResponseInterface
     {
         $this->action = 'shipOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function syncTrackingOrder(string $order): ResponseInterface
+    {
+        $this->action = 'syncTrackingOrder';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function cancelShipmentOrder(string $order): ResponseInterface
+    {
+        $this->action = 'cancelShipmentOrder';
         $this->context = ['order' => (int) $order];
 
         return $this->run();

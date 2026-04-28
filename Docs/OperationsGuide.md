@@ -101,6 +101,17 @@ The admin dashboard now includes database-backed promotion and coupon management
 - Admin promotion metrics include recent usage records and aggregate discount totals.
 - Config-backed promotions remain useful for immutable baseline/demo promotions; database-backed promotions are the production operator workflow.
 
+## Shipping Operations
+
+Admin order pages now expose carrier operations without leaving the admin surface.
+
+- Supported reference carriers include PostNord, Instabox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
+- Operators can look up service points, book a shipment, create a label reference, mark an order shipped, sync tracking, cancel a shipment booking, and mark delivery through `/admin/orders/{id}` actions.
+- `COMMERCE_SHIPPING_INTEGRATION_MODE=reference` keeps the default adapter deterministic and safe for local/demo installs.
+- `COMMERCE_SHIPPING_AUTO_BOOK_LABELS=true` lets shipping auto-book a reference label when the operator ships without entering a tracking number.
+- `COMMERCE_SHIPPING_LABEL_FORMAT` and `COMMERCE_SHIPPING_LABEL_BASE_URL` control the generated label reference URL in reference mode.
+- Live carrier production use should swap this boundary for provider credentials/API calls while preserving the same admin routes and lifecycle actions.
+
 ## Audit Logging
 
 The framework now ships with a built-in audit logger backed by the `framework_audit_log` table.

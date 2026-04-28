@@ -202,13 +202,37 @@ class TestingPaymentDriver implements PaymentDriverInterface
     public function reconcile(PaymentIntent $intent, array $payload = []): PaymentResult
     {
         $resolved = $this->normalizeIntent($intent);
-        $requestedStatus = trim((string) ($payload['status'] ?? ''));
+        $requestedStatus = $this->normalizeStatus(trim((string) ($payload['status'] ?? $payload['payment_status'] ?? '')));
 
-        if ($resolved->status === 'requires_action') {
-            if ($requestedStatus === 'cancelled') {
-                return $this->cancel($resolved, 'Customer abandoned the payment flow.');
+        if ($requestedStatus === 'cancelled') {
+            return $this->cancel($resolved, 'Payment provider reported a cancellation.');
+        }
+
+        if ($requestedStatus === 'refunded') {
+            if ($resolved->capturedAmount <= 0 && $resolved->amount > 0) {
+                $resolved = $resolved->withTotals($resolved->amount, $resolved->amount, 0, 'captured');
             }
 
+            return $this->refund($resolved, null, 'Payment provider reported a refund.');
+        }
+
+        if (in_array($requestedStatus, ['authorized', 'captured'], true)) {
+            $captured = $requestedStatus === 'captured' ? $resolved->amount : 0;
+
+            return new PaymentResult(
+                true,
+                'reconcile',
+                $resolved
+                    ->withTotals($resolved->amount, $captured, $resolved->refundedAmount, $requestedStatus)
+                    ->withNextAction([], false),
+                $this->driverName(),
+                'Payment webhook reconciliation completed.',
+                $requestedStatus,
+                ['webhook' => true]
+            );
+        }
+
+        if ($resolved->status === 'requires_action') {
             $captured = $resolved->flow === PaymentFlow::Purchase->value ? $resolved->amount : 0;
             $status = $captured > 0 ? 'captured' : 'authorized';
 
@@ -250,6 +274,19 @@ class TestingPaymentDriver implements PaymentDriverInterface
             'This payment does not require reconciliation.',
             $resolved->status
         );
+    }
+
+    private function normalizeStatus(string $status): string
+    {
+        $status = strtolower(trim($status));
+
+        return match ($status) {
+            'paid', 'succeeded', 'success', 'settled', 'completed', 'capture.completed', 'payment.captured' => 'captured',
+            'approved', 'authorised', 'authorized', 'authorization.created' => 'authorized',
+            'cancelled', 'canceled', 'voided', 'abandoned', 'failed', 'denied' => 'cancelled',
+            'refund', 'refunded', 'refund.completed', 'payment.refunded' => 'refunded',
+            default => $status,
+        };
     }
 
     private function normalizeIntent(PaymentIntent $intent): PaymentIntent

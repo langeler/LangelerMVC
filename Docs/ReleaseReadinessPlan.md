@@ -4,7 +4,7 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, Swedish carrier-aware shipping, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment webhooks, Swedish carrier-aware shipping, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
 
 The remaining work is the final production layer: release hygiene, installer truth, live integrations, fulfillment breadth, operator polish, and deeper verification.
 
@@ -13,6 +13,7 @@ The remaining work is the final production layer: release hygiene, installer tru
 - Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. Current slice removes the tracked secure cache key and keeps `Storage/Secure` ignored except for its README.
 - Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md` and `RELEASE.md` now exist as release-facing anchors.
 - Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current slice adds queue worker, notification, HTTP/auth, operations, commerce inventory, and list-style env handling coverage.
+- Payment webhook environment parity is now included: installer defaults, `.env.example`, SettingsManager aliases, route integration, signature settings, and per-driver secrets are represented.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Verify the full database/cache/session matrix before release, not only the default local regression suite.
 
@@ -45,9 +46,19 @@ Promotions should be treated as rules plus benefits.
 
 ## P1 - Live Integration Closure
 
-- Add payment webhook routes, signature verification, event idempotency, and provider callback documentation.
+- Payment webhook routes, signature verification, event idempotency, event ledgers, order reconciliation, and provider callback documentation are implemented.
 - Add carrier integration seams for labels, pickup/service-point lookup, booking, tracking sync, and cancellation.
 - Add subscription provider events for recurring payment success, failure, retry, cancellation, and renewal.
+
+## Exact Remaining Work After Current Slice
+
+- P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
+- P0: complete final release hygiene by keeping status/test counts current and confirming no runtime-generated secrets or local artifacts are tracked.
+- P1: implement carrier provider seams beyond static Swedish carrier metadata: label creation, pickup/service-point lookup, shipment booking, tracking sync, and cancellation.
+- P1: implement subscription runtime depth: plans, recurring schedules, renewal orders, retry/dunning, pause/resume/cancel, and provider-event reconciliation.
+- P1: improve admin operator ergonomics with structured operations panels, richer filters, bulk workflows, confirmation UX, and audit drilldowns.
+- P1: extend promotion limits with per-customer/per-segment usage controls and richer analytical reporting.
+- P2: add inventory reservation ledgers/expiry, returns/exchanges/partial refund depth, VAT/order documents, browser/accessibility smoke passes, and deployment/upgrade recipes.
 
 ## P2 - Production Hardening
 

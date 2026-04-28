@@ -5,3 +5,8 @@ This directory contains the current `OrderModule` Migrations surface. Database m
 Current files:
 
 - `CreateOrderTables.php`
+- `AddOrderCommerceStateColumns.php`
+- `AddOrderDiscountSnapshotColumns.php`
+- `AddOrderShipmentTrackingColumns.php`
+- `CreateOrderEntitlementsTable.php`
+- `CreatePaymentWebhookEventsTable.php`

@@ -1,12 +1,12 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-24`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-28`.
 
 ## Snapshot
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (131 tests, 2870 assertions)`
+- Verification result: `OK (132 tests, 2885 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin, WebModule content authoring, catalog, cart, promotions, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -74,6 +74,7 @@ This document records the current implementation state of LangelerMVC based on t
 - notification manager with mail/database channels
 - payment manager with a plug-and-play multi-driver compatibility surface
 - first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
+- signed/idempotent payment webhook ingestion with event ledgers and order lifecycle reconciliation
 - mail, OTP, passkey/WebAuthn, health, and audit managers
 
 ### Utility Layer
@@ -171,6 +172,7 @@ This document records the current implementation state of LangelerMVC based on t
 - promotion snapshotting and checkout usage recording
 - order status and payment-state lifecycles
 - payment-method-aware checkout with persisted payment flow, idempotency, provider/external/webhook references, and reconciliation support
+- signed payment webhook callback routes with event recording, signature verification, idempotency, and lifecycle reconciliation
 - payment manager integration through the first-party compatibility/reference driver
 - order lifecycle notifications and listeners
 - HTML + JSON parity
@@ -185,6 +187,7 @@ These framework/platform areas are now implemented rather than planned:
 - notification subsystem
 - payment abstraction layer
 - provider-specific payment driver coverage for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
+- payment webhook ingestion with signature verification and event idempotency
 - top-level config surfaces for notifications, queues, payments, and HTTP security
 - passkey/WebAuthn and TOTP support behind framework-native boundaries
 - admin-native WebModule page authoring and publishing
@@ -208,7 +211,7 @@ The major framework-level auth and commerce flows are implemented. The next gain
 
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
-- subscription lifecycle depth, provider webhooks, and carrier booking/tracking integrations
+- subscription lifecycle depth, subscription provider events, and carrier booking/tracking integrations
 - deeper end-to-end tests around queue-backed notifications, payment-state transitions, and promotion/subscription behavior in non-SQLite environments
 - environment-specific operational tuning for audit retention, queue workers, fulfillment providers, and payment-driver expansion
 

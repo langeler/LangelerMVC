@@ -135,6 +135,7 @@ It now also exposes management visibility for:
 - payment-method-aware checkout and payment-state lifecycle handling through the framework payment manager
 - payment-driver-aware checkout for PayPal, Klarna, Swish, Qliro, Walley, credit/debit card, crypto, and the testing/reference driver
 - persisted payment flow, idempotency, provider/external/webhook references, and next-action metadata
+- signed/idempotent payment webhook ingestion with event ledgers and lifecycle reconciliation
 - order lifecycle listeners and notifications
 - HTML + JSON parity through presenters, resources, views, and responses
 

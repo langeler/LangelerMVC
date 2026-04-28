@@ -189,7 +189,7 @@ The following areas are implemented as framework-level subsystems today:
 - async events and queues
 - notification subsystem
 - payment abstraction subsystem
-- payment method/flow compatibility introspection, redirect/customer-action handling, reconciliation support, and plug-and-play provider drivers for card, PayPal, Klarna, Swish, Qliro, Walley, and crypto flows
+- payment method/flow compatibility introspection, redirect/customer-action handling, signed/idempotent webhook ingestion, reconciliation support, and plug-and-play provider drivers for card, PayPal, Klarna, Swish, Qliro, Walley, and crypto flows
 - mail, OTP, and passkey/WebAuthn service boundaries
 - file, finder, iterator, and reflection utilities
 - model and repository foundations
@@ -211,7 +211,7 @@ Current concrete state:
 - `AdminModule` now provides dashboard, user, role/permission, page authoring, catalog, promotion, cart, order, health/readiness, and framework-inspection flows.
 - `ShopModule` provides catalog listing/detail flows with products, categories, pricing, publish state, and tracked public demo media.
 - `CartModule` provides guest/auth cart persistence, merge-on-login behavior, promotion records, and usage ledgers.
-- `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, promotion usage recording, payment-state handling, reconciliation hooks, and lifecycle notifications.
+- `OrderModule` provides payment-method-aware checkout orchestration, order snapshots, promotion usage recording, payment-state handling, signed/idempotent webhook reconciliation, and lifecycle notifications.
 - Shared templates now live in `App/Templates/Layouts`, `App/Templates/Pages`, `App/Templates/Partials`, and `App/Templates/Components` with `.vide` as the canonical native template extension. `.lmv` and `.php` remain supported as compatibility fallbacks, but the first-party `.vide` tree is now maintained without raw PHP tags in source.
 
 This means the framework now has both a completed platform base and a real first-party application surface exercising it.

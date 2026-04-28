@@ -19,6 +19,8 @@ use App\Utilities\Validation\PatternValidator;
  */
 abstract class InboundRequest extends Request
 {
+    private ?string $capturedRawBody = null;
+
     public function __construct(
         GeneralSanitizer $generalSanitizer,
         PatternSanitizer $patternSanitizer,
@@ -38,7 +40,8 @@ abstract class InboundRequest extends Request
             $this->captureFiles(),
             $this->requestSettings(),
             $this->captureHeaders(),
-            $this->captureServer()
+            $this->captureServer(),
+            $this->captureRawBody()
         );
     }
 
@@ -141,7 +144,7 @@ abstract class InboundRequest extends Request
             return [];
         }
 
-        $raw = file_get_contents('php://input');
+        $raw = $this->captureRawBody();
 
         if (!$this->isString($raw) || $this->trimString($raw) === '') {
             return [];
@@ -154,5 +157,18 @@ abstract class InboundRequest extends Request
         }
 
         return $this->isArray($decoded) ? $decoded : [];
+    }
+
+    protected function captureRawBody(): string
+    {
+        if ($this->capturedRawBody !== null) {
+            return $this->capturedRawBody;
+        }
+
+        $raw = file_get_contents('php://input');
+
+        $this->capturedRawBody = $this->isString($raw) ? $raw : '';
+
+        return $this->capturedRawBody;
     }
 }

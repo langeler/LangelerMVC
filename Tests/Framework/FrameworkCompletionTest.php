@@ -37,11 +37,13 @@ use App\Modules\OrderModule\Migrations\AddOrderDiscountSnapshotColumns;
 use App\Modules\OrderModule\Migrations\AddOrderShipmentTrackingColumns;
 use App\Modules\OrderModule\Migrations\CreateOrderEntitlementsTable;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
+use App\Modules\OrderModule\Migrations\CreatePaymentWebhookEventsTable;
 use App\Modules\OrderModule\Presenters\OrderResource;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderEntitlementRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Modules\OrderModule\Repositories\PaymentWebhookEventRepository;
 use App\Modules\OrderModule\Seeds\OrderSeed;
 use App\Modules\OrderModule\Services\OrderService;
 use App\Modules\ShopModule\Listeners\CatalogActivityNotificationListener;
@@ -360,6 +362,7 @@ final class FrameworkCompletionTest extends TestCase
             AddOrderCommerceStateColumns::class,
             AddOrderShipmentTrackingColumns::class,
             CreateOrderEntitlementsTable::class,
+            CreatePaymentWebhookEventsTable::class,
             OrderSeed::class,
             CreatePagesTable::class,
             PageSeed::class,
@@ -418,6 +421,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('CreateOrderEntitlementsTable', $executedMigrations, true),
             array_search('AddOrderShipmentTrackingColumns', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('CreatePaymentWebhookEventsTable', $executedMigrations, true),
+            array_search('CreateOrderTables', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('AddProductFulfillmentColumns', $executedMigrations, true),
@@ -598,6 +605,99 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertGreaterThanOrEqual(2, count($stack['notifications']->databaseNotifications()));
         self::assertGreaterThanOrEqual(2, count($stack['mail']->outbox()));
+    }
+
+    public function testPaymentWebhooksVerifySignaturesRecordEventsAndReconcileIdempotently(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Webhook Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Framework Street 1',
+            'postal_code' => '12345',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'payment_driver' => 'testing',
+            'payment_method' => 'card',
+            'payment_flow' => 'async',
+            'idempotency_key' => 'webhook-async-checkout-0001',
+        ])->execute();
+
+        self::assertSame(202, $checkout['status']);
+        self::assertSame('processing', $checkout['order']['payment_status']);
+
+        $rejectedPayload = [
+            'event_id' => 'evt_rejected_signature',
+            'event_type' => 'payment.captured',
+            'payment_reference' => (string) $checkout['order']['payment_reference'],
+            'status' => 'captured',
+        ];
+        $rejectedRaw = $stack['payments']->canonicalWebhookPayload($rejectedPayload);
+        $rejected = $stack['orderService']->forAction('paymentWebhook', [
+            ...$rejectedPayload,
+            '_webhook_raw_body' => $rejectedRaw,
+            '_webhook_headers' => [
+                'X-Langeler-Signature' => 'sha256=invalid',
+                'X-Langeler-Event' => 'evt_rejected_signature',
+                'X-Langeler-Timestamp' => (string) time(),
+            ],
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(401, $rejected['status']);
+        self::assertSame('failed', $rejected['webhook']['event']['processing_status'] ?? null);
+
+        $payload = [
+            'event_id' => 'evt_async_captured',
+            'event_type' => 'payment.captured',
+            'payment_reference' => (string) $checkout['order']['payment_reference'],
+            'status' => 'captured',
+        ];
+        $raw = $stack['payments']->canonicalWebhookPayload($payload);
+        $signature = $stack['payments']->webhookPayloadSignature('testing', $raw);
+        $headers = [
+            'X-Langeler-Signature' => 'sha256=' . $signature,
+            'X-Langeler-Event' => 'evt_async_captured',
+            'X-Langeler-Timestamp' => (string) time(),
+        ];
+
+        $processed = $stack['orderService']->forAction('paymentWebhook', [
+            ...$payload,
+            '_webhook_raw_body' => $raw,
+            '_webhook_headers' => $headers,
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(200, $processed['status'], (string) ($processed['message'] ?? ''));
+        self::assertSame('processed', $processed['webhook']['event']['processing_status'] ?? null);
+        self::assertTrue((bool) ($processed['webhook']['event']['signature_verified'] ?? false));
+        self::assertSame('captured', $processed['order']['payment_status']);
+        self::assertSame('processing', $processed['order']['status']);
+
+        $duplicate = $stack['orderService']->forAction('paymentWebhook', [
+            ...$payload,
+            '_webhook_raw_body' => $raw,
+            '_webhook_headers' => $headers,
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(200, $duplicate['status']);
+        self::assertTrue((bool) ($duplicate['webhook']['idempotent'] ?? false));
+        self::assertSame(2, (int) $stack['database']->fetchColumn('SELECT COUNT(*) FROM payment_webhook_events'));
+        self::assertSame(1, (int) $stack['database']->fetchColumn("SELECT COUNT(*) FROM payment_webhook_events WHERE event_id = 'evt_async_captured'"));
     }
 
     public function testGuestCheckoutUsesPublicReturnSurfaceAndExposesPaymentLookupPayload(): void
@@ -1558,6 +1658,7 @@ final class FrameworkCompletionTest extends TestCase
             AddOrderDiscountSnapshotColumns::class,
             AddOrderShipmentTrackingColumns::class,
             CreateOrderEntitlementsTable::class,
+            CreatePaymentWebhookEventsTable::class,
             MergeCartOnLoginListener::class,
             CatalogActivityNotificationListener::class,
             OrderLifecycleNotificationListener::class,
@@ -1665,6 +1766,7 @@ final class FrameworkCompletionTest extends TestCase
         $orders = new OrderRepository($database);
         $orderItems = new OrderItemRepository($database);
         $entitlementRepository = new OrderEntitlementRepository($database);
+        $webhookEvents = new PaymentWebhookEventRepository($database);
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
         $shipping = new ShippingManager($config);
@@ -1695,7 +1797,8 @@ final class FrameworkCompletionTest extends TestCase
             $session,
             $httpSecurity,
             $audit,
-            $promotionRepository
+            $promotionRepository,
+            $webhookEvents
         );
         $adminService = new AdminAccessService(
             $auth,
@@ -1775,6 +1878,7 @@ final class FrameworkCompletionTest extends TestCase
             'payments' => $payments,
             'pricing' => $pricing,
             'products' => $products,
+            'paymentWebhookEvents' => $webhookEvents,
             'promotions' => $promotions,
             'promotionRepository' => $promotionRepository,
             'queue' => $queue,
@@ -1843,6 +1947,17 @@ final class FrameworkCompletionTest extends TestCase
                 'CURRENCY' => 'SEK',
                 'DEFAULT_METHOD' => 'card',
                 'DEFAULT_FLOW' => 'authorize_capture',
+                'WEBHOOKS' => [
+                    'ENABLED' => true,
+                    'REQUIRE_SIGNATURE' => true,
+                    'SIGNATURE_HEADER' => 'X-Langeler-Signature',
+                    'EVENT_ID_HEADER' => 'X-Langeler-Event',
+                    'TIMESTAMP_HEADER' => 'X-Langeler-Timestamp',
+                    'TOLERANCE_SECONDS' => 300,
+                    'SECRETS' => [
+                        'testing' => 'testing-webhook-secret',
+                    ],
+                ],
                 'DRIVERS' => [
                     'testing' => [
                         'ENABLED' => true,

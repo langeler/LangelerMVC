@@ -24,6 +24,7 @@ class OrderPresenter extends Presenter
             'lookup' => is_array($data['lookup'] ?? null) ? $data['lookup'] : [],
             'order' => is_array($data['order'] ?? null) ? $data['order'] : [],
             'orders' => is_array($data['orders'] ?? null) ? $data['orders'] : [],
+            'webhook' => is_array($data['webhook'] ?? null) ? $data['webhook'] : [],
         ];
     }
 

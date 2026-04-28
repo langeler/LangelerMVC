@@ -7,6 +7,24 @@ return [
     'CURRENCY' => 'SEK',
     'DEFAULT_METHOD' => 'card',
     'DEFAULT_FLOW' => 'authorize_capture',
+    'WEBHOOKS' => [
+        'ENABLED' => true,
+        'REQUIRE_SIGNATURE' => true,
+        'SIGNATURE_HEADER' => 'X-Langeler-Signature',
+        'EVENT_ID_HEADER' => 'X-Langeler-Event',
+        'TIMESTAMP_HEADER' => 'X-Langeler-Timestamp',
+        'TOLERANCE_SECONDS' => 300,
+        'SECRETS' => [
+            'testing' => '',
+            'card' => '',
+            'crypto' => '',
+            'paypal' => '',
+            'klarna' => '',
+            'swish' => '',
+            'qliro' => '',
+            'walley' => '',
+        ],
+    ],
     'DRIVERS' => [
         'testing' => [
             'ENABLED' => true,

@@ -88,7 +88,8 @@ abstract class Request implements RequestInterface
 			'strip' => true,
 		],
 		protected array $headers = [],
-		protected array $server = []
+		protected array $server = [],
+		protected string $rawBody = ''
 	) {
 		$this->initialize();
 	}
@@ -239,6 +240,11 @@ abstract class Request implements RequestInterface
 
 			return $normalized;
 		}, RequestException::class);
+	}
+
+	public function rawBody(): string
+	{
+		return $this->rawBody;
 	}
 
 	public function method(): string

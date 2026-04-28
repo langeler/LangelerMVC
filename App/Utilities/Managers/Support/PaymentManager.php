@@ -190,6 +190,154 @@ class PaymentManager implements PaymentManagerInterface
         return $driver->reconcile($intent->withDriver($this->resolveDriverName($intent->driver, true)), $payload);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function webhookSettings(?string $driver = null): array
+    {
+        $resolvedDriver = $this->resolveDriverName($driver, true);
+        $global = $this->config->get('payment', 'WEBHOOKS', []);
+        $global = is_array($global) ? $global : [];
+        $driverSettings = $this->driverSettings($resolvedDriver);
+        $driverWebhook = $driverSettings['WEBHOOKS'] ?? ($driverSettings['WEBHOOK'] ?? []);
+        $driverWebhook = is_array($driverWebhook) ? $driverWebhook : [];
+        $secrets = is_array($global['SECRETS'] ?? null) ? $global['SECRETS'] : [];
+        $secret = $driverWebhook['SECRET']
+            ?? $driverSettings['WEBHOOK_SECRET']
+            ?? $secrets[$resolvedDriver]
+            ?? $global['SECRET']
+            ?? '';
+
+        return array_merge([
+            'ENABLED' => true,
+            'REQUIRE_SIGNATURE' => true,
+            'SIGNATURE_HEADER' => 'X-Langeler-Signature',
+            'EVENT_ID_HEADER' => 'X-Langeler-Event',
+            'TIMESTAMP_HEADER' => 'X-Langeler-Timestamp',
+            'TOLERANCE_SECONDS' => 300,
+        ], $global, $driverWebhook, [
+            'SECRET' => is_scalar($secret) ? trim((string) $secret) : '',
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function canonicalWebhookPayload(array $payload): string
+    {
+        foreach (array_keys($payload) as $key) {
+            if (str_starts_with((string) $key, '_webhook_')) {
+                unset($payload[$key]);
+            }
+        }
+
+        $payload = $this->sortPayloadKeys($payload);
+
+        return json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    }
+
+    public function webhookPayloadSignature(string $driver, string $payload): string
+    {
+        $settings = $this->webhookSettings($driver);
+        $secret = trim((string) ($settings['SECRET'] ?? ''));
+
+        return $secret !== '' ? hash_hmac('sha256', $payload, $secret) : '';
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     * @return array<string, mixed>
+     */
+    public function verifyWebhookSignature(
+        string $driver,
+        string $payload,
+        array $headers = [],
+        ?string $providedSignature = null
+    ): array {
+        $settings = $this->webhookSettings($driver);
+
+        if (!(bool) ($settings['ENABLED'] ?? true)) {
+            return [
+                'accepted' => false,
+                'verified' => false,
+                'required' => false,
+                'status' => 403,
+                'message' => 'Payment webhooks are disabled.',
+            ];
+        }
+
+        if (!$this->driver($driver, true)->supports('webhook')) {
+            return [
+                'accepted' => false,
+                'verified' => false,
+                'required' => false,
+                'status' => 422,
+                'message' => sprintf('Payment driver [%s] does not support webhooks.', $driver),
+            ];
+        }
+
+        $secret = trim((string) ($settings['SECRET'] ?? ''));
+        $required = (bool) ($settings['REQUIRE_SIGNATURE'] ?? true);
+
+        if ($secret === '') {
+            return [
+                'accepted' => !$required,
+                'verified' => false,
+                'required' => $required,
+                'status' => $required ? 401 : 200,
+                'message' => $required
+                    ? 'Payment webhook signature secret is not configured.'
+                    : 'Payment webhook accepted without signature verification because no secret is configured.',
+                'secret_configured' => false,
+            ];
+        }
+
+        $signatureHeader = trim((string) ($settings['SIGNATURE_HEADER'] ?? 'X-Langeler-Signature'));
+        $signature = trim((string) ($providedSignature ?? $this->headerValue($headers, $signatureHeader, '')));
+
+        if ($signature === '') {
+            return [
+                'accepted' => !$required,
+                'verified' => false,
+                'required' => $required,
+                'status' => $required ? 401 : 200,
+                'message' => $required
+                    ? 'Payment webhook signature header is missing.'
+                    : 'Payment webhook accepted without a signature header because verification is optional.',
+                'secret_configured' => true,
+            ];
+        }
+
+        $timestampCheck = $this->verifyWebhookTimestamp($settings, $headers);
+
+        if (!$timestampCheck['valid']) {
+            return [
+                'accepted' => false,
+                'verified' => false,
+                'required' => $required,
+                'status' => 401,
+                'message' => $timestampCheck['message'],
+                'secret_configured' => true,
+            ];
+        }
+
+        $signature = $this->normalizeSignatureValue($signature);
+        $expected = hash_hmac('sha256', $payload, $secret);
+        $verified = hash_equals($expected, $signature);
+
+        return [
+            'accepted' => $verified || !$required,
+            'verified' => $verified,
+            'required' => $required,
+            'status' => $verified || !$required ? 200 : 401,
+            'message' => $verified
+                ? 'Payment webhook signature verified.'
+                : 'Payment webhook signature verification failed.',
+            'secret_configured' => true,
+            'signature_header' => $signatureHeader,
+        ];
+    }
+
     private function defaultMethodFor(string $driver): string
     {
         $driverSettings = $this->driverSettings($driver);
@@ -288,5 +436,87 @@ class PaymentManager implements PaymentManagerInterface
     private function normalizeDriverName(string $driver): string
     {
         return $this->toLowerString($this->trimStringValue($driver));
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function sortPayloadKeys(array $payload): array
+    {
+        ksort($payload);
+
+        foreach ($payload as $key => $value) {
+            if (is_array($value)) {
+                $payload[$key] = $this->sortPayloadKeys($value);
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     */
+    private function headerValue(array $headers, string $name, mixed $default = null): mixed
+    {
+        $normalizedName = $this->toLowerString($this->trimStringValue($name));
+
+        foreach ($headers as $key => $value) {
+            if ($this->toLowerString($this->trimStringValue((string) $key)) === $normalizedName) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     * @param array<string, mixed> $headers
+     * @return array{valid:bool,message:string}
+     */
+    private function verifyWebhookTimestamp(array $settings, array $headers): array
+    {
+        $tolerance = max(0, (int) ($settings['TOLERANCE_SECONDS'] ?? 0));
+
+        if ($tolerance === 0) {
+            return ['valid' => true, 'message' => 'Timestamp tolerance disabled.'];
+        }
+
+        $header = trim((string) ($settings['TIMESTAMP_HEADER'] ?? 'X-Langeler-Timestamp'));
+        $timestamp = trim((string) $this->headerValue($headers, $header, ''));
+
+        if ($timestamp === '') {
+            return ['valid' => true, 'message' => 'Timestamp header not provided.'];
+        }
+
+        $epoch = ctype_digit($timestamp) ? (int) $timestamp : strtotime($timestamp);
+
+        if ($epoch <= 0) {
+            return ['valid' => false, 'message' => 'Payment webhook timestamp is invalid.'];
+        }
+
+        if (abs(time() - $epoch) > $tolerance) {
+            return ['valid' => false, 'message' => 'Payment webhook timestamp is outside the configured tolerance.'];
+        }
+
+        return ['valid' => true, 'message' => 'Payment webhook timestamp accepted.'];
+    }
+
+    private function normalizeSignatureValue(string $signature): string
+    {
+        $signature = trim($signature);
+
+        if (str_contains($signature, ',')) {
+            $parts = array_map('trim', explode(',', $signature));
+            $signature = (string) ($parts[0] ?? $signature);
+        }
+
+        if (str_starts_with($this->toLowerString($signature), 'sha256=')) {
+            return substr($signature, 7);
+        }
+
+        return $signature;
     }
 }

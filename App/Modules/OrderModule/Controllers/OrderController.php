@@ -102,6 +102,14 @@ class OrderController extends Controller
         return $this->run();
     }
 
+    public function paymentWebhook(string $driver = 'testing'): ResponseInterface
+    {
+        $this->action = 'paymentWebhook';
+        $this->context = ['driver' => $driver];
+
+        return $this->run();
+    }
+
     public function complete(string $reference = ''): ResponseInterface
     {
         $this->action = 'completeReturn';
@@ -120,13 +128,30 @@ class OrderController extends Controller
 
     protected function execute(): mixed
     {
-        return $this->orderService->forAction($this->action, $this->request->all(), $this->context)->execute();
+        $payload = $this->request->all();
+
+        if ($this->action === 'paymentWebhook') {
+            $payload['_webhook_headers'] = $this->request->headers();
+            $payload['_webhook_raw_body'] = method_exists($this->request, 'rawBody')
+                ? (string) $this->request->rawBody()
+                : '';
+        }
+
+        return $this->orderService->forAction($this->action, $payload, $this->context)->execute();
     }
 
     protected function finalize(mixed $result): ResponseInterface
     {
         if (!is_array($result)) {
             return parent::finalize($result);
+        }
+
+        if ($this->action === 'paymentWebhook') {
+            return $this->respondWithResource(
+                new OrderResource($result),
+                (int) ($result['status'] ?? 200),
+                ['X-Module' => 'OrderModule']
+            );
         }
 
         return $this->respondWithPresentation(

@@ -14,9 +14,12 @@ use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\CartModule\Repositories\PromotionRepository;
+use App\Modules\OrderModule\Models\Order;
+use App\Modules\OrderModule\Models\PaymentWebhookEvent;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Modules\OrderModule\Repositories\PaymentWebhookEventRepository;
 use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\InventoryManager;
@@ -61,7 +64,8 @@ class OrderService extends Service
         private readonly Session $session,
         private readonly HttpSecurityManager $httpSecurity,
         private readonly AuditLoggerInterface $audit,
-        private readonly ?PromotionRepository $promotionRepository = null
+        private readonly ?PromotionRepository $promotionRepository = null,
+        private readonly ?PaymentWebhookEventRepository $webhookEvents = null
     ) {
     }
 
@@ -90,6 +94,7 @@ class OrderService extends Service
             'cancel' => $this->cancel((int) ($this->context['order'] ?? 0)),
             'refund' => $this->refund((int) ($this->context['order'] ?? 0)),
             'reconcile' => $this->reconcile((int) ($this->context['order'] ?? 0)),
+            'paymentWebhook' => $this->paymentWebhook((string) ($this->context['driver'] ?? '')),
             'accessEntitlement' => $this->accessEntitlement((string) ($this->context['key'] ?? '')),
             default => $this->checkoutForm(),
         };
@@ -515,6 +520,144 @@ class OrderService extends Service
     /**
      * @return array<string, mixed>
      */
+    private function paymentWebhook(string $driver): array
+    {
+        $driver = strtolower(trim($driver !== '' ? $driver : (string) ($this->payload['driver'] ?? $this->payments->driverName())));
+        $headers = is_array($this->payload['_webhook_headers'] ?? null) ? $this->payload['_webhook_headers'] : [];
+        $eventPayload = $this->webhookPayload();
+        $rawBody = (string) ($this->payload['_webhook_raw_body'] ?? '');
+
+        if ($rawBody === '') {
+            $rawBody = $this->payments->canonicalWebhookPayload($eventPayload);
+        }
+
+        $eventId = $this->webhookEventId($driver, $eventPayload, $headers, $rawBody);
+        $eventType = $this->webhookEventType($eventPayload);
+        $paymentStatus = $this->webhookPaymentStatus($eventPayload, $eventType);
+        $orderReference = $this->webhookOrderReference($eventPayload);
+        $signature = trim((string) ($eventPayload['signature'] ?? $eventPayload['webhook_signature'] ?? ''));
+
+        try {
+            $verification = $this->payments->verifyWebhookSignature($driver, $rawBody, $headers, $signature !== '' ? $signature : null);
+        } catch (\Throwable $exception) {
+            return $this->webhookResponse(
+                'Payment webhook rejected',
+                $exception->getMessage(),
+                422,
+                $this->recordWebhook($driver, $eventId, $orderReference, $eventType, $paymentStatus, false, 'failed', $eventPayload, $exception->getMessage())
+            );
+        }
+
+        if (!((bool) ($verification['accepted'] ?? $verification['verified'] ?? false))) {
+            $message = (string) ($verification['message'] ?? 'Payment webhook signature verification failed.');
+
+            return $this->webhookResponse(
+                'Payment webhook rejected',
+                $message,
+                (int) ($verification['status'] ?? 401),
+                $this->recordWebhook($driver, $eventId, $orderReference, $eventType, $paymentStatus, false, 'failed', $eventPayload, $message)
+            );
+        }
+
+        $signatureVerified = (bool) ($verification['verified'] ?? false);
+        $record = $this->recordWebhook($driver, $eventId, $orderReference, $eventType, $paymentStatus, $signatureVerified, 'received', $eventPayload, 'Webhook received.');
+
+        if (
+            $record instanceof PaymentWebhookEvent
+            && (string) ($record->getAttribute('processing_status') ?? '') === 'processed'
+        ) {
+            $orderId = (int) ($record->getAttribute('order_id') ?? 0);
+
+            return $this->webhookResponse(
+                'Payment webhook already processed',
+                'This webhook event was already processed and was handled idempotently.',
+                200,
+                $record,
+                $orderId,
+                true
+            );
+        }
+
+        $order = $this->locateWebhookOrder($orderReference, $eventPayload);
+
+        if (!$order instanceof Order) {
+            $message = 'No matching order could be found for this webhook event.';
+            $record = $this->finalizeWebhookRecord($record, [
+                'order_reference' => $orderReference,
+                'processing_status' => 'unmatched',
+                'message' => $message,
+            ]);
+
+            return $this->webhookResponse('Payment webhook accepted', $message, 202, $record);
+        }
+
+        if ($driver !== '' && strtolower((string) ($order->getAttribute('payment_driver') ?? '')) !== $driver) {
+            $message = 'Webhook driver does not match the order payment driver.';
+            $record = $this->finalizeWebhookRecord($record, [
+                'order_id' => (int) $order->getKey(),
+                'processing_status' => 'failed',
+                'message' => $message,
+            ]);
+
+            return $this->webhookResponse('Payment webhook rejected', $message, 409, $record, (int) $order->getKey());
+        }
+
+        $transition = $this->lifecycle->transition((int) $order->getKey(), 'reconcile', [
+            ...$eventPayload,
+            'status' => $paymentStatus,
+            'event_type' => $eventType,
+            'event_id' => $eventId,
+            'order_reference' => $orderReference,
+            'webhook_reference' => (string) ($eventPayload['webhook_reference'] ?? $eventPayload['payment_webhook_reference'] ?? $eventId),
+        ]);
+
+        if (!($transition['successful'] ?? false)) {
+            $message = (string) ($transition['message'] ?? 'The payment webhook could not be reconciled.');
+            $record = $this->finalizeWebhookRecord($record, [
+                'order_id' => (int) $order->getKey(),
+                'processing_status' => 'failed',
+                'message' => $message,
+            ]);
+
+            return $this->webhookResponse(
+                (string) ($transition['title'] ?? 'Payment webhook reconciliation failed'),
+                $message,
+                (int) ($transition['status'] ?? 422),
+                $record,
+                (int) $order->getKey()
+            );
+        }
+
+        $record = $this->finalizeWebhookRecord($record, [
+            'order_id' => (int) $order->getKey(),
+            'order_reference' => $orderReference,
+            'payment_status' => $paymentStatus,
+            'processing_status' => 'processed',
+            'signature_verified' => $signatureVerified,
+            'message' => 'Webhook reconciled successfully.',
+        ]);
+
+        $this->audit->record('order.webhook.payment', [
+            'actor_id' => null,
+            'order_id' => (string) $order->getKey(),
+            'payment_driver' => $driver,
+            'payment_status' => $paymentStatus,
+            'event_id' => $eventId,
+            'event_type' => $eventType,
+        ], 'order');
+
+        return $this->webhookResponse(
+            'Payment webhook processed',
+            'The payment webhook was verified, recorded, and reconciled.',
+            200,
+            $record,
+            (int) $order->getKey()
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function transitionPayment(int $orderId, string $action): array
     {
         $transition = $this->lifecycle->transition($orderId, $action, $this->payload);
@@ -529,7 +672,7 @@ class OrderService extends Service
 
         $updated = $this->orders->find($orderId);
 
-        if (!$updated instanceof \App\Modules\OrderModule\Models\Order) {
+        if (!$updated instanceof Order) {
             return $this->response('Order not found', 'The updated order could not be reloaded.', 404);
         }
 
@@ -538,6 +681,279 @@ class OrderService extends Service
             'order' => $this->orderPayload((int) $updated->getKey()),
             'redirect' => $this->redirectPathForOrder($updated),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function webhookPayload(): array
+    {
+        $payload = $this->payload;
+
+        foreach (array_keys($payload) as $key) {
+            if (str_starts_with((string) $key, '_webhook_')) {
+                unset($payload[$key]);
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @param array<string, mixed> $headers
+     */
+    private function webhookEventId(string $driver, array $payload, array $headers, string $rawBody): string
+    {
+        $settings = $this->payments->webhookSettings($driver !== '' ? $driver : null);
+        $headerName = trim((string) ($settings['EVENT_ID_HEADER'] ?? 'X-Langeler-Event'));
+        $headerEventId = trim((string) $this->headerValue($headers, $headerName, ''));
+
+        foreach ([
+            $headerEventId,
+            $payload['event_id'] ?? null,
+            $payload['eventId'] ?? null,
+            $payload['id'] ?? null,
+            $payload['webhook_id'] ?? null,
+            $payload['webhook_reference'] ?? null,
+        ] as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return 'evt_' . substr(hash('sha256', $driver . '|' . $rawBody), 0, 32);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function webhookEventType(array $payload): string
+    {
+        foreach ([
+            $payload['event_type'] ?? null,
+            $payload['event'] ?? null,
+            $payload['type'] ?? null,
+            $this->nestedValue($payload, 'data.type'),
+            $this->nestedValue($payload, 'resource.type'),
+        ] as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '') {
+                return strtolower($candidate);
+            }
+        }
+
+        return 'payment.webhook';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function webhookPaymentStatus(array $payload, string $eventType): string
+    {
+        foreach ([
+            $payload['payment_status'] ?? null,
+            $payload['status'] ?? null,
+            $this->nestedValue($payload, 'payment.status'),
+            $this->nestedValue($payload, 'data.object.status'),
+            $this->nestedValue($payload, 'resource.status'),
+        ] as $candidate) {
+            $normalized = $this->normalizeWebhookStatus((string) $candidate);
+
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return $this->normalizeWebhookStatus($eventType) ?: 'processing';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function webhookOrderReference(array $payload): string
+    {
+        foreach ([
+            $payload['order_reference'] ?? null,
+            $payload['order_number'] ?? null,
+            $payload['payment_reference'] ?? null,
+            $payload['reference'] ?? null,
+            $payload['provider_reference'] ?? null,
+            $payload['payment_provider_reference'] ?? null,
+            $payload['external_reference'] ?? null,
+            $payload['payment_external_reference'] ?? null,
+            $payload['webhook_reference'] ?? null,
+            $payload['payment_webhook_reference'] ?? null,
+            $this->nestedValue($payload, 'metadata.order_reference'),
+            $this->nestedValue($payload, 'metadata.order_number'),
+            $this->nestedValue($payload, 'metadata.payment_reference'),
+            $this->nestedValue($payload, 'payment.reference'),
+            $this->nestedValue($payload, 'payment.provider_reference'),
+            $this->nestedValue($payload, 'data.object.reference'),
+            $this->nestedValue($payload, 'data.object.provider_reference'),
+            $this->nestedValue($payload, 'resource.reference'),
+        ] as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function locateWebhookOrder(string $reference, array $payload): ?Order
+    {
+        $candidates = array_values(array_filter(array_unique([
+            $reference,
+            trim((string) ($payload['order_id'] ?? '')),
+            trim((string) $this->nestedValue($payload, 'metadata.order_id')),
+        ])));
+
+        foreach ($candidates as $candidate) {
+            if (ctype_digit($candidate)) {
+                $order = $this->orders->find((int) $candidate);
+
+                if ($order instanceof Order) {
+                    return $order;
+                }
+            }
+
+            $order = $this->orders->findByReference($candidate);
+
+            if ($order instanceof Order) {
+                return $order;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function recordWebhook(
+        string $driver,
+        string $eventId,
+        string $orderReference,
+        string $eventType,
+        string $paymentStatus,
+        bool $signatureVerified,
+        string $processingStatus,
+        array $payload,
+        string $message
+    ): ?PaymentWebhookEvent {
+        if ($this->webhookEvents === null) {
+            return null;
+        }
+
+        return $this->webhookEvents->recordReceived([
+            'driver' => $driver,
+            'event_id' => $eventId,
+            'order_reference' => $orderReference,
+            'event_type' => $eventType,
+            'payment_status' => $paymentStatus,
+            'processing_status' => $processingStatus,
+            'signature_verified' => $signatureVerified,
+            'payload' => $payload,
+            'message' => $message,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    private function finalizeWebhookRecord(?PaymentWebhookEvent $record, array $attributes): ?PaymentWebhookEvent
+    {
+        if ($record === null || $this->webhookEvents === null) {
+            return $record;
+        }
+
+        return $this->webhookEvents->markProcessed((int) $record->getKey(), $attributes);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function webhookResponse(
+        string $title,
+        string $message,
+        int $status,
+        ?PaymentWebhookEvent $event = null,
+        int $orderId = 0,
+        bool $idempotent = false
+    ): array {
+        return [
+            'template' => 'OrderDetail',
+            'status' => $status,
+            'title' => $title,
+            'headline' => $title,
+            'summary' => $message,
+            'message' => $message,
+            'order' => $orderId > 0 ? $this->orderPayload($orderId, false) : [],
+            'webhook' => [
+                'idempotent' => $idempotent,
+                'event' => $event instanceof PaymentWebhookEvent && $this->webhookEvents !== null
+                    ? $this->webhookEvents->mapSummary($event)
+                    : [],
+            ],
+            'lookup' => $this->lookupPayload(),
+        ];
+    }
+
+    private function normalizeWebhookStatus(string $status): string
+    {
+        $status = strtolower(trim($status));
+
+        return match ($status) {
+            'paid', 'succeeded', 'success', 'settled', 'completed', 'capture.completed', 'payment.captured', 'order.paid' => 'captured',
+            'approved', 'authorised', 'authorized', 'authorization.created', 'payment.authorized' => 'authorized',
+            'cancelled', 'canceled', 'voided', 'abandoned', 'failed', 'denied', 'payment.cancelled' => 'cancelled',
+            'refund', 'refunded', 'refund.completed', 'payment.refunded' => 'refunded',
+            'processing', 'pending', 'payment.processing' => 'processing',
+            default => '',
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     */
+    private function headerValue(array $headers, string $name, mixed $default = null): mixed
+    {
+        $needle = strtolower(trim($name));
+
+        foreach ($headers as $key => $value) {
+            if (strtolower(trim((string) $key)) === $needle) {
+                return $value;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function nestedValue(array $payload, string $path): mixed
+    {
+        $cursor = $payload;
+
+        foreach (explode('.', $path) as $segment) {
+            if (!is_array($cursor) || !array_key_exists($segment, $cursor)) {
+                return null;
+            }
+
+            $cursor = $cursor[$segment];
+        }
+
+        return $cursor;
     }
 
     /**

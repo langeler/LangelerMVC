@@ -24,6 +24,7 @@ class OrderResource extends Resource
             'order' => is_array($payload['order'] ?? null) ? $payload['order'] : [],
             'orders' => is_array($payload['orders'] ?? null) ? $payload['orders'] : [],
             'entitlement' => is_array($payload['entitlement'] ?? null) ? $payload['entitlement'] : [],
+            'webhook' => is_array($payload['webhook'] ?? null) ? $payload['webhook'] : [],
         ];
     }
 

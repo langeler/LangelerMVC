@@ -76,6 +76,8 @@ The framework payment layer is now designed as a gateway-agnostic compatibility 
 - The framework payment taxonomy covers `card`, `wallet`, `bank_transfer`, `bnpl`, `local_instant`, `manual`, and `crypto` method families across `authorize_capture`, `purchase`, `redirect`, `async`, and `manual_review` flows.
 - Redirect/customer-action and asynchronous flows can be reconciled through the framework payment manager rather than module-local gateway code.
 - Order records now persist payment method, flow, idempotency key, provider/external/webhook references, and next-action metadata so admin and audit surfaces can inspect them consistently.
+- Payment provider callbacks should target `POST /api/orders/webhooks/payments/{driver}` or `POST /orders/webhooks/payments/{driver}`. The framework records each event in `payment_webhook_events`, verifies HMAC signatures through `PaymentManager`, and reconciles matched orders through the same lifecycle path used by admin/manual reconciliation.
+- Configure webhook secrets with `PAYMENT_WEBHOOK_SECRET_TESTING`, `PAYMENT_WEBHOOK_SECRET_CARD`, `PAYMENT_WEBHOOK_SECRET_CRYPTO`, `PAYMENT_WEBHOOK_SECRET_PAYPAL`, `PAYMENT_WEBHOOK_SECRET_KLARNA`, `PAYMENT_WEBHOOK_SECRET_SWISH`, `PAYMENT_WEBHOOK_SECRET_QLIRO`, and `PAYMENT_WEBHOOK_SECRET_WALLEY` as needed.
 - Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer and configuration boundary so those providers stay plug-and-play from the application/module perspective.
 
 ## Content Operations

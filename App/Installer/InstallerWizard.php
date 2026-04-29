@@ -401,6 +401,8 @@ final class InstallerWizard
             'COMMERCE_DISCOUNT_MAX_MINOR' => 'commerce default discount cap',
             'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT' => 'commerce default download limit',
             'COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS' => 'commerce default access days',
+            'COMMERCE_SUBSCRIPTION_TRIAL_DAYS' => 'commerce subscription trial days',
+            'COMMERCE_SUBSCRIPTION_MAX_RETRIES' => 'commerce subscription max retries',
         ] as $key => $label) {
             if (($data[$key] ?? '') !== '' && (!ctype_digit((string) $data[$key]) || (int) $data[$key] < 0)) {
                 throw new \InvalidArgumentException(sprintf('The %s must be a non-negative integer.', $label));
@@ -714,6 +716,9 @@ final class InstallerWizard
                 'COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS',
                 'COMMERCE_ACCESS_KEY_PREFIX',
                 'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL',
+                'COMMERCE_SUBSCRIPTION_TRIAL_DAYS',
+                'COMMERCE_SUBSCRIPTION_MAX_RETRIES',
+                'COMMERCE_SUBSCRIPTION_DUNNING_RETRY_DAYS',
                 'COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT',
                 'COMMERCE_INVENTORY_RELEASE_ON_CANCEL',
             ],
@@ -1144,6 +1149,9 @@ final class InstallerWizard
             'COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS' => '0',
             'COMMERCE_ACCESS_KEY_PREFIX' => 'ent',
             'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL' => 'monthly',
+            'COMMERCE_SUBSCRIPTION_TRIAL_DAYS' => '0',
+            'COMMERCE_SUBSCRIPTION_MAX_RETRIES' => '3',
+            'COMMERCE_SUBSCRIPTION_DUNNING_RETRY_DAYS' => '1,3,7',
             'COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT' => 'true',
             'COMMERCE_INVENTORY_RELEASE_ON_CANCEL' => 'true',
             'OPERATIONS_HEALTH_ENABLED' => 'true',

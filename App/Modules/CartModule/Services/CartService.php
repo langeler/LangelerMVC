@@ -311,6 +311,7 @@ class CartService extends Service
             'country' => (string) ($this->payload['country'] ?? ''),
             'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
             'discount_code' => (string) ($context['discount_code'] ?? $cart->getAttribute('discount_code') ?? ''),
+            ...$this->promotionCustomerContext(),
         ]);
         $promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];
         $storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));
@@ -324,6 +325,7 @@ class CartService extends Service
                 $pricing = $this->pricing->price($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
                     'country' => (string) ($this->payload['country'] ?? ''),
                     'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
+                    ...$this->promotionCustomerContext(),
                 ]);
             }
         }
@@ -399,5 +401,19 @@ class CartService extends Service
     {
         $fresh = $this->carts->clearDiscountState((int) $cart->getKey());
         $cart->forceFill($fresh->getAttributes());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function promotionCustomerContext(): array
+    {
+        $user = $this->auth->user();
+
+        return [
+            'user_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'customer_email' => $user?->getEmailForVerification() ?? '',
+            'customer_segments' => $this->auth->currentRoles(),
+        ];
     }
 }

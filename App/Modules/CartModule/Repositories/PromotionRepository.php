@@ -22,9 +22,14 @@ class PromotionRepository extends Repository
         'allowed_shipping_options',
         'allowed_product_slugs',
         'allowed_fulfillment_types',
+        'allowed_customer_emails',
+        'allowed_customer_segments',
         'excluded_product_slugs',
         'excluded_fulfillment_types',
+        'excluded_customer_emails',
+        'excluded_customer_segments',
         'required_fulfillment_types',
+        'required_customer_segments',
     ];
 
     /**
@@ -33,7 +38,9 @@ class PromotionRepository extends Repository
     private const CRITERIA_INT_LIST_FIELDS = [
         'allowed_product_ids',
         'allowed_category_ids',
+        'allowed_user_ids',
         'excluded_product_ids',
+        'excluded_user_ids',
     ];
 
     public function findByCode(string $code): ?Promotion
@@ -193,6 +200,51 @@ class PromotionRepository extends Repository
         ];
     }
 
+    public function usageCountForCustomer(string $code, ?int $userId = null, string $email = ''): int
+    {
+        $code = strtoupper(trim($code));
+        $userId = $userId !== null && $userId > 0 ? $userId : null;
+        $email = strtolower(trim($email));
+
+        if ($code === '' || ($userId === null && $email === '')) {
+            return 0;
+        }
+
+        return count(array_filter($this->usageRowsForCode($code), function (array $row) use ($userId, $email): bool {
+            $context = $this->decodeCriteria((string) ($row['context'] ?? '[]'));
+            $rowEmail = strtolower(trim((string) ($context['customer_email'] ?? '')));
+
+            return ($userId !== null && (int) ($row['user_id'] ?? 0) === $userId)
+                || ($email !== '' && $rowEmail === $email);
+        }));
+    }
+
+    /**
+     * @param list<string> $segments
+     */
+    public function usageCountForSegments(string $code, array $segments): int
+    {
+        $code = strtoupper(trim($code));
+        $segments = array_values(array_unique(array_filter(array_map(
+            static fn(mixed $segment): string => strtolower(trim((string) $segment)),
+            $segments
+        ), static fn(string $segment): bool => $segment !== '')));
+
+        if ($code === '' || $segments === []) {
+            return 0;
+        }
+
+        return count(array_filter($this->usageRowsForCode($code), function (array $row) use ($segments): bool {
+            $context = $this->decodeCriteria((string) ($row['context'] ?? '[]'));
+            $rowSegments = array_values(array_unique(array_filter(array_map(
+                static fn(mixed $segment): string => strtolower(trim((string) $segment)),
+                (array) ($context['customer_segments'] ?? [])
+            ), static fn(string $segment): bool => $segment !== '')));
+
+            return array_intersect($segments, $rowSegments) !== [];
+        }));
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -282,10 +334,19 @@ class PromotionRepository extends Repository
             'ALLOWED_PRODUCT_SLUGS' => (array) ($criteria['allowed_product_slugs'] ?? []),
             'ALLOWED_CATEGORY_IDS' => (array) ($criteria['allowed_category_ids'] ?? []),
             'ALLOWED_FULFILLMENT_TYPES' => (array) ($criteria['allowed_fulfillment_types'] ?? []),
+            'ALLOWED_USER_IDS' => (array) ($criteria['allowed_user_ids'] ?? []),
+            'ALLOWED_CUSTOMER_EMAILS' => (array) ($criteria['allowed_customer_emails'] ?? []),
+            'ALLOWED_CUSTOMER_SEGMENTS' => (array) ($criteria['allowed_customer_segments'] ?? []),
             'EXCLUDED_PRODUCT_IDS' => (array) ($criteria['excluded_product_ids'] ?? []),
             'EXCLUDED_PRODUCT_SLUGS' => (array) ($criteria['excluded_product_slugs'] ?? []),
             'EXCLUDED_FULFILLMENT_TYPES' => (array) ($criteria['excluded_fulfillment_types'] ?? []),
+            'EXCLUDED_USER_IDS' => (array) ($criteria['excluded_user_ids'] ?? []),
+            'EXCLUDED_CUSTOMER_EMAILS' => (array) ($criteria['excluded_customer_emails'] ?? []),
+            'EXCLUDED_CUSTOMER_SEGMENTS' => (array) ($criteria['excluded_customer_segments'] ?? []),
             'REQUIRED_FULFILLMENT_TYPES' => (array) ($criteria['required_fulfillment_types'] ?? []),
+            'REQUIRED_CUSTOMER_SEGMENTS' => (array) ($criteria['required_customer_segments'] ?? []),
+            'PER_CUSTOMER_LIMIT' => (int) ($criteria['per_customer_limit'] ?? 0),
+            'PER_SEGMENT_LIMIT' => (int) ($criteria['per_segment_limit'] ?? 0),
             'FREE_SHIPPING_ELIGIBLE_ONLY' => (bool) ($criteria['free_shipping_eligible_only'] ?? false),
         ];
     }
@@ -358,6 +419,20 @@ class PromotionRepository extends Repository
             $normalized['free_shipping_eligible_only'] = !empty($criteria['free_shipping_eligible_only']);
         }
 
+        foreach ([
+            'per_customer_limit' => ['per_customer_limit', 'per_user_limit'],
+            'per_segment_limit' => ['per_segment_limit', 'customer_segment_limit'],
+        ] as $target => $aliases) {
+            foreach ($aliases as $alias) {
+                $value = max(0, (int) ($criteria[$alias] ?? 0));
+
+                if ($value > 0) {
+                    $normalized[$target] = $value;
+                    break;
+                }
+            }
+        }
+
         return $normalized;
     }
 
@@ -428,6 +503,21 @@ class PromotionRepository extends Repository
             'UPDATE promotions SET usage_count = usage_count + 1, updated_at = ? WHERE id = ?',
             [$timestamp, $promotionId]
         );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function usageRowsForCode(string $code): array
+    {
+        try {
+            return $this->db->fetchAll(
+                'SELECT * FROM promotion_usages WHERE promotion_code = ? ORDER BY id DESC',
+                [$code]
+            );
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     private function nullableString(mixed $value): ?string

@@ -29,6 +29,7 @@ use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\PromotionManager;
 use App\Support\Commerce\ShippingManager;
+use App\Support\Commerce\SubscriptionManager;
 use App\Modules\UserModule\Migrations\CreateUserPlatformTables;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
@@ -442,6 +443,7 @@ class AuthPlatformTest extends TestCase
             $this->createStub(OrderLifecycleManager::class),
             $this->createStub(ShippingManager::class),
             $this->createStub(EntitlementManager::class),
+            $this->createStub(SubscriptionManager::class),
             $moduleManager,
             $cache,
             $stack['sessionManager'],

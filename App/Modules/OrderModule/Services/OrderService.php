@@ -25,6 +25,7 @@ use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\ShippingManager;
+use App\Support\Commerce\SubscriptionManager;
 use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
 use App\Support\Payments\PaymentMethod;
@@ -58,6 +59,7 @@ class OrderService extends Service
         private readonly OrderLifecycleManager $lifecycle,
         private readonly ShippingManager $shipping,
         private readonly EntitlementManager $entitlements,
+        private readonly SubscriptionManager $subscriptions,
         private readonly PaymentManager $payments,
         private readonly EventDispatcherInterface $events,
         private readonly AuthManager $auth,
@@ -95,6 +97,7 @@ class OrderService extends Service
             'refund' => $this->refund((int) ($this->context['order'] ?? 0)),
             'reconcile' => $this->reconcile((int) ($this->context['order'] ?? 0)),
             'paymentWebhook' => $this->paymentWebhook((string) ($this->context['driver'] ?? '')),
+            'subscriptionWebhook' => $this->subscriptionWebhook((string) ($this->context['driver'] ?? '')),
             'accessEntitlement' => $this->accessEntitlement((string) ($this->context['key'] ?? '')),
             default => $this->checkoutForm(),
         };
@@ -161,6 +164,7 @@ class OrderService extends Service
                     'country' => (string) ($this->payload['country'] ?? $this->shipping->defaultCountry()),
                     'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
                     'discount_code' => $couponCode,
+                    ...$this->promotionCustomerContext(),
                 ]
             );
             $promotion = is_array($couponPricing['promotion'] ?? null) ? $couponPricing['promotion'] : [];
@@ -346,6 +350,7 @@ class OrderService extends Service
 
         if ($payment->intent->status === 'captured') {
             $entitlementSync = $this->entitlements->syncForOrder((int) $order->getKey(), 'checkout');
+            $this->subscriptions->syncForOrder((int) $order->getKey(), 'checkout');
 
             if (
                 (int) ($entitlementSync['eligible'] ?? 0) > 0
@@ -658,6 +663,104 @@ class OrderService extends Service
     /**
      * @return array<string, mixed>
      */
+    private function subscriptionWebhook(string $driver): array
+    {
+        $driver = strtolower(trim($driver !== '' ? $driver : (string) ($this->payload['driver'] ?? $this->payments->driverName())));
+        $headers = is_array($this->payload['_webhook_headers'] ?? null) ? $this->payload['_webhook_headers'] : [];
+        $eventPayload = $this->webhookPayload();
+        $rawBody = (string) ($this->payload['_webhook_raw_body'] ?? '');
+
+        if ($rawBody === '') {
+            $rawBody = $this->payments->canonicalWebhookPayload($eventPayload);
+        }
+
+        $eventId = $this->webhookEventId($driver, $eventPayload, $headers, $rawBody);
+        $eventType = $this->webhookEventType($eventPayload);
+        $subscriptionReference = $this->webhookSubscriptionReference($eventPayload);
+        $signature = trim((string) ($eventPayload['signature'] ?? $eventPayload['webhook_signature'] ?? ''));
+
+        try {
+            $verification = $this->payments->verifyWebhookSignature($driver, $rawBody, $headers, $signature !== '' ? $signature : null);
+        } catch (\Throwable $exception) {
+            return $this->webhookResponse(
+                'Subscription webhook rejected',
+                $exception->getMessage(),
+                422,
+                $this->recordWebhook($driver, $eventId, $subscriptionReference, $eventType, 'subscription', false, 'failed', $eventPayload, $exception->getMessage())
+            );
+        }
+
+        if (!((bool) ($verification['accepted'] ?? $verification['verified'] ?? false))) {
+            $message = (string) ($verification['message'] ?? 'Subscription webhook signature verification failed.');
+
+            return $this->webhookResponse(
+                'Subscription webhook rejected',
+                $message,
+                (int) ($verification['status'] ?? 401),
+                $this->recordWebhook($driver, $eventId, $subscriptionReference, $eventType, 'subscription', false, 'failed', $eventPayload, $message)
+            );
+        }
+
+        $signatureVerified = (bool) ($verification['verified'] ?? false);
+        $record = $this->recordWebhook($driver, $eventId, $subscriptionReference, $eventType, 'subscription', $signatureVerified, 'received', $eventPayload, 'Subscription webhook received.');
+
+        if (
+            $record instanceof PaymentWebhookEvent
+            && (string) ($record->getAttribute('processing_status') ?? '') === 'processed'
+        ) {
+            return $this->webhookResponse(
+                'Subscription webhook already processed',
+                'This subscription webhook event was already processed and was handled idempotently.',
+                200,
+                $record,
+                (int) ($record->getAttribute('order_id') ?? 0),
+                true
+            );
+        }
+
+        $result = $this->subscriptions->processProviderEvent($driver, [
+            ...$eventPayload,
+            'event_id' => $eventId,
+            'event_type' => $eventType,
+        ]);
+        $orderId = (int) ($result['order_id'] ?? 0);
+        $processingStatus = (string) ($result['processing_status'] ?? (($result['successful'] ?? false) ? 'processed' : 'failed'));
+        $message = (string) ($result['message'] ?? 'Subscription webhook processed.');
+        $record = $this->finalizeWebhookRecord($record, [
+            'order_id' => $orderId > 0 ? $orderId : null,
+            'order_reference' => $subscriptionReference,
+            'payment_status' => 'subscription',
+            'processing_status' => $processingStatus,
+            'signature_verified' => $signatureVerified,
+            'message' => $message,
+        ]);
+
+        if (!($result['successful'] ?? false) && $processingStatus !== 'unmatched') {
+            return $this->webhookResponse('Subscription webhook failed', $message, (int) ($result['status'] ?? 422), $record, $orderId);
+        }
+
+        $this->audit->record('order.webhook.subscription', [
+            'actor_id' => null,
+            'order_id' => $orderId > 0 ? (string) $orderId : null,
+            'payment_driver' => $driver,
+            'event_id' => $eventId,
+            'event_type' => $eventType,
+            'processing_status' => $processingStatus,
+        ], 'order');
+
+        return $this->webhookResponse(
+            $processingStatus === 'unmatched' ? 'Subscription webhook accepted' : 'Subscription webhook processed',
+            $message,
+            $processingStatus === 'unmatched' ? 202 : 200,
+            $record,
+            $orderId,
+            (bool) ($result['idempotent'] ?? false)
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function transitionPayment(int $orderId, string $action): array
     {
         $transition = $this->lifecycle->transition($orderId, $action, $this->payload);
@@ -795,6 +898,33 @@ class OrderService extends Service
             $this->nestedValue($payload, 'data.object.reference'),
             $this->nestedValue($payload, 'data.object.provider_reference'),
             $this->nestedValue($payload, 'resource.reference'),
+        ] as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function webhookSubscriptionReference(array $payload): string
+    {
+        foreach ([
+            $payload['subscription_key'] ?? null,
+            $payload['subscription_id'] ?? null,
+            $payload['provider_subscription_reference'] ?? null,
+            $payload['subscription_reference'] ?? null,
+            $payload['provider_reference'] ?? null,
+            $payload['reference'] ?? null,
+            $this->nestedValue($payload, 'subscription.key'),
+            $this->nestedValue($payload, 'subscription.id'),
+            $this->nestedValue($payload, 'data.object.subscription'),
+            $this->nestedValue($payload, 'resource.subscription'),
         ] as $candidate) {
             $candidate = trim((string) $candidate);
 
@@ -978,6 +1108,7 @@ class OrderService extends Service
             'addresses' => $includeSensitive ? $addresses : [],
             'actions' => $includeSensitive ? $this->orderActions($summary) : $this->publicOrderActions($summary),
             'entitlements' => $this->entitlements->summariesForOrder($orderId),
+            'subscriptions' => $this->subscriptions->summariesForOrder($orderId),
             ...$this->shipping->presentation($summary),
         ];
 
@@ -1037,6 +1168,7 @@ class OrderService extends Service
             'country' => (string) ($this->payload['country'] ?? $this->shipping->defaultCountry()),
             'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
             'discount_code' => (string) ($cart->getAttribute('discount_code') ?? ''),
+            ...$this->promotionCustomerContext(),
         ]);
         $promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];
         $storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));
@@ -1049,6 +1181,7 @@ class OrderService extends Service
                 $pricing = $this->pricing->price($items, (string) ($cart->getAttribute('currency') ?? 'SEK'), [
                     'country' => (string) ($this->payload['country'] ?? $this->shipping->defaultCountry()),
                     'shipping_option' => (string) ($this->payload['shipping_option'] ?? ''),
+                    ...$this->promotionCustomerContext(),
                 ]);
             }
         }
@@ -1422,6 +1555,7 @@ class OrderService extends Service
         $snapshot = is_array($cartPayload['discount_snapshot'] ?? null)
             ? $cartPayload['discount_snapshot']
             : [];
+        $customerContext = $this->promotionCustomerContext();
 
         $this->promotionRepository->recordUsage([
             'promotion_id' => (int) ($snapshot['promotion_id'] ?? 0),
@@ -1443,9 +1577,26 @@ class OrderService extends Service
                 'shipping_option' => (string) ($cartPayload['shipping_option'] ?? ''),
                 'shipping_carrier' => (string) ($cartPayload['shipping_carrier'] ?? ''),
                 'fulfillment' => is_array($cartPayload['fulfillment'] ?? null) ? $cartPayload['fulfillment'] : [],
+                'customer_email' => (string) ($customerContext['customer_email'] ?? ''),
+                'customer_segments' => (array) ($customerContext['customer_segments'] ?? []),
                 'snapshot' => $snapshot,
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function promotionCustomerContext(): array
+    {
+        $user = $this->auth->user();
+        $email = $user?->getEmailForVerification() ?? trim((string) ($this->payload['email'] ?? ''));
+
+        return [
+            'user_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'customer_email' => strtolower($email),
+            'customer_segments' => $this->auth->currentRoles(),
+        ];
     }
 
     private function returnMessageForOrder(array $order, string $title): string

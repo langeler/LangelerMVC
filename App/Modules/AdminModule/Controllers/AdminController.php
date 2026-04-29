@@ -396,6 +396,39 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function pauseSubscription(string $order, string $subscription): ResponseInterface
+    {
+        $this->action = 'pauseSubscription';
+        $this->context = [
+            'order' => (int) $order,
+            'subscription' => (int) $subscription,
+        ];
+
+        return $this->run();
+    }
+
+    public function resumeSubscription(string $order, string $subscription): ResponseInterface
+    {
+        $this->action = 'resumeSubscription';
+        $this->context = [
+            'order' => (int) $order,
+            'subscription' => (int) $subscription,
+        ];
+
+        return $this->run();
+    }
+
+    public function cancelSubscription(string $order, string $subscription): ResponseInterface
+    {
+        $this->action = 'cancelSubscription';
+        $this->context = [
+            'order' => (int) $order,
+            'subscription' => (int) $subscription,
+        ];
+
+        return $this->run();
+    }
+
     public function system(): ResponseInterface
     {
         $this->action = 'system';

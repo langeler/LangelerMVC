@@ -132,6 +132,16 @@ declare(strict_types=1);
             </label>
 
             <label>
+                Per-customer limit
+                <input type="number" name="per_customer_limit" min="0" value="<?= $view->escape((int) ($promotionForm['criteria']['per_customer_limit'] ?? 0)); ?>" placeholder="0 = unlimited">
+            </label>
+
+            <label>
+                Per-segment limit
+                <input type="number" name="per_segment_limit" min="0" value="<?= $view->escape((int) ($promotionForm['criteria']['per_segment_limit'] ?? 0)); ?>" placeholder="0 = unlimited">
+            </label>
+
+            <label>
                 Starts at
                 <input type="text" name="starts_at" value="<?= $view->escape((string) ($promotionForm['starts_at'] ?? '')); ?>" placeholder="Optional: 2026-05-01 09:00:00">
             </label>
@@ -167,13 +177,28 @@ declare(strict_types=1);
             </label>
 
             <label>
+                Allowed customer emails
+                <input type="text" name="allowed_customer_emails" placeholder="vip@example.com, team@example.com">
+            </label>
+
+            <label>
+                Allowed customer segments
+                <input type="text" name="allowed_customer_segments" placeholder="customer, vip, wholesale">
+            </label>
+
+            <label>
                 Required fulfillment types
                 <input type="text" name="required_fulfillment_types" placeholder="digital_download, virtual_access">
             </label>
 
             <label>
+                Required customer segments
+                <input type="text" name="required_customer_segments" placeholder="customer, subscriber">
+            </label>
+
+            <label>
                 Product/category criteria
-                <textarea name="criteria_json" rows="5" placeholder='Optional JSON: {"allowed_product_slugs":["starter-platform-license"],"excluded_fulfillment_types":["subscription"]}'><?= $view->escape((string) ($promotionForm['criteria_json'] ?? '')); ?></textarea>
+                <textarea name="criteria_json" rows="5" placeholder='Optional JSON: {"allowed_product_slugs":["starter-platform-license"],"per_customer_limit":1,"allowed_customer_segments":["customer"]}'><?= $view->escape((string) ($promotionForm['criteria_json'] ?? '')); ?></textarea>
             </label>
 
             <label>
@@ -304,6 +329,16 @@ declare(strict_types=1);
                         <label>
                             Usage limit
                             <input type="number" name="usage_limit" min="0" value="<?= $view->escape((int) ($entry['usage_limit'] ?? 0)); ?>">
+                        </label>
+
+                        <label>
+                            Per-customer limit
+                            <input type="number" name="per_customer_limit" min="0" value="<?= $view->escape((int) ($entry['criteria']['per_customer_limit'] ?? 0)); ?>">
+                        </label>
+
+                        <label>
+                            Per-segment limit
+                            <input type="number" name="per_segment_limit" min="0" value="<?= $view->escape((int) ($entry['criteria']['per_segment_limit'] ?? 0)); ?>">
                         </label>
 
                         <label>

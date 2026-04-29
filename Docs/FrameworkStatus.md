@@ -1,13 +1,13 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-28`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-29`.
 
 ## Snapshot
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (132 tests, 2885 assertions)`
-- Project posture: complete first-party platform framework with starter, identity, admin, WebModule content authoring, catalog, cart, promotions, and order slices implemented
+- Verification result: `OK (133 tests, 2957 assertions)`
+- Project posture: complete first-party platform framework with starter, identity, admin, WebModule content authoring, catalog, cart, promotions, subscriptions, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
 ## Implemented And Working
@@ -75,6 +75,7 @@ This document records the current implementation state of LangelerMVC based on t
 - payment manager with a plug-and-play multi-driver compatibility surface
 - first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
 - signed/idempotent payment webhook ingestion with event ledgers and order lifecycle reconciliation
+- signed/idempotent subscription webhook ingestion with recurring renewal, dunning, cancellation, pause/resume, and renewal-order reconciliation
 - mail, OTP, passkey/WebAuthn, health, and audit managers
 
 ### Utility Layer
@@ -129,6 +130,7 @@ This document records the current implementation state of LangelerMVC based on t
 - module/config/cache/session visibility
 - catalog/cart/order visibility
 - database-backed promotion/coupon management with usage reporting
+- per-customer and per-segment promotion usage enforcement through checkout usage ledgers
 - queue/notification/event/payment operational visibility where safe
 - framework health/readiness/capability visibility
 - audit-aware operational visibility where safe
@@ -170,9 +172,11 @@ This document records the current implementation state of LangelerMVC based on t
 - order, order-item, and order-address persistence
 - cart snapshotting into orders
 - promotion snapshotting and checkout usage recording
+- customer-aware promotion limit enforcement for account, email, and segment criteria
 - order status and payment-state lifecycles
 - payment-method-aware checkout with persisted payment flow, idempotency, provider/external/webhook references, and reconciliation support
 - signed payment webhook callback routes with event recording, signature verification, idempotency, and lifecycle reconciliation
+- subscription persistence, scheduling, trial handling, renewal orders, retry/dunning, admin pause/resume/cancel, entitlement synchronization, and provider-event reconciliation
 - payment manager integration through the first-party compatibility/reference driver
 - order lifecycle notifications and listeners
 - HTML + JSON parity
@@ -192,6 +196,7 @@ These framework/platform areas are now implemented rather than planned:
 - passkey/WebAuthn and TOTP support behind framework-native boundaries
 - admin-native WebModule page authoring and publishing
 - database-backed promotions with checkout usage ledgers
+- subscription runtime depth with plans, recurring schedules, dunning, renewal orders, admin lifecycle actions, and provider-event reconciliation
 
 ## Remaining Hardening / Environment Work
 
@@ -211,7 +216,7 @@ The major framework-level auth and commerce flows are implemented. The next gain
 
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
-- subscription lifecycle depth, subscription provider events, and live carrier API adapters beyond the reference booking/tracking seam
+- live subscription provider adapters and live carrier API adapters beyond the framework reference billing/booking/tracking seams
 - deeper end-to-end tests around queue-backed notifications, payment-state transitions, and promotion/subscription behavior in non-SQLite environments
 - environment-specific operational tuning for audit retention, queue workers, fulfillment providers, and payment-driver expansion
 

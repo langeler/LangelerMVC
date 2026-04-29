@@ -4,7 +4,7 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment webhooks, Swedish carrier-aware shipping with reference booking/label/tracking seams, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
 
 The remaining work is the final production layer: release hygiene, installer truth, live integrations, fulfillment breadth, operator polish, and deeper verification.
 
@@ -26,7 +26,7 @@ Commerce must model fulfillment strategies, not assume every order is shipped.
 - Virtual or online access purchases skip shipping and use the same entitlement foundation for gated content/access URLs.
 - Store pickup and scheduled pickup use pickup fulfillment options rather than carrier delivery.
 - Pre-orders need availability dates, customer messaging, and release workflows.
-- Subscriptions need plans, recurring payment schedules, renewal orders, payment retry/dunning, pause/resume/cancel, and webhook-driven reconciliation.
+- Subscriptions now have plans, recurring payment schedules, renewal orders, payment retry/dunning, pause/resume/cancel, entitlement syncing, admin operations, and webhook-driven reconciliation in the framework reference runtime.
 - Mixed carts must support physical plus digital/virtual/subscription products while only charging shipping for the physical fulfillment portion.
 
 ## P1 - Promotion And Coupon Breadth
@@ -35,7 +35,7 @@ Promotions should be treated as rules plus benefits.
 
 - Benefit types should include percentage, fixed amount, currency-specific exact amount, free shipping, fixed shipping rate, and shipping percentage discounts.
 - Criteria should include currency, subtotal ranges, item counts, product IDs, product slugs, category IDs, fulfillment types, shipping countries, zones, carriers, shipping options, active windows, and excluded products/types.
-- Promotions now have database-managed admin records with audit events, activation windows, usage limits, runtime catalog integration, checkout usage ledgers, and admin usage reporting. Remaining breadth is per-customer/per-segment limits and deeper analytical reporting.
+- Promotions now have database-managed admin records with audit events, activation windows, global/per-customer/per-segment usage limits, customer/account/segment criteria, runtime catalog integration, checkout usage ledgers, and admin usage reporting. Remaining breadth is deeper analytical reporting.
 
 ## P1 - Admin Operator Completion
 
@@ -48,16 +48,16 @@ Promotions should be treated as rules plus benefits.
 
 - Payment webhook routes, signature verification, event idempotency, event ledgers, order reconciliation, and provider callback documentation are implemented.
 - Carrier integration seams are implemented in reference mode: label references, service-point lookup, shipment booking, tracking sync, cancellation, admin-native routes, installer/env settings, and coverage for the Swedish carrier catalog.
-- Add subscription provider events for recurring payment success, failure, retry, cancellation, and renewal.
+- Subscription provider event ingestion is implemented for recurring payment success/renewal, failure/dunning, pause, resume, cancellation, idempotency, and renewal-order creation. Remaining live work is provider-specific merchant credentialing and adapter execution where the payment provider does not fully own recurring billing.
 
 ## Exact Remaining Work After Current Slice
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
 - P0: complete final release hygiene by keeping status/test counts current and confirming no runtime-generated secrets or local artifacts are tracked.
 - P1: replace the reference carrier adapter with live provider adapters/credentials where needed for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
-- P1: implement subscription runtime depth: plans, recurring schedules, renewal orders, retry/dunning, pause/resume/cancel, and provider-event reconciliation.
+- P1: wire live subscription provider adapters/merchant credentials where needed for production billing providers, keeping the new framework subscription webhook/runtime boundary as the shared contract.
 - P1: improve admin operator ergonomics with structured operations panels, richer filters, bulk workflows, confirmation UX, and audit drilldowns.
-- P1: extend promotion limits with per-customer/per-segment usage controls and richer analytical reporting.
+- P1: extend promotion operations with richer analytical reporting beyond the current global/customer/segment usage controls.
 - P2: add inventory reservation ledgers/expiry, returns/exchanges/partial refund depth, VAT/order documents, browser/accessibility smoke passes, and deployment/upgrade recipes.
 
 ## P2 - Production Hardening

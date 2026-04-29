@@ -26,7 +26,8 @@ class OrderLifecycleManager
         private readonly AuditLoggerInterface $audit,
         private readonly InventoryManager $inventory,
         private readonly ShippingManager $shipping,
-        private readonly EntitlementManager $entitlements
+        private readonly EntitlementManager $entitlements,
+        private readonly SubscriptionManager $subscriptions
     ) {
     }
 
@@ -98,6 +99,7 @@ class OrderLifecycleManager
 
             if (in_array($result->intent->status, ['captured', 'partially_captured'], true)) {
                 $entitlementSync = $this->entitlements->syncForOrder($orderId, 'payment.' . $action);
+                $this->subscriptions->syncForOrder($orderId, 'payment.' . $action);
 
                 if (
                     (int) ($entitlementSync['eligible'] ?? 0) > 0
@@ -112,6 +114,7 @@ class OrderLifecycleManager
 
             if (in_array($result->intent->status, ['cancelled', 'refunded'], true)) {
                 $this->entitlements->revokeForOrder($orderId, 'payment.' . $action);
+                $this->subscriptions->cancelForOrder($orderId, 'payment.' . $action);
             }
 
             $this->database->commit();

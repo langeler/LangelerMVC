@@ -110,6 +110,14 @@ class OrderController extends Controller
         return $this->run();
     }
 
+    public function subscriptionWebhook(string $driver = 'testing'): ResponseInterface
+    {
+        $this->action = 'subscriptionWebhook';
+        $this->context = ['driver' => $driver];
+
+        return $this->run();
+    }
+
     public function complete(string $reference = ''): ResponseInterface
     {
         $this->action = 'completeReturn';
@@ -130,7 +138,7 @@ class OrderController extends Controller
     {
         $payload = $this->request->all();
 
-        if ($this->action === 'paymentWebhook') {
+        if (in_array($this->action, ['paymentWebhook', 'subscriptionWebhook'], true)) {
             $payload['_webhook_headers'] = $this->request->headers();
             $payload['_webhook_raw_body'] = method_exists($this->request, 'rawBody')
                 ? (string) $this->request->rawBody()
@@ -146,7 +154,7 @@ class OrderController extends Controller
             return parent::finalize($result);
         }
 
-        if ($this->action === 'paymentWebhook') {
+        if (in_array($this->action, ['paymentWebhook', 'subscriptionWebhook'], true)) {
             return $this->respondWithResource(
                 new OrderResource($result),
                 (int) ($result['status'] ?? 200),

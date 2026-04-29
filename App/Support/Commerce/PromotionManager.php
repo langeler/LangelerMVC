@@ -132,6 +132,7 @@ class PromotionManager
         $carrier = strtolower((string) ($selected['carrier_code'] ?? $context['carrier_code'] ?? ''));
         $shippingOption = strtolower((string) ($selected['code'] ?? $context['shipping_option'] ?? ''));
         $freeShippingEligible = (bool) ($selected['free_shipping_eligible'] ?? false);
+        $customer = $this->customerContext($context);
 
         $base = [
             'requested_code' => (string) ($promotion['code'] ?? ''),
@@ -176,6 +177,22 @@ class PromotionManager
             return [
                 ...$base,
                 'message' => 'This promotion has reached its usage limit.',
+            ];
+        }
+
+        $customerEligibility = $this->customerEligibility($promotion, $customer);
+        if (!$customerEligibility['eligible']) {
+            return [
+                ...$base,
+                'message' => (string) ($customerEligibility['message'] ?? 'This promotion is not available for this customer.'),
+            ];
+        }
+
+        $customerUsage = $this->customerUsageEligibility($promotion, $customer);
+        if (!$customerUsage['eligible']) {
+            return [
+                ...$base,
+                'message' => (string) ($customerUsage['message'] ?? 'This promotion has reached a customer usage limit.'),
             ];
         }
 
@@ -354,6 +371,11 @@ class PromotionManager
             'carrier' => $carrier,
             'shipping_option' => $shippingOption,
             'fulfillment_types' => $fulfillmentTypes,
+            'customer' => [
+                'user_id' => (int) ($customer['user_id'] ?? 0),
+                'email' => (string) ($customer['email'] ?? ''),
+                'segments' => (array) ($customer['segments'] ?? []),
+            ],
             'promotion_id' => (int) ($promotion['id'] ?? 0),
             'source' => (string) ($promotion['source'] ?? 'config'),
         ];
@@ -468,10 +490,19 @@ class PromotionManager
             'allowed_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_PRODUCT_SLUGS'] ?? $definition['allowed_product_slugs'] ?? [])))),
             'allowed_category_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_CATEGORY_IDS'] ?? $definition['allowed_category_ids'] ?? []))),
             'allowed_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_FULFILLMENT_TYPES'] ?? $definition['allowed_fulfillment_types'] ?? [])))),
+            'allowed_user_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_USER_IDS'] ?? $definition['allowed_user_ids'] ?? []))),
+            'allowed_customer_emails' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CUSTOMER_EMAILS'] ?? $definition['allowed_customer_emails'] ?? [])))),
+            'allowed_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CUSTOMER_SEGMENTS'] ?? $definition['allowed_customer_segments'] ?? [])))),
             'excluded_product_ids' => array_values(array_map('intval', (array) ($definition['EXCLUDED_PRODUCT_IDS'] ?? $definition['excluded_product_ids'] ?? []))),
             'excluded_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_PRODUCT_SLUGS'] ?? $definition['excluded_product_slugs'] ?? [])))),
             'excluded_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_FULFILLMENT_TYPES'] ?? $definition['excluded_fulfillment_types'] ?? [])))),
+            'excluded_user_ids' => array_values(array_map('intval', (array) ($definition['EXCLUDED_USER_IDS'] ?? $definition['excluded_user_ids'] ?? []))),
+            'excluded_customer_emails' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_CUSTOMER_EMAILS'] ?? $definition['excluded_customer_emails'] ?? [])))),
+            'excluded_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_CUSTOMER_SEGMENTS'] ?? $definition['excluded_customer_segments'] ?? [])))),
             'required_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_FULFILLMENT_TYPES'] ?? $definition['required_fulfillment_types'] ?? [])))),
+            'required_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_CUSTOMER_SEGMENTS'] ?? $definition['required_customer_segments'] ?? [])))),
+            'per_customer_limit' => max(0, (int) ($definition['PER_CUSTOMER_LIMIT'] ?? $definition['per_customer_limit'] ?? $definition['PER_USER_LIMIT'] ?? $definition['per_user_limit'] ?? 0)),
+            'per_segment_limit' => max(0, (int) ($definition['PER_SEGMENT_LIMIT'] ?? $definition['per_segment_limit'] ?? $definition['CUSTOMER_SEGMENT_LIMIT'] ?? $definition['customer_segment_limit'] ?? 0)),
             'source' => strtolower(trim((string) ($definition['SOURCE'] ?? $definition['source'] ?? 'config'))),
             'currency' => $currency,
         ];
@@ -642,6 +673,127 @@ class PromotionManager
         $allowed = array_map('strtoupper', array_map('strval', (array) ($promotion['allowed_currencies'] ?? [])));
 
         return $allowed === [] || in_array(strtoupper($currency), $allowed, true);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @return array{user_id:int,email:string,segments:list<string>}
+     */
+    private function customerContext(array $context): array
+    {
+        $segments = (array) ($context['customer_segments'] ?? $context['segments'] ?? $context['roles'] ?? []);
+
+        return [
+            'user_id' => max(0, (int) ($context['user_id'] ?? $context['customer_id'] ?? 0)),
+            'email' => strtolower(trim((string) ($context['customer_email'] ?? $context['email'] ?? ''))),
+            'segments' => array_values(array_unique(array_filter(array_map(
+                static fn(mixed $segment): string => strtolower(trim((string) $segment)),
+                $segments
+            ), static fn(string $segment): bool => $segment !== ''))),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $promotion
+     * @param array{user_id:int,email:string,segments:list<string>} $customer
+     * @return array{eligible:bool,message?:string}
+     */
+    private function customerEligibility(array $promotion, array $customer): array
+    {
+        $userId = (int) ($customer['user_id'] ?? 0);
+        $email = (string) ($customer['email'] ?? '');
+        $segments = (array) ($customer['segments'] ?? []);
+        $allowedUserIds = array_values(array_filter(array_map('intval', (array) ($promotion['allowed_user_ids'] ?? []))));
+
+        if ($allowedUserIds !== [] && !in_array($userId, $allowedUserIds, true)) {
+            return ['eligible' => false, 'message' => 'This promotion is not available for this customer account.'];
+        }
+
+        if ($userId > 0 && in_array($userId, array_values(array_filter(array_map('intval', (array) ($promotion['excluded_user_ids'] ?? [])))), true)) {
+            return ['eligible' => false, 'message' => 'This promotion is excluded for this customer account.'];
+        }
+
+        $allowedEmails = $this->normalizedStringList((array) ($promotion['allowed_customer_emails'] ?? []));
+        if ($allowedEmails !== [] && ($email === '' || !in_array($email, $allowedEmails, true))) {
+            return ['eligible' => false, 'message' => 'This promotion is not available for this customer email.'];
+        }
+
+        $excludedEmails = $this->normalizedStringList((array) ($promotion['excluded_customer_emails'] ?? []));
+        if ($email !== '' && in_array($email, $excludedEmails, true)) {
+            return ['eligible' => false, 'message' => 'This promotion is excluded for this customer email.'];
+        }
+
+        $allowedSegments = $this->normalizedStringList((array) ($promotion['allowed_customer_segments'] ?? []));
+        if ($allowedSegments !== [] && array_intersect($segments, $allowedSegments) === []) {
+            return ['eligible' => false, 'message' => 'This promotion is not available for this customer segment.'];
+        }
+
+        $requiredSegments = $this->normalizedStringList((array) ($promotion['required_customer_segments'] ?? []));
+        if ($requiredSegments !== [] && array_diff($requiredSegments, $segments) !== []) {
+            return ['eligible' => false, 'message' => 'This promotion requires a different customer segment.'];
+        }
+
+        $excludedSegments = $this->normalizedStringList((array) ($promotion['excluded_customer_segments'] ?? []));
+        if ($excludedSegments !== [] && array_intersect($segments, $excludedSegments) !== []) {
+            return ['eligible' => false, 'message' => 'This promotion is excluded for this customer segment.'];
+        }
+
+        return ['eligible' => true];
+    }
+
+    /**
+     * @param array<string, mixed> $promotion
+     * @param array{user_id:int,email:string,segments:list<string>} $customer
+     * @return array{eligible:bool,message?:string}
+     */
+    private function customerUsageEligibility(array $promotion, array $customer): array
+    {
+        if ($this->repository === null) {
+            return ['eligible' => true];
+        }
+
+        $code = (string) ($promotion['code'] ?? '');
+        $perCustomerLimit = max(0, (int) ($promotion['per_customer_limit'] ?? 0));
+
+        if ($perCustomerLimit > 0) {
+            $userId = (int) ($customer['user_id'] ?? 0);
+            $email = (string) ($customer['email'] ?? '');
+
+            if ($userId <= 0 && $email === '') {
+                return ['eligible' => false, 'message' => 'This promotion requires an identifiable customer before it can be applied.'];
+            }
+
+            if ($this->repository->usageCountForCustomer($code, $userId > 0 ? $userId : null, $email) >= $perCustomerLimit) {
+                return ['eligible' => false, 'message' => 'This promotion has reached its per-customer usage limit.'];
+            }
+        }
+
+        $perSegmentLimit = max(0, (int) ($promotion['per_segment_limit'] ?? 0));
+
+        if ($perSegmentLimit > 0) {
+            $segments = (array) ($customer['segments'] ?? []);
+
+            if ($segments === []) {
+                return ['eligible' => false, 'message' => 'This promotion requires a customer segment before it can be applied.'];
+            }
+
+            if ($this->repository->usageCountForSegments($code, $segments) >= $perSegmentLimit) {
+                return ['eligible' => false, 'message' => 'This promotion has reached its customer-segment usage limit.'];
+            }
+        }
+
+        return ['eligible' => true];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedStringList(array $values): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            static fn(mixed $value): string => strtolower(trim((string) $value)),
+            $values
+        ), static fn(string $value): bool => $value !== '')));
     }
 
     /**

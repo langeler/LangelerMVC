@@ -37,12 +37,14 @@ use App\Modules\OrderModule\Migrations\AddOrderDiscountSnapshotColumns;
 use App\Modules\OrderModule\Migrations\AddOrderShipmentTrackingColumns;
 use App\Modules\OrderModule\Migrations\CreateOrderEntitlementsTable;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
+use App\Modules\OrderModule\Migrations\CreateOrderSubscriptionsTable;
 use App\Modules\OrderModule\Migrations\CreatePaymentWebhookEventsTable;
 use App\Modules\OrderModule\Presenters\OrderResource;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderEntitlementRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Modules\OrderModule\Repositories\OrderSubscriptionRepository;
 use App\Modules\OrderModule\Repositories\PaymentWebhookEventRepository;
 use App\Modules\OrderModule\Seeds\OrderSeed;
 use App\Modules\OrderModule\Services\OrderService;
@@ -76,6 +78,7 @@ use App\Support\Commerce\InventoryManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\PromotionManager;
 use App\Support\Commerce\ShippingManager;
+use App\Support\Commerce\SubscriptionManager;
 use App\Support\Payments\PaymentIntent;
 use App\Utilities\Managers\Async\DatabaseFailedJobStore;
 use App\Utilities\Managers\Async\EventDispatcher;
@@ -362,6 +365,7 @@ final class FrameworkCompletionTest extends TestCase
             AddOrderCommerceStateColumns::class,
             AddOrderShipmentTrackingColumns::class,
             CreateOrderEntitlementsTable::class,
+            CreateOrderSubscriptionsTable::class,
             CreatePaymentWebhookEventsTable::class,
             OrderSeed::class,
             CreatePagesTable::class,
@@ -421,6 +425,10 @@ final class FrameworkCompletionTest extends TestCase
         self::assertLessThan(
             array_search('CreateOrderEntitlementsTable', $executedMigrations, true),
             array_search('AddOrderShipmentTrackingColumns', $executedMigrations, true)
+        );
+        self::assertLessThan(
+            array_search('CreateOrderSubscriptionsTable', $executedMigrations, true),
+            array_search('CreateOrderEntitlementsTable', $executedMigrations, true)
         );
         self::assertLessThan(
             array_search('CreatePaymentWebhookEventsTable', $executedMigrations, true),
@@ -904,10 +912,13 @@ final class FrameworkCompletionTest extends TestCase
             'amount_minor' => 2500,
             'min_subtotal_minor' => 5000,
             'usage_limit' => 5,
+            'per_customer_limit' => 1,
+            'per_segment_limit' => 1,
             'allowed_currencies' => 'SEK',
             'allowed_countries' => 'SE',
             'allowed_product_slugs' => 'starter-platform-license',
             'allowed_fulfillment_types' => 'physical_shipping',
+            'allowed_customer_segments' => 'customer',
         ])->execute();
 
         self::assertSame(200, $created['status'], (string) ($created['message'] ?? ''));
@@ -928,6 +939,9 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('/admin/promotions/' . $promotion['id'] . '/deactivate', $promotion['deactivate_path'] ?? null);
         self::assertSame(['SEK'], $promotion['criteria']['allowed_currencies'] ?? []);
         self::assertSame(['starter-platform-license'], $promotion['criteria']['allowed_product_slugs'] ?? []);
+        self::assertSame(['customer'], $promotion['criteria']['allowed_customer_segments'] ?? []);
+        self::assertSame(1, $promotion['criteria']['per_customer_limit'] ?? 0);
+        self::assertSame(1, $promotion['criteria']['per_segment_limit'] ?? 0);
 
         $json = (new AdminResource($created))->toArray();
         self::assertSame('AdminModule', $json['meta']['module']);
@@ -970,7 +984,43 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('ADMIN250', $usage[0]['promotion_code']);
         self::assertSame((int) $checkout['order']['id'], $usage[0]['order_id']);
         self::assertSame(2500, $usage[0]['discount_minor']);
+        self::assertSame('customer@langelermvc.test', $usage[0]['context']['customer_email'] ?? '');
+        self::assertSame(['customer'], $usage[0]['context']['customer_segments'] ?? []);
         self::assertSame(1, (int) $stack['promotionRepository']->findByCode('ADMIN250')?->getAttribute('usage_count'));
+
+        $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+        $limited = $stack['cartService']->forAction('applyDiscount', [
+            'coupon_code' => 'ADMIN250',
+        ])->execute();
+
+        self::assertSame(422, $limited['status']);
+        self::assertSame('This promotion has reached its per-customer usage limit.', $limited['message']);
+
+        $segmentLimited = $stack['promotions']->evaluate('ADMIN250', [[
+            'product_id' => 1,
+            'slug' => 'starter-platform-license',
+            'category_id' => 1,
+            'fulfillment_type' => 'physical_shipping',
+            'quantity' => 1,
+            'line_total_minor' => 9900,
+        ]], 'SEK', [
+            'country' => 'SE',
+            'zone' => 'SE',
+            'selected' => [
+                'carrier_code' => 'postnord',
+                'code' => 'postnord-service-point',
+                'effective_rate_minor' => 990,
+            ],
+        ], [
+            'user_id' => 999,
+            'customer_email' => 'other@langelermvc.test',
+            'customer_segments' => ['customer'],
+        ]);
+
+        self::assertFalse($segmentLimited['applied']);
+        self::assertSame('This promotion has reached its customer-segment usage limit.', $segmentLimited['message']);
 
         $stack['auth']->logout();
         self::assertTrue($stack['auth']->attempt([
@@ -1215,6 +1265,183 @@ final class FrameworkCompletionTest extends TestCase
 
         self::assertSame(200, $reactivated['status']);
         self::assertSame('active', $reactivated['order']['entitlements'][0]['status']);
+    }
+
+    public function testSubscriptionRuntimeManagesSchedulesAdminTransitionsAndProviderEvents(): void
+    {
+        $stack = $this->makePlatformStack(seedCart: false, seedOrders: false);
+
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'customer@langelermvc.test',
+            'password' => 'customer12345',
+        ]));
+
+        $product = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertNotNull($product);
+        $stack['products']->update((int) $product?->getKey(), [
+            'price_minor' => 19900,
+            'stock' => 0,
+            'fulfillment_type' => 'subscription',
+            'fulfillment_policy' => json_encode([
+                'plan_code' => 'platform-pro-monthly',
+                'plan_label' => 'Platform Pro Monthly',
+                'interval' => 'monthly',
+                'trial_days' => 7,
+                'max_retries' => 2,
+                'dunning_retry_days' => [1, 3],
+                'access_url' => 'https://access.langelermvc.test/platform-pro',
+                'provider_subscription_reference' => 'sub_testing_platform_pro',
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $added = $stack['cartService']
+            ->forAction('addItem', ['slug' => 'starter-platform-license', 'quantity' => 1])
+            ->execute();
+
+        self::assertSame(200, $added['status']);
+        self::assertSame('subscription', $added['cart']['items'][0]['fulfillment_type']);
+        self::assertSame('digital-delivery', $added['cart']['shipping_option']);
+
+        $checkout = $stack['orderService']->forAction('checkout', [
+            'name' => 'Subscription Customer',
+            'email' => 'customer@langelermvc.test',
+            'line_one' => 'Online',
+            'postal_code' => '00000',
+            'city' => 'Stockholm',
+            'country' => 'Sweden',
+            'payment_flow' => 'purchase',
+        ])->execute();
+
+        self::assertSame(201, $checkout['status']);
+        self::assertSame('captured', $checkout['order']['payment_status']);
+        self::assertSame('access_granted', $checkout['order']['fulfillment_status']);
+        self::assertCount(1, $checkout['order']['entitlements']);
+        self::assertCount(1, $checkout['order']['subscriptions']);
+        self::assertSame('subscription', $checkout['order']['entitlements'][0]['type']);
+        self::assertSame('trialing', $checkout['order']['subscriptions'][0]['status']);
+        self::assertSame('monthly', $checkout['order']['subscriptions'][0]['interval']);
+        self::assertSame('sub_testing_platform_pro', $checkout['order']['subscriptions'][0]['provider_subscription_reference']);
+        self::assertNotSame('', (string) ($checkout['order']['subscriptions'][0]['next_billing_at'] ?? ''));
+
+        $subscriptionId = (int) $checkout['order']['subscriptions'][0]['id'];
+        $entitlementId = (int) $checkout['order']['entitlements'][0]['id'];
+
+        $stack['auth']->logout();
+        self::assertTrue($stack['auth']->attempt([
+            'email' => 'admin@langelermvc.test',
+            'password' => 'admin12345',
+        ]));
+
+        $paused = $stack['adminService']->forAction('pauseSubscription', [], [
+            'order' => (int) $checkout['order']['id'],
+            'subscription' => $subscriptionId,
+        ])->execute();
+
+        self::assertSame(200, $paused['status']);
+        self::assertSame('paused', $paused['order']['subscriptions'][0]['status']);
+        self::assertSame('pending', $paused['order']['entitlements'][0]['status']);
+
+        $resumed = $stack['adminService']->forAction('resumeSubscription', [], [
+            'order' => (int) $checkout['order']['id'],
+            'subscription' => $subscriptionId,
+        ])->execute();
+
+        self::assertSame(200, $resumed['status']);
+        self::assertSame('active', $resumed['order']['subscriptions'][0]['status']);
+        self::assertSame('active', $resumed['order']['entitlements'][0]['status']);
+
+        $failurePayload = [
+            'event_id' => 'evt_sub_failure_1',
+            'event_type' => 'subscription.payment_failed',
+            'provider_subscription_reference' => 'sub_testing_platform_pro',
+        ];
+        $failureRaw = $stack['payments']->canonicalWebhookPayload($failurePayload);
+        $failureWebhook = $stack['orderService']->forAction('subscriptionWebhook', [
+            ...$failurePayload,
+            '_webhook_raw_body' => $failureRaw,
+            '_webhook_headers' => [
+                'X-Langeler-Signature' => $stack['payments']->webhookPayloadSignature('testing', $failureRaw),
+                'X-Langeler-Timestamp' => (string) time(),
+            ],
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(200, $failureWebhook['status']);
+        self::assertSame('past_due', $failureWebhook['order']['subscriptions'][0]['status']);
+        self::assertSame(1, $failureWebhook['order']['subscriptions'][0]['retry_count']);
+
+        $exhaustedPayload = [
+            'event_id' => 'evt_sub_failure_2',
+            'event_type' => 'invoice.payment_failed',
+            'provider_subscription_reference' => 'sub_testing_platform_pro',
+        ];
+        $exhaustedRaw = $stack['payments']->canonicalWebhookPayload($exhaustedPayload);
+        $exhaustedWebhook = $stack['orderService']->forAction('subscriptionWebhook', [
+            ...$exhaustedPayload,
+            '_webhook_raw_body' => $exhaustedRaw,
+            '_webhook_headers' => [
+                'X-Langeler-Signature' => $stack['payments']->webhookPayloadSignature('testing', $exhaustedRaw),
+                'X-Langeler-Timestamp' => (string) time(),
+            ],
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(200, $exhaustedWebhook['status']);
+        self::assertSame('unpaid', $exhaustedWebhook['order']['subscriptions'][0]['status']);
+        self::assertSame(2, $exhaustedWebhook['order']['subscriptions'][0]['retry_count']);
+        self::assertSame('pending', $stack['entitlementRepository']->mapSummary($stack['entitlementRepository']->find($entitlementId))['status']);
+
+        $ordersBeforeRenewal = (int) $stack['database']->fetchColumn('SELECT COUNT(*) FROM orders');
+        $renewalPayload = [
+            'event_id' => 'evt_sub_renewed_1',
+            'event_type' => 'subscription.renewed',
+            'provider_subscription_reference' => 'sub_testing_platform_pro',
+            'amount_minor' => 19900,
+            'currency' => 'SEK',
+        ];
+        $renewalRaw = $stack['payments']->canonicalWebhookPayload($renewalPayload);
+        $renewalWebhook = $stack['orderService']->forAction('subscriptionWebhook', [
+            ...$renewalPayload,
+            '_webhook_raw_body' => $renewalRaw,
+            '_webhook_headers' => [
+                'X-Langeler-Signature' => $stack['payments']->webhookPayloadSignature('testing', $renewalRaw),
+                'X-Langeler-Timestamp' => (string) time(),
+            ],
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(200, $renewalWebhook['status']);
+        self::assertSame('active', $renewalWebhook['order']['subscriptions'][0]['status']);
+        self::assertSame(1, $renewalWebhook['order']['subscriptions'][0]['renewal_count']);
+        self::assertSame($ordersBeforeRenewal + 1, (int) $stack['database']->fetchColumn('SELECT COUNT(*) FROM orders'));
+        self::assertSame('active', $stack['entitlementRepository']->mapSummary($stack['entitlementRepository']->find($entitlementId))['status']);
+
+        $duplicateRenewal = $stack['orderService']->forAction('subscriptionWebhook', [
+            ...$renewalPayload,
+            '_webhook_raw_body' => $renewalRaw,
+            '_webhook_headers' => [
+                'X-Langeler-Signature' => $stack['payments']->webhookPayloadSignature('testing', $renewalRaw),
+                'X-Langeler-Timestamp' => (string) time(),
+            ],
+        ], [
+            'driver' => 'testing',
+        ])->execute();
+
+        self::assertSame(200, $duplicateRenewal['status']);
+        self::assertTrue($duplicateRenewal['webhook']['idempotent']);
+        self::assertSame($ordersBeforeRenewal + 1, (int) $stack['database']->fetchColumn('SELECT COUNT(*) FROM orders'));
+
+        $cancelled = $stack['adminService']->forAction('cancelSubscription', [], [
+            'order' => (int) $checkout['order']['id'],
+            'subscription' => $subscriptionId,
+        ])->execute();
+
+        self::assertSame(200, $cancelled['status']);
+        self::assertSame('cancelled', $cancelled['order']['subscriptions'][0]['status']);
+        self::assertSame('revoked', $cancelled['order']['entitlements'][0]['status']);
     }
 
     public function testCheckoutRejectsIneligiblePromotionForSelectedShippingMethod(): void
@@ -1720,6 +1947,7 @@ final class FrameworkCompletionTest extends TestCase
             AddOrderDiscountSnapshotColumns::class,
             AddOrderShipmentTrackingColumns::class,
             CreateOrderEntitlementsTable::class,
+            CreateOrderSubscriptionsTable::class,
             CreatePaymentWebhookEventsTable::class,
             MergeCartOnLoginListener::class,
             CatalogActivityNotificationListener::class,
@@ -1828,6 +2056,7 @@ final class FrameworkCompletionTest extends TestCase
         $orders = new OrderRepository($database);
         $orderItems = new OrderItemRepository($database);
         $entitlementRepository = new OrderEntitlementRepository($database);
+        $subscriptionRepository = new OrderSubscriptionRepository($database);
         $webhookEvents = new PaymentWebhookEventRepository($database);
         $addresses = new OrderAddressRepository($database);
         $totals = new CommerceTotalsCalculator($config);
@@ -1837,7 +2066,8 @@ final class FrameworkCompletionTest extends TestCase
         $inventory = new InventoryManager($products);
         $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
         $entitlements = new EntitlementManager($entitlementRepository, $orders, $orderItems, $events, $auth, $audit, $config);
-        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping, $entitlements);
+        $subscriptions = new SubscriptionManager($subscriptionRepository, $orders, $orderItems, $entitlementRepository, $events, $auth, $audit, $config);
+        $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping, $entitlements, $subscriptions);
 
         $catalogService = new CatalogService($products, $categories);
         $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $pricing);
@@ -1853,6 +2083,7 @@ final class FrameworkCompletionTest extends TestCase
             $lifecycle,
             $shipping,
             $entitlements,
+            $subscriptions,
             $payments,
             $events,
             $auth,
@@ -1882,6 +2113,7 @@ final class FrameworkCompletionTest extends TestCase
             $lifecycle,
             $shipping,
             $entitlements,
+            $subscriptions,
             $modules,
             $cache,
             $sessionManager,
@@ -1930,6 +2162,8 @@ final class FrameworkCompletionTest extends TestCase
             'events' => $events,
             'entitlements' => $entitlements,
             'entitlementRepository' => $entitlementRepository,
+            'subscriptions' => $subscriptions,
+            'subscriptionRepository' => $subscriptionRepository,
             'inventory' => $inventory,
             'lifecycle' => $lifecycle,
             'mail' => $mail,

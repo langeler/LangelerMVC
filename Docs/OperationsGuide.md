@@ -80,6 +80,18 @@ The framework payment layer is now designed as a gateway-agnostic compatibility 
 - Configure webhook secrets with `PAYMENT_WEBHOOK_SECRET_TESTING`, `PAYMENT_WEBHOOK_SECRET_CARD`, `PAYMENT_WEBHOOK_SECRET_CRYPTO`, `PAYMENT_WEBHOOK_SECRET_PAYPAL`, `PAYMENT_WEBHOOK_SECRET_KLARNA`, `PAYMENT_WEBHOOK_SECRET_SWISH`, `PAYMENT_WEBHOOK_SECRET_QLIRO`, and `PAYMENT_WEBHOOK_SECRET_WALLEY` as needed.
 - Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer and configuration boundary so those providers stay plug-and-play from the application/module perspective.
 
+## Subscription Operations
+
+The order module now includes a DB-backed subscription runtime for recurring digital, virtual, and access-based purchases.
+
+- Subscription products use `fulfillment_type=subscription` and a product fulfillment policy with plan metadata such as `plan_code`, `plan_label`, `interval`, `interval_count`, `trial_days`, `max_retries`, `dunning_retry_days`, and provider/customer references.
+- Captured checkout and payment capture transitions create or activate `order_subscriptions` records alongside digital entitlements.
+- Admin order pages expose pause, resume, and cancel actions without leaving the dashboard. Those actions also synchronize the linked entitlement status.
+- Provider callbacks should target `POST /api/orders/webhooks/subscriptions/{driver}` or `POST /orders/webhooks/subscriptions/{driver}`. Subscription webhooks reuse the payment webhook signature verifier and event ledger.
+- Supported provider event families include renewal/payment success, payment failure, pause, resume, and cancellation. Renewal events create captured renewal orders, reset dunning state, advance the billing period, and keep entitlement access active.
+- Dunning configuration is installer/env backed through `COMMERCE_SUBSCRIPTION_TRIAL_DAYS`, `COMMERCE_SUBSCRIPTION_MAX_RETRIES`, and `COMMERCE_SUBSCRIPTION_DUNNING_RETRY_DAYS`.
+- Live subscription production use still depends on the selected provider's recurring-billing ownership model, merchant credentials, and callback payload shape. The framework boundary is ready for provider adapters while keeping admin and order behavior consistent.
+
 ## Content Operations
 
 The admin dashboard includes WebModule page authoring at `/admin/pages`.
@@ -96,8 +108,9 @@ The admin dashboard now includes database-backed promotion and coupon management
 - Operators can create, update, activate, deactivate, and delete promotions without leaving the admin surface.
 - Runtime pricing merges config-backed baseline promotions with database-backed admin promotions, with database records taking precedence by code.
 - Supported benefit families include percentage, fixed amount, free shipping, fixed shipping rate, and shipping percentage discounts.
-- Supported criteria include currency, subtotal ranges, item counts, product IDs/slugs, categories, fulfillment types, shipping countries/zones/carriers/options, active windows, exclusions, free-shipping eligibility, and usage limits.
+- Supported criteria include currency, subtotal ranges, item counts, product IDs/slugs, categories, fulfillment types, shipping countries/zones/carriers/options, customer accounts, customer emails, customer segments, active windows, exclusions, free-shipping eligibility, global usage limits, per-customer limits, and per-segment limits.
 - Checkout records promotion usage ledgers with order/cart/user context and increments database-backed usage counters for operational limit enforcement.
+- Promotion usage ledgers include customer email and customer segment context when available, allowing later applications to enforce per-customer and per-segment limits without application-local coupon code.
 - Admin promotion metrics include recent usage records and aggregate discount totals.
 - Config-backed promotions remain useful for immutable baseline/demo promotions; database-backed promotions are the production operator workflow.
 
@@ -125,6 +138,7 @@ Current first-party audit events include:
 - WebModule page save, publish, unpublish, and delete actions from the admin surface
 - promotion creation/update, activation, deactivation, and deletion from the admin surface
 - order creation and payment-state transitions
+- subscription sync, pause, resume, cancel, renewal, and dunning events
 
 Audit logging is configured through `Config/operations.php`.
 

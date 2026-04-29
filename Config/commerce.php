@@ -359,6 +359,7 @@ return [
             'DEFAULT_INTERVAL' => 'monthly',
             'SUPPORTED_INTERVALS' => ['weekly', 'monthly', 'quarterly', 'yearly'],
             'TRIAL_DAYS' => 0,
+            'MAX_RETRIES' => 3,
             'DUNNING_RETRY_DAYS' => [1, 3, 7],
         ],
     ],

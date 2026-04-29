@@ -4,6 +4,7 @@ $order = is_array($order ?? null) ? $order : [];
 $lookup = is_array($lookup ?? null) ? $lookup : [];
 $actions = is_array($order['actions'] ?? null) ? $order['actions'] : [];
 $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
+$subscriptions = is_array($order['subscriptions'] ?? null) ? $order['subscriptions'] : [];
 $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
 $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
 $nextActionItems = !empty($order['payment_next_action']) && is_array($order['payment_next_action'])
@@ -187,6 +188,31 @@ $nextActionItems = !empty($order['payment_next_action']) && is_array($order['pay
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($subscriptions !== []): ?>
+        <div class="section">
+            <h2>Subscriptions</h2>
+            <?= $view->renderComponent('DataTable', [
+                'columns' => [
+                    'plan_label' => 'Plan',
+                    'status' => 'Status',
+                    'interval' => 'Interval',
+                    'amount' => 'Amount',
+                    'current_period_end' => 'Period end',
+                    'next_billing_at' => 'Next billing',
+                ],
+                'rows' => array_map(static fn(array $subscription): array => [
+                    'plan_label' => (string) ($subscription['plan_label'] ?? ''),
+                    'status' => (string) ($subscription['status'] ?? ''),
+                    'interval' => (string) ($subscription['interval_count'] ?? 1) . ' ' . (string) ($subscription['interval'] ?? 'monthly'),
+                    'amount' => (string) ($subscription['amount'] ?? ''),
+                    'current_period_end' => (string) ($subscription['current_period_end'] ?? ''),
+                    'next_billing_at' => (string) ($subscription['next_billing_at'] ?? ''),
+                ], $subscriptions),
+                'empty' => 'No subscriptions are attached to this order.',
+            ]) ?>
         </div>
     <?php endif; ?>
 

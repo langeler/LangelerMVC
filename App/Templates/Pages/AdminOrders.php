@@ -30,6 +30,7 @@ $confirmActions = [
 $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
 $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
 $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
+$subscriptions = is_array($order['subscriptions'] ?? null) ? $order['subscriptions'] : [];
 $servicePoints = is_array($service_points ?? null) ? $service_points : [];
 ?>
 <section class="stack">
@@ -357,6 +358,57 @@ $servicePoints = is_array($service_points ?? null) ? $service_points : [];
                                     <?php elseif ($status !== 'active' && !empty($row['activate_path'])): ?>
                                         <form method="post" action="<?= $view->escape((string) $row['activate_path']) ?>">
                                             <button type="submit">Activate</button>
+                                        </form>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($subscriptions !== []): ?>
+            <div class="section">
+                <h2>Subscriptions</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Interval</th>
+                            <th>Amount</th>
+                            <th>Next billing</th>
+                            <th>Retries</th>
+                            <th>Provider reference</th>
+                            <th>Admin action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($subscriptions as $subscription): ?>
+                            <?php $row = is_array($subscription) ? $subscription : []; ?>
+                            <tr>
+                                <td><?= $view->escape((string) ($row['plan_label'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['status'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['interval_count'] ?? 1) . ' ' . (string) ($row['interval'] ?? 'monthly')) ?></td>
+                                <td><?= $view->escape((string) ($row['amount'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['next_billing_at'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['retry_count'] ?? 0) . ' / ' . (string) ($row['max_retries'] ?? 0)) ?></td>
+                                <td><?= $view->escape((string) ($row['provider_subscription_reference'] ?? '')) ?></td>
+                                <td>
+                                    <?php if (!empty($row['pause_path'])): ?>
+                                        <form method="post" action="<?= $view->escape((string) $row['pause_path']) ?>">
+                                            <button type="submit">Pause</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if (!empty($row['resume_path'])): ?>
+                                        <form method="post" action="<?= $view->escape((string) $row['resume_path']) ?>">
+                                            <button type="submit">Resume</button>
+                                        </form>
+                                    <?php endif; ?>
+                                    <?php if (!empty($row['cancel_path'])): ?>
+                                        <form method="post" action="<?= $view->escape((string) $row['cancel_path']) ?>" onsubmit="return confirm('Cancel this subscription?');">
+                                            <button type="submit">Cancel</button>
                                         </form>
                                     <?php endif; ?>
                                 </td>

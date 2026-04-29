@@ -26,6 +26,7 @@ use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\OrderLifecycleManager;
 use App\Support\Commerce\ShippingManager;
+use App\Support\Commerce\SubscriptionManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
 use App\Modules\UserModule\Repositories\RoleRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
@@ -72,6 +73,7 @@ class AdminAccessService extends Service
         private readonly OrderLifecycleManager $lifecycle,
         private readonly ShippingManager $shipping,
         private readonly EntitlementManager $entitlements,
+        private readonly SubscriptionManager $subscriptions,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
@@ -144,6 +146,21 @@ class AdminAccessService extends Service
             'syncTrackingOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'sync_tracking'),
             'cancelShipmentOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'cancel_shipment'),
             'deliverOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'deliver'),
+            'pauseSubscription' => $this->transitionSubscription(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['subscription'] ?? 0),
+                'pause'
+            ),
+            'resumeSubscription' => $this->transitionSubscription(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['subscription'] ?? 0),
+                'resume'
+            ),
+            'cancelSubscription' => $this->transitionSubscription(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['subscription'] ?? 0),
+                'cancel'
+            ),
             'activateEntitlement' => $this->transitionEntitlement(
                 (int) ($this->context['order'] ?? 0),
                 (int) ($this->context['entitlement'] ?? 0),
@@ -1234,6 +1251,64 @@ class AdminAccessService extends Service
         ];
     }
 
+    private function transitionSubscription(int $orderId, int $subscriptionId, string $action): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Subscription management requires the order.manage permission.');
+        }
+
+        $belongsToOrder = array_filter(
+            $this->subscriptions->summariesForOrder($orderId),
+            static fn(array $subscription): bool => (int) ($subscription['id'] ?? 0) === $subscriptionId
+        ) !== [];
+
+        if (!$belongsToOrder) {
+            return $this->ordersResponse(
+                title: 'Subscription update failed',
+                headline: 'Recurring access could not be updated',
+                summary: 'The requested subscription does not belong to this order.',
+                status: 404,
+                message: 'Choose a valid subscription for this order and try again.'
+            );
+        }
+
+        $transition = $this->subscriptions->transition($subscriptionId, $action, 'admin');
+
+        if (!$transition['successful']) {
+            return $this->ordersResponse(
+                title: 'Subscription update failed',
+                headline: 'Recurring access could not be updated',
+                summary: (string) ($transition['message'] ?? 'The requested subscription transition could not be completed.'),
+                status: (int) ($transition['status'] ?? 422),
+                message: (string) ($transition['message'] ?? '')
+            );
+        }
+
+        $order = $this->orders->find($orderId);
+
+        if (!$order instanceof Order) {
+            return $this->ordersResponse(
+                title: 'Order not found',
+                headline: 'The updated order could not be loaded',
+                summary: 'The subscription change completed, but the order could not be reloaded afterward.',
+                status: 404,
+                message: 'Refresh the administrative order list and try again.'
+            );
+        }
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: 'Order ' . (string) ($order->getAttribute('order_number') ?? ''),
+                summary: 'Detailed order lifecycle, stored addresses, purchased access, subscriptions, and available management actions.',
+                status: 200,
+                message: (string) ($transition['message'] ?? 'Subscription updated successfully.'),
+                order: $this->adminOrderDetail($order)
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
     private function operationsPage(): array
     {
         if (!$this->auth->hasPermission('admin.system.view')) {
@@ -1640,9 +1715,14 @@ class AdminAccessService extends Service
             'allowed_shipping_options',
             'allowed_product_slugs',
             'allowed_fulfillment_types',
+            'allowed_customer_emails',
+            'allowed_customer_segments',
             'excluded_product_slugs',
             'excluded_fulfillment_types',
+            'excluded_customer_emails',
+            'excluded_customer_segments',
             'required_fulfillment_types',
+            'required_customer_segments',
         ] as $key) {
             $values = $this->splitList((string) ($payload[$key] ?? ''));
             if ($values !== []) {
@@ -1653,7 +1733,9 @@ class AdminAccessService extends Service
         foreach ([
             'allowed_product_ids',
             'allowed_category_ids',
+            'allowed_user_ids',
             'excluded_product_ids',
+            'excluded_user_ids',
         ] as $key) {
             $values = $this->splitIntList((string) ($payload[$key] ?? ''));
             if ($values !== []) {
@@ -1663,6 +1745,14 @@ class AdminAccessService extends Service
 
         if (array_key_exists('free_shipping_eligible_only', $payload)) {
             $criteria['free_shipping_eligible_only'] = !empty($payload['free_shipping_eligible_only']);
+        }
+
+        foreach (['per_customer_limit', 'per_segment_limit'] as $key) {
+            $value = max(0, (int) ($payload[$key] ?? $criteria[$key] ?? 0));
+
+            if ($value > 0) {
+                $criteria[$key] = $value;
+            }
         }
 
         return $criteria;
@@ -1731,6 +1821,7 @@ class AdminAccessService extends Service
                 ];
             }, $this->orderItems->summaryForOrder($orderId)),
             'entitlements' => $this->entitlementSummariesForAdmin($orderId),
+            'subscriptions' => $this->subscriptionSummariesForAdmin($orderId),
             'addresses' => $this->orderAddresses->summaryForOrder($orderId),
             'actions' => $this->adminOrderActions($summary),
             'available_carriers' => $this->shipping->carrierCatalog((string) ($summary['shipping_country'] ?? 'SE')),
@@ -1755,6 +1846,30 @@ class AdminAccessService extends Service
                 'revoke_path' => '/admin/orders/' . $orderId . '/entitlements/' . $id . '/revoke',
             ];
         }, $this->entitlements->summariesForOrder($orderId));
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function subscriptionSummariesForAdmin(int $orderId): array
+    {
+        return array_map(function (array $subscription) use ($orderId): array {
+            $id = (int) ($subscription['id'] ?? 0);
+            $status = (string) ($subscription['status'] ?? '');
+
+            return [
+                ...$subscription,
+                'pause_path' => in_array($status, ['active', 'trialing', 'past_due'], true)
+                    ? '/admin/orders/' . $orderId . '/subscriptions/' . $id . '/pause'
+                    : '',
+                'resume_path' => in_array($status, ['paused', 'past_due', 'unpaid'], true)
+                    ? '/admin/orders/' . $orderId . '/subscriptions/' . $id . '/resume'
+                    : '',
+                'cancel_path' => $status !== 'cancelled'
+                    ? '/admin/orders/' . $orderId . '/subscriptions/' . $id . '/cancel'
+                    : '',
+            ];
+        }, $this->subscriptions->summariesForOrder($orderId));
     }
 
     /**

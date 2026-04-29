@@ -74,10 +74,19 @@ class AdminRequest extends InboundRequest
                 'allowed_product_slugs' => ['methods' => 'string', 'required' => false],
                 'allowed_category_ids' => ['methods' => 'string', 'required' => false],
                 'allowed_fulfillment_types' => ['methods' => 'string', 'required' => false],
+                'allowed_user_ids' => ['methods' => 'string', 'required' => false],
+                'allowed_customer_emails' => ['methods' => 'string', 'required' => false],
+                'allowed_customer_segments' => ['methods' => 'string', 'required' => false],
                 'excluded_product_ids' => ['methods' => 'string', 'required' => false],
                 'excluded_product_slugs' => ['methods' => 'string', 'required' => false],
                 'excluded_fulfillment_types' => ['methods' => 'string', 'required' => false],
+                'excluded_user_ids' => ['methods' => 'string', 'required' => false],
+                'excluded_customer_emails' => ['methods' => 'string', 'required' => false],
+                'excluded_customer_segments' => ['methods' => 'string', 'required' => false],
                 'required_fulfillment_types' => ['methods' => 'string', 'required' => false],
+                'required_customer_segments' => ['methods' => 'string', 'required' => false],
+                'per_customer_limit' => ['methods' => 'integer', 'required' => false],
+                'per_segment_limit' => ['methods' => 'integer', 'required' => false],
                 'free_shipping_eligible_only' => ['methods' => 'string', 'required' => false],
             ],
             default => [],
@@ -132,6 +141,8 @@ class AdminRequest extends InboundRequest
                 'min_items' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
                 'max_items' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
                 'usage_limit' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'per_customer_limit' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'per_segment_limit' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
             ],
             default => [],
         };
@@ -174,10 +185,17 @@ class AdminRequest extends InboundRequest
             'allowed_product_slugs',
             'allowed_category_ids',
             'allowed_fulfillment_types',
+            'allowed_user_ids',
+            'allowed_customer_emails',
+            'allowed_customer_segments',
             'excluded_product_ids',
             'excluded_product_slugs',
             'excluded_fulfillment_types',
+            'excluded_user_ids',
+            'excluded_customer_emails',
+            'excluded_customer_segments',
             'required_fulfillment_types',
+            'required_customer_segments',
         ] as $key) {
             if (isset($data[$key]) && is_string($data[$key])) {
                 $data[$key] = trim($data[$key]);
@@ -206,6 +224,8 @@ class AdminRequest extends InboundRequest
             'min_items',
             'max_items',
             'usage_limit',
+            'per_customer_limit',
+            'per_segment_limit',
         ] as $key) {
             if (isset($data[$key])) {
                 $data[$key] = max(0, (int) $data[$key]);

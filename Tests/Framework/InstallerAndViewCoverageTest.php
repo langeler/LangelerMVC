@@ -92,6 +92,10 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertSame('true', $defaults['COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT']);
         self::assertSame('postnord', $defaults['COMMERCE_SHIPPING_ACTIVE_CARRIER']);
         self::assertSame('30', $defaults['COMMERCE_SHIPPING_TIMEOUT']);
+        self::assertSame('https://api-m.sandbox.paypal.com', $defaults['PAYMENT_PAYPAL_API_BASE']);
+        self::assertSame('https://api.playground.klarna.com', $defaults['PAYMENT_KLARNA_API_BASE']);
+        self::assertSame('https://mss.cpc.getswish.net/swish-cpcapi/api/v2', $defaults['PAYMENT_SWISH_API_BASE']);
+        self::assertSame('BTC', $defaults['PAYMENT_CRYPTO_DEFAULT_ASSET']);
         self::assertSame('60', $defaults['COMMERCE_INVENTORY_RESERVATION_TTL_MINUTES']);
         self::assertSame('2500', $defaults['COMMERCE_DOCUMENTS_VAT_RATE_BPS']);
         self::assertSame('30', $defaults['COMMERCE_RETURNS_WINDOW_DAYS']);
@@ -127,6 +131,8 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertStringContainsString('Security & Identity', $installerOutput);
         self::assertStringContainsString('Installation Plan', $installerOutput);
         self::assertStringContainsString('Payment Compatibility', $installerOutput);
+        self::assertStringContainsString('PayPal API Base', $installerOutput);
+        self::assertStringContainsString('Swish Certificate Path', $installerOutput);
         self::assertStringContainsString('Carrier Adapter Compatibility', $installerOutput);
         self::assertStringContainsString('Seller VAT ID', $installerOutput);
 
@@ -193,7 +199,7 @@ final class InstallerAndViewCoverageTest extends TestCase
                     'driver' => 'testing',
                     'methods' => ['card'],
                     'flows' => ['purchase'],
-                    'driver_rows' => [['driver' => 'testing', 'label' => 'Testing', 'methods' => 'card', 'flows' => 'purchase', 'regions' => 'test', 'mode' => 'reference']],
+                    'driver_rows' => [['driver' => 'testing', 'label' => 'Testing', 'methods' => 'card', 'flows' => 'purchase', 'regions' => 'test', 'mode' => 'reference', 'live_ready' => 'yes', 'missing' => '']],
                 ],
                 'shipping' => [
                     'country' => 'SE',

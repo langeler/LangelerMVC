@@ -40,6 +40,8 @@ abstract class PaymentDriver implements PaymentDriverInterface
 
     public function capabilities(): array
     {
+        $readiness = $this->readiness();
+
         return array_merge([
             'label' => $this->displayName(),
             'mode' => $this->mode(),
@@ -48,6 +50,9 @@ abstract class PaymentDriver implements PaymentDriverInterface
             'methods' => $this->supportedMethods(),
             'flows' => $this->supportedFlows(),
             'required_settings' => $this->requiredSettings(),
+            'missing_required_settings' => $readiness['missing_required_settings'],
+            'live_ready' => $readiness['live_ready'],
+            'reference_mode' => $this->mode() === 'reference',
             'webhook' => false,
             'idempotency' => false,
             'partial_capture' => false,
@@ -71,6 +76,28 @@ abstract class PaymentDriver implements PaymentDriverInterface
         }
 
         return $value === true;
+    }
+
+    public function readiness(): array
+    {
+        $missing = [];
+
+        if ($this->isLiveMode()) {
+            foreach ($this->requiredSettings() as $key) {
+                $value = $this->setting($key);
+
+                if ($value === null || (is_string($value) && $this->trimStringValue($value) === '')) {
+                    $missing[] = $key;
+                }
+            }
+        }
+
+        return [
+            'driver' => $this->driverName(),
+            'mode' => $this->mode(),
+            'live_ready' => !$this->isLiveMode() || $missing === [],
+            'missing_required_settings' => $missing,
+        ];
     }
 
     public function supportedMethods(): array

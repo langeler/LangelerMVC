@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Abstracts\Console\Command;
 use App\Core\Config;
 use App\Core\Router;
+use App\Utilities\Managers\Support\PaymentManager;
 use App\Utilities\Managers\System\SettingsManager;
 use App\Utilities\Traits\ApplicationPathTrait;
 use RecursiveDirectoryIterator;
@@ -48,8 +49,82 @@ class ReleaseCheckCommand extends Command
         'QUEUE_DRIVER',
         'MAIL_MAILER',
         'PAYMENT_DRIVER',
+        'PAYMENT_CURRENCY',
+        'PAYMENT_DEFAULT_METHOD',
+        'PAYMENT_DEFAULT_FLOW',
+        'PAYMENT_WEBHOOKS_ENABLED',
         'PAYMENT_WEBHOOKS_REQUIRE_SIGNATURE',
+        'PAYMENT_WEBHOOKS_SIGNATURE_HEADER',
+        'PAYMENT_WEBHOOKS_EVENT_ID_HEADER',
+        'PAYMENT_WEBHOOKS_TIMESTAMP_HEADER',
+        'PAYMENT_WEBHOOKS_TOLERANCE_SECONDS',
         'PAYMENT_WEBHOOK_SECRET_TESTING',
+        'PAYMENT_WEBHOOK_SECRET_CARD',
+        'PAYMENT_WEBHOOK_SECRET_CRYPTO',
+        'PAYMENT_WEBHOOK_SECRET_PAYPAL',
+        'PAYMENT_WEBHOOK_SECRET_KLARNA',
+        'PAYMENT_WEBHOOK_SECRET_SWISH',
+        'PAYMENT_WEBHOOK_SECRET_QLIRO',
+        'PAYMENT_WEBHOOK_SECRET_WALLEY',
+        'PAYMENT_CARD_MODE',
+        'PAYMENT_CARD_API_BASE',
+        'PAYMENT_CARD_API_KEY',
+        'PAYMENT_CARD_AUTH_SCHEME',
+        'PAYMENT_CARD_CREATE_URL',
+        'PAYMENT_CARD_CAPTURE_URL',
+        'PAYMENT_CARD_REFUND_URL',
+        'PAYMENT_CARD_CANCEL_URL',
+        'PAYMENT_CARD_RECONCILE_URL',
+        'PAYMENT_PAYPAL_MODE',
+        'PAYMENT_PAYPAL_API_BASE',
+        'PAYMENT_PAYPAL_CLIENT_ID',
+        'PAYMENT_PAYPAL_CLIENT_SECRET',
+        'PAYMENT_PAYPAL_RETURN_URL',
+        'PAYMENT_PAYPAL_CANCEL_URL',
+        'PAYMENT_KLARNA_MODE',
+        'PAYMENT_KLARNA_API_BASE',
+        'PAYMENT_KLARNA_USERNAME',
+        'PAYMENT_KLARNA_PASSWORD',
+        'PAYMENT_KLARNA_PURCHASE_COUNTRY',
+        'PAYMENT_KLARNA_PURCHASE_CURRENCY',
+        'PAYMENT_KLARNA_LOCALE',
+        'PAYMENT_SWISH_MODE',
+        'PAYMENT_SWISH_API_BASE',
+        'PAYMENT_SWISH_PAYEE_ALIAS',
+        'PAYMENT_SWISH_CERTIFICATE_PATH',
+        'PAYMENT_SWISH_PRIVATE_KEY_PATH',
+        'PAYMENT_SWISH_PASSPHRASE',
+        'PAYMENT_SWISH_CALLBACK_URL',
+        'PAYMENT_QLIRO_MODE',
+        'PAYMENT_QLIRO_API_BASE',
+        'PAYMENT_QLIRO_API_KEY',
+        'PAYMENT_QLIRO_MERCHANT_API_KEY',
+        'PAYMENT_QLIRO_MERCHANT_API_SECRET',
+        'PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL',
+        'PAYMENT_QLIRO_MERCHANT_TERMS_URL',
+        'PAYMENT_QLIRO_MERCHANT_CHECKOUT_STATUS_PUSH_URL',
+        'PAYMENT_QLIRO_MERCHANT_ORDER_MANAGEMENT_STATUS_PUSH_URL',
+        'PAYMENT_QLIRO_CAPTURE_URL',
+        'PAYMENT_QLIRO_REFUND_URL',
+        'PAYMENT_QLIRO_CANCEL_URL',
+        'PAYMENT_WALLEY_MODE',
+        'PAYMENT_WALLEY_API_BASE',
+        'PAYMENT_WALLEY_API_KEY',
+        'PAYMENT_WALLEY_WSDL_URL',
+        'PAYMENT_WALLEY_USERNAME',
+        'PAYMENT_WALLEY_PASSWORD',
+        'PAYMENT_WALLEY_MERCHANT_ID',
+        'PAYMENT_WALLEY_RETURN_URL',
+        'PAYMENT_WALLEY_CALLBACK_URL',
+        'PAYMENT_WALLEY_CREATE_URL',
+        'PAYMENT_WALLEY_CAPTURE_URL',
+        'PAYMENT_WALLEY_REFUND_URL',
+        'PAYMENT_WALLEY_CANCEL_URL',
+        'PAYMENT_WALLEY_RECONCILE_URL',
+        'PAYMENT_CRYPTO_MODE',
+        'PAYMENT_CRYPTO_DEFAULT_ASSET',
+        'PAYMENT_CRYPTO_DEFAULT_NETWORK',
+        'PAYMENT_CRYPTO_CONFIRMATIONS_REQUIRED',
         'COMMERCE_CURRENCY',
         'COMMERCE_SHIPPING_INTEGRATION_MODE',
         'COMMERCE_SHIPPING_ACTIVE_CARRIER',
@@ -108,6 +183,18 @@ class ReleaseCheckCommand extends Command
     /**
      * @var list<string>
      */
+    private const REQUIRED_MODULES = [
+        'WebModule',
+        'UserModule',
+        'ShopModule',
+        'CartModule',
+        'OrderModule',
+        'AdminModule',
+    ];
+
+    /**
+     * @var list<string>
+     */
     private const REQUIRED_SWEDISH_CARRIERS = [
         'postnord',
         'instabox',
@@ -120,10 +207,25 @@ class ReleaseCheckCommand extends Command
         'ups',
     ];
 
+    /**
+     * @var list<string>
+     */
+    private const REQUIRED_PAYMENT_DRIVERS = [
+        'testing',
+        'card',
+        'paypal',
+        'klarna',
+        'swish',
+        'qliro',
+        'walley',
+        'crypto',
+    ];
+
     public function __construct(
         private readonly Config $config,
         private readonly Router $router,
-        private readonly SettingsManager $settings
+        private readonly SettingsManager $settings,
+        private readonly PaymentManager $payments
     ) {
     }
 
@@ -159,6 +261,8 @@ class ReleaseCheckCommand extends Command
             'release_docs' => $this->releaseDocsCheck(),
             'environment_template' => $this->environmentTemplateCheck(),
             'framework_routes' => $this->routeCheck(),
+            'module_surface' => $this->moduleSurfaceCheck(),
+            'payment_surface' => $this->paymentSurfaceCheck(),
             'commerce_surface' => $this->commerceSurfaceCheck(),
             'template_accessibility' => $this->templateAccessibilityCheck(),
             'external_matrix' => $this->externalMatrixCheck(),
@@ -283,6 +387,102 @@ class ReleaseCheckCommand extends Command
             'required' => self::REQUIRED_ROUTES,
             'missing' => $missing,
             'errors' => $missing === [] ? [] : ['Missing release-critical routes: ' . implode(', ', $missing)],
+            'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function moduleSurfaceCheck(): array
+    {
+        $requiredComponents = ['Controllers', 'Routes', 'Requests', 'Responses', 'Views', 'Presenters', 'Services'];
+        $modules = [];
+        $errors = [];
+
+        foreach (self::REQUIRED_MODULES as $module) {
+            $moduleRoot = $this->path('App/Modules/' . $module);
+            $components = [];
+
+            if (!is_dir($moduleRoot)) {
+                $errors[] = sprintf('Missing first-party module [%s].', $module);
+                $modules[$module] = ['present' => false, 'components' => []];
+                continue;
+            }
+
+            foreach ($requiredComponents as $component) {
+                $componentRoot = $moduleRoot . DIRECTORY_SEPARATOR . $component;
+                $files = is_dir($componentRoot)
+                    ? array_values(array_filter(glob($componentRoot . DIRECTORY_SEPARATOR . '*.php') ?: [], 'is_file'))
+                    : [];
+                $components[$component] = count($files);
+
+                if ($files === []) {
+                    $errors[] = sprintf('Module [%s] is missing release component [%s].', $module, $component);
+                }
+            }
+
+            $modules[$module] = [
+                'present' => true,
+                'components' => $components,
+            ];
+        }
+
+        return [
+            'ok' => $errors === [],
+            'required' => self::REQUIRED_MODULES,
+            'component_requirements' => $requiredComponents,
+            'modules' => $modules,
+            'errors' => $errors,
+            'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function paymentSurfaceCheck(): array
+    {
+        $configured = array_keys((array) $this->config->get('payment', 'DRIVERS', []));
+        $configured = array_values(array_map('strtolower', array_map('strval', $configured)));
+        $catalog = $this->payments->driverCatalog();
+        $catalogDrivers = array_keys($catalog);
+        $missingConfigured = array_values(array_diff(self::REQUIRED_PAYMENT_DRIVERS, $configured));
+        $missingCatalog = array_values(array_diff(self::REQUIRED_PAYMENT_DRIVERS, $catalogDrivers));
+        $errors = [];
+
+        if ($missingConfigured !== []) {
+            $errors[] = 'Missing payment driver configuration: ' . implode(', ', $missingConfigured);
+        }
+
+        if ($missingCatalog !== []) {
+            $errors[] = 'Missing payment provider catalog entries: ' . implode(', ', $missingCatalog);
+        }
+
+        foreach ($catalog as $driver => $definition) {
+            $methods = (array) ($definition['methods'] ?? []);
+            $flows = (array) ($definition['flows'] ?? []);
+
+            if ($methods === []) {
+                $errors[] = sprintf('Payment driver [%s] does not expose supported methods.', $driver);
+            }
+
+            if ($flows === []) {
+                $errors[] = sprintf('Payment driver [%s] does not expose supported flows.', $driver);
+            }
+
+            if (!array_key_exists('live_ready', $definition)) {
+                $errors[] = sprintf('Payment driver [%s] does not expose live readiness metadata.', $driver);
+            }
+        }
+
+        return [
+            'ok' => $errors === [],
+            'required' => self::REQUIRED_PAYMENT_DRIVERS,
+            'configured' => $configured,
+            'catalog' => $catalogDrivers,
+            'drivers' => $catalog,
+            'errors' => $errors,
             'warnings' => [],
         ];
     }
@@ -500,11 +700,11 @@ class ReleaseCheckCommand extends Command
     {
         return match ($driver) {
             'card' => ['API_KEY', 'CREATE_URL', 'CAPTURE_URL', 'REFUND_URL', 'CANCEL_URL'],
-            'paypal' => ['CLIENT_ID', 'CLIENT_SECRET', 'RETURN_URL', 'CANCEL_URL'],
-            'klarna' => ['USERNAME', 'PASSWORD', 'PURCHASE_COUNTRY', 'PURCHASE_CURRENCY'],
-            'swish' => ['PAYEE_ALIAS', 'CERTIFICATE_PATH', 'PRIVATE_KEY_PATH', 'CALLBACK_URL'],
-            'qliro' => ['API_KEY', 'MERCHANT_API_KEY', 'MERCHANT_API_SECRET', 'RETURN_URL'],
-            'walley' => ['WSDL_URL', 'USERNAME', 'PASSWORD', 'MERCHANT_ID', 'RETURN_URL'],
+            'paypal' => ['API_BASE', 'CLIENT_ID', 'CLIENT_SECRET', 'RETURN_URL', 'CANCEL_URL'],
+            'klarna' => ['API_BASE', 'USERNAME', 'PASSWORD', 'PURCHASE_COUNTRY', 'PURCHASE_CURRENCY'],
+            'swish' => ['API_BASE', 'PAYEE_ALIAS', 'CERTIFICATE_PATH', 'PRIVATE_KEY_PATH', 'CALLBACK_URL'],
+            'qliro' => ['API_BASE', 'API_KEY', 'MERCHANT_CONFIRMATION_URL', 'MERCHANT_TERMS_URL'],
+            'walley' => ['CREATE_URL', 'CAPTURE_URL', 'REFUND_URL', 'CANCEL_URL', 'RECONCILE_URL'],
             default => [],
         };
     }

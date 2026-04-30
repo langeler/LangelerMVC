@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (140 tests, 3140 assertions)`
+- Verification result: `OK (141 tests, 3156 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -72,7 +72,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue manager with sync/database drivers
 - failed-job store
 - notification manager with mail/database channels
-- payment manager with a plug-and-play multi-driver compatibility surface
+- payment manager with a plug-and-play multi-driver compatibility surface, provider-specific environment keys, readiness metadata, and whole-catalog release checks
 - first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
 - shipping manager with a provider-backed carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket tracking-app handoff metadata
 - signed/idempotent payment webhook ingestion with event ledgers and order lifecycle reconciliation
@@ -100,7 +100,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue work/retry/failed commands
 - notification inspection command
 - event/listener inspection command
-- release readiness inspection command through `php console release:check`
+- release readiness inspection command through `php console release:check`, including module-surface, payment-surface, commerce, route, docs, env, and template accessibility gates
 - GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure
 
 ## Implemented First-Party Modules
@@ -196,7 +196,7 @@ These framework/platform areas are now implemented rather than planned:
 - event dispatcher and listener registration
 - queue subsystem and failed-job storage
 - notification subsystem
-- payment abstraction layer
+- payment abstraction layer with driver readiness reporting and contract-level project-driver configuration
 - provider-specific payment driver coverage for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
 - payment webhook ingestion with signature verification and event idempotency
 - top-level config surfaces for notifications, queues, payments, and HTTP security
@@ -229,7 +229,8 @@ The major framework-level auth and commerce flows are implemented. The next gain
 
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
-- live subscription provider adapters and live carrier API adapters beyond the framework reference billing/booking/tracking seams
+- project-specific live payment, subscription, and carrier credentials/endpoints beyond the framework reference billing/booking/tracking seams
+- provider onboarding smoke tests against real merchant/sandbox accounts once credentials are provisioned
 - deeper end-to-end tests around queue-backed notifications, payment-state transitions, promotion/subscription/inventory/return/document behavior in non-SQLite environments
 - environment-specific operational tuning for audit retention, queue workers, fulfillment providers, and payment-driver expansion
 

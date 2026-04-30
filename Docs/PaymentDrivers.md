@@ -10,6 +10,7 @@ The core payment surface is built around:
 
 - `PaymentManager`
 - `PaymentDriverInterface`
+- `PaymentProvider`
 - `PaymentIntent`
 - `PaymentResult`
 - provider-driven driver resolution through `PaymentProvider`
@@ -97,6 +98,41 @@ Live mode depends on environment readiness outside the framework codebase, for e
 
 The framework owns the contract boundary and lifecycle handling. Merchant onboarding and deployment-specific secrets remain environment concerns.
 
+Every first-party driver now reports release-readiness metadata through `PaymentDriverInterface::readiness()` and `PaymentManager::driverCatalog()`:
+
+- configured mode
+- required live settings
+- missing live settings
+- `live_ready`
+- supported methods and flows
+
+This mirrors the shipping adapter posture and allows the installer, admin operations panel, health/reporting surfaces, and `release:check` to verify the whole payment provider catalog without requiring live credentials in the repository.
+
+## Live Environment Keys
+
+`.env.example`, the installer defaults, and `SettingsManager` expose the provider-specific settings needed to switch a project from reference mode to live mode.
+
+| Driver | Primary live keys |
+| --- | --- |
+| `card` | `PAYMENT_CARD_API_KEY`, `PAYMENT_CARD_CREATE_URL`, `PAYMENT_CARD_CAPTURE_URL`, `PAYMENT_CARD_REFUND_URL`, `PAYMENT_CARD_CANCEL_URL` |
+| `paypal` | `PAYMENT_PAYPAL_API_BASE`, `PAYMENT_PAYPAL_CLIENT_ID`, `PAYMENT_PAYPAL_CLIENT_SECRET`, `PAYMENT_PAYPAL_RETURN_URL`, `PAYMENT_PAYPAL_CANCEL_URL` |
+| `klarna` | `PAYMENT_KLARNA_API_BASE`, `PAYMENT_KLARNA_USERNAME`, `PAYMENT_KLARNA_PASSWORD`, `PAYMENT_KLARNA_PURCHASE_COUNTRY`, `PAYMENT_KLARNA_PURCHASE_CURRENCY` |
+| `swish` | `PAYMENT_SWISH_API_BASE`, `PAYMENT_SWISH_PAYEE_ALIAS`, `PAYMENT_SWISH_CERTIFICATE_PATH`, `PAYMENT_SWISH_PRIVATE_KEY_PATH`, `PAYMENT_SWISH_CALLBACK_URL` |
+| `qliro` | `PAYMENT_QLIRO_API_BASE`, `PAYMENT_QLIRO_API_KEY`, `PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL`, `PAYMENT_QLIRO_MERCHANT_TERMS_URL` |
+| `walley` | `PAYMENT_WALLEY_CREATE_URL`, `PAYMENT_WALLEY_CAPTURE_URL`, `PAYMENT_WALLEY_REFUND_URL`, `PAYMENT_WALLEY_CANCEL_URL`, `PAYMENT_WALLEY_RECONCILE_URL` |
+| `crypto` | `PAYMENT_CRYPTO_DEFAULT_ASSET`, `PAYMENT_CRYPTO_DEFAULT_NETWORK`, `PAYMENT_CRYPTO_CONFIRMATIONS_REQUIRED` |
+
+Webhook secrets remain per deployment and are intentionally empty in the repository:
+
+- `PAYMENT_WEBHOOK_SECRET_TESTING`
+- `PAYMENT_WEBHOOK_SECRET_CARD`
+- `PAYMENT_WEBHOOK_SECRET_CRYPTO`
+- `PAYMENT_WEBHOOK_SECRET_PAYPAL`
+- `PAYMENT_WEBHOOK_SECRET_KLARNA`
+- `PAYMENT_WEBHOOK_SECRET_SWISH`
+- `PAYMENT_WEBHOOK_SECRET_QLIRO`
+- `PAYMENT_WEBHOOK_SECRET_WALLEY`
+
 ## Webhook Ingestion
 
 Payment webhooks are first-party framework surfaces rather than provider-specific module routes.
@@ -158,7 +194,8 @@ Deployment configuration should set the relevant `PAYMENT_WEBHOOK_SECRET_*` envi
 
 - focused on Nordic BNPL checkout flows
 - current core driver supports the framework lifecycle and configuration surface without shipping vendor SDKs in core
-- live-mode merchant onboarding and WSDL/API mapping remain deployment concerns
+- live mode can use configured lifecycle endpoints for checkout creation, capture, refund, cancel, and reconciliation, or a project can wrap Walley SOAP/WSDL onboarding behind those endpoints
+- merchant onboarding and credential material remain deployment concerns
 - official docs: [Walley Payments API](https://dev.walleypay.com/paymentsApi/)
 
 ### `crypto`
@@ -198,6 +235,7 @@ Payment compatibility is visible through:
 The framework regression suite verifies:
 
 - payment driver catalog exposure
+- payment driver readiness metadata and standalone project-driver configuration through `PaymentProvider`
 - provider selection through the framework manager
 - provider-aware checkout persistence in `OrderModule`
 - redirect/reconcile/capture lifecycle handling

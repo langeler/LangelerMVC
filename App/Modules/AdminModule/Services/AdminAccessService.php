@@ -1796,6 +1796,8 @@ class AdminAccessService extends Service
                 'flows' => implode(', ', array_map('strval', (array) ($definition['flows'] ?? []))),
                 'regions' => implode(', ', array_map('strval', (array) ($definition['regions'] ?? []))),
                 'mode' => (string) ($definition['mode'] ?? $definition['environment'] ?? 'reference'),
+                'live_ready' => !empty($definition['live_ready']) ? 'yes' : 'no',
+                'missing' => implode(', ', array_map('strval', (array) ($definition['missing_required_settings'] ?? []))),
             ];
         }
 

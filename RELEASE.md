@@ -7,7 +7,7 @@ Use this checklist before tagging or deploying LangelerMVC.
 - Date: `2026-04-30`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (140 tests, 3140 assertions)`
+- Result: `OK (141 tests, 3156 assertions)`
 
 ## Required Verification
 
@@ -19,7 +19,7 @@ Use this checklist before tagging or deploying LangelerMVC.
 6. Run `composer ops:health` and confirm readiness checks match the target environment.
 7. Exercise the installer from `Public/install/index.php` against the intended database, cache, session, queue, mail, payment, commerce, and admin-account settings.
 
-For production tagging, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, carrier adapters, or legal/VAT seller settings are still unresolved.
+For production tagging, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, reference-mode carrier/payment adapters, or legal/VAT seller settings are still unresolved.
 
 ## Production Preflight
 
@@ -28,7 +28,7 @@ For production tagging, also run `php console release:check --strict=1`. Strict 
 - Confirm `Storage/Secure`, `Storage/Cache`, `Storage/Logs`, uploads, sessions, and queue runtime paths are writable by the PHP process.
 - Confirm migrations have run, including promotion, fulfillment, entitlement, subscription, inventory reservation, return/document, order-state, and audit/queue tables.
 - Confirm admin routes are protected by authentication and RBAC.
-- Confirm payment and subscription provider credentials, webhook URLs, return URLs, and callback signatures are configured before live mode.
+- Confirm payment and subscription provider credentials, webhook URLs, return URLs, callback signatures, and provider-specific live endpoints are configured before live mode.
 - Confirm carrier/shipping adapters are configured for the target region, especially Swedish carrier flows for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket handoff expectations.
 - Confirm commerce settings for shipping, pickup/pre-order, subscriptions, inventory reservations, returns, and order documents match the target store policy.
 - Confirm `COMMERCE_DOCUMENTS_*`, `COMMERCE_RETURNS_*`, and `COMMERCE_INVENTORY_*` values were reviewed after installer generation.

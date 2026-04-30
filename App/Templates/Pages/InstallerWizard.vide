@@ -546,6 +546,98 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_CREATE_URL">Card Create Endpoint</label>
+                            <input id="PAYMENT_CARD_CREATE_URL" name="PAYMENT_CARD_CREATE_URL" type="url" value="{{ $form['PAYMENT_CARD_CREATE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_CAPTURE_URL">Card Capture Endpoint</label>
+                            <input id="PAYMENT_CARD_CAPTURE_URL" name="PAYMENT_CARD_CAPTURE_URL" type="url" value="{{ $form['PAYMENT_CARD_CAPTURE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_REFUND_URL">Card Refund Endpoint</label>
+                            <input id="PAYMENT_CARD_REFUND_URL" name="PAYMENT_CARD_REFUND_URL" type="url" value="{{ $form['PAYMENT_CARD_REFUND_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_API_KEY">Card API Key</label>
+                            <input id="PAYMENT_CARD_API_KEY" name="PAYMENT_CARD_API_KEY" type="password" value="{{ $form['PAYMENT_CARD_API_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_PAYPAL_API_BASE">PayPal API Base</label>
+                            <input id="PAYMENT_PAYPAL_API_BASE" name="PAYMENT_PAYPAL_API_BASE" type="url" value="{{ $form['PAYMENT_PAYPAL_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_PAYPAL_CLIENT_ID">PayPal Client ID</label>
+                            <input id="PAYMENT_PAYPAL_CLIENT_ID" name="PAYMENT_PAYPAL_CLIENT_ID" type="text" value="{{ $form['PAYMENT_PAYPAL_CLIENT_ID'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_PAYPAL_CLIENT_SECRET">PayPal Client Secret</label>
+                            <input id="PAYMENT_PAYPAL_CLIENT_SECRET" name="PAYMENT_PAYPAL_CLIENT_SECRET" type="password" value="{{ $form['PAYMENT_PAYPAL_CLIENT_SECRET'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_KLARNA_API_BASE">Klarna API Base</label>
+                            <input id="PAYMENT_KLARNA_API_BASE" name="PAYMENT_KLARNA_API_BASE" type="url" value="{{ $form['PAYMENT_KLARNA_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_KLARNA_USERNAME">Klarna Username</label>
+                            <input id="PAYMENT_KLARNA_USERNAME" name="PAYMENT_KLARNA_USERNAME" type="text" value="{{ $form['PAYMENT_KLARNA_USERNAME'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_KLARNA_PASSWORD">Klarna Password</label>
+                            <input id="PAYMENT_KLARNA_PASSWORD" name="PAYMENT_KLARNA_PASSWORD" type="password" value="{{ $form['PAYMENT_KLARNA_PASSWORD'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_API_BASE">Swish API Base</label>
+                            <input id="PAYMENT_SWISH_API_BASE" name="PAYMENT_SWISH_API_BASE" type="url" value="{{ $form['PAYMENT_SWISH_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_PAYEE_ALIAS">Swish Payee Alias</label>
+                            <input id="PAYMENT_SWISH_PAYEE_ALIAS" name="PAYMENT_SWISH_PAYEE_ALIAS" type="text" value="{{ $form['PAYMENT_SWISH_PAYEE_ALIAS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_CERTIFICATE_PATH">Swish Certificate Path</label>
+                            <input id="PAYMENT_SWISH_CERTIFICATE_PATH" name="PAYMENT_SWISH_CERTIFICATE_PATH" type="text" value="{{ $form['PAYMENT_SWISH_CERTIFICATE_PATH'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_PRIVATE_KEY_PATH">Swish Private Key Path</label>
+                            <input id="PAYMENT_SWISH_PRIVATE_KEY_PATH" name="PAYMENT_SWISH_PRIVATE_KEY_PATH" type="text" value="{{ $form['PAYMENT_SWISH_PRIVATE_KEY_PATH'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_API_BASE">Qliro API Base</label>
+                            <input id="PAYMENT_QLIRO_API_BASE" name="PAYMENT_QLIRO_API_BASE" type="url" value="{{ $form['PAYMENT_QLIRO_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_API_KEY">Qliro API Key</label>
+                            <input id="PAYMENT_QLIRO_API_KEY" name="PAYMENT_QLIRO_API_KEY" type="password" value="{{ $form['PAYMENT_QLIRO_API_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL">Qliro Confirmation URL</label>
+                            <input id="PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL" name="PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL" type="url" value="{{ $form['PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_MERCHANT_TERMS_URL">Qliro Terms URL</label>
+                            <input id="PAYMENT_QLIRO_MERCHANT_TERMS_URL" name="PAYMENT_QLIRO_MERCHANT_TERMS_URL" type="url" value="{{ $form['PAYMENT_QLIRO_MERCHANT_TERMS_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_CREATE_URL">Walley Create Endpoint</label>
+                            <input id="PAYMENT_WALLEY_CREATE_URL" name="PAYMENT_WALLEY_CREATE_URL" type="url" value="{{ $form['PAYMENT_WALLEY_CREATE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_CAPTURE_URL">Walley Capture Endpoint</label>
+                            <input id="PAYMENT_WALLEY_CAPTURE_URL" name="PAYMENT_WALLEY_CAPTURE_URL" type="url" value="{{ $form['PAYMENT_WALLEY_CAPTURE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_REFUND_URL">Walley Refund Endpoint</label>
+                            <input id="PAYMENT_WALLEY_REFUND_URL" name="PAYMENT_WALLEY_REFUND_URL" type="url" value="{{ $form['PAYMENT_WALLEY_REFUND_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_RECONCILE_URL">Walley Reconcile Endpoint</label>
+                            <input id="PAYMENT_WALLEY_RECONCILE_URL" name="PAYMENT_WALLEY_RECONCILE_URL" type="url" value="{{ $form['PAYMENT_WALLEY_RECONCILE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CRYPTO_DEFAULT_ASSET">Crypto Default Asset</label>
+                            <input id="PAYMENT_CRYPTO_DEFAULT_ASSET" name="PAYMENT_CRYPTO_DEFAULT_ASSET" type="text" value="{{ $form['PAYMENT_CRYPTO_DEFAULT_ASSET'] ?? 'BTC' }}">
+                        </div>
                     </div>
                     <div class="field-inline">
                         <input type="hidden" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="false">

@@ -67,9 +67,9 @@ composer verify:release
 
 `php console release:check` is the executable local release gate.
 
-- It checks release docs, `.env.example` parity, release-critical routes, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
+- It checks release docs, `.env.example` parity, release-critical routes, first-party module surface completeness, payment driver surface completeness, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
 - Normal mode fails only on local release blockers such as missing docs, missing env keys, missing routes, missing commerce definitions, raw PHP in native templates, images without alt text, or missing matrix compose services.
-- `--strict=1` also fails on unresolved release warnings such as reference-mode payment/shipping, empty active webhook secrets, missing seller VAT/address fields, or optional PHP extensions that are not loaded in the current environment.
+- `--strict=1` also fails on unresolved release warnings such as reference-mode payment/shipping, missing live provider endpoints, empty active webhook secrets, missing seller VAT/address fields, or optional PHP extensions that are not loaded in the current environment.
 - `composer release:check` runs the command through Composer; `composer verify:release` chains Composer validation, the default regression suite, health liveness, and the release gate.
 
 ## Admin Dashboard Operations
@@ -86,7 +86,7 @@ The admin dashboard is now the primary operator surface for day-to-day framework
 
 The framework payment layer is now designed as a gateway-agnostic compatibility surface.
 
-- `PaymentManager` exposes driver capabilities, supported payment method families, and supported payment flows before checkout is attempted.
+- `PaymentManager` exposes driver capabilities, readiness metadata, missing live settings, supported payment method families, and supported payment flows before checkout is attempted.
 - First-party provider drivers now ship for:
   - `card`
   - `paypal`
@@ -101,7 +101,7 @@ The framework payment layer is now designed as a gateway-agnostic compatibility 
 - Order records now persist payment method, flow, idempotency key, provider/external/webhook references, and next-action metadata so admin and audit surfaces can inspect them consistently.
 - Payment provider callbacks should target `POST /api/orders/webhooks/payments/{driver}` or `POST /orders/webhooks/payments/{driver}`. The framework records each event in `payment_webhook_events`, verifies HMAC signatures through `PaymentManager`, and reconciles matched orders through the same lifecycle path used by admin/manual reconciliation.
 - Configure webhook secrets with `PAYMENT_WEBHOOK_SECRET_TESTING`, `PAYMENT_WEBHOOK_SECRET_CARD`, `PAYMENT_WEBHOOK_SECRET_CRYPTO`, `PAYMENT_WEBHOOK_SECRET_PAYPAL`, `PAYMENT_WEBHOOK_SECRET_KLARNA`, `PAYMENT_WEBHOOK_SECRET_SWISH`, `PAYMENT_WEBHOOK_SECRET_QLIRO`, and `PAYMENT_WEBHOOK_SECRET_WALLEY` as needed.
-- Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer and configuration boundary so those providers stay plug-and-play from the application/module perspective.
+- Live provider execution still depends on merchant onboarding, credentials, certificates, callback URLs, and environment support. The framework ships the reusable driver layer, installer/env configuration boundary, readiness reporting, and admin operations visibility so those providers stay plug-and-play from the application/module perspective.
 
 ## Subscription Operations
 

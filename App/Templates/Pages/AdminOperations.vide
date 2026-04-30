@@ -78,6 +78,8 @@
                 'flows' => 'Flows',
                 'regions' => 'Regions',
                 'mode' => 'Mode',
+                'live_ready' => 'Live Ready',
+                'missing' => 'Missing',
             ],
             'rows' => is_array($payments['driver_rows'] ?? null) ? $payments['driver_rows'] : [],
             'empty' => 'No payment driver catalog is available.',

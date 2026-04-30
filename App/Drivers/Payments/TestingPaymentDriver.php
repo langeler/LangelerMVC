@@ -15,14 +15,34 @@ class TestingPaymentDriver implements PaymentDriverInterface
 {
     use ArrayTrait;
 
+    /**
+     * @var array<string, mixed>
+     */
+    private array $settings = [];
+
     public function driverName(): string
     {
         return 'testing';
     }
 
+    public function configure(array $settings): static
+    {
+        $this->settings = $settings;
+
+        return $this;
+    }
+
     public function capabilities(): array
     {
         return [
+            'label' => 'Testing Reference Driver',
+            'mode' => $this->mode(),
+            'docs_url' => 'https://github.com/joakim/langelermvc',
+            'regions' => ['GLOBAL'],
+            'required_settings' => [],
+            'missing_required_settings' => [],
+            'live_ready' => true,
+            'reference_mode' => $this->mode() === 'reference',
             'authorize' => true,
             'capture' => true,
             'cancel' => true,
@@ -53,6 +73,16 @@ class TestingPaymentDriver implements PaymentDriverInterface
         }
 
         return $value === true;
+    }
+
+    public function readiness(): array
+    {
+        return [
+            'driver' => $this->driverName(),
+            'mode' => $this->mode(),
+            'live_ready' => true,
+            'missing_required_settings' => [],
+        ];
     }
 
     public function supportedMethods(): array
@@ -287,6 +317,13 @@ class TestingPaymentDriver implements PaymentDriverInterface
             'refund', 'refunded', 'refund.completed', 'payment.refunded' => 'refunded',
             default => $status,
         };
+    }
+
+    private function mode(): string
+    {
+        $mode = strtolower(trim((string) ($this->settings['MODE'] ?? 'reference')));
+
+        return in_array($mode, ['reference', 'live'], true) ? $mode : 'reference';
     }
 
     private function normalizeIntent(PaymentIntent $intent): PaymentIntent

@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-30`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (140 tests, 3140 assertions)`
+- `composer test` passes with `OK (141 tests, 3156 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
@@ -22,7 +22,7 @@ As of `2026-04-30`:
 
 - The framework backend is no longer just scaffolding. Bootstrap, runtime, container, config, routing, session, validation, sanitization, cache, crypto, SQL/query, file/finder/iterator/reflection, persistence, async, notifications, payments, and security utilities are implemented and regression-tested.
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
-- The payment layer now exposes a plug-and-play compatibility surface with driver capability introspection, payment-method and flow discovery, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
+- The payment layer now exposes a plug-and-play compatibility surface with driver capability/readiness introspection, payment-method and flow discovery, provider-specific env/installer settings, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
 - First-party payment drivers now ship for `Credit / Debit Card`, `PayPal`, `Klarna`, `Swish`, `Qliro`, `Walley`, and `Crypto`, plus the framework testing/reference driver.
 - Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
@@ -116,7 +116,7 @@ The installer wizard now handles:
 - migration + seed execution
 - administrator provisioning
 - default database-backed `WebModule` setup
-- payment driver, method-family, and flow defaults for the first commerce-ready baseline
+- payment driver, method-family, flow defaults, provider live endpoint fields, and webhook-secret placeholders for the first commerce-ready baseline
 - carrier adapter defaults for Swedish-first shipping, tracking, service-point, and label flows
 - commerce fulfillment, shipping, subscription, inventory reservation, return, and order-document defaults
 
@@ -279,7 +279,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - validated session/auth/RBAC/TOTP/trusted-device/passkey support
 - framework-native liveness/readiness/capability reporting and audit logging
 - cache, crypto, SQL/query, migration, and seed subsystems
-- async events, queues, notifications, and a plug-and-play payment compatibility layer
+- async events, queues, notifications, and a plug-and-play payment compatibility layer with whole-catalog release checks
 - plug-and-play payment driver support for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
 - admin-native content, catalog, promotion, order, operation, inventory, return, and document workflows
 - commerce coverage for physical shipping, digital/virtual access, pickup/pre-order, subscriptions, promotions, inventory reservations, returns/exchanges, partial refunds, and VAT/order documents
@@ -287,7 +287,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - completed HTML + JSON presentation parity across first-party modules
 - a database-backed starter module plus user/admin/shop/cart/order slices
 
-The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcache-backed runtime verification where those services exist, live payment/subscription/carrier credentials, browser/accessibility smoke passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
+The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcache-backed runtime verification where those services exist, project-specific live payment/subscription/carrier credentials, browser/accessibility smoke passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
 
 ## Support
 

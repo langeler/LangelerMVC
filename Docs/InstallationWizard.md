@@ -22,7 +22,7 @@ The wizard collects and writes the runtime configuration needed to boot a real a
 - framework security defaults such as verification and cookie behavior
 - first administrator account provisioning
 - `WebModule` starter-content mode
-- payment driver, payment method family, and default payment flow
+- payment driver, payment method family, default payment flow, webhook secrets, and provider-specific live endpoint/credential fields
 - commerce shipping, carrier adapter, pickup/pre-order, subscription, inventory reservation, return, and order-document defaults
 
 ## What The Wizard Does
@@ -47,6 +47,7 @@ The installer also reports readiness and capability signals before writing confi
 - loaded PHP extensions
 - available framework modules
 - supported database/session/cache/mail/queue/payment driver options
+- payment provider live-readiness inputs for card, PayPal, Klarna, Swish, Qliro, Walley, and crypto defaults
 - whether the framework has already been installed
 
 This gives a clearer first-run experience than trial-and-error config editing.
@@ -58,6 +59,7 @@ Recommended production posture after the wizard completes:
 - verify `APP_URL` uses the real public origin
 - verify HTTPS and secure cookie settings
 - replace development mail/payment credentials with real environment values
+- keep live payment webhook secrets and merchant credentials deployment-local; the repository intentionally ships empty placeholders only
 - review commerce policy values such as `COMMERCE_INVENTORY_*`, `COMMERCE_RETURNS_*`, `COMMERCE_DOCUMENTS_*`, `COMMERCE_SHIPPING_*`, and `COMMERCE_SUBSCRIPTION_*`
 - run the health checks:
   - `php console health:check`

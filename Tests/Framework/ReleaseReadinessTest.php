@@ -21,6 +21,12 @@ final class ReleaseReadinessTest extends TestCase
         self::assertTrue((bool) $payload['checks']['release_docs']['ok']);
         self::assertTrue((bool) $payload['checks']['environment_template']['ok']);
         self::assertTrue((bool) $payload['checks']['framework_routes']['ok']);
+        self::assertTrue((bool) $payload['checks']['module_surface']['ok']);
+        self::assertArrayHasKey('OrderModule', $payload['checks']['module_surface']['modules']);
+        self::assertTrue((bool) $payload['checks']['payment_surface']['ok']);
+        self::assertContains('paypal', $payload['checks']['payment_surface']['catalog']);
+        self::assertContains('swish', $payload['checks']['payment_surface']['catalog']);
+        self::assertArrayHasKey('live_ready', $payload['checks']['payment_surface']['drivers']['paypal']);
         self::assertTrue((bool) $payload['checks']['commerce_surface']['ok']);
         self::assertContains('postnord', $payload['checks']['commerce_surface']['carrier_adapters']);
         self::assertContains('ups', $payload['checks']['commerce_surface']['carrier_adapters']);

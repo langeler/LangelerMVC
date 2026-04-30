@@ -44,6 +44,7 @@ class CardPaymentDriver extends PaymentDriver
         return [
             'label' => 'Credit / Debit Card',
             'regions' => ['GLOBAL'],
+            'webhook' => true,
             'idempotency' => true,
             'partial_capture' => true,
             'partial_refund' => true,

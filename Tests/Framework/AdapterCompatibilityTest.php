@@ -6,10 +6,16 @@ namespace Tests\Framework;
 
 use App\Abstracts\Support\CarrierAdapter;
 use App\Contracts\Support\CarrierAdapterInterface;
+use App\Contracts\Support\PaymentDriverInterface;
 use App\Drivers\Shipping\PostNordCarrierAdapter;
 use App\Providers\CoreProvider;
+use App\Providers\PaymentProvider;
 use App\Providers\ShippingProvider;
 use App\Support\Commerce\ShippingManager;
+use App\Support\Payments\PaymentFlow;
+use App\Support\Payments\PaymentIntent;
+use App\Support\Payments\PaymentMethod;
+use App\Support\Payments\PaymentResult;
 use PHPUnit\Framework\TestCase;
 
 final class AdapterCompatibilityTest extends TestCase
@@ -125,6 +131,19 @@ final class AdapterCompatibilityTest extends TestCase
         self::assertSame('live', $adapter->capabilities()['mode']);
     }
 
+    public function testPaymentProviderConfiguresStandalonePaymentDriversThroughContract(): void
+    {
+        $provider = new PaymentProvider();
+        $provider->extendDriver('standalone_payment', StandalonePaymentDriver::class);
+        $provider->registerServices();
+        $driver = $provider->getPaymentDriver(['DRIVER' => 'standalone_payment', 'MODE' => 'live']);
+
+        self::assertInstanceOf(PaymentDriverInterface::class, $driver);
+        self::assertSame('standalone_payment', $driver->driverName());
+        self::assertSame('live', $driver->capabilities()['mode']);
+        self::assertTrue((bool) $driver->readiness()['live_ready']);
+    }
+
     private function shipping(): ShippingManager
     {
         $provider = new CoreProvider();
@@ -201,5 +220,91 @@ final class StandaloneCarrierAdapter implements CarrierAdapterInterface
     public function cancelShipment(array $order, array $payload = []): array
     {
         return ['successful' => true, 'attributes' => []];
+    }
+}
+
+final class StandalonePaymentDriver implements PaymentDriverInterface
+{
+    /**
+     * @var array<string, mixed>
+     */
+    private array $settings = [];
+
+    public function driverName(): string
+    {
+        return 'standalone_payment';
+    }
+
+    public function configure(array $settings): static
+    {
+        $this->settings = $settings;
+
+        return $this;
+    }
+
+    public function capabilities(): array
+    {
+        return [
+            'mode' => (string) ($this->settings['MODE'] ?? 'reference'),
+            'methods' => $this->supportedMethods(),
+            'flows' => $this->supportedFlows(),
+            'live_ready' => true,
+            'supports_authorize' => true,
+        ];
+    }
+
+    public function supports(string $feature): bool
+    {
+        return ($this->capabilities()[$feature] ?? false) === true;
+    }
+
+    public function readiness(): array
+    {
+        return ['live_ready' => true, 'missing_required_settings' => []];
+    }
+
+    public function supportedMethods(): array
+    {
+        return [PaymentMethod::Card->value];
+    }
+
+    public function supportedFlows(): array
+    {
+        return [PaymentFlow::Purchase->value];
+    }
+
+    public function supportsMethod(PaymentMethod|string $method): bool
+    {
+        return ($method instanceof PaymentMethod ? $method->value : (string) $method) === PaymentMethod::Card->value;
+    }
+
+    public function supportsFlow(PaymentFlow|string $flow): bool
+    {
+        return ($flow instanceof PaymentFlow ? $flow->value : (string) $flow) === PaymentFlow::Purchase->value;
+    }
+
+    public function authorize(PaymentIntent $intent): PaymentResult
+    {
+        return new PaymentResult(true, 'authorize', $intent, $this->driverName(), 'Authorized.', 'captured');
+    }
+
+    public function capture(PaymentIntent $intent, ?int $amount = null): PaymentResult
+    {
+        return new PaymentResult(true, 'capture', $intent, $this->driverName(), 'Captured.', 'captured');
+    }
+
+    public function cancel(PaymentIntent $intent, ?string $reason = null): PaymentResult
+    {
+        return new PaymentResult(true, 'cancel', $intent, $this->driverName(), 'Cancelled.', 'cancelled');
+    }
+
+    public function refund(PaymentIntent $intent, ?int $amount = null, ?string $reason = null): PaymentResult
+    {
+        return new PaymentResult(true, 'refund', $intent, $this->driverName(), 'Refunded.', 'refunded');
+    }
+
+    public function reconcile(PaymentIntent $intent, array $payload = []): PaymentResult
+    {
+        return new PaymentResult(true, 'reconcile', $intent, $this->driverName(), 'Reconciled.', 'captured');
     }
 }

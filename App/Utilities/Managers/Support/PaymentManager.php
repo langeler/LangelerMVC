@@ -77,6 +77,10 @@ class PaymentManager implements PaymentManagerInterface
                 'required_settings' => is_array($capabilities['required_settings'] ?? null)
                     ? array_values($capabilities['required_settings'])
                     : [],
+                'missing_required_settings' => is_array($capabilities['missing_required_settings'] ?? null)
+                    ? array_values($capabilities['missing_required_settings'])
+                    : [],
+                'live_ready' => (bool) ($capabilities['live_ready'] ?? true),
                 'capabilities' => $capabilities,
             ];
         }

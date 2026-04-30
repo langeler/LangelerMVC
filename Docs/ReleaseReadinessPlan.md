@@ -6,13 +6,13 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping adapters with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, and installer rollback are all present.
 
-The remaining work is now the final production layer: release hygiene, live integration credentials/adapters, environment matrix verification, deployment recipe validation, and browser/accessibility smoke passes.
+The remaining work is now the final production layer: live integration credentials, environment matrix verification, deployment recipe validation, and browser/accessibility smoke passes.
 
 ## P0 - Release Blockers
 
 - Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. The tracked secure cache key has been removed, and `Storage/Secure` stays ignored except for its README.
 - Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md`, `RELEASE.md`, and `Docs/DeploymentAndUpgrade.md` now act as release-facing anchors.
-- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, commerce inventory, returns, documents, and list-style env handling.
+- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, payment provider endpoints, commerce inventory, returns, documents, and list-style env handling.
 - Payment webhook environment parity is now included: installer defaults, `.env.example`, SettingsManager aliases, route integration, signature settings, and per-driver secrets are represented.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Run `composer release:check` as the local release gate and `php console release:check --strict=1` when validating a production tag candidate with live credentials and matrix extensions available.
@@ -47,7 +47,7 @@ Promotions should be treated as rules plus benefits.
 
 ## P1 - Live Integration Closure
 
-- Payment webhook routes, signature verification, event idempotency, event ledgers, order reconciliation, and provider callback documentation are implemented.
+- Payment webhook routes, signature verification, event idempotency, event ledgers, order reconciliation, provider callback documentation, provider-specific env keys, installer fields, readiness metadata, and whole-catalog release checks are implemented.
 - Carrier integration seams are implemented through provider-backed adapters in reference mode: label references, service-point lookup, shipment booking, tracking sync, cancellation, admin-native routes, installer/env settings, and first-party coverage for the Swedish carrier catalog.
 - Subscription provider event ingestion is implemented for recurring payment success/renewal, failure/dunning, pause, resume, cancellation, idempotency, and renewal-order creation. Remaining live work is provider-specific merchant credentialing and adapter execution where the payment provider does not fully own recurring billing.
 
@@ -55,8 +55,7 @@ Promotions should be treated as rules plus benefits.
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
 - P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, and confirming no runtime-generated secrets or local artifacts are tracked.
-- P1: configure live carrier adapter credentials/endpoints where needed for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
-- P1: wire live subscription provider adapters/merchant credentials where needed for production billing providers, keeping the new framework subscription webhook/runtime boundary as the shared contract.
+- P1: configure live payment, webhook, subscription, and carrier credentials/endpoints per deployed project. These values intentionally remain outside the released repository.
 - P2: run browser/accessibility smoke passes for public and admin templates and fix any findings.
 - P2: keep deployment and upgrade recipes validated against the target host before tagging.
 - P2: deepen provider-specific smoke tests once live payment, subscription, carrier, Redis, Memcached, SQL Server, and optional extension environments are provisioned.

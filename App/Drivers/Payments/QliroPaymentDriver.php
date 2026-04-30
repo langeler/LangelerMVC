@@ -280,7 +280,7 @@ class QliroPaymentDriver extends PaymentDriver
 
     private function apiUrl(string $path): string
     {
-        return rtrim((string) $this->setting('API_BASE'), '/') . $path;
+        return rtrim((string) $this->setting('API_BASE', $this->setting('BASE_URL', '')), '/') . $path;
     }
 
     /**

@@ -31,7 +31,7 @@ class SwishPaymentDriver extends PaymentDriver
 
     protected function requiredSettings(): array
     {
-        return ['API_BASE', 'PAYEE_ALIAS', 'CALLBACK_URL', 'CERT_PATH'];
+        return ['API_BASE', 'PAYEE_ALIAS', 'CALLBACK_URL', 'CERTIFICATE_PATH', 'PRIVATE_KEY_PATH'];
     }
 
     protected function driverCapabilities(): array
@@ -90,8 +90,8 @@ class SwishPaymentDriver extends PaymentDriver
             ],
             [
                 'ssl' => [
-                    'cert' => (string) $this->setting('CERT_PATH'),
-                    'key' => (string) $this->setting('KEY_PATH', ''),
+                    'cert' => (string) $this->setting('CERTIFICATE_PATH', $this->setting('CERT_PATH', '')),
+                    'key' => (string) $this->setting('PRIVATE_KEY_PATH', $this->setting('KEY_PATH', '')),
                     'passphrase' => (string) $this->setting('PASSPHRASE', ''),
                 ],
             ]
@@ -185,8 +185,8 @@ class SwishPaymentDriver extends PaymentDriver
             null,
             [
                 'ssl' => [
-                    'cert' => (string) $this->setting('CERT_PATH'),
-                    'key' => (string) $this->setting('KEY_PATH', ''),
+                    'cert' => (string) $this->setting('CERTIFICATE_PATH', $this->setting('CERT_PATH', '')),
+                    'key' => (string) $this->setting('PRIVATE_KEY_PATH', $this->setting('KEY_PATH', '')),
                     'passphrase' => (string) $this->setting('PASSPHRASE', ''),
                 ],
             ]

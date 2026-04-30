@@ -14,11 +14,21 @@ interface PaymentDriverInterface
     public function driverName(): string;
 
     /**
+     * @param array<string, mixed> $settings
+     */
+    public function configure(array $settings): static;
+
+    /**
      * @return array<string, mixed>
      */
     public function capabilities(): array;
 
     public function supports(string $feature): bool;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function readiness(): array;
 
     /**
      * @return list<string>

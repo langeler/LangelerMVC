@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Abstracts\Support\PaymentDriver as AbstractPaymentDriver;
 use App\Contracts\Support\PaymentDriverInterface;
 use App\Core\Container;
 use App\Drivers\Payments\CardPaymentDriver;
@@ -70,11 +69,7 @@ class PaymentProvider extends Container
             throw new ContainerException(sprintf('Resolved payment driver [%s] does not implement the payment contract.', $driver));
         }
 
-        if ($instance instanceof AbstractPaymentDriver) {
-            $instance->configure($settings);
-        }
-
-        return $instance;
+        return $instance->configure($settings);
     }
 
     /**

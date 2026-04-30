@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (133 tests, 3020 assertions)`
+- Verification result: `OK (135 tests, 3041 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -99,6 +99,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue work/retry/failed commands
 - notification inspection command
 - event/listener inspection command
+- release readiness inspection command through `php console release:check`
 - GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure
 
 ## Implemented First-Party Modules
@@ -248,7 +249,8 @@ For day-to-day framework development:
 2. Run `composer test:db-matrix` when external databases are available
 3. Run `composer ops:health`
 4. Run `composer ops:ready` when your backing services are provisioned
-5. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
+5. Run `composer release:check` before release candidates
+6. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
 
 ## Extension Outlook
 

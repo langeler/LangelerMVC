@@ -66,9 +66,16 @@
         "ops:health": "@php console health:check live",
         "ops:ready": "@php console health:check ready",
         "ops:audit": "@php console audit:list --limit=25",
+        "release:check": "@php console release:check",
         "verify:platform": [
             "@test",
             "@ops:health"
+        ],
+        "verify:release": [
+            "composer validate --no-check-publish",
+            "@test",
+            "@ops:health",
+            "@release:check"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""

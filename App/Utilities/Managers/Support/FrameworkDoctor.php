@@ -30,6 +30,7 @@ class FrameworkDoctor implements FrameworkDoctorInterface
         'app',
         'auth',
         'cache',
+        'commerce',
         'cookie',
         'db',
         'encryption',

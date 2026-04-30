@@ -388,6 +388,7 @@ class FrameworkDoctorTest extends TestCase
             'app' => [],
             'auth' => [],
             'cache' => [],
+            'commerce' => [],
             'cookie' => [],
             'db' => [],
             'encryption' => [],

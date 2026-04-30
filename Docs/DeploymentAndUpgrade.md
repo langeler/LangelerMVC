@@ -12,8 +12,9 @@ This document turns the release checklist into practical operator recipes. It is
 6. Ensure `Storage/Cache`, `Storage/Logs`, `Storage/Secure`, `Storage/Sessions`, `Storage/Uploads`, and queue runtime paths are writable by the PHP process.
 7. Run `php console migrate` and `php console seed` when the environment needs starter data.
 8. Start supervised queue workers for the configured queues, then verify `php console queue:failed` is empty after initial smoke tests.
-9. Run `php console health:check`, `php console health:check ready`, `composer ops:health`, and `composer ops:ready` against the target environment.
-10. Run a browser smoke pass for public storefront pages, installer redirect behavior, admin dashboard, admin orders, admin promotions, admin operations, and auth flows.
+9. Run `php console health:check`, `php console health:check ready`, `composer ops:health`, `composer ops:ready`, and `composer release:check` against the target environment.
+10. Run `php console release:check --strict=1` once live credentials, seller/VAT values, matrix extensions, and provider adapters are configured.
+11. Run a browser smoke pass for public storefront pages, installer redirect behavior, admin dashboard, admin orders, admin promotions, admin operations, and auth flows.
 
 ## Commerce Deployment Checks
 
@@ -33,7 +34,7 @@ This document turns the release checklist into practical operator recipes. It is
 3. Put the application in maintenance mode at the hosting/router layer if the deployment platform supports it.
 4. Deploy the new code artifact and run `composer install --no-dev --classmap-authoritative`.
 5. Run `php console migrate`.
-6. Re-run `php console health:check ready` and the environment's smoke test subset before switching traffic.
+6. Re-run `php console health:check ready`, `composer release:check`, and the environment's smoke test subset before switching traffic.
 7. Check admin operations for queue, notification, event, payment, health, inventory, return/document, and audit panels.
 8. Observe payment webhooks, subscription events, queue workers, and carrier callbacks after traffic returns.
 9. Keep the previous code artifact and database backup available until the post-deploy observation window is complete.

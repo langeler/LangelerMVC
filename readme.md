@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-30`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (133 tests, 3020 assertions)`
+- `composer test` passes with `OK (135 tests, 3041 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
@@ -154,6 +154,8 @@ php console route:list
 For a clean production-style verification pass, the framework now ships with:
 
 - `composer verify:platform` for the default regression suite plus a health check
+- `composer release:check` for release docs, env parity, critical routes, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
+- `composer verify:release` for Composer metadata validation, the default regression suite, health liveness, and release gate execution
 - `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
 - `docker-compose.verify.yml` for local MySQL/PostgreSQL/SQL Server/Redis/Memcached verification
 - workflow-level platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on CI failures
@@ -212,6 +214,8 @@ composer ops:health
 composer ops:ready
 composer ops:audit
 composer verify:platform
+composer release:check
+composer verify:release
 ```
 
 The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain available for additional isolated and cross-layer suites when a project needs them.
@@ -276,6 +280,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - plug-and-play payment driver support for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
 - admin-native content, catalog, promotion, order, operation, inventory, return, and document workflows
 - commerce coverage for physical shipping, digital/virtual access, pickup/pre-order, subscriptions, promotions, inventory reservations, returns/exchanges, partial refunds, and VAT/order documents
+- an executable release gate through `composer release:check` and `composer verify:release`
 - completed HTML + JSON presentation parity across first-party modules
 - a database-backed starter module plus user/admin/shop/cart/order slices
 

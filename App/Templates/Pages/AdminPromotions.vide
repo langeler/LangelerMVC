@@ -257,7 +257,7 @@
                             @endphp
                             <tr>
                                 <td>
-                                    <input type="checkbox" name="promotion_ids[]" value="{{ (string) ($entry['id'] ?? 0) }}">
+                                    <input type="checkbox" name="promotion_ids[]" value="{{ (string) ($entry['id'] ?? 0) }}" aria-label="Select promotion {{ (string) ($entry['code'] ?? $entry['id'] ?? 'promotion') }}">
                                 </td>
                                 <td>{{ (string) ($entry['code'] ?? '') }}</td>
                                 <td>{{ (string) ($entry['label'] ?? '') }}</td>

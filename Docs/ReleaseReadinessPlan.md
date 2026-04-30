@@ -15,6 +15,7 @@ The remaining work is now the final production layer: release hygiene, live inte
 - Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, commerce inventory, returns, documents, and list-style env handling.
 - Payment webhook environment parity is now included: installer defaults, `.env.example`, SettingsManager aliases, route integration, signature settings, and per-driver secrets are represented.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
+- Run `composer release:check` as the local release gate and `php console release:check --strict=1` when validating a production tag candidate with live credentials and matrix extensions available.
 - Verify the full database/cache/session matrix before release, not only the default local regression suite.
 
 ## P1 - Commerce Fulfillment Spectrum
@@ -53,7 +54,7 @@ Promotions should be treated as rules plus benefits.
 ## Exact Remaining Work After Current Slice
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
-- P0: complete final release hygiene by keeping status/test counts current and confirming no runtime-generated secrets or local artifacts are tracked.
+- P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, and confirming no runtime-generated secrets or local artifacts are tracked.
 - P1: replace the reference carrier adapter with live provider adapters/credentials where needed for PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
 - P1: wire live subscription provider adapters/merchant credentials where needed for production billing providers, keeping the new framework subscription webhook/runtime boundary as the shared contract.
 - P2: run browser/accessibility smoke passes for public and admin templates and fix any findings.

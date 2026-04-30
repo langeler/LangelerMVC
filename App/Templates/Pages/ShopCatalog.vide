@@ -58,7 +58,7 @@
 
             <label>
                 Sort by
-                <select name="sort">
+                <select name="sort" aria-label="Sort products">
                     @foreach([
                         'newest' => 'Newest first',
                         'oldest' => 'Oldest first',

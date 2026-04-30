@@ -48,6 +48,8 @@ php console queue:failed
 php console queue:retry
 php console event:list
 php console notification:list
+php console release:check
+php console release:check --strict=1
 ```
 
 Composer shortcuts are also available:
@@ -57,7 +59,18 @@ composer ops:health
 composer ops:ready
 composer ops:audit
 composer verify:platform
+composer release:check
+composer verify:release
 ```
+
+## Release Gate Operations
+
+`php console release:check` is the executable local release gate.
+
+- It checks release docs, `.env.example` parity, release-critical routes, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
+- Normal mode fails only on local release blockers such as missing docs, missing env keys, missing routes, missing commerce definitions, raw PHP in native templates, images without alt text, or missing matrix compose services.
+- `--strict=1` also fails on unresolved release warnings such as reference-mode payment/shipping, empty active webhook secrets, missing seller VAT/address fields, or optional PHP extensions that are not loaded in the current environment.
+- `composer release:check` runs the command through Composer; `composer verify:release` chains Composer validation, the default regression suite, health liveness, and the release gate.
 
 ## Admin Dashboard Operations
 
@@ -215,6 +228,7 @@ composer test:mysql
 composer test:pgsql
 composer test:sqlsrv
 composer ops:health
+composer release:check
 ```
 
 Redis, Memcached, and Imagick verification still depend on the relevant PHP extensions being available in the environment where the framework tests are executed.

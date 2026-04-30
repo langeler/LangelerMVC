@@ -4,6 +4,7 @@ All notable LangelerMVC release work is tracked here.
 
 ## Unreleased
 
+- Added `release:check` and `verify:release` release gates covering release docs, `.env.example` parity, critical routes, commerce fulfillment/carrier breadth, native template accessibility heuristics, external matrix readiness, and live integration warnings.
 - Added structured admin operations panels for queue, notification, event, payment, health, inventory, return/document, and audit drilldown visibility.
 - Added admin bulk promotion workflows with confirmation UX for activation, deactivation, and deletion.
 - Added promotion analytics by code, source, currency, customer, customer segment, and day.

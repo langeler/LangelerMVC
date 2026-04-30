@@ -7,15 +7,19 @@ Use this checklist before tagging or deploying LangelerMVC.
 - Date: `2026-04-30`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (133 tests, 3020 assertions)`
+- Result: `OK (135 tests, 3041 assertions)`
 
 ## Required Verification
 
 1. Run `composer test`.
 2. Run `composer verify:platform`.
-3. Run `composer test:db-matrix` against available MySQL, PostgreSQL, and SQL Server services.
-4. Run `composer ops:health` and confirm readiness checks match the target environment.
-5. Exercise the installer from `Public/install/index.php` against the intended database, cache, session, queue, mail, payment, commerce, and admin-account settings.
+3. Run `composer release:check`.
+4. Run `composer verify:release` before tagging a release candidate.
+5. Run `composer test:db-matrix` against available MySQL, PostgreSQL, and SQL Server services.
+6. Run `composer ops:health` and confirm readiness checks match the target environment.
+7. Exercise the installer from `Public/install/index.php` against the intended database, cache, session, queue, mail, payment, commerce, and admin-account settings.
+
+For production tagging, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, carrier adapters, or legal/VAT seller settings are still unresolved.
 
 ## Production Preflight
 
@@ -39,14 +43,14 @@ Use this checklist before tagging or deploying LangelerMVC.
 5. Point the web server document root at `Public/` and confirm front-controller rewrites are enabled.
 6. Ensure `Storage/Cache`, `Storage/Logs`, `Storage/Secure`, `Storage/Sessions`, `Storage/Uploads`, and queue runtime paths are writable by the PHP process.
 7. Start queue workers for configured asynchronous queues and wire process supervision through the host platform.
-8. Verify `php console health:check`, `php console health:check ready`, `composer ops:health`, and a browser smoke pass against the deployed origin.
+8. Verify `php console health:check`, `php console health:check ready`, `composer ops:health`, `composer release:check`, and a browser smoke pass against the deployed origin.
 
 ## Upgrade Recipe
 
 1. Read `CHANGELOG.md`, this checklist, and `Docs/ReleaseReadinessPlan.md` before deploying an upgrade.
 2. Back up the database and deployment-local `.env`/secret material before running migrations.
 3. Deploy code, install dependencies, clear/rebuild any deployment cache, and run `php console migrate`.
-4. Re-run `composer test` or the target environment's smoke subset before switching traffic.
+4. Re-run `composer test`, `composer release:check`, or the target environment's smoke subset before switching traffic.
 5. Confirm admin order, promotion, operations, installer, and health pages load in the target browser matrix.
 6. Keep the previous release artifact and database backup available until payment webhooks, subscription events, queues, and carrier callbacks have been observed after deploy.
 

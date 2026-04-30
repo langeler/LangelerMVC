@@ -76,6 +76,7 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('queue:drain', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:retry', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:prune-failed', $kernel->commandDescriptions());
+        self::assertArrayHasKey('release:check', $kernel->commandDescriptions());
     }
 
     public function testConsoleKernelParsesOptionsForOperationalCommands(): void

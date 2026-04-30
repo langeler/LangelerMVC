@@ -54,18 +54,25 @@ LangelerMVC
 │   ├── Console
 │   │   ├── Commands
 │   │   │   ├── AuditListCommand.php
+│   │   │   ├── AuditPruneCommand.php
 │   │   │   ├── CacheClearCommand.php
 │   │   │   ├── ConfigShowCommand.php
 │   │   │   ├── EventListCommand.php
+│   │   │   ├── FrameworkDoctorCommand.php
 │   │   │   ├── HealthCheckCommand.php
 │   │   │   ├── MigrateCommand.php
 │   │   │   ├── MigrateRollbackCommand.php
 │   │   │   ├── MigrateStatusCommand.php
+│   │   │   ├── ModuleMakeCommand.php
 │   │   │   ├── ModuleListCommand.php
 │   │   │   ├── NotificationListCommand.php
+│   │   │   ├── QueueDrainCommand.php
 │   │   │   ├── QueueFailedCommand.php
+│   │   │   ├── QueuePruneFailedCommand.php
 │   │   │   ├── QueueRetryCommand.php
+│   │   │   ├── QueueStopCommand.php
 │   │   │   ├── QueueWorkCommand.php
+│   │   │   ├── ReleaseCheckCommand.php
 │   │   │   ├── RouteListCommand.php
 │   │   │   ├── SeedCommand.php
 │   │   ├── ConsoleKernel.php
@@ -707,14 +714,10 @@ LangelerMVC
 │   ├── README.md
 ├── Storage
 │   ├── Cache
-│   │   ├── a82007219b79a35957ffa8cf656e7511350b9b4cfe139ec5acd4a4751d341107.cache
-│   │   ├── codex-test.cache
-│   │   ├── e649b0836d42ddca848924140c8a35ac18712105a723b44066520f33d9ed14a1.cache
-│   │   ├── routes.cache
 │   ├── Logs
 │   │   ├── README.md
 │   ├── Secure
-│   │   ├── cache_key
+│   │   ├── README.md
 │   ├── Sessions
 │   │   ├── README.md
 │   ├── Uploads
@@ -723,6 +726,7 @@ LangelerMVC
 │   ├── DbMatrix
 │   │   ├── DatabaseMatrixHarnessTest.php
 │   ├── Framework
+│   │   ├── AsyncOperationsHardeningTest.php
 │   │   ├── AuthPlatformTest.php
 │   │   ├── BackendArchitectureTest.php
 │   │   ├── BootstrapAndAppTest.php
@@ -731,12 +735,18 @@ LangelerMVC
 │   │   ├── CryptoSubsystemTest.php
 │   │   ├── FinderUtilitiesAndSessionTest.php
 │   │   ├── FrameworkCompletionTest.php
+│   │   ├── FrameworkDoctorTest.php
 │   │   ├── HttpPresentationSurfaceTest.php
+│   │   ├── HttpSecurityEnforcementTest.php
+│   │   ├── InfrastructureHardeningTest.php
+│   │   ├── InstallerAndViewCoverageTest.php
 │   │   ├── ModelAndRepositoryTest.php
 │   │   ├── MvcLayerTest.php
+│   │   ├── OperationsMaintenanceTest.php
 │   │   ├── PlatformFoundationTest.php
 │   │   ├── PresentationLayerCompletionTest.php
 │   │   ├── QueryLayerTest.php
+│   │   ├── ReleaseReadinessTest.php
 │   │   ├── RouterTest.php
 │   │   ├── SessionSubsystemTest.php
 │   │   ├── TraitSurfaceTest.php

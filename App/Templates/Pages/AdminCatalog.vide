@@ -189,7 +189,7 @@
 
             <label>
                 Fulfillment type
-                <select name="fulfillment_type">
+                <select name="fulfillment_type" aria-label="Fulfillment type">
                     @foreach([
                         'physical_shipping' => 'Physical shipping',
                         'digital_download' => 'Digital download',
@@ -255,7 +255,7 @@
                     <form method="post" action="{{ (string) ($entry['update_path'] ?? '/admin/catalog') }}" class="stack">
                         <label>
                             Category
-                            <select name="category_id">
+                            <select name="category_id" aria-label="Product category">
                                 @foreach($categories as $category)
                                     @php
                                         $categoryEntry = is_array($category) ? $category : [];
@@ -310,7 +310,7 @@
 
                         <label>
                             Fulfillment type
-                            <select name="fulfillment_type">
+                            <select name="fulfillment_type" aria-label="Fulfillment type">
                                 @foreach([
                                     'physical_shipping' => 'Physical shipping',
                                     'digital_download' => 'Digital download',

@@ -23,6 +23,7 @@ use App\Console\Commands\QueuePruneFailedCommand;
 use App\Console\Commands\QueueRetryCommand;
 use App\Console\Commands\QueueStopCommand;
 use App\Console\Commands\QueueWorkCommand;
+use App\Console\Commands\ReleaseCheckCommand;
 use App\Console\Commands\RouteListCommand;
 use App\Console\Commands\SeedCommand;
 use App\Contracts\Console\CommandInterface;
@@ -60,7 +61,8 @@ class ConsoleKernel
         QueuePruneFailedCommand $queuePruneFailed,
         QueueRetryCommand $queueRetry,
         EventListCommand $eventList,
-        NotificationListCommand $notificationList
+        NotificationListCommand $notificationList,
+        ReleaseCheckCommand $releaseCheck
     ) {
         foreach ([
             $auditList,
@@ -84,6 +86,7 @@ class ConsoleKernel
             $queueRetry,
             $eventList,
             $notificationList,
+            $releaseCheck,
         ] as $command) {
             $this->commands[$command->name()] = $command;
         }

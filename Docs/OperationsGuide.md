@@ -59,6 +59,16 @@ composer ops:audit
 composer verify:platform
 ```
 
+## Admin Dashboard Operations
+
+The admin dashboard is now the primary operator surface for day-to-day framework management.
+
+- `/admin` summarizes user, catalog, cart, order, promotion, page, operation, inventory, return, and document posture.
+- `/admin/operations` groups operational signals into queue, notification, event, payment, health, inventory, return/document, and audit drilldown panels.
+- `/admin/orders/{id}` keeps order lifecycle, payment capture/refund/cancel/reconcile, shipping, subscription, return/exchange, partial-refund, and order-document actions inside admin-native routes.
+- `/admin/promotions` keeps promotion authoring, lifecycle changes, bulk workflows, confirmation UX, usage ledgers, and analytics inside the dashboard.
+- `/admin/pages` keeps WebModule content authoring, publishing, unpublishing, deletion, and home-page guardrails inside the dashboard.
+
 ## Payment Operations
 
 The framework payment layer is now designed as a gateway-agnostic compatibility surface.
@@ -111,14 +121,39 @@ The admin dashboard now includes database-backed promotion and coupon management
 - Supported criteria include currency, subtotal ranges, item counts, product IDs/slugs, categories, fulfillment types, shipping countries/zones/carriers/options, customer accounts, customer emails, customer segments, active windows, exclusions, free-shipping eligibility, global usage limits, per-customer limits, and per-segment limits.
 - Checkout records promotion usage ledgers with order/cart/user context and increments database-backed usage counters for operational limit enforcement.
 - Promotion usage ledgers include customer email and customer segment context when available, allowing later applications to enforce per-customer and per-segment limits without application-local coupon code.
-- Admin promotion metrics include recent usage records and aggregate discount totals.
+- Admin promotion metrics include recent usage records, aggregate discount totals, and analytics by code, source, currency, customer, customer segment, and day.
+- Bulk promotion workflows support activation, deactivation, and deletion from the dashboard with explicit confirmation fields.
 - Config-backed promotions remain useful for immutable baseline/demo promotions; database-backed promotions are the production operator workflow.
+
+## Inventory Operations
+
+The commerce inventory layer now supports reservation-aware checkout for physical fulfillment.
+
+- `COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT=true` reserves stock during checkout instead of only validating availability.
+- `COMMERCE_INVENTORY_RELEASE_ON_CANCEL=true` releases reserved stock when an order is cancelled.
+- `COMMERCE_INVENTORY_RESERVATION_TTL_MINUTES` controls reservation expiry windows for abandoned checkout flows.
+- Inventory reservations are recorded in `inventory_reservations` with reservation keys, product IDs, quantities, order attachment, status, expiry, and lifecycle timestamps.
+- Admin operation panels expose reservation totals, reserved/committed/released counts, and recent reservation rows.
+- Admin order pages expose the reservation ledger for the selected order so operators can understand stock holds without leaving the order context.
+- Digital, virtual, pickup, pre-order, and subscription items do not require physical stock reservation unless a project explicitly models them as physical inventory.
+
+## Return And Document Operations
+
+Admin order pages now include return/exchange and order-document workflows.
+
+- Operators can create return or exchange requests for order items, set quantities, choose restock behavior, and record reasons from `/admin/orders/{id}`.
+- Return records support requested, approved, rejected, and completed transitions through admin-native routes.
+- Completed returns can trigger restock behavior and partial refunds while preserving the fulfillment lifecycle for the rest of the order.
+- Credit notes can be issued from completed returns, and the document ledger remains visible on the admin order page.
+- Operators can issue VAT invoices, credit notes, packing slips, and return authorizations through `/admin/orders/{id}/documents/{type}`.
+- Document defaults are configured by `COMMERCE_DOCUMENTS_VAT_RATE_BPS`, `COMMERCE_DOCUMENTS_SELLER_NAME`, `COMMERCE_DOCUMENTS_SELLER_VAT_ID`, and `COMMERCE_DOCUMENTS_SELLER_ADDRESS`.
+- Return defaults are configured by `COMMERCE_RETURNS_WINDOW_DAYS`, `COMMERCE_RETURNS_ALLOW_EXCHANGES`, and `COMMERCE_RETURNS_AUTO_RESTOCK`.
 
 ## Shipping Operations
 
 Admin order pages now expose carrier operations without leaving the admin surface.
 
-- Supported reference carriers include PostNord, Instabox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
+- Supported reference carriers include PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
 - Operators can look up service points, book a shipment, create a label reference, mark an order shipped, sync tracking, cancel a shipment booking, and mark delivery through `/admin/orders/{id}` actions.
 - `COMMERCE_SHIPPING_INTEGRATION_MODE=reference` keeps the default adapter deterministic and safe for local/demo installs.
 - `COMMERCE_SHIPPING_AUTO_BOOK_LABELS=true` lets shipping auto-book a reference label when the operator ships without entering a tracking number.
@@ -136,9 +171,11 @@ Current first-party audit events include:
 - passkey registration, authentication, and deletion
 - role and permission synchronization from the admin surface
 - WebModule page save, publish, unpublish, and delete actions from the admin surface
-- promotion creation/update, activation, deactivation, and deletion from the admin surface
+- promotion creation/update, activation, deactivation, deletion, and bulk lifecycle actions from the admin surface
 - order creation and payment-state transitions
 - subscription sync, pause, resume, cancel, renewal, and dunning events
+- order return/exchange request, approval, rejection, and completion events
+- order document issuing events for invoices, credit notes, packing slips, and return authorizations
 
 Audit logging is configured through `Config/operations.php`.
 

@@ -223,7 +223,10 @@ class OrderService extends Service
         $this->database->beginTransaction();
 
         try {
-            $reservation = $this->inventory->reserve((array) ($cartPayload['items'] ?? []));
+            $reservation = $this->inventory->reserve((array) ($cartPayload['items'] ?? []), [
+                'cart_id' => (int) $cart->getKey(),
+                'source' => 'checkout',
+            ]);
 
             if (!$reservation['reserved']) {
                 $this->database->rollBack();
@@ -299,6 +302,14 @@ class OrderService extends Service
                     JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
                 ),
             ]);
+
+            if ((string) ($reservation['reservation_key'] ?? '') !== '') {
+                $this->inventory->attachReservations(
+                    (string) $reservation['reservation_key'],
+                    (int) $order->getKey(),
+                    $inventoryStatus === 'committed' ? 'committed' : 'reserved'
+                );
+            }
 
             foreach ((array) ($cartPayload['items'] ?? []) as $item) {
                 $this->orderItems->create([
@@ -1109,6 +1120,7 @@ class OrderService extends Service
             'actions' => $includeSensitive ? $this->orderActions($summary) : $this->publicOrderActions($summary),
             'entitlements' => $this->entitlements->summariesForOrder($orderId),
             'subscriptions' => $this->subscriptions->summariesForOrder($orderId),
+            'inventory_reservations' => $this->inventory->summariesForOrder($orderId),
             ...$this->shipping->presentation($summary),
         ];
 

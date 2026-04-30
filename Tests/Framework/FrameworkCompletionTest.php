@@ -35,15 +35,20 @@ use App\Modules\OrderModule\Listeners\OrderLifecycleNotificationListener;
 use App\Modules\OrderModule\Migrations\AddOrderCommerceStateColumns;
 use App\Modules\OrderModule\Migrations\AddOrderDiscountSnapshotColumns;
 use App\Modules\OrderModule\Migrations\AddOrderShipmentTrackingColumns;
+use App\Modules\OrderModule\Migrations\CreateOrderAdjustmentTables;
 use App\Modules\OrderModule\Migrations\CreateOrderEntitlementsTable;
+use App\Modules\OrderModule\Migrations\CreateInventoryReservationsTable;
 use App\Modules\OrderModule\Migrations\CreateOrderTables;
 use App\Modules\OrderModule\Migrations\CreateOrderSubscriptionsTable;
 use App\Modules\OrderModule\Migrations\CreatePaymentWebhookEventsTable;
 use App\Modules\OrderModule\Presenters\OrderResource;
 use App\Modules\OrderModule\Repositories\OrderAddressRepository;
+use App\Modules\OrderModule\Repositories\OrderDocumentRepository;
 use App\Modules\OrderModule\Repositories\OrderEntitlementRepository;
+use App\Modules\OrderModule\Repositories\InventoryReservationRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
+use App\Modules\OrderModule\Repositories\OrderReturnRepository;
 use App\Modules\OrderModule\Repositories\OrderSubscriptionRepository;
 use App\Modules\OrderModule\Repositories\PaymentWebhookEventRepository;
 use App\Modules\OrderModule\Seeds\OrderSeed;
@@ -75,7 +80,9 @@ use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\EntitlementManager;
 use App\Support\Commerce\InventoryManager;
+use App\Support\Commerce\OrderDocumentManager;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\OrderReturnManager;
 use App\Support\Commerce\PromotionManager;
 use App\Support\Commerce\ShippingManager;
 use App\Support\Commerce\SubscriptionManager;
@@ -816,9 +823,14 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('Instabox Hornstull', $checkout['order']['shipping_service_point_name']);
         self::assertSame('reserved', $checkout['order']['inventory_status']);
         self::assertSame('unfulfilled', $checkout['order']['fulfillment_status']);
+        self::assertCount(1, $checkout['order']['inventory_reservations']);
+        self::assertSame('reserved', $checkout['order']['inventory_reservations'][0]['status']);
+        self::assertSame(1, $checkout['order']['inventory_reservations'][0]['quantity']);
+        self::assertNotSame('', (string) ($checkout['order']['inventory_reservations'][0]['expires_at'] ?? ''));
 
         $stockAfterCheckout = $stack['products']->findPublishedBySlug('starter-platform-license');
         self::assertSame($initialStock - 1, (int) ($stockAfterCheckout?->getAttribute('stock') ?? -1));
+        self::assertSame(1, $stack['inventory']->metrics()['reserved_inventory']);
 
         $cancelled = $stack['orderService']->forAction('cancel', [], [
             'order' => (int) $checkout['order']['id'],
@@ -828,9 +840,40 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('cancelled', $cancelled['order']['payment_status']);
         self::assertSame('released', $cancelled['order']['inventory_status']);
         self::assertSame('cancelled', $cancelled['order']['fulfillment_status']);
+        self::assertSame('released', $cancelled['order']['inventory_reservations'][0]['status']);
+        self::assertNotSame('', (string) ($cancelled['order']['inventory_reservations'][0]['released_at'] ?? ''));
+        self::assertSame(1, $stack['inventory']->metrics()['released_inventory']);
 
         $stockAfterCancellation = $stack['products']->findPublishedBySlug('starter-platform-license');
         self::assertSame($initialStock, (int) ($stockAfterCancellation?->getAttribute('stock') ?? -1));
+
+        $expiredReservation = $stack['inventory']->reserve([[
+            'product_id' => (int) $product?->getKey(),
+            'name' => 'Starter Platform License',
+            'quantity' => 1,
+            'fulfillment_type' => 'physical_shipping',
+        ]], [
+            'cart_id' => 999,
+            'source' => 'expiry-test',
+            'expires_at' => gmdate('Y-m-d H:i:s', time() - 60),
+        ]);
+
+        self::assertTrue($expiredReservation['reserved']);
+        self::assertNotSame('', $expiredReservation['reservation_key']);
+
+        $stockAfterExpiredHold = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertSame($initialStock - 1, (int) ($stockAfterExpiredHold?->getAttribute('stock') ?? -1));
+
+        $expiredRelease = $stack['inventory']->releaseExpired();
+        self::assertCount(1, $expiredRelease['items']);
+
+        $stockAfterExpiry = $stack['products']->findPublishedBySlug('starter-platform-license');
+        self::assertSame($initialStock, (int) ($stockAfterExpiry?->getAttribute('stock') ?? -1));
+        self::assertTrue(array_reduce(
+            $stack['inventoryReservations']->recent(5),
+            static fn(bool $found, array $row): bool => $found || ($row['status'] ?? '') === 'expired',
+            false
+        ));
     }
 
     public function testPromotionCodesUpdateCartPricingAndPersistIntoOrderSnapshots(): void
@@ -947,6 +990,7 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('AdminModule', $json['meta']['module']);
         self::assertArrayHasKey('promotions', $json['data']);
         self::assertArrayHasKey('promotion_metrics', $json['data']);
+        self::assertArrayHasKey('promotion_analytics', $json['data']);
 
         $stack['auth']->logout();
         self::assertTrue($stack['auth']->attempt([
@@ -1028,8 +1072,32 @@ final class FrameworkCompletionTest extends TestCase
             'password' => 'admin12345',
         ]));
 
-        $deactivated = $stack['adminService']->forAction('deactivatePromotion', [], [
-            'promotion' => (int) ($promotion['id'] ?? 0),
+        $analytics = $stack['adminService']->forAction('promotions')->execute();
+        $codeAnalytics = null;
+
+        foreach (($analytics['promotion_analytics']['by_code'] ?? []) as $row) {
+            if (($row['key'] ?? '') === 'ADMIN250') {
+                $codeAnalytics = $row;
+                break;
+            }
+        }
+
+        self::assertIsArray($codeAnalytics);
+        self::assertSame(1, $codeAnalytics['uses']);
+        self::assertSame(1, $codeAnalytics['orders']);
+        self::assertSame(1, $codeAnalytics['users']);
+        self::assertSame(2500, $codeAnalytics['discount_minor']);
+        self::assertNotEmpty($analytics['promotion_analytics']['by_customer_segment'] ?? []);
+
+        $invalidBulk = $stack['adminService']->forAction('bulkPromotions', [
+            'bulk_action' => 'deactivate',
+        ])->execute();
+
+        self::assertSame(422, $invalidBulk['status']);
+
+        $deactivated = $stack['adminService']->forAction('bulkPromotions', [
+            'bulk_action' => 'deactivate',
+            'promotion_ids' => [(int) ($promotion['id'] ?? 0)],
         ])->execute();
 
         self::assertSame(200, $deactivated['status']);
@@ -1055,8 +1123,9 @@ final class FrameworkCompletionTest extends TestCase
         self::assertFalse($blocked['applied']);
         self::assertSame('This promotion code is not currently active.', $blocked['message']);
 
-        $reactivated = $stack['adminService']->forAction('activatePromotion', [], [
-            'promotion' => (int) ($promotion['id'] ?? 0),
+        $reactivated = $stack['adminService']->forAction('bulkPromotions', [
+            'bulk_action' => 'activate',
+            'promotion_ids' => (string) ($promotion['id'] ?? 0),
         ])->execute();
 
         self::assertSame(200, $reactivated['status']);
@@ -1520,6 +1589,44 @@ final class FrameworkCompletionTest extends TestCase
         self::assertSame('Budbee', $captured['order']['shipping_carrier_label']);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/pack', $captured['order']['actions']['pack'] ?? null);
         self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/refund', $captured['order']['actions']['refund'] ?? null);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/returns', $captured['order']['actions']['create_return'] ?? null);
+        self::assertSame('/admin/orders/' . $checkout['order']['id'] . '/documents/invoice', $captured['order']['actions']['document_invoice'] ?? null);
+
+        $invoice = $stack['adminService']->forAction('issueOrderDocument', [
+            'seller_vat_id' => 'SE556000000001',
+            'notes' => 'Reference VAT invoice.',
+        ], [
+            'order' => (int) $checkout['order']['id'],
+            'type' => 'invoice',
+        ])->execute();
+
+        self::assertSame(200, $invoice['status']);
+        self::assertCount(1, $invoice['order']['documents']);
+        self::assertSame('invoice', $invoice['order']['documents'][0]['type']);
+        self::assertSame('SE556000000001', $invoice['order']['documents'][0]['seller_vat_id']);
+
+        $returnWorkflow = $stack['adminService']->forAction('createOrderReturn', [
+            'type' => 'return',
+            'order_item_id' => (int) ($captured['order']['items'][0]['id'] ?? 0),
+            'quantity' => 1,
+            'refund_minor' => 1000,
+            'reason' => 'Operator goodwill adjustment.',
+            'restock' => 'false',
+            'process_refund' => 'true',
+        ], [
+            'order' => (int) $checkout['order']['id'],
+        ])->execute();
+
+        self::assertSame(200, $returnWorkflow['status']);
+        self::assertSame('partially_refunded', $returnWorkflow['order']['payment_status']);
+        self::assertCount(1, $returnWorkflow['order']['returns']);
+        self::assertSame('completed', $returnWorkflow['order']['returns'][0]['status']);
+        self::assertSame(1000, $returnWorkflow['order']['returns'][0]['refund_minor']);
+        self::assertCount(2, $returnWorkflow['order']['documents']);
+        self::assertContains('credit_note', array_map(
+            static fn(array $document): string => (string) ($document['type'] ?? ''),
+            $returnWorkflow['order']['documents']
+        ));
 
         $packed = $stack['adminService']->forAction('packOrder', [], [
             'order' => (int) $checkout['order']['id'],
@@ -1820,6 +1927,9 @@ final class FrameworkCompletionTest extends TestCase
         self::assertArrayHasKey('promotion_form', $promotionsAdmin);
         self::assertArrayHasKey('promotion_metrics', $promotionsAdmin);
         self::assertArrayHasKey('promotion_usage', $promotionsAdmin);
+        self::assertArrayHasKey('promotion_analytics', $promotionsAdmin);
+        self::assertArrayHasKey('by_code', $promotionsAdmin['promotion_analytics']);
+        self::assertArrayHasKey('by_customer_segment', $promotionsAdmin['promotion_analytics']);
         self::assertNotEmpty($promotionsAdmin['configured_promotions']);
         self::assertSame(200, $cartsAdmin['status']);
         self::assertNotEmpty($cartsAdmin['carts']);
@@ -1827,13 +1937,24 @@ final class FrameworkCompletionTest extends TestCase
         self::assertNotEmpty($orders['orders']);
         self::assertNotEmpty($orders['orders'][0]['view_path'] ?? '');
         self::assertSame(200, $operations['status']);
+        self::assertArrayHasKey('overview', $operations['operations']);
+        self::assertArrayHasKey('links', $operations['operations']);
         self::assertArrayHasKey('queue', $operations['operations']);
+        self::assertArrayHasKey('events', $operations['operations']);
         self::assertArrayHasKey('health', $operations['operations']);
+        self::assertArrayHasKey('inventory', $operations['operations']);
+        self::assertArrayHasKey('returns', $operations['operations']);
+        self::assertArrayHasKey('documents', $operations['operations']);
         self::assertArrayHasKey('audit', $operations['operations']);
+        self::assertArrayHasKey('rows', $operations['operations']['events']);
+        self::assertArrayHasKey('metrics', $operations['operations']['inventory']);
+        self::assertArrayHasKey('recent', $operations['operations']['audit']);
+        self::assertArrayHasKey('category_links', $operations['operations']['audit']);
         self::assertArrayHasKey('payments', $adminJson['data']['operations']);
         self::assertArrayHasKey('methods', $operations['operations']['payments']);
         self::assertArrayHasKey('flows', $operations['operations']['payments']);
         self::assertArrayHasKey('catalog', $operations['operations']['payments']);
+        self::assertArrayHasKey('driver_rows', $operations['operations']['payments']);
         self::assertArrayHasKey('paypal', $operations['operations']['payments']['catalog']);
 
         $createdCategory = $stack['adminService']->forAction('saveCategory', [
@@ -1946,6 +2067,8 @@ final class FrameworkCompletionTest extends TestCase
             AddOrderCommerceStateColumns::class,
             AddOrderDiscountSnapshotColumns::class,
             AddOrderShipmentTrackingColumns::class,
+            CreateInventoryReservationsTable::class,
+            CreateOrderAdjustmentTables::class,
             CreateOrderEntitlementsTable::class,
             CreateOrderSubscriptionsTable::class,
             CreatePaymentWebhookEventsTable::class,
@@ -2055,6 +2178,9 @@ final class FrameworkCompletionTest extends TestCase
         $promotionRepository = new PromotionRepository($database);
         $orders = new OrderRepository($database);
         $orderItems = new OrderItemRepository($database);
+        $inventoryReservations = new InventoryReservationRepository($database);
+        $orderReturns = new OrderReturnRepository($database);
+        $orderDocuments = new OrderDocumentRepository($database);
         $entitlementRepository = new OrderEntitlementRepository($database);
         $subscriptionRepository = new OrderSubscriptionRepository($database);
         $webhookEvents = new PaymentWebhookEventRepository($database);
@@ -2063,11 +2189,13 @@ final class FrameworkCompletionTest extends TestCase
         $shipping = new ShippingManager($config);
         $promotions = new PromotionManager($config, $promotionRepository);
         $pricing = new CartPricingManager($shipping, $promotions, $totals);
-        $inventory = new InventoryManager($products);
+        $inventory = new InventoryManager($products, $inventoryReservations, $config);
         $catalogLifecycle = new CatalogLifecycleManager($categories, $products, $cartItems, $orderItems, $events, $audit, $auth);
         $entitlements = new EntitlementManager($entitlementRepository, $orders, $orderItems, $events, $auth, $audit, $config);
         $subscriptions = new SubscriptionManager($subscriptionRepository, $orders, $orderItems, $entitlementRepository, $events, $auth, $audit, $config);
         $lifecycle = new OrderLifecycleManager($database, $orders, $orderItems, $payments, $events, $auth, $audit, $inventory, $shipping, $entitlements, $subscriptions);
+        $returns = new OrderReturnManager($orderReturns, $orders, $orderItems, $inventory, $events, $auth, $audit);
+        $documents = new OrderDocumentManager($orderDocuments, $orders, $orderItems, $addresses, $config, $events, $auth, $audit);
 
         $catalogService = new CatalogService($products, $categories);
         $cartService = new CartService($carts, $cartItems, $products, $session, $auth, $pricing);
@@ -2114,6 +2242,7 @@ final class FrameworkCompletionTest extends TestCase
             $shipping,
             $entitlements,
             $subscriptions,
+            $inventory,
             $modules,
             $cache,
             $sessionManager,
@@ -2124,7 +2253,9 @@ final class FrameworkCompletionTest extends TestCase
             $health,
             $audit,
             $router,
-            $config
+            $config,
+            $returns,
+            $documents
         );
 
         $modules->setResolved([
@@ -2165,6 +2296,9 @@ final class FrameworkCompletionTest extends TestCase
             'subscriptions' => $subscriptions,
             'subscriptionRepository' => $subscriptionRepository,
             'inventory' => $inventory,
+            'inventoryReservations' => $inventoryReservations,
+            'orderReturns' => $orderReturns,
+            'orderDocuments' => $orderDocuments,
             'lifecycle' => $lifecycle,
             'mail' => $mail,
             'notifications' => $notifications,
@@ -2317,6 +2451,17 @@ final class FrameworkCompletionTest extends TestCase
                 'CURRENCY' => 'SEK',
                 'TAX' => [
                     'RATE_BPS' => 2500,
+                ],
+                'DOCUMENTS' => [
+                    'VAT_RATE_BPS' => 2500,
+                    'SELLER_NAME' => 'LangelerMVC AB',
+                    'SELLER_VAT_ID' => 'SE556000000001',
+                    'SELLER_ADDRESS' => 'Framework Street 1, Stockholm',
+                ],
+                'RETURNS' => [
+                    'WINDOW_DAYS' => 30,
+                    'ALLOW_EXCHANGES' => true,
+                    'AUTO_RESTOCK' => true,
                 ],
                 'SHIPPING' => [
                     'FLAT_RATE_MINOR' => 1490,

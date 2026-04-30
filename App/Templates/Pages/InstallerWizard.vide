@@ -19,6 +19,8 @@
         $fulfillmentType = $form['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? '';
         $subscriptionInterval = $form['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? '';
         $autoReadyOnCapture = ($form['COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE'] ?? 'true') === 'true';
+        $returnsAllowExchanges = ($form['COMMERCE_RETURNS_ALLOW_EXCHANGES'] ?? 'true') === 'true';
+        $returnsAutoRestock = ($form['COMMERCE_RETURNS_AUTO_RESTOCK'] ?? 'true') === 'true';
         $encryptionType = $form['ENCRYPTION_TYPE'] ?? '';
         $sessionSameSite = strtolower((string) ($form['SESSION_SAME_SITE'] ?? ''));
         $isInstalled = (bool) ($status['installed'] ?? false);
@@ -391,6 +393,27 @@
                             <input id="COMMERCE_TAX_RATE_BPS" name="COMMERCE_TAX_RATE_BPS" type="text" value="{{ $form['COMMERCE_TAX_RATE_BPS'] ?? '' }}">
                         </div>
                         <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_VAT_RATE_BPS">Document VAT Rate (basis points)</label>
+                            <input id="COMMERCE_DOCUMENTS_VAT_RATE_BPS" name="COMMERCE_DOCUMENTS_VAT_RATE_BPS" type="text" value="{{ $form['COMMERCE_DOCUMENTS_VAT_RATE_BPS'] ?? '' }}">
+                            <small>Used when issuing VAT invoices, credit notes, and order document snapshots.</small>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_SELLER_NAME">Document Seller Name</label>
+                            <input id="COMMERCE_DOCUMENTS_SELLER_NAME" name="COMMERCE_DOCUMENTS_SELLER_NAME" type="text" value="{{ $form['COMMERCE_DOCUMENTS_SELLER_NAME'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_SELLER_VAT_ID">Seller VAT ID</label>
+                            <input id="COMMERCE_DOCUMENTS_SELLER_VAT_ID" name="COMMERCE_DOCUMENTS_SELLER_VAT_ID" type="text" value="{{ $form['COMMERCE_DOCUMENTS_SELLER_VAT_ID'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_SELLER_ADDRESS">Seller Address</label>
+                            <input id="COMMERCE_DOCUMENTS_SELLER_ADDRESS" name="COMMERCE_DOCUMENTS_SELLER_ADDRESS" type="text" value="{{ $form['COMMERCE_DOCUMENTS_SELLER_ADDRESS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_RETURNS_WINDOW_DAYS">Returns Window Days</label>
+                            <input id="COMMERCE_RETURNS_WINDOW_DAYS" name="COMMERCE_RETURNS_WINDOW_DAYS" type="text" value="{{ $form['COMMERCE_RETURNS_WINDOW_DAYS'] ?? '' }}">
+                        </div>
+                        <div class="field">
                             <label for="COMMERCE_DISCOUNT_RATE_BPS">Default Discount Rate (basis points)</label>
                             <input id="COMMERCE_DISCOUNT_RATE_BPS" name="COMMERCE_DISCOUNT_RATE_BPS" type="text" value="{{ $form['COMMERCE_DISCOUNT_RATE_BPS'] ?? '' }}">
                         </div>
@@ -470,6 +493,14 @@
                     <div class="field-inline">
                         <input type="hidden" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="false">
                         <label><input type="checkbox" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="true" @if($autoReadyOnCapture) checked @endif> Move captured orders into ready-to-fulfill automatically</label>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="COMMERCE_RETURNS_ALLOW_EXCHANGES" value="false">
+                        <label><input type="checkbox" name="COMMERCE_RETURNS_ALLOW_EXCHANGES" value="true" @if($returnsAllowExchanges) checked @endif> Allow exchange workflows in admin returns</label>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="COMMERCE_RETURNS_AUTO_RESTOCK" value="false">
+                        <label><input type="checkbox" name="COMMERCE_RETURNS_AUTO_RESTOCK" value="true" @if($returnsAutoRestock) checked @endif> Restock eligible physical/pickup returns when completed</label>
                     </div>
                 </section>
 

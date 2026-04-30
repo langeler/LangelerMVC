@@ -1,13 +1,13 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-29`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-30`.
 
 ## Snapshot
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (133 tests, 2957 assertions)`
-- Project posture: complete first-party platform framework with starter, identity, admin, WebModule content authoring, catalog, cart, promotions, subscriptions, and order slices implemented
+- Verification result: `OK (133 tests, 3020 assertions)`
+- Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
 ## Implemented And Working
@@ -76,6 +76,8 @@ This document records the current implementation state of LangelerMVC based on t
 - first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
 - signed/idempotent payment webhook ingestion with event ledgers and order lifecycle reconciliation
 - signed/idempotent subscription webhook ingestion with recurring renewal, dunning, cancellation, pause/resume, and renewal-order reconciliation
+- inventory reservation ledger support with reserve, commit, release, expiry, order attachment, and admin visibility
+- return, exchange, partial-refund, VAT invoice, credit-note, packing-slip, and return-authorization workflows
 - mail, OTP, passkey/WebAuthn, health, and audit managers
 
 ### Utility Layer
@@ -129,11 +131,11 @@ This document records the current implementation state of LangelerMVC based on t
 - WebModule page authoring and publishing
 - module/config/cache/session visibility
 - catalog/cart/order visibility
-- database-backed promotion/coupon management with usage reporting
+- database-backed promotion/coupon management with usage reporting, analytics, and bulk lifecycle workflows
 - per-customer and per-segment promotion usage enforcement through checkout usage ledgers
-- queue/notification/event/payment operational visibility where safe
+- structured queue/notification/event/payment/health/inventory/return/document operational visibility where safe
 - framework health/readiness/capability visibility
-- audit-aware operational visibility where safe
+- audit-aware operational visibility and drilldowns where safe
 - intentional orchestration-only posture for persistence: admin reuses the runtime and domain repositories it manages instead of introducing separate admin-owned tables/models
 
 ### Project Packaging And Verification
@@ -177,6 +179,9 @@ This document records the current implementation state of LangelerMVC based on t
 - payment-method-aware checkout with persisted payment flow, idempotency, provider/external/webhook references, and reconciliation support
 - signed payment webhook callback routes with event recording, signature verification, idempotency, and lifecycle reconciliation
 - subscription persistence, scheduling, trial handling, renewal orders, retry/dunning, admin pause/resume/cancel, entitlement synchronization, and provider-event reconciliation
+- inventory reservations with checkout holds, order attachment, commit/release handling, expiry tracking, and admin/order visibility
+- return and exchange workflows with requested/approved/rejected/completed transitions, restock handling, partial refund support, and credit-note generation
+- VAT invoice, credit note, packing slip, and return authorization document issuing from admin-native order workflows
 - payment manager integration through the first-party compatibility/reference driver
 - order lifecycle notifications and listeners
 - HTML + JSON parity
@@ -196,7 +201,13 @@ These framework/platform areas are now implemented rather than planned:
 - passkey/WebAuthn and TOTP support behind framework-native boundaries
 - admin-native WebModule page authoring and publishing
 - database-backed promotions with checkout usage ledgers
+- promotion analytics by code, source, currency, customer, customer segment, and day
+- promotion bulk activation, deactivation, deletion, and confirmation workflows
 - subscription runtime depth with plans, recurring schedules, dunning, renewal orders, admin lifecycle actions, and provider-event reconciliation
+- inventory reservation lifecycle and ledgers
+- admin operations panels with queue, notification, event, payment, health, inventory, return/document, and audit drilldown coverage
+- return/exchange workflows, partial refunds, restock handling, and credit-note issuing
+- VAT/order document issuing for invoices, credit notes, packing slips, and return authorizations
 
 ## Remaining Hardening / Environment Work
 
@@ -210,14 +221,14 @@ The framework now has both a DB-matrix harness and a local backend verification 
 
 Redis, Memcache/Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on the corresponding PHP extensions and services being installed in the target environment.
 
-### 3. Auth And Commerce Breadth
+### 3. Live Integration Breadth
 
-The major framework-level auth and commerce flows are implemented. The next gains are hardening and breadth:
+The major framework-level auth and commerce flows are implemented. The next gains are live-provider execution, operational tuning, and project-specific policy breadth:
 
 - richer passkey device metadata and management UX
 - broader real-world policy coverage as applications grow
 - live subscription provider adapters and live carrier API adapters beyond the framework reference billing/booking/tracking seams
-- deeper end-to-end tests around queue-backed notifications, payment-state transitions, and promotion/subscription behavior in non-SQLite environments
+- deeper end-to-end tests around queue-backed notifications, payment-state transitions, promotion/subscription/inventory/return/document behavior in non-SQLite environments
 - environment-specific operational tuning for audit retention, queue workers, fulfillment providers, and payment-driver expansion
 
 ### 4. CI And Environment Breadth
@@ -227,6 +238,7 @@ The repository now includes a stronger GitHub Actions workflow for the default r
 - GitHub-hosted MySQL/PostgreSQL verification against the updated workflow
 - SQL Server verification through the documented local/container path
 - Redis, Memcached, and Imagick verification where the corresponding services/extensions are available
+- browser and accessibility smoke passes for the public storefront, installer, and admin operator pages
 
 ## Recommended Ongoing Verification
 

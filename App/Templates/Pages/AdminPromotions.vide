@@ -2,6 +2,7 @@
     $promotions = is_array($promotions ?? null) ? $promotions : [];
     $configuredPromotions = is_array($configured_promotions ?? null) ? $configured_promotions : [];
     $promotionUsage = is_array($promotion_usage ?? null) ? $promotion_usage : [];
+    $promotionAnalytics = is_array($promotion_analytics ?? null) ? $promotion_analytics : [];
     $promotionForm = is_array($promotion_form ?? null) ? $promotion_form : [];
     $promotionMetrics = is_array($promotion_metrics ?? null) ? $promotion_metrics : [];
     $promotionTypes = [
@@ -14,6 +15,23 @@
     $appliesToOptions = [
         'cart_subtotal' => 'Cart subtotal',
         'qualified_items' => 'Qualified items only',
+    ];
+    $analyticsColumns = [
+        'key' => 'Bucket',
+        'uses' => 'Uses',
+        'orders' => 'Orders',
+        'users' => 'Users',
+        'discount_minor' => 'Discount minor',
+        'item_discount_minor' => 'Item discount minor',
+        'shipping_discount_minor' => 'Shipping discount minor',
+    ];
+    $analyticsSections = [
+        'by_code' => 'By coupon code',
+        'by_customer_segment' => 'By customer segment',
+        'by_customer' => 'By customer',
+        'by_day' => 'By day',
+        'by_source' => 'By source',
+        'by_currency' => 'By currency',
     ];
 @endphp
 <section class="stack">
@@ -129,6 +147,16 @@
             </label>
 
             <label>
+                Per-customer limit
+                <input type="number" name="per_customer_limit" min="0" value="{{ (int) ($promotionForm['criteria']['per_customer_limit'] ?? 0) }}" placeholder="0 = unlimited">
+            </label>
+
+            <label>
+                Per-segment limit
+                <input type="number" name="per_segment_limit" min="0" value="{{ (int) ($promotionForm['criteria']['per_segment_limit'] ?? 0) }}" placeholder="0 = unlimited">
+            </label>
+
+            <label>
                 Starts at
                 <input type="text" name="starts_at" value="{{ (string) ($promotionForm['starts_at'] ?? '') }}" placeholder="Optional: 2026-05-01 09:00:00">
             </label>
@@ -164,13 +192,23 @@
             </label>
 
             <label>
+                Allowed customer emails
+                <input type="text" name="allowed_customer_emails" placeholder="vip@example.com, team@example.com">
+            </label>
+
+            <label>
+                Allowed customer segments
+                <input type="text" name="allowed_customer_segments" placeholder="customer, vip, wholesale">
+            </label>
+
+            <label>
                 Required fulfillment types
                 <input type="text" name="required_fulfillment_types" placeholder="digital_download, virtual_access">
             </label>
 
             <label>
                 Product/category criteria
-                <textarea name="criteria_json" rows="5" placeholder='Optional JSON: {"allowed_product_slugs":["starter-platform-license"],"excluded_fulfillment_types":["subscription"]}'>{{ (string) ($promotionForm['criteria_json'] ?? '') }}</textarea>
+                <textarea name="criteria_json" rows="5" placeholder='Optional JSON: {"allowed_product_slugs":["starter-platform-license"],"per_customer_limit":1,"allowed_customer_segments":["customer"]}'>{{ (string) ($promotionForm['criteria_json'] ?? '') }}</textarea>
             </label>
 
             <label>
@@ -189,6 +227,54 @@
         @if($promotions === [])
             <p>No database-backed promotions are available yet.</p>
         @else
+            <form method="post" action="/admin/promotions/bulk" class="stack" onsubmit="return confirm('Apply this bulk promotion action to the selected promotions?');">
+                <label>
+                    Bulk lifecycle action
+                    <select name="bulk_action" required>
+                        <option value="">Choose action</option>
+                        <option value="activate">Activate selected</option>
+                        <option value="deactivate">Deactivate selected</option>
+                        <option value="delete">Delete selected</option>
+                    </select>
+                </label>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Code</th>
+                            <th>Label</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Usage</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($promotions as $promotion)
+                            @php
+                                $entry = is_array($promotion) ? $promotion : [];
+                            @endphp
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="promotion_ids[]" value="{{ (string) ($entry['id'] ?? 0) }}">
+                                </td>
+                                <td>{{ (string) ($entry['code'] ?? '') }}</td>
+                                <td>{{ (string) ($entry['label'] ?? '') }}</td>
+                                <td>{{ !empty($entry['active']) ? 'Active' : 'Inactive' }}</td>
+                                <td>{{ (string) ($entry['type'] ?? '') }}</td>
+                                <td>{{ (string) ($entry['usage_count'] ?? 0) }} / {{ ((int) ($entry['usage_limit'] ?? 0) > 0) ? (string) $entry['usage_limit'] : 'unlimited' }}</td>
+                                <td>{{ (string) ($entry['source'] ?? 'database') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+
+                <div>
+                    <button type="submit">Apply bulk action</button>
+                </div>
+            </form>
+
             @foreach($promotions as $promotion)
                 @php
                     $entry = is_array($promotion) ? $promotion : [];
@@ -304,6 +390,16 @@
                         </label>
 
                         <label>
+                            Per-customer limit
+                            <input type="number" name="per_customer_limit" min="0" value="{{ (int) ($entry['criteria']['per_customer_limit'] ?? 0) }}">
+                        </label>
+
+                        <label>
+                            Per-segment limit
+                            <input type="number" name="per_segment_limit" min="0" value="{{ (int) ($entry['criteria']['per_segment_limit'] ?? 0) }}">
+                        </label>
+
+                        <label>
                             Starts at
                             <input type="text" name="starts_at" value="{{ (string) ($entry['starts_at'] ?? '') }}">
                         </label>
@@ -346,6 +442,20 @@
                 </article>
             @endforeach
         @endif
+    </div>
+
+    <div class="section">
+        <h2>Promotion analytics</h2>
+        @foreach($analyticsSections as $key => $label)
+            <article class="section">
+                <h3>{{ $label }}</h3>
+                @component('DataTable', [
+                    'columns' => $analyticsColumns,
+                    'rows' => is_array($promotionAnalytics[$key] ?? null) ? $promotionAnalytics[$key] : [],
+                    'empty' => 'No analytics rows are available for this segment yet.',
+                ])
+            </article>
+        @endforeach
     </div>
 
     <div class="section">

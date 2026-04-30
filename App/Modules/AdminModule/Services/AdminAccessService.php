@@ -24,7 +24,10 @@ use App\Support\Commerce\CatalogLifecycleManager;
 use App\Support\Commerce\CartPricingManager;
 use App\Support\Commerce\CommerceTotalsCalculator;
 use App\Support\Commerce\EntitlementManager;
+use App\Support\Commerce\InventoryManager;
+use App\Support\Commerce\OrderDocumentManager;
 use App\Support\Commerce\OrderLifecycleManager;
+use App\Support\Commerce\OrderReturnManager;
 use App\Support\Commerce\ShippingManager;
 use App\Support\Commerce\SubscriptionManager;
 use App\Modules\UserModule\Repositories\PermissionRepository;
@@ -74,6 +77,7 @@ class AdminAccessService extends Service
         private readonly ShippingManager $shipping,
         private readonly EntitlementManager $entitlements,
         private readonly SubscriptionManager $subscriptions,
+        private readonly InventoryManager $inventory,
         private readonly ModuleManager $modules,
         private readonly CacheManager $cache,
         private readonly SessionManager $sessionManager,
@@ -84,7 +88,9 @@ class AdminAccessService extends Service
         private readonly HealthManagerInterface $health,
         private readonly AuditLoggerInterface $audit,
         private readonly Router $router,
-        private readonly Config $config
+        private readonly Config $config,
+        private readonly ?OrderReturnManager $returns = null,
+        private readonly ?OrderDocumentManager $documents = null
     ) {
     }
 
@@ -132,6 +138,7 @@ class AdminAccessService extends Service
             'activatePromotion' => $this->transitionPromotion((int) ($this->context['promotion'] ?? 0), true),
             'deactivatePromotion' => $this->transitionPromotion((int) ($this->context['promotion'] ?? 0), false),
             'deletePromotion' => $this->deletePromotion((int) ($this->context['promotion'] ?? 0)),
+            'bulkPromotions' => $this->bulkPromotions(),
             'carts' => $this->cartsPage(),
             'orders' => $this->ordersPage(),
             'order' => $this->orderPage((int) ($this->context['order'] ?? 0)),
@@ -146,6 +153,26 @@ class AdminAccessService extends Service
             'syncTrackingOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'sync_tracking'),
             'cancelShipmentOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'cancel_shipment'),
             'deliverOrder' => $this->transitionFulfillment((int) ($this->context['order'] ?? 0), 'deliver'),
+            'createOrderReturn' => $this->createOrderReturn((int) ($this->context['order'] ?? 0)),
+            'approveOrderReturn' => $this->transitionOrderReturn(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['return'] ?? 0),
+                'approve'
+            ),
+            'rejectOrderReturn' => $this->transitionOrderReturn(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['return'] ?? 0),
+                'reject'
+            ),
+            'completeOrderReturn' => $this->transitionOrderReturn(
+                (int) ($this->context['order'] ?? 0),
+                (int) ($this->context['return'] ?? 0),
+                'complete'
+            ),
+            'issueOrderDocument' => $this->issueOrderDocument(
+                (int) ($this->context['order'] ?? 0),
+                (string) ($this->context['type'] ?? 'invoice')
+            ),
             'pauseSubscription' => $this->transitionSubscription(
                 (int) ($this->context['order'] ?? 0),
                 (int) ($this->context['subscription'] ?? 0),
@@ -1010,6 +1037,74 @@ class AdminAccessService extends Service
         ];
     }
 
+    private function bulkPromotions(): array
+    {
+        if (!$this->canManagePromotions()) {
+            return $this->forbidden('AdminPromotions', 'Promotion administration requires promotion.manage or shop.catalog.manage permission.');
+        }
+
+        $ids = $this->promotionIdsFromPayload($this->payload['promotion_ids'] ?? $this->payload['ids'] ?? []);
+        $action = strtolower(trim((string) ($this->payload['bulk_action'] ?? $this->payload['action'] ?? '')));
+
+        if ($ids === [] || !in_array($action, ['activate', 'deactivate', 'delete'], true)) {
+            return $this->promotionsResponse(
+                title: 'Bulk promotion update failed',
+                headline: 'Choose promotions and an action',
+                summary: 'Bulk workflows require at least one promotion and a supported lifecycle action.',
+                status: 422,
+                message: 'Select one or more promotions and choose activate, deactivate, or delete.'
+            );
+        }
+
+        $updated = 0;
+        $missing = 0;
+        $codes = [];
+
+        foreach ($ids as $promotionId) {
+            $promotion = $this->promotions->find($promotionId);
+
+            if ($promotion === null) {
+                $missing++;
+                continue;
+            }
+
+            $codes[] = (string) ($promotion->getAttribute('code') ?? $promotionId);
+
+            if ($action === 'delete') {
+                $this->promotions->delete($promotionId);
+            } else {
+                $this->promotions->setActive($promotionId, $action === 'activate');
+            }
+
+            $updated++;
+        }
+
+        $this->audit->record('admin.promotion.bulk_' . $action, [
+            'actor_id' => $this->auth->check() ? (string) $this->auth->id() : null,
+            'promotion_ids' => $ids,
+            'promotion_codes' => $codes,
+            'updated' => $updated,
+            'missing' => $missing,
+        ], 'admin');
+        $this->events->dispatch('promotion.bulk_' . $action, [
+            'actor_id' => $this->auth->check() ? (int) $this->auth->id() : 0,
+            'promotion_ids' => $ids,
+            'updated' => $updated,
+            'missing' => $missing,
+        ]);
+
+        return [
+            ...$this->promotionsResponse(
+                title: 'Promotion administration',
+                headline: 'Bulk promotion workflow completed',
+                summary: 'The selected promotions were processed through the admin bulk workflow.',
+                status: 200,
+                message: sprintf('Bulk %s completed for %d promotion(s).', $action, $updated)
+            ),
+            'redirect' => '/admin/promotions',
+        ];
+    }
+
     private function cartsPage(): array
     {
         if (!$this->auth->hasPermission('cart.manage')) {
@@ -1143,6 +1238,200 @@ class AdminAccessService extends Service
                 status: 200,
                 message: (string) ($transition['message'] ?? 'Order fulfillment updated successfully.'),
                 order: $this->adminOrderDetail($order)
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
+    private function createOrderReturn(int $orderId): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Return and exchange management requires the order.manage permission.');
+        }
+
+        if (!$this->returns instanceof OrderReturnManager) {
+            return $this->ordersResponse(
+                title: 'Return workflow unavailable',
+                headline: 'Return and exchange management is not configured',
+                summary: 'The order return manager could not be resolved for this runtime.',
+                status: 503,
+                message: 'Return and exchange management is unavailable.'
+            );
+        }
+
+        $result = $this->returns->request($orderId, $this->payload);
+
+        if (!($result['successful'] ?? false)) {
+            return $this->ordersResponse(
+                title: (string) ($result['title'] ?? 'Return update failed'),
+                headline: 'Return or exchange request failed',
+                summary: (string) ($result['message'] ?? 'The return request could not be created.'),
+                status: (int) ($result['status'] ?? 422),
+                message: (string) ($result['message'] ?? '')
+            );
+        }
+
+        $return = is_array($result['return'] ?? null) ? $result['return'] : [];
+        $refundMinor = max(0, (int) ($return['refund_minor'] ?? 0));
+        $message = (string) ($result['message'] ?? 'Return workflow recorded.');
+
+        if ($this->truthy($this->payload['process_refund'] ?? false) && $refundMinor > 0) {
+            $refund = $this->lifecycle->transition($orderId, 'refund', [
+                'refund_amount_minor' => $refundMinor,
+                'reason' => trim((string) ($this->payload['reason'] ?? 'Admin return refund')),
+            ]);
+
+            if (!($refund['successful'] ?? false)) {
+                return $this->ordersResponse(
+                    title: (string) ($refund['title'] ?? 'Refund failed'),
+                    headline: 'Return was recorded, but refund failed',
+                    summary: (string) ($refund['message'] ?? 'The payment refund could not be completed.'),
+                    status: (int) ($refund['status'] ?? 422),
+                    message: (string) ($refund['message'] ?? '')
+                );
+            }
+
+            $this->returns->transition($orderId, (int) ($return['id'] ?? 0), 'complete', [
+                'resolution' => 'Refunded through admin return workflow.',
+            ]);
+
+            if ($this->documents instanceof OrderDocumentManager) {
+                $this->documents->issue($orderId, 'credit_note', [
+                    'return_id' => (int) ($return['id'] ?? 0),
+                    'amount_minor' => $refundMinor,
+                    'notes' => 'Credit note generated from admin return workflow.',
+                ]);
+            }
+
+            $message = 'Return recorded, refunded, completed, and credited successfully.';
+        }
+
+        $order = $this->orders->find($orderId);
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: $order instanceof Order ? 'Order ' . (string) ($order->getAttribute('order_number') ?? '') : 'Order administration',
+                summary: 'Returns, exchanges, refunds, and order documents are managed inside the admin order workspace.',
+                status: 200,
+                message: $message,
+                order: $order instanceof Order ? $this->adminOrderDetail($order) : []
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
+    private function transitionOrderReturn(int $orderId, int $returnId, string $action): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Return and exchange management requires the order.manage permission.');
+        }
+
+        if (!$this->returns instanceof OrderReturnManager) {
+            return $this->ordersResponse(
+                title: 'Return workflow unavailable',
+                headline: 'Return and exchange management is not configured',
+                summary: 'The order return manager could not be resolved for this runtime.',
+                status: 503,
+                message: 'Return and exchange management is unavailable.'
+            );
+        }
+
+        $result = $this->returns->transition($orderId, $returnId, $action, $this->payload);
+
+        if (!($result['successful'] ?? false)) {
+            return $this->ordersResponse(
+                title: (string) ($result['title'] ?? 'Return update failed'),
+                headline: 'Return or exchange update failed',
+                summary: (string) ($result['message'] ?? 'The return transition could not be completed.'),
+                status: (int) ($result['status'] ?? 422),
+                message: (string) ($result['message'] ?? '')
+            );
+        }
+
+        if ($action === 'complete' && $this->truthy($this->payload['process_refund'] ?? false)) {
+            $return = is_array($result['return'] ?? null) ? $result['return'] : [];
+            $refundMinor = max(0, (int) ($this->payload['refund_amount_minor'] ?? $return['refund_minor'] ?? 0));
+
+            if ($refundMinor > 0) {
+                $refund = $this->lifecycle->transition($orderId, 'refund', [
+                    'refund_amount_minor' => $refundMinor,
+                    'reason' => trim((string) ($this->payload['reason'] ?? 'Admin return refund')),
+                ]);
+
+                if (!($refund['successful'] ?? false)) {
+                    return $this->ordersResponse(
+                        title: (string) ($refund['title'] ?? 'Refund failed'),
+                        headline: 'Return completed, but refund failed',
+                        summary: (string) ($refund['message'] ?? 'The payment refund could not be completed.'),
+                        status: (int) ($refund['status'] ?? 422),
+                        message: (string) ($refund['message'] ?? '')
+                    );
+                }
+
+                if ($this->documents instanceof OrderDocumentManager) {
+                    $this->documents->issue($orderId, 'credit_note', [
+                        'return_id' => $returnId,
+                        'amount_minor' => $refundMinor,
+                        'notes' => 'Credit note generated from completed admin return workflow.',
+                    ]);
+                }
+            }
+        }
+
+        $order = $this->orders->find($orderId);
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: $order instanceof Order ? 'Order ' . (string) ($order->getAttribute('order_number') ?? '') : 'Order administration',
+                summary: 'Returns, exchanges, refunds, and order documents are managed inside the admin order workspace.',
+                status: 200,
+                message: (string) ($result['message'] ?? 'Return workflow updated successfully.'),
+                order: $order instanceof Order ? $this->adminOrderDetail($order) : []
+            ),
+            'redirect' => '/admin/orders/' . $orderId,
+        ];
+    }
+
+    private function issueOrderDocument(int $orderId, string $type): array
+    {
+        if (!$this->auth->hasPermission('order.manage')) {
+            return $this->forbidden('AdminOrders', 'Order document management requires the order.manage permission.');
+        }
+
+        if (!$this->documents instanceof OrderDocumentManager) {
+            return $this->ordersResponse(
+                title: 'Document workflow unavailable',
+                headline: 'Order document management is not configured',
+                summary: 'The order document manager could not be resolved for this runtime.',
+                status: 503,
+                message: 'Order document management is unavailable.'
+            );
+        }
+
+        $result = $this->documents->issue($orderId, str_replace('-', '_', $type), $this->payload);
+
+        if (!($result['successful'] ?? false)) {
+            return $this->ordersResponse(
+                title: (string) ($result['title'] ?? 'Document issue failed'),
+                headline: 'Order document could not be issued',
+                summary: (string) ($result['message'] ?? 'The order document could not be issued.'),
+                status: (int) ($result['status'] ?? 422),
+                message: (string) ($result['message'] ?? '')
+            );
+        }
+
+        $order = $this->orders->find($orderId);
+
+        return [
+            ...$this->ordersResponse(
+                title: 'Order administration',
+                headline: $order instanceof Order ? 'Order ' . (string) ($order->getAttribute('order_number') ?? '') : 'Order administration',
+                summary: 'VAT invoices, credit notes, return authorizations, and packing slips are managed inside the admin order workspace.',
+                status: 200,
+                message: (string) ($result['message'] ?? 'Order document issued successfully.'),
+                order: $order instanceof Order ? $this->adminOrderDetail($order) : []
             ),
             'redirect' => '/admin/orders/' . $orderId,
         ];
@@ -1315,43 +1604,259 @@ class AdminAccessService extends Service
             return $this->forbidden('AdminOperations', 'Operational inspection requires the admin.system.view permission.');
         }
 
+        $queue = [
+            'driver' => $this->queue->driverName(),
+            'drivers' => $this->queue->availableDrivers(),
+            'failed_jobs' => count($this->queue->failed()),
+            'pending_default' => count($this->queue->pending()),
+            'pending_notifications' => count($this->queue->pending('notifications')),
+        ];
+        $notifications = [
+            'channels' => $this->notifications->availableChannels(),
+            'stored' => count($this->notifications->databaseNotifications()),
+        ];
+        $listeners = $this->events->listeners();
+        $payments = [
+            'driver' => $this->payments->driverName(),
+            'drivers' => $this->payments->availableDrivers(),
+            'methods' => $this->payments->supportedMethods(),
+            'flows' => $this->payments->supportedFlows(),
+            'capabilities' => $this->payments->capabilities(),
+            'catalog' => $this->payments->driverCatalog(),
+        ];
+        $health = $this->health->report();
+        $inventoryMetrics = $this->inventory->metrics();
+        $returnMetrics = $this->returns instanceof OrderReturnManager ? $this->returns->metrics() : [];
+        $documentMetrics = $this->documents instanceof OrderDocumentManager ? $this->documents->metrics() : [];
+        $auditCriteria = $this->auditCriteriaFromPayload($this->payload);
+        $auditLimit = max(5, min(100, (int) ($this->payload['audit_limit'] ?? 25)));
+        $auditRecent = $this->audit->recent($auditLimit, $auditCriteria);
+
         return [
             'template' => 'AdminOperations',
             'status' => 200,
             'title' => 'Operations',
             'headline' => 'Async and platform operations',
-            'summary' => 'Inspect queue health, notification delivery, event listeners, and payment capabilities.',
+            'summary' => 'Inspect queue health, notification delivery, event listeners, payment capabilities, health signals, and audit trails from structured operator panels.',
             'operations' => [
-                'queue' => [
-                    'driver' => $this->queue->driverName(),
-                    'drivers' => $this->queue->availableDrivers(),
-                    'failed_jobs' => count($this->queue->failed()),
-                    'pending_default' => count($this->queue->pending()),
-                    'pending_notifications' => count($this->queue->pending('notifications')),
+                'overview' => [
+                    'queue_driver' => (string) ($queue['driver'] ?? ''),
+                    'queue_pending' => (int) ($queue['pending_default'] ?? 0) + (int) ($queue['pending_notifications'] ?? 0),
+                    'failed_jobs' => (int) ($queue['failed_jobs'] ?? 0),
+                    'stored_notifications' => (int) ($notifications['stored'] ?? 0),
+                    'registered_events' => count($listeners),
+                    'payment_drivers' => count((array) ($payments['drivers'] ?? [])),
+                    'reserved_inventory' => (int) ($inventoryMetrics['reserved_inventory'] ?? 0),
+                    'open_returns' => (int) ($returnMetrics['requested_returns'] ?? 0) + (int) ($returnMetrics['approved_returns'] ?? 0),
+                    'order_documents' => (int) ($documentMetrics['order_documents'] ?? 0),
+                    'audit_events' => (int) ($this->audit->summary()['stored'] ?? 0),
+                    'health_ready' => (string) ($health['status'] ?? $health['ready']['status'] ?? 'unknown'),
                 ],
-                'notifications' => [
-                    'channels' => $this->notifications->availableChannels(),
-                    'stored' => count($this->notifications->databaseNotifications()),
+                'links' => [
+                    ['href' => '/admin/system', 'label' => 'System snapshot'],
+                    ['href' => '/admin/orders', 'label' => 'Order operations'],
+                    ['href' => '/admin/promotions', 'label' => 'Promotion analytics'],
+                    ['href' => '/admin/operations', 'label' => 'Reset operation filters'],
                 ],
+                'queue' => $queue,
+                'notifications' => $notifications,
                 'events' => [
-                    'registered' => array_keys($this->events->listeners()),
-                    'listeners' => $this->events->listeners(),
+                    'registered' => array_keys($listeners),
+                    'listeners' => $listeners,
+                    'rows' => $this->eventListenerRows($listeners),
                 ],
                 'payments' => [
-                    'driver' => $this->payments->driverName(),
-                    'drivers' => $this->payments->availableDrivers(),
-                    'methods' => $this->payments->supportedMethods(),
-                    'flows' => $this->payments->supportedFlows(),
-                    'capabilities' => $this->payments->capabilities(),
-                    'catalog' => $this->payments->driverCatalog(),
+                    ...$payments,
+                    'driver_rows' => $this->paymentDriverRows((array) ($payments['catalog'] ?? [])),
                 ],
-                'health' => $this->health->report(),
+                'health' => [
+                    'report' => $health,
+                    'rows' => $this->healthRows($health),
+                ],
+                'inventory' => [
+                    'metrics' => $inventoryMetrics,
+                    'recent' => $this->inventory->recentReservations(25),
+                ],
+                'returns' => [
+                    'metrics' => $returnMetrics,
+                    'recent' => $this->returns instanceof OrderReturnManager ? $this->returns->recent(25) : [],
+                ],
+                'documents' => [
+                    'metrics' => $documentMetrics,
+                ],
                 'audit' => [
                     'summary' => $this->audit->summary(),
-                    'recent' => $this->audit->recent(15),
+                    'filters' => $auditCriteria,
+                    'limit' => $auditLimit,
+                    'recent' => $this->auditRows($auditRecent),
+                    'category_links' => $this->auditFilterLinks('audit_category', (array) ($this->audit->summary()['categories'] ?? [])),
+                    'severity_links' => $this->auditFilterLinks('audit_severity', (array) ($this->audit->summary()['severities'] ?? [])),
                 ],
             ],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, string>
+     */
+    private function auditCriteriaFromPayload(array $payload): array
+    {
+        $criteria = [];
+
+        foreach ([
+            'audit_category' => 'category',
+            'audit_event' => 'event',
+            'audit_severity' => 'severity',
+            'audit_actor_id' => 'actor_id',
+        ] as $inputKey => $criteriaKey) {
+            $value = trim((string) ($payload[$inputKey] ?? ''));
+
+            if ($value !== '') {
+                $criteria[$criteriaKey] = $value;
+            }
+        }
+
+        return $criteria;
+    }
+
+    /**
+     * @param array<string, mixed> $listeners
+     * @return list<array<string, mixed>>
+     */
+    private function eventListenerRows(array $listeners): array
+    {
+        $rows = [];
+
+        foreach ($listeners as $event => $eventListeners) {
+            $rows[] = [
+                'event' => (string) $event,
+                'listeners' => count((array) $eventListeners),
+                'listener_refs' => implode(', ', array_map(
+                    fn(mixed $listener): string => $this->listenerReference($listener),
+                    (array) $eventListeners
+                )),
+            ];
+        }
+
+        usort($rows, static fn(array $left, array $right): int => strcmp((string) ($left['event'] ?? ''), (string) ($right['event'] ?? '')));
+
+        return $rows;
+    }
+
+    private function listenerReference(mixed $listener): string
+    {
+        if (is_array($listener)) {
+            return implode('::', array_map(
+                fn(mixed $part): string => $this->listenerReference($part),
+                $listener
+            ));
+        }
+
+        if (is_object($listener)) {
+            return $listener::class;
+        }
+
+        if (is_bool($listener)) {
+            return $listener ? 'true' : 'false';
+        }
+
+        if ($listener === null) {
+            return 'null';
+        }
+
+        return is_scalar($listener) ? (string) $listener : gettype($listener);
+    }
+
+    /**
+     * @param array<string, mixed> $catalog
+     * @return list<array<string, mixed>>
+     */
+    private function paymentDriverRows(array $catalog): array
+    {
+        $rows = [];
+
+        foreach ($catalog as $driver => $definition) {
+            $definition = is_array($definition) ? $definition : [];
+            $rows[] = [
+                'driver' => (string) $driver,
+                'label' => (string) ($definition['label'] ?? $driver),
+                'methods' => implode(', ', array_map('strval', (array) ($definition['methods'] ?? []))),
+                'flows' => implode(', ', array_map('strval', (array) ($definition['flows'] ?? []))),
+                'regions' => implode(', ', array_map('strval', (array) ($definition['regions'] ?? []))),
+                'mode' => (string) ($definition['mode'] ?? $definition['environment'] ?? 'reference'),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $health
+     * @return list<array<string, mixed>>
+     */
+    private function healthRows(array $health): array
+    {
+        $rows = [];
+
+        foreach ($health as $section => $payload) {
+            if (!is_array($payload)) {
+                continue;
+            }
+
+            $status = (string) ($payload['status'] ?? $payload['state'] ?? '');
+            $available = array_key_exists('available', $payload)
+                ? ((bool) $payload['available'] ? 'yes' : 'no')
+                : '';
+
+            $rows[] = [
+                'section' => (string) $section,
+                'status' => $status !== '' ? $status : 'reported',
+                'available' => $available,
+                'details' => implode(', ', array_slice(array_keys($payload), 0, 8)),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $records
+     * @return list<array<string, mixed>>
+     */
+    private function auditRows(array $records): array
+    {
+        return array_map(static function (array $record): array {
+            $context = is_array($record['context'] ?? null) ? $record['context'] : [];
+
+            return [
+                'id' => (string) ($record['id'] ?? ''),
+                'category' => (string) ($record['category'] ?? ''),
+                'event' => (string) ($record['event'] ?? ''),
+                'severity' => (string) ($record['severity'] ?? ''),
+                'actor_id' => (string) ($record['actor_id'] ?? ''),
+                'created_at' => ((int) ($record['created_at'] ?? 0)) > 0 ? gmdate('Y-m-d H:i:s', (int) ($record['created_at'] ?? 0)) : '',
+                'context' => json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            ];
+        }, $records);
+    }
+
+    /**
+     * @param array<string, int> $counts
+     * @return list<array{href:string,label:string}>
+     */
+    private function auditFilterLinks(string $key, array $counts): array
+    {
+        $links = [];
+
+        foreach ($counts as $value => $count) {
+            $links[] = [
+                'href' => '/admin/operations?' . http_build_query([$key => (string) $value]),
+                'label' => sprintf('%s (%d)', (string) $value, (int) $count),
+            ];
+        }
+
+        return $links;
     }
 
     /**
@@ -1460,6 +1965,7 @@ class AdminAccessService extends Service
         $configuredPromotions = $this->configuredPromotionSummaries($currency);
         $usage = $this->promotions->usageSummaries(20);
         $usageMetrics = $this->promotions->usageMetrics();
+        $usageAnalytics = $this->promotions->usageAnalytics(1000);
 
         return [
             'template' => 'AdminPromotions',
@@ -1471,6 +1977,7 @@ class AdminAccessService extends Service
             'promotions' => $databasePromotions,
             'configured_promotions' => $configuredPromotions,
             'promotion_usage' => $usage,
+            'promotion_analytics' => $usageAnalytics,
             'promotion_form' => $this->promotionFormPayload($promotionForm),
             'promotion_metrics' => [
                 'database_promotions' => count($databasePromotions),
@@ -1783,6 +2290,20 @@ class AdminAccessService extends Service
     }
 
     /**
+     * @return list<int>
+     */
+    private function promotionIdsFromPayload(mixed $input): array
+    {
+        $values = is_array($input) ? $input : preg_split('/[\s,]+/', trim((string) $input));
+        $values = is_array($values) ? $values : [];
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn(mixed $value): int => max(0, (int) $value),
+            $values
+        ), static fn(int $value): bool => $value > 0)));
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function adminOrderSummaries(): array
@@ -1822,6 +2343,9 @@ class AdminAccessService extends Service
             }, $this->orderItems->summaryForOrder($orderId)),
             'entitlements' => $this->entitlementSummariesForAdmin($orderId),
             'subscriptions' => $this->subscriptionSummariesForAdmin($orderId),
+            'inventory_reservations' => $this->inventory->summariesForOrder($orderId),
+            'returns' => $this->returnSummariesForAdmin($orderId),
+            'documents' => $this->documentSummariesForAdmin($orderId),
             'addresses' => $this->orderAddresses->summaryForOrder($orderId),
             'actions' => $this->adminOrderActions($summary),
             'available_carriers' => $this->shipping->carrierCatalog((string) ($summary['shipping_country'] ?? 'SE')),
@@ -1873,6 +2397,38 @@ class AdminAccessService extends Service
     }
 
     /**
+     * @return list<array<string, mixed>>
+     */
+    private function returnSummariesForAdmin(int $orderId): array
+    {
+        if (!$this->returns instanceof OrderReturnManager) {
+            return [];
+        }
+
+        return array_map(function (array $return) use ($orderId): array {
+            $id = (int) ($return['id'] ?? 0);
+            $status = (string) ($return['status'] ?? '');
+
+            return [
+                ...$return,
+                'approve_path' => $status === 'requested' ? '/admin/orders/' . $orderId . '/returns/' . $id . '/approve' : '',
+                'reject_path' => in_array($status, ['requested', 'approved'], true) ? '/admin/orders/' . $orderId . '/returns/' . $id . '/reject' : '',
+                'complete_path' => in_array($status, ['requested', 'approved'], true) ? '/admin/orders/' . $orderId . '/returns/' . $id . '/complete' : '',
+            ];
+        }, $this->returns->summariesForOrder($orderId));
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function documentSummariesForAdmin(int $orderId): array
+    {
+        return $this->documents instanceof OrderDocumentManager
+            ? $this->documents->summariesForOrder($orderId)
+            : [];
+    }
+
+    /**
      * @param array<string, mixed> $order
      * @return array<string, string>
      */
@@ -1889,6 +2445,11 @@ class AdminAccessService extends Service
 
         $actions['public_view'] = '/orders/' . $orderId;
         $actions['admin_view'] = '/admin/orders/' . $orderId;
+        $actions['create_return'] = '/admin/orders/' . $orderId . '/returns';
+        $actions['document_invoice'] = '/admin/orders/' . $orderId . '/documents/invoice';
+        $actions['document_credit_note'] = '/admin/orders/' . $orderId . '/documents/credit-note';
+        $actions['document_packing_slip'] = '/admin/orders/' . $orderId . '/documents/packing-slip';
+        $actions['document_return_authorization'] = '/admin/orders/' . $orderId . '/documents/return-authorization';
 
         if ($reference !== '') {
             $actions['complete_return'] = '/orders/complete/' . $reference;
@@ -1998,6 +2559,11 @@ class AdminAccessService extends Service
         return in_array($type, ['percentage', 'fixed_amount', 'free_shipping', 'shipping_fixed', 'shipping_percentage'], true)
             ? $type
             : 'fixed_amount';
+    }
+
+    private function truthy(mixed $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOL);
     }
 
     private function canManagePromotions(): bool

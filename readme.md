@@ -8,13 +8,13 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 
 ## Verification Snapshot
 
-As of `2026-04-21`:
+As of `2026-04-30`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (104 tests, 2470 assertions)`
+- `composer test` passes with `OK (133 tests, 3020 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
-- The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, and utility subsystems are implemented and regression-tested
+- The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
 
@@ -31,9 +31,9 @@ As of `2026-04-21`:
 - The canonical `.vide` template tree is now authored fully in native directives without raw PHP tags, with regression coverage enforcing that standard across first-party templates.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, trusted-device support, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
-- `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog visibility, cart visibility, order visibility, runtime health/readiness, and audit-aware operations visibility.
+- `AdminModule` now provides the management slice for dashboard, user/role/permission management, module visibility, cache/config/session inspection, catalog/cart/order visibility, WebModule page authoring, promotion analytics and bulk workflows, structured operations panels, inventory ledgers, returns/exchanges, order documents, runtime health/readiness, and audit-aware operations visibility.
 - `AdminModule` intentionally remains orchestration-first on persistence: it manages existing framework and domain state instead of introducing a duplicate admin-owned data model.
-- `ShopModule`, `CartModule`, and `OrderModule` now provide the first full commerce stack for catalog, cart, checkout, payment-state handling, order lifecycle flows, cart-merge notifications, and catalog activity notifications with HTML + JSON parity.
+- `ShopModule`, `CartModule`, and `OrderModule` now provide the first full commerce stack for catalog, cart, checkout, promotions, subscriptions, digital/virtual entitlements, pickup/pre-order/shipping fulfillment, inventory reservations, payment-state handling, returns/exchanges, VAT/order documents, order lifecycle flows, cart-merge notifications, and catalog activity notifications with HTML + JSON parity.
 - Mail, OTP, WebAuthn, notifications, queues, and payments are all consumed through framework-native contracts and managers rather than module-local third-party calls.
 
 ## Design Goals
@@ -116,6 +116,7 @@ The installer wizard now handles:
 - administrator provisioning
 - default database-backed `WebModule` setup
 - payment driver, method-family, and flow defaults for the first commerce-ready baseline
+- commerce fulfillment, shipping, subscription, inventory reservation, return, and order-document defaults
 
 Manual `.env` editing is still supported, and `.env.example` remains the tracked baseline, but the intended production-first setup path is now the installer wizard rather than editing config files before first boot.
 
@@ -183,6 +184,7 @@ The GitHub Actions workflow uses isolated service-port mappings for hosted runne
 - `Config/notifications.php`, `Config/queue.php`, `Config/payment.php`, and `Config/http.php` provide the top-level settings for notifications, queue drivers, payment drivers, throttling, and signed URLs.
 - `Config/payment.php` now defines the default payment driver, currency, payment method family, and payment flow.
 - `Config/payment.php` now ships first-party driver entries for `testing`, `card`, `crypto`, `paypal`, `klarna`, `swish`, `qliro`, and `walley`.
+- `Config/commerce.php` defines commerce totals, fulfillment, shipping, subscription, inventory reservation, return, and order-document settings.
 - The provider-specific payment drivers support the framework payment taxonomy without vendor SDKs in core:
   - `card`: credit/debit card flows
   - `paypal`: wallet/card flows
@@ -250,6 +252,7 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
 - [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
+- [`Docs/DeploymentAndUpgrade.md`](./Docs/DeploymentAndUpgrade.md): production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - [`Docs/InstallationWizard.md`](./Docs/InstallationWizard.md): first-run installer flow, configuration coverage, and post-install expectations.
 - [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.
@@ -271,10 +274,12 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - cache, crypto, SQL/query, migration, and seed subsystems
 - async events, queues, notifications, and a plug-and-play payment compatibility layer
 - plug-and-play payment driver support for PayPal, Klarna, Swish, Qliro, Walley, credit/debit cards, and crypto
+- admin-native content, catalog, promotion, order, operation, inventory, return, and document workflows
+- commerce coverage for physical shipping, digital/virtual access, pickup/pre-order, subscriptions, promotions, inventory reservations, returns/exchanges, partial refunds, and VAT/order documents
 - completed HTML + JSON presentation parity across first-party modules
 - a database-backed starter module plus user/admin/shop/cart/order slices
 
-The main remaining work is hardening and environment breadth rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcache-backed runtime verification where those services exist, and ongoing domain/policy refinement as real applications are built on top of the framework.
+The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcache-backed runtime verification where those services exist, live payment/subscription/carrier credentials, browser/accessibility smoke passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
 
 ## Support
 

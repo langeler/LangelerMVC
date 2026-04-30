@@ -7,6 +7,17 @@ return [
     'TAX' => [
         'RATE_BPS' => 2500,
     ],
+    'DOCUMENTS' => [
+        'VAT_RATE_BPS' => 2500,
+        'SELLER_NAME' => 'LangelerMVC',
+        'SELLER_VAT_ID' => '',
+        'SELLER_ADDRESS' => '',
+    ],
+    'RETURNS' => [
+        'WINDOW_DAYS' => 30,
+        'ALLOW_EXCHANGES' => true,
+        'AUTO_RESTOCK' => true,
+    ],
     'SHIPPING' => [
         'DEFAULT_COUNTRY' => 'SE',
         'DEFAULT_OPTION' => 'postnord-service-point',
@@ -268,6 +279,7 @@ return [
     'INVENTORY' => [
         'RESERVE_ON_CHECKOUT' => true,
         'RELEASE_ON_CANCEL' => true,
+        'RESERVATION_TTL_MINUTES' => 60,
     ],
     'FULFILLMENT' => [
         'DEFAULT_TYPE' => 'physical_shipping',

@@ -2,7 +2,7 @@
 
 This folder contains the current LangelerMVC project documentation plus a small set of historical reference files kept in the repository for context.
 
-As of `2026-04-28`, the framework status, release readiness, and architecture documents below are the primary source of truth for what is implemented today.
+As of `2026-04-30`, the framework status, release readiness, and architecture documents below are the primary source of truth for what is implemented today.
 
 ## Start Here
 
@@ -12,6 +12,7 @@ As of `2026-04-28`, the framework status, release readiness, and architecture do
 - `../CHANGELOG.md`: release-facing change history.
 - `../RELEASE.md`: production preflight and tagging checklist.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
+- `DeploymentAndUpgrade.md`: production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.
 - `ReleaseReadinessPlan.md`: current P0/P1/P2 completion map and remaining release gaps.
 
@@ -25,6 +26,7 @@ As of `2026-04-28`, the framework status, release readiness, and architecture do
 
 - `SanitationValidationAPI.md`: current schema contract for sanitizers and validators.
 - `DatabaseMatrixTesting.md`: how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
+- `DeploymentAndUpgrade.md`: production deployment and upgrade recipes.
 - `InstallationWizard.md`: first-run installer flow, what it configures, and post-install expectations.
 - `OperationsGuide.md`: health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - `PaymentDrivers.md`: first-party payment-driver matrix, supported method/flow/webhook taxonomy, and live-mode notes.
@@ -51,6 +53,8 @@ These files are still tracked, but they should be treated as historical notes ra
 1. `../readme.md`
 2. `ArchitectureOverview.md`
 3. `FrameworkStatus.md`
-4. `FolderStructure.md`
-5. `ModulesStructure.md`
-6. Subsystem-specific references as needed
+4. `ReleaseReadinessPlan.md`
+5. `DeploymentAndUpgrade.md`
+6. `FolderStructure.md`
+7. `ModulesStructure.md`
+8. Subsystem-specific references as needed

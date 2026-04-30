@@ -5,6 +5,7 @@ declare(strict_types=1);
     $promotions = is_array($promotions ?? null) ? $promotions : [];
     $configuredPromotions = is_array($configured_promotions ?? null) ? $configured_promotions : [];
     $promotionUsage = is_array($promotion_usage ?? null) ? $promotion_usage : [];
+    $promotionAnalytics = is_array($promotion_analytics ?? null) ? $promotion_analytics : [];
     $promotionForm = is_array($promotion_form ?? null) ? $promotion_form : [];
     $promotionMetrics = is_array($promotion_metrics ?? null) ? $promotion_metrics : [];
     $promotionTypes = [
@@ -17,6 +18,23 @@ declare(strict_types=1);
     $appliesToOptions = [
         'cart_subtotal' => 'Cart subtotal',
         'qualified_items' => 'Qualified items only',
+    ];
+    $analyticsColumns = [
+        'key' => 'Bucket',
+        'uses' => 'Uses',
+        'orders' => 'Orders',
+        'users' => 'Users',
+        'discount_minor' => 'Discount minor',
+        'item_discount_minor' => 'Item discount minor',
+        'shipping_discount_minor' => 'Shipping discount minor',
+    ];
+    $analyticsSections = [
+        'by_code' => 'By coupon code',
+        'by_customer_segment' => 'By customer segment',
+        'by_customer' => 'By customer',
+        'by_day' => 'By day',
+        'by_source' => 'By source',
+        'by_currency' => 'By currency',
     ];
  ?>
 <section class="stack">
@@ -217,6 +235,52 @@ declare(strict_types=1);
         <?php if ($promotions === []): ?>
             <p>No database-backed promotions are available yet.</p>
         <?php else: ?>
+            <form method="post" action="/admin/promotions/bulk" class="stack" onsubmit="return confirm('Apply this bulk promotion action to the selected promotions?');">
+                <label>
+                    Bulk lifecycle action
+                    <select name="bulk_action" required>
+                        <option value="">Choose action</option>
+                        <option value="activate">Activate selected</option>
+                        <option value="deactivate">Deactivate selected</option>
+                        <option value="delete">Delete selected</option>
+                    </select>
+                </label>
+
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Select</th>
+                            <th>Code</th>
+                            <th>Label</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Usage</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($promotions as $promotion): ?>
+                            <?php $entry = is_array($promotion) ? $promotion : []; ?>
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="promotion_ids[]" value="<?= $view->escape((string) ($entry['id'] ?? 0)); ?>">
+                                </td>
+                                <td><?= $view->escape((string) ($entry['code'] ?? '')); ?></td>
+                                <td><?= $view->escape((string) ($entry['label'] ?? '')); ?></td>
+                                <td><?= !empty($entry['active']) ? 'Active' : 'Inactive'; ?></td>
+                                <td><?= $view->escape((string) ($entry['type'] ?? '')); ?></td>
+                                <td><?= $view->escape((string) ($entry['usage_count'] ?? 0)); ?> / <?= $view->escape(((int) ($entry['usage_limit'] ?? 0) > 0) ? (string) $entry['usage_limit'] : 'unlimited'); ?></td>
+                                <td><?= $view->escape((string) ($entry['source'] ?? 'database')); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <div>
+                    <button type="submit">Apply bulk action</button>
+                </div>
+            </form>
+
             <?php foreach ($promotions as $promotion): ?>
                 <?php 
                     $entry = is_array($promotion) ? $promotion : [];
@@ -384,6 +448,20 @@ declare(strict_types=1);
                 </article>
             <?php endforeach; ?>
         <?php endif; ?>
+    </div>
+
+    <div class="section">
+        <h2>Promotion analytics</h2>
+        <?php foreach ($analyticsSections as $key => $label): ?>
+            <article class="section">
+                <h3><?= $view->escape($label); ?></h3>
+                <?= $view->renderComponent(...(array) ['DataTable', [
+                    'columns' => $analyticsColumns,
+                    'rows' => is_array($promotionAnalytics[$key] ?? null) ? $promotionAnalytics[$key] : [],
+                    'empty' => 'No analytics rows are available for this segment yet.',
+                ]]); ?>
+            </article>
+        <?php endforeach; ?>
     </div>
 
     <div class="section">

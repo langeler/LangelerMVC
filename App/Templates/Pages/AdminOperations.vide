@@ -1,3 +1,16 @@
+@php
+    $operations = is_array($operations ?? null) ? $operations : [];
+    $overview = is_array($operations['overview'] ?? null) ? $operations['overview'] : [];
+    $queue = is_array($operations['queue'] ?? null) ? $operations['queue'] : [];
+    $notifications = is_array($operations['notifications'] ?? null) ? $operations['notifications'] : [];
+    $events = is_array($operations['events'] ?? null) ? $operations['events'] : [];
+    $payments = is_array($operations['payments'] ?? null) ? $operations['payments'] : [];
+    $health = is_array($operations['health'] ?? null) ? $operations['health'] : [];
+    $inventory = is_array($operations['inventory'] ?? null) ? $operations['inventory'] : [];
+    $returns = is_array($operations['returns'] ?? null) ? $operations['returns'] : [];
+    $documents = is_array($operations['documents'] ?? null) ? $operations['documents'] : [];
+    $audit = is_array($operations['audit'] ?? null) ? $operations['audit'] : [];
+@endphp
 <section class="stack">
     @include('PageIntro', [
         'eyebrow' => 'AdminModule',
@@ -5,10 +18,188 @@
         'summary' => $summary ?? '',
     ])
 
-    @foreach((array) ($operations ?? []) as $section => $payload)
-        <article class="section">
-            <h2>{{ ucfirst((string) $section) }}</h2>
-            <pre class="system-dump">{{ $view->toJson($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
-        </article>
-    @endforeach
+    <div class="section">
+        <h2>Operator overview</h2>
+        @component('DefinitionGrid', [
+            'items' => $overview,
+            'empty' => 'No operation overview is available.',
+        ])
+        @component('LinkList', [
+            'label' => 'Operational shortcuts',
+            'links' => is_array($operations['links'] ?? null) ? $operations['links'] : [],
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Queue panel</h2>
+        @component('DefinitionGrid', [
+            'items' => $queue,
+            'empty' => 'No queue metrics are available.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Notifications</h2>
+        @component('DefinitionGrid', [
+            'items' => $notifications,
+            'empty' => 'No notification metrics are available.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Registered events</h2>
+        @component('DataTable', [
+            'columns' => [
+                'event' => 'Event',
+                'listeners' => 'Listeners',
+                'listener_refs' => 'Listener references',
+            ],
+            'rows' => is_array($events['rows'] ?? null) ? $events['rows'] : [],
+            'empty' => 'No event listeners are registered.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Payment drivers</h2>
+        @component('DefinitionGrid', [
+            'items' => [
+                'Active driver' => $payments['driver'] ?? '',
+                'Methods' => $payments['methods'] ?? [],
+                'Flows' => $payments['flows'] ?? [],
+            ],
+            'empty' => 'No payment metadata is available.',
+        ])
+        @component('DataTable', [
+            'columns' => [
+                'driver' => 'Driver',
+                'label' => 'Label',
+                'methods' => 'Methods',
+                'flows' => 'Flows',
+                'regions' => 'Regions',
+                'mode' => 'Mode',
+            ],
+            'rows' => is_array($payments['driver_rows'] ?? null) ? $payments['driver_rows'] : [],
+            'empty' => 'No payment driver catalog is available.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Health checks</h2>
+        @component('DataTable', [
+            'columns' => [
+                'section' => 'Section',
+                'status' => 'Status',
+                'available' => 'Available',
+                'details' => 'Details',
+            ],
+            'rows' => is_array($health['rows'] ?? null) ? $health['rows'] : [],
+            'empty' => 'No health rows are available.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Inventory reservations</h2>
+        @component('DefinitionGrid', [
+            'items' => is_array($inventory['metrics'] ?? null) ? $inventory['metrics'] : [],
+            'empty' => 'No inventory reservation metrics are available.',
+        ])
+        @component('DataTable', [
+            'columns' => [
+                'reservation_key' => 'Reservation',
+                'order_id' => 'Order',
+                'cart_id' => 'Cart',
+                'product_id' => 'Product',
+                'quantity' => 'Qty',
+                'status' => 'Status',
+                'expires_at' => 'Expires',
+                'released_at' => 'Released',
+            ],
+            'rows' => is_array($inventory['recent'] ?? null) ? $inventory['recent'] : [],
+            'empty' => 'No reservation ledger rows are available yet.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Returns, exchanges, and documents</h2>
+        @component('DefinitionGrid', [
+            'items' => array_merge(
+                is_array($returns['metrics'] ?? null) ? $returns['metrics'] : [],
+                is_array($documents['metrics'] ?? null) ? $documents['metrics'] : []
+            ),
+            'empty' => 'No return or document metrics are available.',
+        ])
+        @component('DataTable', [
+            'columns' => [
+                'return_number' => 'Return',
+                'type' => 'Type',
+                'status' => 'Status',
+                'order_id' => 'Order',
+                'quantity' => 'Qty',
+                'refund' => 'Refund',
+                'created_at' => 'Created',
+            ],
+            'rows' => is_array($returns['recent'] ?? null) ? $returns['recent'] : [],
+            'empty' => 'No return or exchange ledger rows are available yet.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Audit drilldown</h2>
+        <form method="get" action="/admin/operations" class="stack">
+            <label>
+                Category
+                <input type="text" name="audit_category" value="{{ (string) ($audit['filters']['category'] ?? '') }}" placeholder="admin, order, auth">
+            </label>
+            <label>
+                Event
+                <input type="text" name="audit_event" value="{{ (string) ($audit['filters']['event'] ?? '') }}" placeholder="admin.promotion.saved">
+            </label>
+            <label>
+                Severity
+                <input type="text" name="audit_severity" value="{{ (string) ($audit['filters']['severity'] ?? '') }}" placeholder="info, warning">
+            </label>
+            <label>
+                Actor ID
+                <input type="text" name="audit_actor_id" value="{{ (string) ($audit['filters']['actor_id'] ?? '') }}">
+            </label>
+            <label>
+                Limit
+                <input type="number" name="audit_limit" min="5" max="100" value="{{ (int) ($audit['limit'] ?? 25) }}">
+            </label>
+            <div>
+                <button type="submit">Filter audit trail</button>
+            </div>
+        </form>
+
+        @component('DefinitionGrid', [
+            'items' => is_array($audit['summary'] ?? null) ? $audit['summary'] : [],
+            'empty' => 'No audit summary is available.',
+        ])
+
+        <h3>Category filters</h3>
+        @component('LinkList', [
+            'label' => 'Audit categories',
+            'links' => is_array($audit['category_links'] ?? null) ? $audit['category_links'] : [],
+        ])
+
+        <h3>Severity filters</h3>
+        @component('LinkList', [
+            'label' => 'Audit severities',
+            'links' => is_array($audit['severity_links'] ?? null) ? $audit['severity_links'] : [],
+        ])
+
+        @component('DataTable', [
+            'columns' => [
+                'id' => 'ID',
+                'category' => 'Category',
+                'event' => 'Event',
+                'severity' => 'Severity',
+                'actor_id' => 'Actor',
+                'created_at' => 'Created',
+                'context' => 'Context',
+            ],
+            'rows' => is_array($audit['recent'] ?? null) ? $audit['recent'] : [],
+            'empty' => 'No audit events matched the selected filters.',
+        ])
+    </div>
 </section>

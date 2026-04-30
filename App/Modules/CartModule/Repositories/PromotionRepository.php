@@ -200,6 +200,39 @@ class PromotionRepository extends Repository
         ];
     }
 
+    /**
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function usageAnalytics(int $limit = 1000): array
+    {
+        $rows = $this->usageSummaries($limit);
+
+        return [
+            'by_code' => $this->aggregateUsage($rows, static fn(array $row): string => (string) ($row['promotion_code'] ?? 'unknown')),
+            'by_source' => $this->aggregateUsage($rows, static fn(array $row): string => (string) ($row['source'] ?? 'unknown')),
+            'by_currency' => $this->aggregateUsage($rows, static fn(array $row): string => (string) ($row['currency'] ?? 'SEK')),
+            'by_customer_segment' => $this->aggregateUsageBySegments($rows),
+            'by_customer' => $this->aggregateUsage($rows, static function (array $row): string {
+                $context = is_array($row['context'] ?? null) ? $row['context'] : [];
+                $email = strtolower(trim((string) ($context['customer_email'] ?? '')));
+
+                if ($email !== '') {
+                    return $email;
+                }
+
+                $userId = (int) ($row['user_id'] ?? 0);
+
+                return $userId > 0 ? 'user:' . $userId : 'anonymous';
+            }),
+            'by_day' => $this->aggregateUsage($rows, static function (array $row): string {
+                $createdAt = (string) ($row['created_at'] ?? '');
+                $timestamp = strtotime($createdAt);
+
+                return $timestamp !== false ? gmdate('Y-m-d', $timestamp) : 'unknown';
+            }),
+        ];
+    }
+
     public function usageCountForCustomer(string $code, ?int $userId = null, string $email = ''): int
     {
         $code = strtoupper(trim($code));
@@ -503,6 +536,92 @@ class PromotionRepository extends Repository
             'UPDATE promotions SET usage_count = usage_count + 1, updated_at = ? WHERE id = ?',
             [$timestamp, $promotionId]
         );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @param callable(array<string, mixed>): string $keyResolver
+     * @return list<array<string, mixed>>
+     */
+    private function aggregateUsage(array $rows, callable $keyResolver): array
+    {
+        $buckets = [];
+
+        foreach ($rows as $row) {
+            $key = trim($keyResolver($row)) ?: 'unknown';
+            $buckets[$key] ??= [
+                'key' => $key,
+                'uses' => 0,
+                'orders' => [],
+                'users' => [],
+                'discount_minor' => 0,
+                'item_discount_minor' => 0,
+                'shipping_discount_minor' => 0,
+            ];
+            $buckets[$key]['uses']++;
+
+            $orderId = (int) ($row['order_id'] ?? 0);
+            if ($orderId > 0) {
+                $buckets[$key]['orders'][$orderId] = true;
+            }
+
+            $userId = (int) ($row['user_id'] ?? 0);
+            if ($userId > 0) {
+                $buckets[$key]['users'][$userId] = true;
+            }
+
+            $buckets[$key]['discount_minor'] += max(0, (int) ($row['discount_minor'] ?? 0));
+            $buckets[$key]['item_discount_minor'] += max(0, (int) ($row['item_discount_minor'] ?? 0));
+            $buckets[$key]['shipping_discount_minor'] += max(0, (int) ($row['shipping_discount_minor'] ?? 0));
+        }
+
+        $summary = array_map(static function (array $bucket): array {
+            return [
+                'key' => (string) ($bucket['key'] ?? ''),
+                'uses' => (int) ($bucket['uses'] ?? 0),
+                'orders' => count((array) ($bucket['orders'] ?? [])),
+                'users' => count((array) ($bucket['users'] ?? [])),
+                'discount_minor' => (int) ($bucket['discount_minor'] ?? 0),
+                'item_discount_minor' => (int) ($bucket['item_discount_minor'] ?? 0),
+                'shipping_discount_minor' => (int) ($bucket['shipping_discount_minor'] ?? 0),
+            ];
+        }, array_values($buckets));
+
+        usort($summary, static fn(array $left, array $right): int => ((int) ($right['discount_minor'] ?? 0) <=> (int) ($left['discount_minor'] ?? 0))
+            ?: ((int) ($right['uses'] ?? 0) <=> (int) ($left['uses'] ?? 0))
+            ?: strcmp((string) ($left['key'] ?? ''), (string) ($right['key'] ?? '')));
+
+        return $summary;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
+     */
+    private function aggregateUsageBySegments(array $rows): array
+    {
+        $expanded = [];
+
+        foreach ($rows as $row) {
+            $context = is_array($row['context'] ?? null) ? $row['context'] : [];
+            $segments = array_values(array_unique(array_filter(array_map(
+                static fn(mixed $segment): string => strtolower(trim((string) $segment)),
+                (array) ($context['customer_segments'] ?? [])
+            ), static fn(string $segment): bool => $segment !== '')));
+
+            if ($segments === []) {
+                $segments = ['unsegmented'];
+            }
+
+            foreach ($segments as $segment) {
+                $expanded[] = [
+                    ...$row,
+                    '_segment' => $segment,
+                ];
+            }
+        }
+
+        return $this->aggregateUsage($expanded, static fn(array $row): string => (string) ($row['_segment'] ?? 'unsegmented'));
     }
 
     /**

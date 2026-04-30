@@ -264,6 +264,14 @@ class AdminController extends Controller
         return $this->run();
     }
 
+    public function bulkPromotions(): ResponseInterface
+    {
+        $this->adminRequest->forScenario('bulkPromotions');
+        $this->action = 'bulkPromotions';
+
+        return $this->run();
+    }
+
     public function carts(): ResponseInterface
     {
         $this->action = 'carts';
@@ -370,6 +378,49 @@ class AdminController extends Controller
     {
         $this->action = 'deliverOrder';
         $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function createOrderReturn(string $order): ResponseInterface
+    {
+        $this->adminRequest->forScenario('createOrderReturn');
+        $this->action = 'createOrderReturn';
+        $this->context = ['order' => (int) $order];
+
+        return $this->run();
+    }
+
+    public function approveOrderReturn(string $order, string $return): ResponseInterface
+    {
+        $this->action = 'approveOrderReturn';
+        $this->context = ['order' => (int) $order, 'return' => (int) $return];
+
+        return $this->run();
+    }
+
+    public function rejectOrderReturn(string $order, string $return): ResponseInterface
+    {
+        $this->action = 'rejectOrderReturn';
+        $this->context = ['order' => (int) $order, 'return' => (int) $return];
+
+        return $this->run();
+    }
+
+    public function completeOrderReturn(string $order, string $return): ResponseInterface
+    {
+        $this->adminRequest->forScenario('completeOrderReturn');
+        $this->action = 'completeOrderReturn';
+        $this->context = ['order' => (int) $order, 'return' => (int) $return];
+
+        return $this->run();
+    }
+
+    public function issueOrderDocument(string $order, string $type): ResponseInterface
+    {
+        $this->adminRequest->forScenario('issueOrderDocument');
+        $this->action = 'issueOrderDocument';
+        $this->context = ['order' => (int) $order, 'type' => $type];
 
         return $this->run();
     }

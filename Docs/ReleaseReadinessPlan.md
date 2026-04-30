@@ -4,15 +4,15 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, and installer rollback are all present.
 
-The remaining work is the final production layer: release hygiene, installer truth, live integrations, fulfillment breadth, operator polish, and deeper verification.
+The remaining work is now the final production layer: release hygiene, live integration credentials/adapters, environment matrix verification, deployment recipe validation, and browser/accessibility smoke passes.
 
 ## P0 - Release Blockers
 
-- Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. Current slice removes the tracked secure cache key and keeps `Storage/Secure` ignored except for its README.
-- Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md` and `RELEASE.md` now exist as release-facing anchors.
-- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current slice adds queue worker, notification, HTTP/auth, operations, commerce inventory, and list-style env handling coverage.
+- Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. The tracked secure cache key has been removed, and `Storage/Secure` stays ignored except for its README.
+- Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md`, `RELEASE.md`, and `Docs/DeploymentAndUpgrade.md` now act as release-facing anchors.
+- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, commerce inventory, returns, documents, and list-style env handling.
 - Payment webhook environment parity is now included: installer defaults, `.env.example`, SettingsManager aliases, route integration, signature settings, and per-driver secrets are represented.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Verify the full database/cache/session matrix before release, not only the default local regression suite.
@@ -35,14 +35,14 @@ Promotions should be treated as rules plus benefits.
 
 - Benefit types should include percentage, fixed amount, currency-specific exact amount, free shipping, fixed shipping rate, and shipping percentage discounts.
 - Criteria should include currency, subtotal ranges, item counts, product IDs, product slugs, category IDs, fulfillment types, shipping countries, zones, carriers, shipping options, active windows, and excluded products/types.
-- Promotions now have database-managed admin records with audit events, activation windows, global/per-customer/per-segment usage limits, customer/account/segment criteria, runtime catalog integration, checkout usage ledgers, and admin usage reporting. Remaining breadth is deeper analytical reporting.
+- Promotions now have database-managed admin records with audit events, activation windows, global/per-customer/per-segment usage limits, customer/account/segment criteria, runtime catalog integration, checkout usage ledgers, bulk admin lifecycle workflows, and analytics by code, source, currency, customer, segment, and day.
 
 ## P1 - Admin Operator Completion
 
-- Convert raw system/operations pages into structured operator panels.
-- Add admin-native promotion/coupon management. Current implementation includes protected admin routes, controller actions, service workflows, resource payloads, native `.vide` templates, and checkout usage reporting for promotion operations.
+- Convert raw system/operations pages into structured operator panels. Current implementation includes queue, notification, event, payment, health, inventory, return/document, and audit drilldown panels.
+- Add admin-native promotion/coupon management. Current implementation includes protected admin routes, controller actions, service workflows, resource payloads, native `.vide` templates, checkout usage reporting, promotion analytics, bulk workflows, and confirmation UX.
 - Add WebModule page authoring and publishing. Current implementation includes admin-native create/update/publish/unpublish/delete flows, protected home-page deletion guardrails, resource payloads, route parity, and native `.vide` templates.
-- Add richer filters, bulk actions, audit drilldowns, and lifecycle confirmations.
+- Add richer filters, bulk actions, audit drilldowns, and lifecycle confirmations. These are implemented for the current release-critical admin surfaces; further UX refinement is ongoing product polish rather than a missing framework subsystem.
 
 ## P1 - Live Integration Closure
 
@@ -54,16 +54,16 @@ Promotions should be treated as rules plus benefits.
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
 - P0: complete final release hygiene by keeping status/test counts current and confirming no runtime-generated secrets or local artifacts are tracked.
-- P1: replace the reference carrier adapter with live provider adapters/credentials where needed for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
+- P1: replace the reference carrier adapter with live provider adapters/credentials where needed for PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
 - P1: wire live subscription provider adapters/merchant credentials where needed for production billing providers, keeping the new framework subscription webhook/runtime boundary as the shared contract.
-- P1: improve admin operator ergonomics with structured operations panels, richer filters, bulk workflows, confirmation UX, and audit drilldowns.
-- P1: extend promotion operations with richer analytical reporting beyond the current global/customer/segment usage controls.
-- P2: add inventory reservation ledgers/expiry, returns/exchanges/partial refund depth, VAT/order documents, browser/accessibility smoke passes, and deployment/upgrade recipes.
+- P2: run browser/accessibility smoke passes for public and admin templates and fix any findings.
+- P2: keep deployment and upgrade recipes validated against the target host before tagging.
+- P2: deepen provider-specific smoke tests once live payment, subscription, carrier, Redis, Memcached, SQL Server, and optional extension environments are provisioned.
 
 ## P2 - Production Hardening
 
-- Add inventory reservations, expiry, and ledger entries instead of direct stock decrement only.
-- Add returns, exchanges, partial refunds, VAT invoices, and order documents.
-- Add accessibility, responsive, and browser smoke passes for public and admin templates.
-- Add upgrade notes and deployment recipes beyond the current `CHANGELOG.md` and `RELEASE.md` anchors.
-- Deepen unit and integration tests around promotions, fulfillment strategies, installer output, webhooks, inventory, subscriptions, and cross-database behavior.
+- Inventory reservations, expiry, and ledger entries are implemented and visible in admin operations/order views.
+- Returns, exchanges, partial refunds, VAT invoices, credit notes, return authorizations, and packing slips are implemented through admin-native workflows.
+- Accessibility, responsive, and browser smoke passes remain to be executed for public and admin templates.
+- Upgrade notes and deployment recipes are now anchored in `Docs/DeploymentAndUpgrade.md` and `RELEASE.md`; expand them per target host as production environments are selected.
+- Continue deepening unit and integration tests around live provider adapters, fulfillment strategies, installer output, webhooks, inventory, subscriptions, documents, returns, and cross-database behavior.

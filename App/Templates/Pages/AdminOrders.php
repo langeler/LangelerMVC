@@ -29,6 +29,9 @@ $confirmActions = [
 ];
 $trackingApps = is_array($order['tracking_apps'] ?? null) ? $order['tracking_apps'] : [];
 $trackingEvents = is_array($order['tracking_events'] ?? null) ? $order['tracking_events'] : [];
+$inventoryReservations = is_array($order['inventory_reservations'] ?? null) ? $order['inventory_reservations'] : [];
+$returns = is_array($order['returns'] ?? null) ? $order['returns'] : [];
+$documents = is_array($order['documents'] ?? null) ? $order['documents'] : [];
 $entitlements = is_array($order['entitlements'] ?? null) ? $order['entitlements'] : [];
 $subscriptions = is_array($order['subscriptions'] ?? null) ? $order['subscriptions'] : [];
 $servicePoints = is_array($service_points ?? null) ? $service_points : [];
@@ -106,6 +109,112 @@ $servicePoints = is_array($service_points ?? null) ? $service_points : [];
                         </form>
                     <?php endif; ?>
                 <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($actions['create_return'])): ?>
+            <div class="section">
+                <h2>Returns, exchanges, and partial refunds</h2>
+                <form method="post" action="<?= $view->escape((string) $actions['create_return']) ?>" class="stack">
+                    <label>
+                        Workflow
+                        <select name="type">
+                            <option value="return">Return</option>
+                            <option value="exchange">Exchange</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        Order item
+                        <select name="order_item_id">
+                            <?php foreach ((array) ($order['items'] ?? []) as $item): ?>
+                                <?php $row = is_array($item) ? $item : []; ?>
+                                <option value="<?= (int) ($row['id'] ?? 0) ?>">
+                                    <?= $view->escape((string) ($row['name'] ?? 'Item')) ?> x <?= (int) ($row['quantity'] ?? 0) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label>
+                        Quantity
+                        <input type="number" min="1" name="quantity" value="1">
+                    </label>
+
+                    <label>
+                        Refund amount minor
+                        <input type="number" min="0" name="refund_minor" value="0">
+                    </label>
+
+                    <label>
+                        Exchange product ID
+                        <input type="number" min="0" name="exchange_product_id" value="0">
+                    </label>
+
+                    <label>
+                        Reason
+                        <input type="text" name="reason" value="">
+                    </label>
+
+                    <label>
+                        <input type="checkbox" name="restock" value="1" checked>
+                        Restock returned physical/pickup inventory when completed
+                    </label>
+
+                    <label>
+                        <input type="checkbox" name="process_refund" value="1">
+                        Process the partial refund immediately and issue a credit note
+                    </label>
+
+                    <div>
+                        <button type="submit">Create return / exchange</button>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($actions['document_invoice'])): ?>
+            <div class="section">
+                <h2>VAT and order documents</h2>
+                <form method="post" action="<?= $view->escape((string) $actions['document_invoice']) ?>" class="stack">
+                    <label>
+                        Seller VAT ID
+                        <input type="text" name="seller_vat_id" value="">
+                    </label>
+
+                    <label>
+                        Notes
+                        <input type="text" name="notes" value="">
+                    </label>
+
+                    <div>
+                        <button type="submit">Issue VAT invoice</button>
+                    </div>
+                </form>
+
+                <form method="post" action="<?= $view->escape((string) ($actions['document_credit_note'] ?? '')) ?>" class="stack">
+                    <label>
+                        Credit amount minor
+                        <input type="number" min="0" name="amount_minor" value="<?= (int) ($order['total_minor'] ?? 0) ?>">
+                    </label>
+
+                    <label>
+                        Notes
+                        <input type="text" name="notes" value="Manual credit note">
+                    </label>
+
+                    <div>
+                        <button type="submit">Issue credit note</button>
+                    </div>
+                </form>
+
+                <form method="post" action="<?= $view->escape((string) ($actions['document_packing_slip'] ?? '')) ?>">
+                    <button type="submit">Issue packing slip</button>
+                </form>
+
+                <form method="post" action="<?= $view->escape((string) ($actions['document_return_authorization'] ?? '')) ?>">
+                    <button type="submit">Issue return authorization</button>
+                </form>
             </div>
         <?php endif; ?>
 
@@ -317,6 +426,88 @@ $servicePoints = is_array($service_points ?? null) ? $service_points : [];
                 'empty' => 'No order items are available.',
             ]) ?>
         </div>
+
+        <?php if ($returns !== []): ?>
+            <div class="section">
+                <h2>Return and exchange ledger</h2>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Return</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Refund</th>
+                            <th>Reason</th>
+                            <th>Admin actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($returns as $entry): ?>
+                            <?php $row = is_array($entry) ? $entry : []; ?>
+                            <tr>
+                                <td><?= $view->escape((string) ($row['return_number'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['type'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['status'] ?? '')) ?></td>
+                                <td><?= (int) ($row['order_item_id'] ?? 0) ?></td>
+                                <td><?= (int) ($row['quantity'] ?? 0) ?></td>
+                                <td><?= $view->escape((string) ($row['refund'] ?? '')) ?></td>
+                                <td><?= $view->escape((string) ($row['reason'] ?? '')) ?></td>
+                                <td>
+                                    <?php foreach (['approve_path' => 'Approve', 'reject_path' => 'Reject', 'complete_path' => 'Complete'] as $path => $label): ?>
+                                        <?php if (!empty($row[$path])): ?>
+                                            <form method="post" action="<?= $view->escape((string) $row[$path]) ?>"<?php if ($path !== 'approve_path'): ?> onsubmit="return confirm('<?= $view->escape($label) ?> this return workflow?');"<?php endif; ?>>
+                                                <button type="submit"><?= $view->escape($label) ?></button>
+                                            </form>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($inventoryReservations !== []): ?>
+            <div class="section">
+                <h2>Inventory reservation ledger</h2>
+                <?= $view->renderComponent('DataTable', [
+                    'columns' => [
+                        'reservation_key' => 'Reservation',
+                        'product_id' => 'Product',
+                        'quantity' => 'Qty',
+                        'status' => 'Status',
+                        'source' => 'Source',
+                        'expires_at' => 'Expires',
+                        'committed_at' => 'Committed',
+                        'released_at' => 'Released',
+                    ],
+                    'rows' => $inventoryReservations,
+                    'empty' => 'No inventory reservations are attached to this order.',
+                ]) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($documents !== []): ?>
+            <div class="section">
+                <h2>Order document ledger</h2>
+                <?= $view->renderComponent('DataTable', [
+                    'columns' => [
+                        'document_number' => 'Document',
+                        'type' => 'Type',
+                        'status' => 'Status',
+                        'total' => 'Total',
+                        'tax' => 'VAT',
+                        'seller_vat_id' => 'Seller VAT',
+                        'issued_at' => 'Issued',
+                    ],
+                    'rows' => $documents,
+                    'empty' => 'No order documents have been issued yet.',
+                ]) ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ($entitlements !== []): ?>
             <div class="section">

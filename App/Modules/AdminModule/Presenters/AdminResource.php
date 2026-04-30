@@ -33,6 +33,7 @@ class AdminResource extends Resource
             'promotions' => is_array($payload['promotions'] ?? null) ? $payload['promotions'] : [],
             'configured_promotions' => is_array($payload['configured_promotions'] ?? null) ? $payload['configured_promotions'] : [],
             'promotion_usage' => is_array($payload['promotion_usage'] ?? null) ? $payload['promotion_usage'] : [],
+            'promotion_analytics' => is_array($payload['promotion_analytics'] ?? null) ? $payload['promotion_analytics'] : [],
             'promotion_form' => is_array($payload['promotion_form'] ?? null) ? $payload['promotion_form'] : [],
             'promotion_metrics' => is_array($payload['promotion_metrics'] ?? null) ? $payload['promotion_metrics'] : [],
             'carts' => is_array($payload['carts'] ?? null) ? $payload['carts'] : [],

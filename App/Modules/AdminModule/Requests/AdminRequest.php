@@ -89,6 +89,42 @@ class AdminRequest extends InboundRequest
                 'per_segment_limit' => ['methods' => 'integer', 'required' => false],
                 'free_shipping_eligible_only' => ['methods' => 'string', 'required' => false],
             ],
+            'bulkPromotions' => [
+                'bulk_action' => ['methods' => 'string'],
+                'promotion_ids' => [
+                    'required' => false,
+                    'each' => ['methods' => 'integer'],
+                ],
+                'ids' => ['methods' => 'string', 'required' => false],
+            ],
+            'createOrderReturn' => [
+                'type' => ['methods' => 'string'],
+                'order_item_id' => ['methods' => 'integer'],
+                'quantity' => ['methods' => 'integer'],
+                'refund_minor' => ['methods' => 'integer', 'required' => false],
+                'exchange_product_id' => ['methods' => 'integer', 'required' => false],
+                'reason' => ['methods' => 'string', 'required' => false],
+                'resolution' => ['methods' => 'string', 'required' => false],
+                'restock' => ['methods' => 'string', 'required' => false],
+                'process_refund' => ['methods' => 'string', 'required' => false],
+            ],
+            'completeOrderReturn' => [
+                'refund_amount_minor' => ['methods' => 'integer', 'required' => false],
+                'reason' => ['methods' => 'string', 'required' => false],
+                'resolution' => ['methods' => 'string', 'required' => false],
+                'process_refund' => ['methods' => 'string', 'required' => false],
+            ],
+            'issueOrderDocument' => [
+                'amount_minor' => ['methods' => 'integer', 'required' => false],
+                'refund_minor' => ['methods' => 'integer', 'required' => false],
+                'return_id' => ['methods' => 'integer', 'required' => false],
+                'vat_rate_bps' => ['methods' => 'integer', 'required' => false],
+                'billing_country' => ['methods' => 'string', 'required' => false],
+                'seller_name' => ['methods' => 'string', 'required' => false],
+                'seller_vat_id' => ['methods' => 'string', 'required' => false],
+                'seller_address' => ['methods' => 'string', 'required' => false],
+                'notes' => ['methods' => 'string', 'required' => false],
+            ],
             default => [],
         };
     }
@@ -144,6 +180,31 @@ class AdminRequest extends InboundRequest
                 'per_customer_limit' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
                 'per_segment_limit' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
             ],
+            'bulkPromotions' => [
+                'bulk_action' => ['methods' => 'regexp', 'rules' => ['notEmpty'], 'options' => ['pattern' => '/^(activate|deactivate|delete)$/']],
+                'promotion_ids' => [
+                    'required' => false,
+                    'each' => ['methods' => 'integer', 'rules' => ['min' => [1]]],
+                ],
+                'ids' => ['methods' => 'string', 'required' => false],
+            ],
+            'createOrderReturn' => [
+                'type' => ['methods' => 'regexp', 'rules' => ['notEmpty'], 'options' => ['pattern' => '/^(return|exchange)$/']],
+                'order_item_id' => ['methods' => 'integer', 'rules' => ['min' => [1]]],
+                'quantity' => ['methods' => 'integer', 'rules' => ['min' => [1]]],
+                'refund_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'exchange_product_id' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+            ],
+            'completeOrderReturn' => [
+                'refund_amount_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+            ],
+            'issueOrderDocument' => [
+                'amount_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'refund_minor' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'return_id' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'vat_rate_bps' => ['methods' => 'integer', 'required' => false, 'rules' => ['min' => [0]]],
+                'billing_country' => ['methods' => 'regexp', 'required' => false, 'options' => ['pattern' => '/^[A-Za-z]{2,8}$/']],
+            ],
             default => [],
         };
     }
@@ -173,6 +234,7 @@ class AdminRequest extends InboundRequest
             'label',
             'type',
             'applies_to',
+            'bulk_action',
             'starts_at',
             'ends_at',
             'criteria_json',
@@ -196,6 +258,15 @@ class AdminRequest extends InboundRequest
             'excluded_customer_segments',
             'required_fulfillment_types',
             'required_customer_segments',
+            'reason',
+            'resolution',
+            'restock',
+            'process_refund',
+            'billing_country',
+            'seller_name',
+            'seller_vat_id',
+            'seller_address',
+            'notes',
         ] as $key) {
             if (isset($data[$key]) && is_string($data[$key])) {
                 $data[$key] = trim($data[$key]);
@@ -204,6 +275,12 @@ class AdminRequest extends InboundRequest
 
         if (isset($data['category_id'])) {
             $data['category_id'] = (int) $data['category_id'];
+        }
+
+        foreach (['order_item_id', 'quantity', 'exchange_product_id', 'return_id'] as $key) {
+            if (isset($data[$key])) {
+                $data[$key] = max(0, (int) $data[$key]);
+            }
         }
 
         if (isset($data['price_minor'])) {
@@ -226,10 +303,21 @@ class AdminRequest extends InboundRequest
             'usage_limit',
             'per_customer_limit',
             'per_segment_limit',
+            'refund_minor',
+            'refund_amount_minor',
+            'amount_minor',
+            'vat_rate_bps',
         ] as $key) {
             if (isset($data[$key])) {
                 $data[$key] = max(0, (int) $data[$key]);
             }
+        }
+
+        if (isset($data['promotion_ids']) && is_array($data['promotion_ids'])) {
+            $data['promotion_ids'] = array_values(array_filter(array_map(
+                static fn(mixed $value): int => max(0, (int) $value),
+                $data['promotion_ids']
+            ), static fn(int $value): bool => $value > 0));
         }
 
         if (isset($data['currency']) && is_string($data['currency'])) {
@@ -248,7 +336,7 @@ class AdminRequest extends InboundRequest
             $data['fulfillment_type'] = strtolower($data['fulfillment_type']);
         }
 
-        foreach (['type', 'applies_to'] as $key) {
+        foreach (['type', 'applies_to', 'bulk_action'] as $key) {
             if (isset($data[$key]) && is_string($data[$key])) {
                 $data[$key] = strtolower($data[$key]);
             }

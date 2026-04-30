@@ -88,6 +88,10 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertSame('database,mail', $defaults['NOTIFICATIONS_DEFAULT_CHANNELS']);
         self::assertSame('true', $defaults['OPERATIONS_HEALTH_ENABLED']);
         self::assertSame('true', $defaults['COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT']);
+        self::assertSame('60', $defaults['COMMERCE_INVENTORY_RESERVATION_TTL_MINUTES']);
+        self::assertSame('2500', $defaults['COMMERCE_DOCUMENTS_VAT_RATE_BPS']);
+        self::assertSame('30', $defaults['COMMERCE_RETURNS_WINDOW_DAYS']);
+        self::assertSame('true', $defaults['COMMERCE_RETURNS_ALLOW_EXCHANGES']);
     }
 
     public function testInstallerAndModuleViewsExposeProductionTemplates(): void
@@ -102,6 +106,7 @@ final class InstallerAndViewCoverageTest extends TestCase
         $config = $this->makeConfig();
 
         $installerView = new InstallerView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config);
+        $adminView = new AdminView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config);
 
         self::assertTrue($installerView->templateExists('layout', 'InstallerShell'));
         self::assertTrue($installerView->templateExists('page', 'InstallerWizard'));
@@ -118,11 +123,12 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertStringContainsString('Security & Identity', $installerOutput);
         self::assertStringContainsString('Installation Plan', $installerOutput);
         self::assertStringContainsString('Payment Compatibility', $installerOutput);
+        self::assertStringContainsString('Seller VAT ID', $installerOutput);
 
         $matrix = [
             [new WebView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['Home', 'NotFound']],
             [new UserView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['UserLogin', 'UserRegister', 'UserPasswordForgot', 'UserPasswordReset', 'UserProfile', 'UserStatus']],
-            [new AdminView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['AdminDashboard', 'AdminUsers', 'AdminRoles', 'AdminPages', 'AdminCatalog', 'AdminPromotions', 'AdminCarts', 'AdminOrders', 'AdminSystem', 'AdminOperations']],
+            [$adminView, ['AdminDashboard', 'AdminUsers', 'AdminRoles', 'AdminPages', 'AdminCatalog', 'AdminPromotions', 'AdminCarts', 'AdminOrders', 'AdminSystem', 'AdminOperations']],
             [new ShopView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['ShopCatalog', 'ShopProduct']],
             [new CartView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['CartPage']],
             [new OrderView($files, $directories, $cache, $fileManager, $sanitizer, $validator, $config), ['OrderCheckout', 'OrderList', 'OrderDetail']],
@@ -133,6 +139,120 @@ final class InstallerAndViewCoverageTest extends TestCase
                 self::assertTrue($view->templateExists('page', $page), sprintf('Expected template [%s] to exist for [%s].', $page, $view::class));
             }
         }
+
+        $promotionOutput = $adminView->renderPage('AdminPromotions', [
+            'headline' => 'Promotion and coupon management',
+            'summary' => 'Operator promotion surface.',
+            'promotions' => [[
+                'id' => 1,
+                'code' => 'ADMIN250',
+                'label' => 'Admin 250 SEK',
+                'active' => true,
+                'type' => 'fixed_amount',
+                'applies_to' => 'cart_subtotal',
+                'rate_percent' => 0,
+                'amount' => 'SEK 250.00',
+                'shipping_rate' => '',
+                'max_discount' => '',
+                'usage_count' => 1,
+                'usage_limit' => 5,
+                'criteria' => ['per_customer_limit' => 1, 'per_segment_limit' => 1],
+                'source' => 'database',
+                'update_path' => '/admin/promotions/1',
+                'deactivate_path' => '/admin/promotions/1/deactivate',
+                'delete_path' => '/admin/promotions/1/delete',
+            ]],
+            'configured_promotions' => [],
+            'promotion_usage' => [],
+            'promotion_analytics' => [
+                'by_code' => [['key' => 'ADMIN250', 'uses' => 1, 'orders' => 1, 'users' => 1, 'discount_minor' => 2500]],
+                'by_customer_segment' => [['key' => 'customer', 'uses' => 1, 'orders' => 1, 'users' => 1, 'discount_minor' => 2500]],
+            ],
+            'promotion_form' => [],
+            'promotion_metrics' => ['database_promotions' => 1],
+        ]);
+
+        self::assertStringContainsString('Bulk lifecycle action', $promotionOutput);
+        self::assertStringContainsString('Promotion analytics', $promotionOutput);
+
+        $operationsOutput = $adminView->renderPage('AdminOperations', [
+            'headline' => 'Async and platform operations',
+            'summary' => 'Structured operations.',
+            'operations' => [
+                'overview' => ['queue_driver' => 'sync', 'queue_pending' => 0, 'health_ready' => 'ok'],
+                'links' => [['href' => '/admin/system', 'label' => 'System snapshot']],
+                'queue' => ['driver' => 'sync', 'drivers' => ['sync'], 'failed_jobs' => 0],
+                'notifications' => ['channels' => ['database'], 'stored' => 0],
+                'events' => ['rows' => [['event' => 'order.created', 'listeners' => 1, 'listener_refs' => 'OrderListener']]],
+                'payments' => [
+                    'driver' => 'testing',
+                    'methods' => ['card'],
+                    'flows' => ['purchase'],
+                    'driver_rows' => [['driver' => 'testing', 'label' => 'Testing', 'methods' => 'card', 'flows' => 'purchase', 'regions' => 'test', 'mode' => 'reference']],
+                ],
+                'health' => ['rows' => [['section' => 'ready', 'status' => 'ok', 'available' => 'yes', 'details' => 'database']]],
+                'inventory' => [
+                    'metrics' => ['inventory_reservations' => 1, 'reserved_inventory' => 1],
+                    'recent' => [['reservation_key' => 'invres-demo', 'order_id' => 1, 'cart_id' => 1, 'product_id' => 1, 'quantity' => 1, 'status' => 'reserved', 'expires_at' => '2026-04-29 01:00:00']],
+                ],
+                'returns' => [
+                    'metrics' => ['order_returns' => 1, 'completed_returns' => 1, 'return_refund_minor' => 1000],
+                    'recent' => [['return_number' => 'RET-20260429-DEMO', 'type' => 'return', 'status' => 'completed', 'order_id' => 1, 'quantity' => 1, 'refund' => 'SEK 10.00', 'created_at' => '2026-04-29 01:00:00']],
+                ],
+                'documents' => [
+                    'metrics' => ['order_documents' => 1, 'invoices' => 1, 'credit_notes' => 0],
+                ],
+                'audit' => [
+                    'summary' => ['stored' => 1],
+                    'filters' => [],
+                    'limit' => 25,
+                    'recent' => [['id' => '1', 'category' => 'admin', 'event' => 'admin.promotion.saved', 'severity' => 'info', 'actor_id' => '1', 'created_at' => '2026-04-29 00:00:00', 'context' => '{}']],
+                    'category_links' => [['href' => '/admin/operations?audit_category=admin', 'label' => 'admin (1)']],
+                    'severity_links' => [['href' => '/admin/operations?audit_severity=info', 'label' => 'info (1)']],
+                ],
+            ],
+        ]);
+
+        self::assertStringContainsString('Operator overview', $operationsOutput);
+        self::assertStringContainsString('Inventory reservations', $operationsOutput);
+        self::assertStringContainsString('Returns, exchanges, and documents', $operationsOutput);
+        self::assertStringContainsString('Audit drilldown', $operationsOutput);
+
+        $ordersOutput = $adminView->renderPage('AdminOrders', [
+            'headline' => 'Order administration',
+            'summary' => 'Order workspace.',
+            'orders' => [],
+            'order' => [
+                'id' => 1,
+                'order_number' => 'ORD-20260429-DEMO',
+                'contact_email' => 'customer@example.test',
+                'status' => 'processing',
+                'payment_status' => 'partially_refunded',
+                'fulfillment_status' => 'ready_to_fulfill',
+                'inventory_status' => 'committed',
+                'currency' => 'SEK',
+                'total_minor' => 10000,
+                'total' => 'SEK 100.00',
+                'items' => [['id' => 1, 'name' => 'Starter License', 'quantity' => 1, 'unit_price' => 'SEK 100.00', 'line_total' => 'SEK 100.00']],
+                'returns' => [['return_number' => 'RET-20260429-DEMO', 'type' => 'return', 'status' => 'completed', 'order_item_id' => 1, 'quantity' => 1, 'refund' => 'SEK 10.00', 'reason' => 'Demo']],
+                'documents' => [['document_number' => 'INV-20260429-DEMO', 'type' => 'invoice', 'status' => 'issued', 'total' => 'SEK 100.00', 'tax' => 'SEK 20.00', 'seller_vat_id' => 'SE556000000001', 'issued_at' => '2026-04-29 01:00:00']],
+                'inventory_reservations' => [],
+                'entitlements' => [],
+                'subscriptions' => [],
+                'addresses' => [],
+                'actions' => [
+                    'create_return' => '/admin/orders/1/returns',
+                    'document_invoice' => '/admin/orders/1/documents/invoice',
+                    'document_credit_note' => '/admin/orders/1/documents/credit-note',
+                    'document_packing_slip' => '/admin/orders/1/documents/packing-slip',
+                    'document_return_authorization' => '/admin/orders/1/documents/return-authorization',
+                ],
+            ],
+        ]);
+
+        self::assertStringContainsString('Returns, exchanges, and partial refunds', $ordersOutput);
+        self::assertStringContainsString('Return and exchange ledger', $ordersOutput);
+        self::assertStringContainsString('Order document ledger', $ordersOutput);
     }
 
     public function testProductionTemplatesProvideNativeVideCounterparts(): void

@@ -49,11 +49,12 @@ class OrderLifecycleManager
         }
 
         $intent = PaymentIntent::fromArray($this->decodeIntent((string) ($order->getAttribute('payment_intent') ?? '{}')));
+        $amount = $this->transitionAmount($payload);
         $result = match ($action) {
-            'capture' => $this->payments->capture($intent),
-            'refund' => $this->payments->refund($intent),
+            'capture' => $this->payments->capture($intent, $amount),
+            'refund' => $this->payments->refund($intent, $amount, $this->transitionReason($payload)),
             'reconcile' => $this->payments->reconcile($intent, $payload),
-            default => $this->payments->cancel($intent),
+            default => $this->payments->cancel($intent, $this->transitionReason($payload)),
         };
 
         if (!$result->successful) {
@@ -75,7 +76,7 @@ class OrderLifecycleManager
 
         try {
             if ($action === 'cancel' && $inventoryStatus === 'released' && $currentInventoryStatus !== 'released') {
-                $this->inventory->release($this->orderItems->summaryForOrder($orderId));
+                $this->inventory->releaseForOrder($orderId, $this->orderItems->summaryForOrder($orderId), 'cancel');
             }
 
             $status = $this->orderStatusForIntent($result->intent);
@@ -96,6 +97,10 @@ class OrderLifecycleManager
                 'fulfillment_status' => $fulfillmentStatus,
                 'inventory_status' => $inventoryStatus,
             ]);
+
+            if ($inventoryStatus === 'committed' && $currentInventoryStatus !== 'committed') {
+                $this->inventory->commitForOrder($orderId);
+            }
 
             if (in_array($result->intent->status, ['captured', 'partially_captured'], true)) {
                 $entitlementSync = $this->entitlements->syncForOrder($orderId, 'payment.' . $action);
@@ -307,7 +312,8 @@ class OrderLifecycleManager
     {
         return match ($intent->status) {
             'captured' => 'processing',
-            'partially_refunded', 'refunded' => 'refunded',
+            'partially_refunded' => 'processing',
+            'refunded' => 'refunded',
             'cancelled' => 'cancelled',
             'requires_action' => 'awaiting_payment_action',
             'processing', 'pending_review' => 'pending_payment',
@@ -319,7 +325,7 @@ class OrderLifecycleManager
     {
         return match ($intent->status) {
             'captured' => 'ready_to_fulfill',
-            'partially_refunded' => 'partially_refunded',
+            'partially_refunded' => $current !== '' ? $current : 'ready_to_fulfill',
             'refunded' => 'refunded',
             'cancelled' => 'cancelled',
             'requires_action' => 'awaiting_payment',
@@ -359,6 +365,36 @@ class OrderLifecycleManager
         }
 
         return $this->inventoryStatusForIntent($intent, $current);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function transitionAmount(array $payload): ?int
+    {
+        foreach (['amount_minor', 'capture_amount_minor', 'refund_amount_minor'] as $key) {
+            if (array_key_exists($key, $payload) && trim((string) $payload[$key]) !== '') {
+                return max(0, (int) $payload[$key]) ?: null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function transitionReason(array $payload): ?string
+    {
+        foreach (['reason', 'resolution', 'note'] as $key) {
+            $reason = trim((string) ($payload[$key] ?? ''));
+
+            if ($reason !== '') {
+                return $reason;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -150,6 +150,7 @@ Tracked runtime configuration arrays. The framework loads these through `Setting
 Notable current files include:
 
 - `auth.php`
+- `commerce.php`
 - `http.php`
 - `mail.php`
 - `notifications.php`
@@ -172,6 +173,7 @@ Primary current docs:
 
 - `README.md`
 - `ArchitectureOverview.md`
+- `DeploymentAndUpgrade.md`
 - `FrameworkStatus.md`
 - `FolderStructure.md`
 - `ModulesStructure.md`

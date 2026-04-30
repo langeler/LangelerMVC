@@ -647,6 +647,7 @@ LangelerMVC
 │   ├── app.php
 │   ├── auth.php
 │   ├── cache.php
+│   ├── commerce.php
 │   ├── cookie.php
 │   ├── db.php
 │   ├── encryption.php
@@ -667,6 +668,7 @@ LangelerMVC
 │   ├── ArchitectureOverview.md
 │   ├── CompleteStructure.md
 │   ├── DatabaseMatrixTesting.md
+│   ├── DeploymentAndUpgrade.md
 │   ├── FolderStructure.md
 │   ├── FrameworkStatus.md
 │   ├── IteratorManager Usage.pdf

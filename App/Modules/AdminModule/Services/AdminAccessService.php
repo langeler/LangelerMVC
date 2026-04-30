@@ -1624,6 +1624,12 @@ class AdminAccessService extends Service
             'capabilities' => $this->payments->capabilities(),
             'catalog' => $this->payments->driverCatalog(),
         ];
+        $shipping = [
+            'country' => $this->shipping->defaultCountry(),
+            'default_option' => $this->shipping->defaultOptionCode(),
+            'carriers' => $this->shipping->carrierCatalog(),
+            'adapters' => $this->shipping->adapterCatalog(),
+        ];
         $health = $this->health->report();
         $inventoryMetrics = $this->inventory->metrics();
         $returnMetrics = $this->returns instanceof OrderReturnManager ? $this->returns->metrics() : [];
@@ -1646,6 +1652,7 @@ class AdminAccessService extends Service
                     'stored_notifications' => (int) ($notifications['stored'] ?? 0),
                     'registered_events' => count($listeners),
                     'payment_drivers' => count((array) ($payments['drivers'] ?? [])),
+                    'carrier_adapters' => count((array) ($shipping['adapters'] ?? [])),
                     'reserved_inventory' => (int) ($inventoryMetrics['reserved_inventory'] ?? 0),
                     'open_returns' => (int) ($returnMetrics['requested_returns'] ?? 0) + (int) ($returnMetrics['approved_returns'] ?? 0),
                     'order_documents' => (int) ($documentMetrics['order_documents'] ?? 0),
@@ -1668,6 +1675,10 @@ class AdminAccessService extends Service
                 'payments' => [
                     ...$payments,
                     'driver_rows' => $this->paymentDriverRows((array) ($payments['catalog'] ?? [])),
+                ],
+                'shipping' => [
+                    ...$shipping,
+                    'adapter_rows' => $this->shippingAdapterRows((array) ($shipping['adapters'] ?? [])),
                 ],
                 'health' => [
                     'report' => $health,
@@ -1785,6 +1796,32 @@ class AdminAccessService extends Service
                 'flows' => implode(', ', array_map('strval', (array) ($definition['flows'] ?? []))),
                 'regions' => implode(', ', array_map('strval', (array) ($definition['regions'] ?? []))),
                 'mode' => (string) ($definition['mode'] ?? $definition['environment'] ?? 'reference'),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $catalog
+     * @return list<array<string, mixed>>
+     */
+    private function shippingAdapterRows(array $catalog): array
+    {
+        $rows = [];
+
+        foreach ($catalog as $carrier => $definition) {
+            $definition = is_array($definition) ? $definition : [];
+            $missing = array_values(array_map('strval', (array) ($definition['missing_required_settings'] ?? [])));
+
+            $rows[] = [
+                'carrier' => (string) $carrier,
+                'label' => (string) ($definition['label'] ?? $carrier),
+                'service_levels' => implode(', ', array_map('strval', (array) ($definition['service_levels'] ?? []))),
+                'regions' => implode(', ', array_map('strval', (array) ($definition['regions'] ?? []))),
+                'mode' => (string) ($definition['mode'] ?? 'reference'),
+                'live_ready' => !empty($definition['live_ready']) ? 'yes' : 'no',
+                'missing' => $missing === [] ? '' : implode(', ', $missing),
             ];
         }
 

@@ -22,6 +22,8 @@ use App\Modules\WebModule\Migrations\CreatePagesTable;
 use App\Modules\WebModule\Seeds\PageSeed;
 use App\Providers\CoreProvider;
 use App\Providers\ExceptionProvider;
+use App\Providers\ShippingProvider;
+use App\Support\Commerce\ShippingManager;
 use App\Utilities\Managers\DateTimeManager;
 use App\Utilities\Managers\Data\SessionManager;
 use App\Utilities\Managers\FileManager;
@@ -77,6 +79,8 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('queue:retry', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:prune-failed', $kernel->commandDescriptions());
         self::assertArrayHasKey('release:check', $kernel->commandDescriptions());
+        self::assertInstanceOf(ShippingManager::class, $provider->getCoreService('shipping'));
+        self::assertInstanceOf(ShippingProvider::class, $provider->getCoreService('shippingProvider'));
     }
 
     public function testConsoleKernelParsesOptionsForOperationalCommands(): void

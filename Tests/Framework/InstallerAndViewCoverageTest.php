@@ -67,6 +67,8 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertTrue($status['environmentWritable']);
         self::assertContains('testing', $status['paymentDrivers']);
         self::assertContains('klarna', $status['paymentDrivers']);
+        self::assertContains('postnord', $status['carrierAdapters']);
+        self::assertContains('ups', $status['carrierAdapters']);
         self::assertContains('WebModule', $status['modules']);
         self::assertContains('database', $status['contentSources']);
     }
@@ -88,6 +90,8 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertSame('database,mail', $defaults['NOTIFICATIONS_DEFAULT_CHANNELS']);
         self::assertSame('true', $defaults['OPERATIONS_HEALTH_ENABLED']);
         self::assertSame('true', $defaults['COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT']);
+        self::assertSame('postnord', $defaults['COMMERCE_SHIPPING_ACTIVE_CARRIER']);
+        self::assertSame('30', $defaults['COMMERCE_SHIPPING_TIMEOUT']);
         self::assertSame('60', $defaults['COMMERCE_INVENTORY_RESERVATION_TTL_MINUTES']);
         self::assertSame('2500', $defaults['COMMERCE_DOCUMENTS_VAT_RATE_BPS']);
         self::assertSame('30', $defaults['COMMERCE_RETURNS_WINDOW_DAYS']);
@@ -123,6 +127,7 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertStringContainsString('Security & Identity', $installerOutput);
         self::assertStringContainsString('Installation Plan', $installerOutput);
         self::assertStringContainsString('Payment Compatibility', $installerOutput);
+        self::assertStringContainsString('Carrier Adapter Compatibility', $installerOutput);
         self::assertStringContainsString('Seller VAT ID', $installerOutput);
 
         $matrix = [
@@ -190,6 +195,12 @@ final class InstallerAndViewCoverageTest extends TestCase
                     'flows' => ['purchase'],
                     'driver_rows' => [['driver' => 'testing', 'label' => 'Testing', 'methods' => 'card', 'flows' => 'purchase', 'regions' => 'test', 'mode' => 'reference']],
                 ],
+                'shipping' => [
+                    'country' => 'SE',
+                    'default_option' => 'postnord-service-point',
+                    'carriers' => [['code' => 'postnord']],
+                    'adapter_rows' => [['carrier' => 'postnord', 'label' => 'PostNord', 'service_levels' => 'service_point, home', 'regions' => 'SE', 'mode' => 'reference', 'live_ready' => 'yes', 'missing' => '']],
+                ],
                 'health' => ['rows' => [['section' => 'ready', 'status' => 'ok', 'available' => 'yes', 'details' => 'database']]],
                 'inventory' => [
                     'metrics' => ['inventory_reservations' => 1, 'reserved_inventory' => 1],
@@ -214,6 +225,7 @@ final class InstallerAndViewCoverageTest extends TestCase
         ]);
 
         self::assertStringContainsString('Operator overview', $operationsOutput);
+        self::assertStringContainsString('Carrier adapters', $operationsOutput);
         self::assertStringContainsString('Inventory reservations', $operationsOutput);
         self::assertStringContainsString('Returns, exchanges, and documents', $operationsOutput);
         self::assertStringContainsString('Audit drilldown', $operationsOutput);

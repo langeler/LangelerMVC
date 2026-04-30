@@ -23,7 +23,7 @@ The wizard collects and writes the runtime configuration needed to boot a real a
 - first administrator account provisioning
 - `WebModule` starter-content mode
 - payment driver, payment method family, and default payment flow
-- commerce shipping, pickup/pre-order, subscription, inventory reservation, return, and order-document defaults
+- commerce shipping, carrier adapter, pickup/pre-order, subscription, inventory reservation, return, and order-document defaults
 
 ## What The Wizard Does
 

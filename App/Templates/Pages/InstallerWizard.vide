@@ -16,6 +16,7 @@
         $paymentDriver = $form['PAYMENT_DRIVER'] ?? '';
         $paymentMethod = $form['PAYMENT_DEFAULT_METHOD'] ?? '';
         $paymentFlow = $form['PAYMENT_DEFAULT_FLOW'] ?? '';
+        $carrierAdapter = $form['COMMERCE_SHIPPING_ACTIVE_CARRIER'] ?? '';
         $fulfillmentType = $form['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? '';
         $subscriptionInterval = $form['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? '';
         $autoReadyOnCapture = ($form['COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE'] ?? 'true') === 'true';
@@ -37,6 +38,7 @@
         $mailDrivers = $status['mailDrivers'] ?? [];
         $queueDrivers = $status['queueDrivers'] ?? [];
         $contentSources = $status['contentSources'] ?? [];
+        $carrierAdapters = $status['carrierAdapters'] ?? [];
         $fulfillmentTypes = $status['fulfillmentTypes'] ?? [];
         $subscriptionIntervals = $status['subscriptionIntervals'] ?? [];
     @endphp
@@ -430,12 +432,67 @@
                             <input id="COMMERCE_SHIPPING_DEFAULT_OPTION" name="COMMERCE_SHIPPING_DEFAULT_OPTION" type="text" value="{{ $form['COMMERCE_SHIPPING_DEFAULT_OPTION'] ?? '' }}">
                         </div>
                         <div class="field">
+                            <label for="COMMERCE_SHIPPING_ACTIVE_CARRIER">Active Carrier Adapter</label>
+                            <select id="COMMERCE_SHIPPING_ACTIVE_CARRIER" name="COMMERCE_SHIPPING_ACTIVE_CARRIER">
+                                @foreach([
+                                    'postnord' => 'PostNord',
+                                    'instabox' => 'Instabox',
+                                    'budbee' => 'Budbee',
+                                    'bring' => 'Bring',
+                                    'dhl' => 'DHL',
+                                    'schenker' => 'Schenker',
+                                    'earlybird' => 'Early Bird',
+                                    'airmee' => 'Airmee',
+                                    'ups' => 'UPS',
+                                ] as $value => $label)
+                                    <option value="{{ $value }}" @if($carrierAdapter === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <small>Reference mode is safe for install; live mode uses the configured carrier endpoint fields.</small>
+                        </div>
+                        <div class="field">
                             <label for="COMMERCE_SHIPPING_FLAT_RATE_MINOR">Fallback Shipping Rate Minor</label>
                             <input id="COMMERCE_SHIPPING_FLAT_RATE_MINOR" name="COMMERCE_SHIPPING_FLAT_RATE_MINOR" type="text" value="{{ $form['COMMERCE_SHIPPING_FLAT_RATE_MINOR'] ?? '' }}">
                         </div>
                         <div class="field">
                             <label for="COMMERCE_SHIPPING_FREE_OVER_MINOR">Free Shipping Over Minor</label>
                             <input id="COMMERCE_SHIPPING_FREE_OVER_MINOR" name="COMMERCE_SHIPPING_FREE_OVER_MINOR" type="text" value="{{ $form['COMMERCE_SHIPPING_FREE_OVER_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_INTEGRATION_MODE">Shipping Adapter Mode</label>
+                            <select id="COMMERCE_SHIPPING_INTEGRATION_MODE" name="COMMERCE_SHIPPING_INTEGRATION_MODE">
+                                @foreach(['reference' => 'Reference', 'live' => 'Live'] as $value => $label)
+                                    <option value="{{ $value }}" @if(($form['COMMERCE_SHIPPING_INTEGRATION_MODE'] ?? '') === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_API_BASE">Shipping API Base</label>
+                            <input id="COMMERCE_SHIPPING_API_BASE" name="COMMERCE_SHIPPING_API_BASE" type="url" value="{{ $form['COMMERCE_SHIPPING_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_API_KEY">Shipping API Key</label>
+                            <input id="COMMERCE_SHIPPING_API_KEY" name="COMMERCE_SHIPPING_API_KEY" type="password" value="{{ $form['COMMERCE_SHIPPING_API_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_BOOKING_URL">Booking Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_BOOKING_URL" name="COMMERCE_SHIPPING_BOOKING_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_BOOKING_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_SERVICE_POINTS_URL">Service Points Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_SERVICE_POINTS_URL" name="COMMERCE_SHIPPING_SERVICE_POINTS_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_SERVICE_POINTS_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_TRACKING_URL">Tracking Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_TRACKING_URL" name="COMMERCE_SHIPPING_TRACKING_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_TRACKING_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_CANCELLATION_URL">Cancellation Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_CANCELLATION_URL" name="COMMERCE_SHIPPING_CANCELLATION_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_CANCELLATION_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_TIMEOUT">Shipping Timeout</label>
+                            <input id="COMMERCE_SHIPPING_TIMEOUT" name="COMMERCE_SHIPPING_TIMEOUT" type="text" value="{{ $form['COMMERCE_SHIPPING_TIMEOUT'] ?? '30' }}">
                         </div>
                         <div class="field">
                             <label for="COMMERCE_FULFILLMENT_DEFAULT_TYPE">Default Product Fulfillment</label>
@@ -639,6 +696,27 @@
                                 Recommended for the first install and local verification.
                             @else
                                 Available through the framework payment registry after credentials are configured.
+                            @endif
+                        </span>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2>Carrier Adapter Compatibility</h2>
+                <p>Shipping, service-point lookup, booking, label references, tracking sync, and cancellation all route through the carrier adapter registry.</p>
+            </div>
+            <div class="provider-grid">
+                @foreach($carrierAdapters as $adapter)
+                    <article class="provider-card">
+                        <strong>{{ strtoupper((string) $adapter) }}</strong>
+                        <span class="muted">
+                            @if($adapter === 'postnord')
+                                Default Swedish-first reference adapter.
+                            @else
+                                Available for plug-and-play carrier credentials or endpoint adapters.
                             @endif
                         </span>
                     </article>

@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Support\Commerce;
 
+use App\Contracts\Support\CarrierAdapterInterface;
 use App\Core\Config;
+use App\Providers\ShippingProvider;
 use App\Utilities\Traits\MoneyFormattingTrait;
 
 class ShippingManager
 {
     use MoneyFormattingTrait;
 
-    public function __construct(private readonly Config $config)
+    private ShippingProvider $provider;
+
+    public function __construct(private readonly Config $config, ?ShippingProvider $provider = null)
     {
+        $this->provider = $provider ?? new ShippingProvider();
+        $this->provider->registerServices();
     }
 
     /**
@@ -87,6 +93,34 @@ class ShippingManager
         }
 
         return $results;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function adapterCatalog(?string $country = null): array
+    {
+        $catalog = [];
+        $country = $country !== null && $country !== ''
+            ? $this->normalizeCountryCode($country)
+            : $this->defaultCountry();
+
+        foreach ($this->carrierCatalog($country) as $carrier) {
+            $carrierCode = (string) ($carrier['code'] ?? '');
+            $adapter = $this->carrierAdapter($carrierCode);
+
+            if (!$adapter instanceof CarrierAdapterInterface) {
+                continue;
+            }
+
+            $catalog[$carrierCode] = [
+                ...$adapter->capabilities(),
+                'carrier' => $carrierCode,
+                'tracking_apps' => $this->trackingApps($carrierCode, $country),
+            ];
+        }
+
+        return $catalog;
     }
 
     /**
@@ -225,6 +259,16 @@ class ShippingManager
             ];
         }
 
+        $adapter = $this->carrierAdapter($carrierCode);
+
+        if ($adapter instanceof CarrierAdapterInterface) {
+            return $adapter->servicePoints([
+                ...$context,
+                'country' => $country,
+                'carrier' => $carrier,
+            ], $payload);
+        }
+
         if (!(bool) ($carrier['supports_service_points'] ?? false)) {
             return [
                 'successful' => true,
@@ -289,6 +333,19 @@ class ShippingManager
                 'title' => 'Shipment booking failed',
                 'message' => 'Choose a valid carrier before booking the shipment.',
             ];
+        }
+
+        $adapter = $this->carrierAdapter($carrierCode);
+
+        if ($adapter instanceof CarrierAdapterInterface) {
+            $result = $adapter->bookShipment([
+                ...$order,
+                'shipping_country' => $country,
+                'carrier' => $carrier,
+            ], $payload);
+            $result['tracking_apps'] ??= $this->trackingApps($carrierCode, $country);
+
+            return $result;
         }
 
         $shipmentReference = trim((string) ($payload['shipment_reference'] ?? ''));
@@ -364,6 +421,13 @@ class ShippingManager
             ];
         }
 
+        $carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? $payload['carrier_code'] ?? '')));
+        $adapter = $this->carrierAdapter($carrierCode);
+
+        if ($adapter instanceof CarrierAdapterInterface) {
+            return $adapter->syncTracking($order, $payload);
+        }
+
         $events = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
         $status = strtolower(trim((string) ($payload['tracking_status'] ?? $payload['status'] ?? '')));
         $status = $status !== '' ? $status : $this->nextTrackingStatus($events);
@@ -426,6 +490,12 @@ class ShippingManager
         }
 
         $carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? '')));
+        $adapter = $this->carrierAdapter($carrierCode);
+
+        if ($adapter instanceof CarrierAdapterInterface) {
+            return $adapter->cancelShipment($order, $payload);
+        }
+
         $reason = trim((string) ($payload['reason'] ?? 'Operator cancelled the shipment booking.'));
         $events = $this->normalizeTrackingEvents((array) ($order['tracking_events'] ?? []));
         $events[] = [
@@ -549,6 +619,37 @@ class ShippingManager
         }
 
         return null;
+    }
+
+    private function carrierAdapter(string $carrierCode): ?CarrierAdapterInterface
+    {
+        $carrierCode = strtolower(trim($carrierCode));
+
+        if ($carrierCode === '') {
+            return null;
+        }
+
+        try {
+            return $this->provider->getCarrierAdapter($carrierCode, $this->carrierAdapterSettings($carrierCode));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function carrierAdapterSettings(string $carrierCode): array
+    {
+        $global = $this->config->get('commerce', 'SHIPPING.INTEGRATION', []);
+        $global = is_array($global) ? $this->normalizeConfigKeys($global) : [];
+        $carrier = $this->carrierByCode($carrierCode) ?? [];
+        $adapters = $this->configuredAdapters();
+        $adapter = is_array($adapters[$carrierCode] ?? null) ? $adapters[$carrierCode] : [];
+
+        return array_replace_recursive($global, $carrier, $adapter, [
+            'code' => $carrierCode,
+        ]);
     }
 
     /**
@@ -1022,6 +1123,16 @@ class ShippingManager
     private function configuredTrackingApps(): array
     {
         $configured = $this->config->get('commerce', 'SHIPPING.TRACKING_APPS', []);
+
+        return is_array($configured) ? $this->normalizeConfigKeys($configured) : [];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function configuredAdapters(): array
+    {
+        $configured = $this->config->get('commerce', 'SHIPPING.ADAPTERS', []);
 
         return is_array($configured) ? $this->normalizeConfigKeys($configured) : [];
     }

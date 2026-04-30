@@ -26,6 +26,7 @@ final class InstallerWizard
     private const SUPPORTED_PAYMENT_DRIVERS = ['testing', 'card', 'paypal', 'klarna', 'swish', 'qliro', 'walley', 'crypto'];
     private const SUPPORTED_PAYMENT_METHODS = ['card', 'wallet', 'bank_transfer', 'bnpl', 'local_instant', 'manual', 'crypto'];
     private const SUPPORTED_PAYMENT_FLOWS = ['authorize_capture', 'purchase', 'redirect', 'async', 'manual_review'];
+    private const SUPPORTED_CARRIER_ADAPTERS = ['postnord', 'instabox', 'budbee', 'bring', 'dhl', 'schenker', 'earlybird', 'airmee', 'ups'];
     private const SUPPORTED_FULFILLMENT_TYPES = ['physical_shipping', 'digital_download', 'virtual_access', 'store_pickup', 'scheduled_pickup', 'preorder', 'subscription'];
     private const SUPPORTED_SUBSCRIPTION_INTERVALS = ['weekly', 'monthly', 'quarterly', 'yearly'];
 
@@ -125,6 +126,7 @@ final class InstallerWizard
             'queueDrivers' => self::SUPPORTED_QUEUE_DRIVERS,
             'contentSources' => self::SUPPORTED_CONTENT_SOURCES,
             'paymentDrivers' => self::SUPPORTED_PAYMENT_DRIVERS,
+            'carrierAdapters' => self::SUPPORTED_CARRIER_ADAPTERS,
             'fulfillmentTypes' => self::SUPPORTED_FULFILLMENT_TYPES,
             'subscriptionIntervals' => self::SUPPORTED_SUBSCRIPTION_INTERVALS,
             'installState' => [
@@ -269,6 +271,7 @@ final class InstallerWizard
         $data['PAYMENT_CURRENCY'] = strtoupper((string) ($data['PAYMENT_CURRENCY'] ?? 'SEK'));
         $data['COMMERCE_CURRENCY'] = strtoupper((string) ($data['COMMERCE_CURRENCY'] ?? $data['PAYMENT_CURRENCY'] ?? 'SEK'));
         $data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] = strtolower((string) ($data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? 'physical_shipping'));
+        $data['COMMERCE_SHIPPING_ACTIVE_CARRIER'] = strtolower((string) ($data['COMMERCE_SHIPPING_ACTIVE_CARRIER'] ?? 'postnord'));
         $data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] = strtolower((string) ($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? 'monthly'));
         $data['MAIL_FROM_NAME'] = trim((string) ($data['MAIL_FROM_NAME'] ?? ''));
 
@@ -356,6 +359,10 @@ final class InstallerWizard
             throw new \InvalidArgumentException('Unsupported default fulfillment type selected.');
         }
 
+        if (!in_array($data['COMMERCE_SHIPPING_ACTIVE_CARRIER'], self::SUPPORTED_CARRIER_ADAPTERS, true)) {
+            throw new \InvalidArgumentException('Unsupported active carrier adapter selected.');
+        }
+
         if (!in_array($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'], self::SUPPORTED_SUBSCRIPTION_INTERVALS, true)) {
             throw new \InvalidArgumentException('Unsupported default subscription interval selected.');
         }
@@ -401,6 +408,7 @@ final class InstallerWizard
             'COMMERCE_RETURNS_WINDOW_DAYS' => 'commerce returns window days',
             'COMMERCE_SHIPPING_FLAT_RATE_MINOR' => 'commerce shipping flat rate',
             'COMMERCE_SHIPPING_FREE_OVER_MINOR' => 'commerce free shipping threshold',
+            'COMMERCE_SHIPPING_TIMEOUT' => 'commerce shipping adapter timeout',
             'COMMERCE_DISCOUNT_RATE_BPS' => 'commerce default discount rate basis points',
             'COMMERCE_DISCOUNT_MAX_MINOR' => 'commerce default discount cap',
             'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT' => 'commerce default download limit',
@@ -719,9 +727,20 @@ final class InstallerWizard
                 'COMMERCE_SHIPPING_FLAT_RATE_MINOR',
                 'COMMERCE_SHIPPING_FREE_OVER_MINOR',
                 'COMMERCE_SHIPPING_INTEGRATION_MODE',
+                'COMMERCE_SHIPPING_ACTIVE_CARRIER',
                 'COMMERCE_SHIPPING_AUTO_BOOK_LABELS',
                 'COMMERCE_SHIPPING_LABEL_FORMAT',
                 'COMMERCE_SHIPPING_LABEL_BASE_URL',
+                'COMMERCE_SHIPPING_API_BASE',
+                'COMMERCE_SHIPPING_API_KEY',
+                'COMMERCE_SHIPPING_USERNAME',
+                'COMMERCE_SHIPPING_PASSWORD',
+                'COMMERCE_SHIPPING_AUTH_SCHEME',
+                'COMMERCE_SHIPPING_SERVICE_POINTS_URL',
+                'COMMERCE_SHIPPING_BOOKING_URL',
+                'COMMERCE_SHIPPING_TRACKING_URL',
+                'COMMERCE_SHIPPING_CANCELLATION_URL',
+                'COMMERCE_SHIPPING_TIMEOUT',
                 'COMMERCE_FULFILLMENT_DEFAULT_TYPE',
                 'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE',
                 'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT',
@@ -1160,9 +1179,20 @@ final class InstallerWizard
             'COMMERCE_SHIPPING_FLAT_RATE_MINOR' => '1490',
             'COMMERCE_SHIPPING_FREE_OVER_MINOR' => '50000',
             'COMMERCE_SHIPPING_INTEGRATION_MODE' => 'reference',
+            'COMMERCE_SHIPPING_ACTIVE_CARRIER' => 'postnord',
             'COMMERCE_SHIPPING_AUTO_BOOK_LABELS' => 'true',
             'COMMERCE_SHIPPING_LABEL_FORMAT' => 'pdf',
             'COMMERCE_SHIPPING_LABEL_BASE_URL' => 'https://shipments.langelermvc.test/labels',
+            'COMMERCE_SHIPPING_API_BASE' => '',
+            'COMMERCE_SHIPPING_API_KEY' => '',
+            'COMMERCE_SHIPPING_USERNAME' => '',
+            'COMMERCE_SHIPPING_PASSWORD' => '',
+            'COMMERCE_SHIPPING_AUTH_SCHEME' => 'Bearer',
+            'COMMERCE_SHIPPING_SERVICE_POINTS_URL' => '',
+            'COMMERCE_SHIPPING_BOOKING_URL' => '',
+            'COMMERCE_SHIPPING_TRACKING_URL' => '',
+            'COMMERCE_SHIPPING_CANCELLATION_URL' => '',
+            'COMMERCE_SHIPPING_TIMEOUT' => '30',
             'COMMERCE_FULFILLMENT_DEFAULT_TYPE' => 'physical_shipping',
             'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE' => 'true',
             'COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT' => '0',

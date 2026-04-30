@@ -11,6 +11,7 @@ use App\Contracts\Support\HealthManagerInterface;
 use App\Core\Config;
 use App\Core\Database;
 use App\Core\Router;
+use App\Support\Commerce\ShippingManager;
 use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Managers\Data\CacheManager;
 use App\Utilities\Managers\Data\ModuleManager;
@@ -34,7 +35,8 @@ class HealthManager implements HealthManagerInterface
         private readonly Router $router,
         private readonly EventDispatcherInterface $events,
         private readonly AuditLoggerInterface $audit,
-        private readonly FrameworkDoctorInterface $doctor
+        private readonly FrameworkDoctorInterface $doctor,
+        private readonly ?ShippingManager $shipping = null
     ) {
     }
 
@@ -119,6 +121,15 @@ class HealthManager implements HealthManagerInterface
                 'flows' => $this->payments->supportedFlows(),
                 'capabilities' => $this->payments->capabilities(),
                 'catalog' => $this->payments->driverCatalog(),
+            ],
+            'shipping' => $this->shipping !== null ? [
+                'default_country' => $this->shipping->defaultCountry(),
+                'default_option' => $this->shipping->defaultOptionCode(),
+                'carriers' => $this->shipping->carrierCatalog(),
+                'adapter_catalog' => $this->shipping->adapterCatalog(),
+            ] : [
+                'carriers' => [],
+                'adapter_catalog' => [],
             ],
             'mail' => [
                 'driver' => $this->mail->driverName(),

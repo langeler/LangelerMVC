@@ -75,6 +75,7 @@ Responsibility split:
 - `QueueProvider`: queue driver resolution
 - `NotificationProvider`: notification channel resolution
 - `PaymentProvider`: payment driver resolution
+- `ShippingProvider`: carrier adapter resolution for shipping/service-point/label/tracking/cancellation operations
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -99,6 +100,7 @@ These layers are intentionally reusable. Application code is expected to extend 
 - `Cryptography`: `OpenSSLCrypto`, `SodiumCrypto`
 - `Notifications`: `MailNotificationChannel`, `DatabaseNotificationChannel`
 - `Payments`: `TestingPaymentDriver`, `CardPaymentDriver`, `CryptoPaymentDriver`, `PayPalPaymentDriver`, `KlarnaPaymentDriver`, `SwishPaymentDriver`, `QliroPaymentDriver`, `WalleyPaymentDriver`
+- `Shipping`: `PostNordCarrierAdapter`, `InstaboxCarrierAdapter`, `BudbeeCarrierAdapter`, `BringCarrierAdapter`, `DhlCarrierAdapter`, `SchenkerCarrierAdapter`, `EarlyBirdCarrierAdapter`, `AirmeeCarrierAdapter`, `UpsCarrierAdapter`
 - `Queue`: `SyncQueueDriver`, `DatabaseQueueDriver`
 - `Passkeys`: `TestingPasskeyDriver`, `WebAuthnPasskeyDriver`
 - `Session`: `FileSessionDriver`, `DatabaseSessionDriver`, `RedisSessionDriver`, `EncryptedSessionDriver`

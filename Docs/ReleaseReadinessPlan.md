@@ -4,7 +4,7 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping adapters with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, and installer rollback are all present.
 
 The remaining work is now the final production layer: release hygiene, live integration credentials/adapters, environment matrix verification, deployment recipe validation, and browser/accessibility smoke passes.
 
@@ -48,14 +48,14 @@ Promotions should be treated as rules plus benefits.
 ## P1 - Live Integration Closure
 
 - Payment webhook routes, signature verification, event idempotency, event ledgers, order reconciliation, and provider callback documentation are implemented.
-- Carrier integration seams are implemented in reference mode: label references, service-point lookup, shipment booking, tracking sync, cancellation, admin-native routes, installer/env settings, and coverage for the Swedish carrier catalog.
+- Carrier integration seams are implemented through provider-backed adapters in reference mode: label references, service-point lookup, shipment booking, tracking sync, cancellation, admin-native routes, installer/env settings, and first-party coverage for the Swedish carrier catalog.
 - Subscription provider event ingestion is implemented for recurring payment success/renewal, failure/dunning, pause, resume, cancellation, idempotency, and renewal-order creation. Remaining live work is provider-specific merchant credentialing and adapter execution where the payment provider does not fully own recurring billing.
 
 ## Exact Remaining Work After Current Slice
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
 - P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, and confirming no runtime-generated secrets or local artifacts are tracked.
-- P1: replace the reference carrier adapter with live provider adapters/credentials where needed for PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
+- P1: configure live carrier adapter credentials/endpoints where needed for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and related tracking-app handoff flows such as Mina Paket.
 - P1: wire live subscription provider adapters/merchant credentials where needed for production billing providers, keeping the new framework subscription webhook/runtime boundary as the shared contract.
 - P2: run browser/accessibility smoke passes for public and admin templates and fix any findings.
 - P2: keep deployment and upgrade recipes validated against the target host before tagging.

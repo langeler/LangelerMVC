@@ -48,6 +48,7 @@ LangelerMVC
 │   │   │   ├── ResourceCollection.php
 │   │   │   ├── View.php
 │   │   ├── Support
+│   │   │   ├── CarrierAdapter.php
 │   │   │   ├── Mailable.php
 │   │   │   ├── Notification.php
 │   │   │   ├── PaymentDriver.php
@@ -115,6 +116,7 @@ LangelerMVC
 │   │   │   ├── SessionDriverInterface.php
 │   │   ├── Support
 │   │   │   ├── AuditLoggerInterface.php
+│   │   │   ├── CarrierAdapterInterface.php
 │   │   │   ├── HealthManagerInterface.php
 │   │   │   ├── MailerInterface.php
 │   │   │   ├── NotifiableInterface.php
@@ -164,6 +166,16 @@ LangelerMVC
 │   │   │   ├── SwishPaymentDriver.php
 │   │   │   ├── TestingPaymentDriver.php
 │   │   │   ├── WalleyPaymentDriver.php
+│   │   ├── Shipping
+│   │   │   ├── AirmeeCarrierAdapter.php
+│   │   │   ├── BringCarrierAdapter.php
+│   │   │   ├── BudbeeCarrierAdapter.php
+│   │   │   ├── DhlCarrierAdapter.php
+│   │   │   ├── EarlyBirdCarrierAdapter.php
+│   │   │   ├── InstaboxCarrierAdapter.php
+│   │   │   ├── PostNordCarrierAdapter.php
+│   │   │   ├── SchenkerCarrierAdapter.php
+│   │   │   ├── UpsCarrierAdapter.php
 │   │   ├── Queue
 │   │   │   ├── DatabaseQueueDriver.php
 │   │   │   ├── SyncQueueDriver.php
@@ -467,6 +479,7 @@ LangelerMVC
 │   │   ├── NotificationProvider.php
 │   │   ├── PaymentProvider.php
 │   │   ├── QueueProvider.php
+│   │   ├── ShippingProvider.php
 │   ├── Resources
 │   │   ├── css
 │   │   │   ├── README.md
@@ -476,6 +489,9 @@ LangelerMVC
 │   │   │   ├── README.md
 │   ├── Support
 │   │   ├── ArrayMailable.php
+│   │   ├── Commerce
+│   │   │   ├── ShippingManager.php
+│   │   │   ├── SubscriptionManager.php
 │   │   ├── Payments
 │   │   │   ├── PaymentFlow.php
 │   │   │   ├── PaymentIntent.php
@@ -685,6 +701,7 @@ LangelerMVC
 │   ├── NativeToTraitConsistencyAudit.md
 │   ├── OperationsGuide.md
 │   ├── PaymentDrivers.md
+│   ├── ShippingAdapters.md
 │   ├── README.md
 │   ├── SanitationValidationAPI.md
 │   ├── Untitled 5.rtf

@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (135 tests, 3041 assertions)`
+- Verification result: `OK (140 tests, 3140 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -74,6 +74,7 @@ This document records the current implementation state of LangelerMVC based on t
 - notification manager with mail/database channels
 - payment manager with a plug-and-play multi-driver compatibility surface
 - first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
+- shipping manager with a provider-backed carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket tracking-app handoff metadata
 - signed/idempotent payment webhook ingestion with event ledgers and order lifecycle reconciliation
 - signed/idempotent subscription webhook ingestion with recurring renewal, dunning, cancellation, pause/resume, and renewal-order reconciliation
 - inventory reservation ledger support with reserve, commit, release, expiry, order attachment, and admin visibility

@@ -5,6 +5,7 @@
     $notifications = is_array($operations['notifications'] ?? null) ? $operations['notifications'] : [];
     $events = is_array($operations['events'] ?? null) ? $operations['events'] : [];
     $payments = is_array($operations['payments'] ?? null) ? $operations['payments'] : [];
+    $shipping = is_array($operations['shipping'] ?? null) ? $operations['shipping'] : [];
     $health = is_array($operations['health'] ?? null) ? $operations['health'] : [];
     $inventory = is_array($operations['inventory'] ?? null) ? $operations['inventory'] : [];
     $returns = is_array($operations['returns'] ?? null) ? $operations['returns'] : [];
@@ -80,6 +81,31 @@
             ],
             'rows' => is_array($payments['driver_rows'] ?? null) ? $payments['driver_rows'] : [],
             'empty' => 'No payment driver catalog is available.',
+        ])
+    </div>
+
+    <div class="section">
+        <h2>Carrier adapters</h2>
+        @component('DefinitionGrid', [
+            'items' => [
+                'Default country' => $shipping['country'] ?? '',
+                'Default option' => $shipping['default_option'] ?? '',
+                'Registered carriers' => count((array) ($shipping['carriers'] ?? [])),
+            ],
+            'empty' => 'No carrier adapter metadata is available.',
+        ])
+        @component('DataTable', [
+            'columns' => [
+                'carrier' => 'Carrier',
+                'label' => 'Label',
+                'service_levels' => 'Service levels',
+                'regions' => 'Regions',
+                'mode' => 'Mode',
+                'live_ready' => 'Live ready',
+                'missing' => 'Missing live settings',
+            ],
+            'rows' => is_array($shipping['adapter_rows'] ?? null) ? $shipping['adapter_rows'] : [],
+            'empty' => 'No carrier adapter catalog is available.',
         ])
     </div>
 

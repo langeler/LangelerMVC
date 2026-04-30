@@ -30,6 +30,7 @@ As of `2026-04-30`, the framework status, release readiness, and architecture do
 - `InstallationWizard.md`: first-run installer flow, what it configures, and post-install expectations.
 - `OperationsGuide.md`: health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - `PaymentDrivers.md`: first-party payment-driver matrix, supported method/flow/webhook taxonomy, and live-mode notes.
+- `ShippingAdapters.md`: first-party carrier adapter registry, Swedish carrier matrix, reference/live mode, and extension pattern.
 - `PresentationTemplating.md`: canonical `.vide` template authoring model, directives, and rendering flow.
 - `UtilitiesTraitsOverview.md`: practical overview of the reusable trait surface.
 - `UtilitiesTraitsReference.md`: generated method-by-method trait reference.

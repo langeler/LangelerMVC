@@ -168,7 +168,9 @@ Admin order pages now expose carrier operations without leaving the admin surfac
 
 - Supported reference carriers include PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
 - Operators can look up service points, book a shipment, create a label reference, mark an order shipped, sync tracking, cancel a shipment booking, and mark delivery through `/admin/orders/{id}` actions.
+- Carrier operations now flow through `ShippingProvider` and `CarrierAdapterInterface`, so projects can register live provider adapters without changing admin/order routes.
 - `COMMERCE_SHIPPING_INTEGRATION_MODE=reference` keeps the default adapter deterministic and safe for local/demo installs.
+- `COMMERCE_SHIPPING_ACTIVE_CARRIER`, `COMMERCE_SHIPPING_API_BASE`, `COMMERCE_SHIPPING_API_KEY`, `COMMERCE_SHIPPING_BOOKING_URL`, and `COMMERCE_SHIPPING_TRACKING_URL` are the generic live adapter inputs.
 - `COMMERCE_SHIPPING_AUTO_BOOK_LABELS=true` lets shipping auto-book a reference label when the operator ships without entering a tracking number.
 - `COMMERCE_SHIPPING_LABEL_FORMAT` and `COMMERCE_SHIPPING_LABEL_BASE_URL` control the generated label reference URL in reference mode.
 - Live carrier production use should swap this boundary for provider credentials/API calls while preserving the same admin routes and lifecycle actions.

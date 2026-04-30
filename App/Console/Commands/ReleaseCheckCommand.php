@@ -31,6 +31,7 @@ class ReleaseCheckCommand extends Command
         'Docs/DatabaseMatrixTesting.md',
         'Docs/InstallationWizard.md',
         'Docs/PaymentDrivers.md',
+        'Docs/ShippingAdapters.md',
     ];
 
     /**
@@ -51,7 +52,15 @@ class ReleaseCheckCommand extends Command
         'PAYMENT_WEBHOOK_SECRET_TESTING',
         'COMMERCE_CURRENCY',
         'COMMERCE_SHIPPING_INTEGRATION_MODE',
+        'COMMERCE_SHIPPING_ACTIVE_CARRIER',
         'COMMERCE_SHIPPING_AUTO_BOOK_LABELS',
+        'COMMERCE_SHIPPING_API_BASE',
+        'COMMERCE_SHIPPING_API_KEY',
+        'COMMERCE_SHIPPING_SERVICE_POINTS_URL',
+        'COMMERCE_SHIPPING_BOOKING_URL',
+        'COMMERCE_SHIPPING_TRACKING_URL',
+        'COMMERCE_SHIPPING_CANCELLATION_URL',
+        'COMMERCE_SHIPPING_TIMEOUT',
         'COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL',
         'COMMERCE_SUBSCRIPTION_MAX_RETRIES',
         'COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT',
@@ -285,9 +294,11 @@ class ReleaseCheckCommand extends Command
     {
         $fulfillmentTypes = array_keys((array) $this->config->get('commerce', 'FULFILLMENT.TYPES', []));
         $carriers = array_keys((array) $this->config->get('commerce', 'SHIPPING.CARRIERS', []));
+        $carrierAdapters = array_keys((array) $this->config->get('commerce', 'SHIPPING.ADAPTERS', []));
         $trackingApps = array_keys((array) $this->config->get('commerce', 'SHIPPING.TRACKING_APPS', []));
         $missingTypes = array_values(array_diff(self::REQUIRED_FULFILLMENT_TYPES, $fulfillmentTypes));
         $missingCarriers = array_values(array_diff(self::REQUIRED_SWEDISH_CARRIERS, $carriers));
+        $missingCarrierAdapters = array_values(array_diff(self::REQUIRED_SWEDISH_CARRIERS, $carrierAdapters));
         $errors = [];
 
         if ($missingTypes !== []) {
@@ -296,6 +307,10 @@ class ReleaseCheckCommand extends Command
 
         if ($missingCarriers !== []) {
             $errors[] = 'Missing Swedish carrier definitions: ' . implode(', ', $missingCarriers);
+        }
+
+        if ($missingCarrierAdapters !== []) {
+            $errors[] = 'Missing Swedish carrier adapter definitions: ' . implode(', ', $missingCarrierAdapters);
         }
 
         if (!in_array('mina_paket', $trackingApps, true)) {
@@ -316,6 +331,7 @@ class ReleaseCheckCommand extends Command
             'ok' => $errors === [],
             'fulfillment_types' => $fulfillmentTypes,
             'carriers' => $carriers,
+            'carrier_adapters' => $carrierAdapters,
             'tracking_apps' => $trackingApps,
             'errors' => $errors,
             'warnings' => [],
@@ -451,6 +467,14 @@ class ReleaseCheckCommand extends Command
             $warnings[] = 'Shipping integration mode is reference; live carrier credentials/adapters still need target-environment validation.';
         }
 
+        if ($shippingMode === 'live') {
+            foreach ($this->liveRequiredShippingFields() as $field) {
+                if (trim((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.' . $field, '')) === '') {
+                    $errors[] = sprintf('Live shipping integration is missing [%s].', $field);
+                }
+            }
+        }
+
         if ($sellerVatId === '' || $sellerAddress === '') {
             $warnings[] = 'Order document seller VAT/address fields should be filled before issuing production VAT documents.';
         }
@@ -461,6 +485,7 @@ class ReleaseCheckCommand extends Command
             'payment_mode' => $mode,
             'payment_webhook_secret_configured' => $webhookSecret !== '',
             'shipping_mode' => $shippingMode,
+            'shipping_active_carrier' => strtolower((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.ACTIVE_CARRIER', 'postnord')),
             'seller_vat_configured' => $sellerVatId !== '',
             'seller_address_configured' => $sellerAddress !== '',
             'errors' => $errors,
@@ -482,6 +507,14 @@ class ReleaseCheckCommand extends Command
             'walley' => ['WSDL_URL', 'USERNAME', 'PASSWORD', 'MERCHANT_ID', 'RETURN_URL'],
             default => [],
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function liveRequiredShippingFields(): array
+    {
+        return ['ACTIVE_CARRIER', 'API_BASE', 'API_KEY', 'BOOKING_URL', 'TRACKING_URL'];
     }
 
     /**

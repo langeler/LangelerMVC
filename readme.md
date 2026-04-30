@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-30`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (135 tests, 3041 assertions)`
+- `composer test` passes with `OK (140 tests, 3140 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
@@ -24,6 +24,7 @@ As of `2026-04-30`:
 - The framework now includes a first-party operational console, module-aware migration/seed runners, resource-based JSON response support, first-party file/database/redis session drivers with optional encrypted payload storage, framework-native mail/OTP/passkey boundaries, event dispatching, queue processing, notification channels, payment driver abstractions, and HTTP signed URL/throttling support.
 - The payment layer now exposes a plug-and-play compatibility surface with driver capability introspection, payment-method and flow discovery, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
 - First-party payment drivers now ship for `Credit / Debit Card`, `PayPal`, `Klarna`, `Swish`, `Qliro`, `Walley`, and `Crypto`, plus the framework testing/reference driver.
+- Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -66,10 +67,10 @@ In the current starter slice, `WebModule` follows:
 - `Abstracts/`: reusable framework base classes for data, database, HTTP, and presentation concerns.
 - `Contracts/`: interface surface for the abstractions and core layer, including console, presentation resource, session, and support contracts.
 - `Core/`: framework runtime services such as `App`, `Bootstrap`, `Config`, `Container`, `Database`, `MigrationRunner`, `Router`, `SeedRunner`, and `Session`.
-- `Drivers/`: low-level pluggable adapters for cache, crypto, notifications, payments, passkeys, queueing, and sessions.
+- `Drivers/`: low-level pluggable adapters for cache, crypto, notifications, payments, passkeys, queueing, shipping, and sessions.
 - `Exceptions/`: typed framework exception classes grouped by concern.
 - `Modules/`: application modules. `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party slices.
-- `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, queueing, exceptions, and modules.
+- `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, shipping, queueing, exceptions, and modules.
 - `Resources/`: source asset workspace that belongs to the application layer.
 - `Templates/`: shared native `.vide` template files used by module views, including layouts, pages, partials, and reusable components. `.lmv` and `.php` remain readable as compatibility fallbacks.
 - `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
@@ -116,6 +117,7 @@ The installer wizard now handles:
 - administrator provisioning
 - default database-backed `WebModule` setup
 - payment driver, method-family, and flow defaults for the first commerce-ready baseline
+- carrier adapter defaults for Swedish-first shipping, tracking, service-point, and label flows
 - commerce fulfillment, shipping, subscription, inventory reservation, return, and order-document defaults
 
 Manual `.env` editing is still supported, and `.env.example` remains the tracked baseline, but the intended production-first setup path is now the installer wizard rather than editing config files before first boot.
@@ -260,6 +262,7 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 - [`Docs/InstallationWizard.md`](./Docs/InstallationWizard.md): first-run installer flow, configuration coverage, and post-install expectations.
 - [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.
+- [`Docs/ShippingAdapters.md`](./Docs/ShippingAdapters.md): first-party carrier adapter matrix, reference/live mode, and extension pattern.
 - [`Docs/PresentationTemplating.md`](./Docs/PresentationTemplating.md): canonical `.vide` template authoring, supported directives, and rendering flow.
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.

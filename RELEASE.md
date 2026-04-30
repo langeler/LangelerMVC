@@ -7,7 +7,7 @@ Use this checklist before tagging or deploying LangelerMVC.
 - Date: `2026-04-30`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (135 tests, 3041 assertions)`
+- Result: `OK (140 tests, 3140 assertions)`
 
 ## Required Verification
 
@@ -29,7 +29,7 @@ For production tagging, also run `php console release:check --strict=1`. Strict 
 - Confirm migrations have run, including promotion, fulfillment, entitlement, subscription, inventory reservation, return/document, order-state, and audit/queue tables.
 - Confirm admin routes are protected by authentication and RBAC.
 - Confirm payment and subscription provider credentials, webhook URLs, return URLs, and callback signatures are configured before live mode.
-- Confirm carrier/shipping integrations are configured for the target region, especially Swedish carrier flows when enabled.
+- Confirm carrier/shipping adapters are configured for the target region, especially Swedish carrier flows for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket handoff expectations.
 - Confirm commerce settings for shipping, pickup/pre-order, subscriptions, inventory reservations, returns, and order documents match the target store policy.
 - Confirm `COMMERCE_DOCUMENTS_*`, `COMMERCE_RETURNS_*`, and `COMMERCE_INVENTORY_*` values were reviewed after installer generation.
 - Run browser/accessibility smoke checks for the public storefront, installer, and admin operator pages before tagging a public release.

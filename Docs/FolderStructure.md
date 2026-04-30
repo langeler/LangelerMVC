@@ -62,6 +62,7 @@ Low-level adapters for pluggable infrastructure concerns:
 - `Cryptography/`: concrete crypto drivers
 - `Notifications/`: concrete notification channel drivers
 - `Payments/`: concrete payment drivers (`TestingPaymentDriver`, `CardPaymentDriver`, `CryptoPaymentDriver`, `PayPalPaymentDriver`, `KlarnaPaymentDriver`, `SwishPaymentDriver`, `QliroPaymentDriver`, `WalleyPaymentDriver`)
+- `Shipping/`: concrete carrier adapters (`PostNordCarrierAdapter`, `InstaboxCarrierAdapter`, `BudbeeCarrierAdapter`, `BringCarrierAdapter`, `DhlCarrierAdapter`, `SchenkerCarrierAdapter`, `EarlyBirdCarrierAdapter`, `AirmeeCarrierAdapter`, `UpsCarrierAdapter`)
 - `Passkeys/`: concrete passkey drivers
 - `Queue/`: concrete queue drivers
 - `Session/`: concrete file, database, redis, and encrypted session drivers

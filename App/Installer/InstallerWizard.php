@@ -439,7 +439,7 @@ final class InstallerWizard
         }
 
         if (in_array($data['CACHE_DRIVER'], ['memcache'], true) && !extension_loaded('memcached')) {
-            throw new \InvalidArgumentException('The Memcache cache driver requires the memcached PHP extension.');
+            throw new \InvalidArgumentException('The Memcached cache driver requires the memcached PHP extension.');
         }
 
         if ($data['SESSION_DRIVER'] === 'redis' && !extension_loaded('redis')) {

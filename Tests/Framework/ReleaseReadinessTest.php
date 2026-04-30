@@ -20,6 +20,9 @@ final class ReleaseReadinessTest extends TestCase
         self::assertSame([], $payload['errors']);
         self::assertTrue((bool) $payload['checks']['release_docs']['ok']);
         self::assertTrue((bool) $payload['checks']['environment_template']['ok']);
+        self::assertTrue((bool) $payload['checks']['data_sql_reference']['ok']);
+        self::assertContains('Data/Orders.sql', $payload['checks']['data_sql_reference']['required_files']);
+        self::assertSame([], $payload['checks']['data_sql_reference']['stale_tables']);
         self::assertTrue((bool) $payload['checks']['framework_routes']['ok']);
         self::assertTrue((bool) $payload['checks']['module_surface']['ok']);
         self::assertArrayHasKey('OrderModule', $payload['checks']['module_surface']['modules']);

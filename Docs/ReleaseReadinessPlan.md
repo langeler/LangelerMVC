@@ -13,6 +13,7 @@ The remaining work is now the final production layer: live integration credentia
 - Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. The tracked secure cache key has been removed, and `Storage/Secure` stays ignored except for its README.
 - Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md`, `RELEASE.md`, and `Docs/DeploymentAndUpgrade.md` now act as release-facing anchors.
 - Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, payment provider endpoints, commerce inventory, returns, documents, and list-style env handling.
+- Keep `Data/*.sql` synchronized as release-reference schema snapshots generated from migrations; migrations remain authoritative, and local `.env` files remain deployment-specific and ignored.
 - Payment webhook environment parity is now included: installer defaults, `.env.example`, SettingsManager aliases, route integration, signature settings, and per-driver secrets are represented.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Run `composer release:check` as the local release gate and `php console release:check --strict=1` when validating a production tag candidate with live credentials and matrix extensions available.
@@ -54,7 +55,7 @@ Promotions should be treated as rules plus benefits.
 ## Exact Remaining Work After Current Slice
 
 - P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
-- P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, and confirming no runtime-generated secrets or local artifacts are tracked.
+- P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, keeping `Data/*.sql` migration-aligned, and confirming no runtime-generated secrets or local artifacts are tracked.
 - P1: configure live payment, webhook, subscription, and carrier credentials/endpoints per deployed project. These values intentionally remain outside the released repository.
 - P2: run browser/accessibility smoke passes for public and admin templates and fix any findings.
 - P2: keep deployment and upgrade recipes validated against the target host before tagging.

@@ -67,8 +67,8 @@ composer verify:release
 
 `php console release:check` is the executable local release gate.
 
-- It checks release docs, `.env.example` parity, release-critical routes, first-party module surface completeness, payment driver surface completeness, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
-- Normal mode fails only on local release blockers such as missing docs, missing env keys, missing routes, missing commerce definitions, raw PHP in native templates, images without alt text, or missing matrix compose services.
+- It checks release docs, `.env.example` parity, `Data/*.sql` release schema references, release-critical routes, first-party module surface completeness, payment driver surface completeness, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
+- Normal mode fails only on local release blockers such as missing docs, missing env keys, stale SQL references, missing routes, missing commerce definitions, raw PHP in native templates, images without alt text, or missing matrix compose services.
 - `--strict=1` also fails on unresolved release warnings such as reference-mode payment/shipping, missing live provider endpoints, empty active webhook secrets, missing seller VAT/address fields, or optional PHP extensions that are not loaded in the current environment.
 - `composer release:check` runs the command through Composer; `composer verify:release` chains Composer validation, the default regression suite, health liveness, and the release gate.
 
@@ -166,7 +166,7 @@ Admin order pages now include return/exchange and order-document workflows.
 
 Admin order pages now expose carrier operations without leaving the admin surface.
 
-- Supported reference carriers include PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
+- Supported reference carriers include PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
 - Operators can look up service points, book a shipment, create a label reference, mark an order shipped, sync tracking, cancel a shipment booking, and mark delivery through `/admin/orders/{id}` actions.
 - Carrier operations now flow through `ShippingProvider` and `CarrierAdapterInterface`, so projects can register live provider adapters without changing admin/order routes.
 - `COMMERCE_SHIPPING_INTEGRATION_MODE=reference` keeps the default adapter deterministic and safe for local/demo installs.

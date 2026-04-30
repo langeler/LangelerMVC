@@ -20,7 +20,7 @@ This document turns the release checklist into practical operator recipes. It is
 
 - Confirm payment provider credentials, webhook URLs, webhook secrets, return URLs, and callback/firewall rules before enabling live mode.
 - Confirm subscription provider ownership: provider-managed recurring billing should emit subscription webhooks; framework-managed renewal schedules should be backed by queue/cron execution.
-- Confirm carrier mode and credentials for PostNord, InstaBox, BudBee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and any Mina Paket tracking handoff behavior that the project enables.
+- Confirm carrier mode and credentials for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and any Mina Paket tracking handoff behavior that the project enables.
 - Confirm shipping is not charged for digital, virtual, subscription-only, or other non-shipped fulfillment lines.
 - Confirm pickup, scheduled pickup, and pre-order policies match the store promise before opening checkout.
 - Confirm `COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT`, `COMMERCE_INVENTORY_RELEASE_ON_CANCEL`, and `COMMERCE_INVENTORY_RESERVATION_TTL_MINUTES` match the stock-hold policy.

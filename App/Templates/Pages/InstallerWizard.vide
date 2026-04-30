@@ -190,7 +190,7 @@
                         <div class="field">
                             <label for="CACHE_DRIVER">Cache Driver</label>
                             <select id="CACHE_DRIVER" name="CACHE_DRIVER">
-                                @foreach(['file' => 'File', 'array' => 'Array', 'database' => 'Database', 'redis' => 'Redis', 'memcache' => 'Memcache'] as $value => $label)
+                                @foreach(['file' => 'File', 'array' => 'Array', 'database' => 'Database', 'redis' => 'Redis', 'memcache' => 'Memcached'] as $value => $label)
                                     <option value="{{ $value }}" @if($cacheDriver === $value) selected @endif>{{ $label }}</option>
                                 @endforeach
                             </select>

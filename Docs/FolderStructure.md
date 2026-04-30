@@ -164,7 +164,17 @@ Notable current files include:
 
 ### `Data`
 
-Standalone SQL reference files. They remain in the repository as reference material, but the framework now has its own migration and seed lifecycle under `App/Core`, `App/Abstracts/Database`, and module `Migrations/` / `Seeds/`.
+Release-reference SQLite schema snapshots generated from the framework and first-party module migrations. They remain in the repository for review, onboarding, and release auditing, but the authoritative runtime schema still lives under `App/Framework/Migrations`, `App/Core`, `App/Abstracts/Database`, and module `Migrations/` / `Seeds/`.
+
+Current grouped snapshots:
+
+- `Framework.sql`
+- `Web.sql`
+- `Users.sql`
+- `Products.sql`
+- `Carts.sql`
+- `Orders.sql`
+- `README.md`
 
 ### `Docs`
 

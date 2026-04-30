@@ -58,6 +58,8 @@ docker compose -f docker-compose.verify.yml up -d
 - Do not introduce vendor-specific payment or infrastructure logic into framework core abstractions.
 - Keep HTML and JSON parity intact across first-party modules.
 - Preserve module structure conventions under `App/Modules/*`.
+- Keep class-bearing PHP files aligned with their path-derived namespace and filename-derived class/interface/enum/trait name.
+- If migrations change, update the grouped `Data/*.sql` release-reference snapshots and `Data/README.md`.
 
 ## Documentation Expectations
 
@@ -69,6 +71,7 @@ The following docs should stay aligned with meaningful framework changes:
 - `Docs/ModulesStructure.md`
 - `Docs/OperationsGuide.md`
 - `Docs/DatabaseMatrixTesting.md`
+- `Data/README.md` and `Data/*.sql` when schema migrations change
 
 If you add or remove tracked top-level or architectural files, update `Docs/CompleteStructure.md` as well.
 

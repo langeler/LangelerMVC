@@ -21,6 +21,7 @@ As of `2026-04-30`, the framework status, release readiness, and architecture do
 - `FolderStructure.md`: the current repository layout by layer and responsibility.
 - `ModulesStructure.md`: module conventions, module loading, and the current state of each module.
 - `CompleteStructure.md`: a full repository tree snapshot kept for visual orientation.
+- `../Data/README.md`: release-reference SQL snapshot notes for the grouped `Data/*.sql` files.
 
 ## Subsystem And Reference Docs
 

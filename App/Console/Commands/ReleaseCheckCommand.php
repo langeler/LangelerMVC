@@ -151,6 +151,66 @@ class ReleaseCheckCommand extends Command
     ];
 
     /**
+     * @var array<string, list<string>>
+     */
+    private const REQUIRED_DATA_SQL = [
+        'Data/Framework.sql' => [
+            'framework_migrations',
+            'framework_migration_locks',
+            'framework_jobs',
+            'framework_failed_jobs',
+            'framework_audit_log',
+        ],
+        'Data/Web.sql' => [
+            'pages',
+        ],
+        'Data/Users.sql' => [
+            'users',
+            'roles',
+            'permissions',
+            'user_roles',
+            'role_permissions',
+            'user_auth_tokens',
+            'user_passkeys',
+        ],
+        'Data/Products.sql' => [
+            'categories',
+            'products',
+        ],
+        'Data/Carts.sql' => [
+            'carts',
+            'cart_items',
+            'promotions',
+            'promotion_usages',
+        ],
+        'Data/Orders.sql' => [
+            'orders',
+            'order_items',
+            'order_addresses',
+            'order_entitlements',
+            'order_subscriptions',
+            'inventory_reservations',
+            'order_returns',
+            'order_documents',
+            'payment_webhook_events',
+        ],
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const STALE_DATA_SQL_TABLES = [
+        'coupons',
+        'product_variations',
+        'product_images',
+        'shipment_tracking',
+        'order_details',
+        'user_details',
+        'user_addresses',
+        'user_security',
+    ];
+
+    /**
      * @var list<string>
      */
     private const REQUIRED_ROUTES = [
@@ -260,6 +320,7 @@ class ReleaseCheckCommand extends Command
         $checks = [
             'release_docs' => $this->releaseDocsCheck(),
             'environment_template' => $this->environmentTemplateCheck(),
+            'data_sql_reference' => $this->dataSqlReferenceCheck(),
             'framework_routes' => $this->routeCheck(),
             'module_surface' => $this->moduleSurfaceCheck(),
             'payment_surface' => $this->paymentSurfaceCheck(),
@@ -365,6 +426,68 @@ class ReleaseCheckCommand extends Command
             'runtime_unknown_env_keys' => $unknown,
             'errors' => $missing === [] ? [] : ['Missing .env.example release keys: ' . implode(', ', $missing)],
             'warnings' => $unknown === [] ? [] : ['Runtime .env has unknown keys: ' . implode(', ', $unknown)],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dataSqlReferenceCheck(): array
+    {
+        $missingFiles = [];
+        $missingTables = [];
+        $staleTables = [];
+
+        foreach (self::REQUIRED_DATA_SQL as $file => $tables) {
+            $contents = $this->read($file);
+
+            if ($contents === '') {
+                $missingFiles[] = $file;
+                continue;
+            }
+
+            foreach ($tables as $table) {
+                if (!preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`\[]?' . preg_quote($table, '/') . '["`\]]?/i', $contents)) {
+                    $missingTables[] = $file . ':' . $table;
+                }
+            }
+
+            foreach (self::STALE_DATA_SQL_TABLES as $table) {
+                if (preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`\[]?' . preg_quote($table, '/') . '["`\]]?/i', $contents)) {
+                    $staleTables[] = $file . ':' . $table;
+                }
+            }
+        }
+
+        $readme = $this->read('Data/README.md');
+
+        if ($readme === '') {
+            $missingFiles[] = 'Data/README.md';
+        }
+
+        $errors = [];
+
+        if ($missingFiles !== []) {
+            $errors[] = 'Missing Data SQL release references: ' . implode(', ', $missingFiles);
+        }
+
+        if ($missingTables !== []) {
+            $errors[] = 'Data SQL references are missing release tables: ' . implode(', ', $missingTables);
+        }
+
+        if ($staleTables !== []) {
+            $errors[] = 'Data SQL references still contain stale pre-release tables: ' . implode(', ', $staleTables);
+        }
+
+        return [
+            'ok' => $errors === [],
+            'required_files' => array_values(array_keys(self::REQUIRED_DATA_SQL)),
+            'required_table_count' => array_sum(array_map('count', self::REQUIRED_DATA_SQL)),
+            'missing_files' => array_values(array_unique($missingFiles)),
+            'missing_tables' => array_values(array_unique($missingTables)),
+            'stale_tables' => array_values(array_unique($staleTables)),
+            'errors' => $errors,
+            'warnings' => [],
         ];
     }
 

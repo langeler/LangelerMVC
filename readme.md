@@ -11,7 +11,7 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 As of `2026-04-30`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (141 tests, 3156 assertions)`
+- `composer test` passes with `OK (143 tests, 3162 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
@@ -78,7 +78,7 @@ In the current starter slice, `WebModule` follows:
 ### Other Root Folders
 
 - `Config/`: runtime configuration arrays loaded by the config facade and merged with `.env` overrides at runtime.
-- `Data/`: standalone SQL reference files kept as reference material beside the framework-managed migration system.
+- `Data/`: release-reference SQLite schema snapshots generated from the framework-managed migration system.
 - `Docs/`: current architecture and structure docs, plus older reference materials kept in the repository.
 - `Public/`: the public document root, front controller, Apache config, and public asset folders, including tracked storefront demo imagery.
 - `Public/install/index.php`: the installer entrypoint for first-run setup.
@@ -156,7 +156,7 @@ php console route:list
 For a clean production-style verification pass, the framework now ships with:
 
 - `composer verify:platform` for the default regression suite plus a health check
-- `composer release:check` for release docs, env parity, critical routes, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
+- `composer release:check` for release docs, env parity, `Data/*.sql` schema references, critical routes, module/payment surfaces, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
 - `composer verify:release` for Composer metadata validation, the default regression suite, health liveness, and release gate execution
 - `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
 - `docker-compose.verify.yml` for local MySQL/PostgreSQL/SQL Server/Redis/Memcached verification
@@ -287,7 +287,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - completed HTML + JSON presentation parity across first-party modules
 - a database-backed starter module plus user/admin/shop/cart/order slices
 
-The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcache-backed runtime verification where those services exist, project-specific live payment/subscription/carrier credentials, browser/accessibility smoke passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
+The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcached-backed runtime verification where those services exist, project-specific live payment/subscription/carrier credentials, browser/accessibility smoke passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
 
 ## Support
 

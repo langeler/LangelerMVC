@@ -1,76 +1,53 @@
--- Create the orders table
-CREATE TABLE IF NOT EXISTS orders (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NULL,
-    guest_id INT NULL,
-    status VARCHAR(50) NOT NULL,
-    subtotal DECIMAL(10, 2) NOT NULL,
-    total DECIMAL(10, 2) NOT NULL,
-    tax DECIMAL(10, 2) NOT NULL,
-    coupon_id INT NULL,
-    discount_value DECIMAL(10, 2) DEFAULT 0,
-    shipment_tracking_id INT NULL,
-    created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    modified DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (guest_id) REFERENCES guests(id),
-    FOREIGN KEY (coupon_id) REFERENCES coupons(id),
-    FOREIGN KEY (shipment_tracking_id) REFERENCES shipment_tracking(id),
-    CHECK (
-        (user_id IS NOT NULL AND guest_id IS NULL) OR 
-        (user_id IS NULL AND guest_id IS NOT NULL)
-    )
-);
+-- LangelerMVC release schema reference
+-- Generated from framework and first-party module migrations.
+-- SQLite-compatible reference SQL; migrations remain the authoritative runtime source.
+-- Do not store live credentials, secrets, or deployment-local data in Data/*.sql.
 
--- Create the order_items table
-CREATE TABLE IF NOT EXISTS order_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT NOT NULL,
-    product_id INT NOT NULL,
-    variation_id INT NULL,
-    quantity INT NOT NULL,
-    subtotal DECIMAL(10, 2) NOT NULL,
-    tax DECIMAL(10, 2) NOT NULL,
-    total DECIMAL(10, 2) NOT NULL,
-    created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    modified DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id),
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (variation_id) REFERENCES product_variations(id)
-);
+-- orders
+CREATE TABLE "orders" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "user_id" BIGINT NULL, "cart_id" BIGINT NULL, "order_number" VARCHAR(64) NOT NULL, "contact_name" VARCHAR(191) NOT NULL, "contact_email" VARCHAR(191) NOT NULL, "status" VARCHAR(32) NOT NULL DEFAULT 'placed', "payment_status" VARCHAR(32) NOT NULL DEFAULT 'authorized', "payment_driver" VARCHAR(64) NOT NULL DEFAULT 'testing', "payment_method" VARCHAR(32) NOT NULL DEFAULT 'card', "payment_flow" VARCHAR(32) NOT NULL DEFAULT 'authorize_capture', "payment_reference" VARCHAR(191) NULL, "payment_provider_reference" VARCHAR(191) NULL, "payment_external_reference" VARCHAR(191) NULL, "payment_webhook_reference" VARCHAR(191) NULL, "payment_idempotency_key" VARCHAR(191) NULL, "payment_customer_action_required" INTEGER NOT NULL DEFAULT 0, "currency" VARCHAR(12) NOT NULL DEFAULT 'SEK', "subtotal_minor" INT NOT NULL DEFAULT 0, "total_minor" INT NOT NULL DEFAULT 0, "payment_next_action" TEXT NULL, "payment_intent" TEXT NOT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, "discount_minor" INTEGER NOT NULL DEFAULT 0, "shipping_minor" INTEGER NOT NULL DEFAULT 0, "tax_minor" INTEGER NOT NULL DEFAULT 0, "fulfillment_status" VARCHAR(40) NOT NULL DEFAULT 'unfulfilled', "inventory_status" VARCHAR(40) NOT NULL DEFAULT 'unreserved', "discount_code" VARCHAR(64), "discount_label" VARCHAR(191), "discount_snapshot" JSON, "shipping_country" VARCHAR(8) NOT NULL DEFAULT 'SE', "shipping_zone" VARCHAR(24) NOT NULL DEFAULT 'SE', "shipping_option" VARCHAR(80) NOT NULL DEFAULT 'postnord-service-point', "shipping_option_label" VARCHAR(191) NOT NULL DEFAULT 'PostNord Service Point', "shipping_carrier" VARCHAR(64) NOT NULL DEFAULT 'postnord', "shipping_carrier_label" VARCHAR(191) NOT NULL DEFAULT 'PostNord', "shipping_service" VARCHAR(80) NOT NULL DEFAULT 'service_point', "shipping_service_label" VARCHAR(191) NOT NULL DEFAULT 'Service Point', "shipping_service_point_id" VARCHAR(120), "shipping_service_point_name" VARCHAR(191), "tracking_number" VARCHAR(191), "tracking_url" VARCHAR(255), "shipment_reference" VARCHAR(191), "tracking_events" JSON, "shipped_at" TIMESTAMP, "delivered_at" TIMESTAMP, UNIQUE ("order_number"), UNIQUE ("payment_idempotency_key"), FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE, FOREIGN KEY ("cart_id") REFERENCES "carts"("id") ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE INDEX "orders_user_id_status_idx" ON "orders" ("user_id", "status");
 
--- Create the order_details table
-CREATE TABLE IF NOT EXISTS order_details (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT NOT NULL,
-    first_name VARCHAR(255) NOT NULL,
-    last_name VARCHAR(255) NOT NULL,
-    phone_number VARCHAR(20),
-    address_type VARCHAR(50) NOT NULL, -- e.g., 'home', 'work', etc.
-    address VARCHAR(255) NOT NULL,
-    address_secondary VARCHAR(255), -- Optional
-    residence VARCHAR(100),
-    instructions TEXT, -- Optional
-    city VARCHAR(100) NOT NULL,
-    state VARCHAR(100) NOT NULL,
-    postal_code VARCHAR(20) NOT NULL,
-    country VARCHAR(100) NOT NULL,
-    created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    modified DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-);
+-- order_items
+CREATE TABLE "order_items" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NOT NULL, "product_id" BIGINT NULL, "product_name" VARCHAR(191) NOT NULL, "quantity" INT NOT NULL DEFAULT 1, "unit_price_minor" INT NOT NULL DEFAULT 0, "line_total_minor" INT NOT NULL DEFAULT 0, "metadata" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE INDEX "order_items_order_id_product_id_idx" ON "order_items" ("order_id", "product_id");
 
--- Create the shipment_tracking table
-CREATE TABLE IF NOT EXISTS shipment_tracking (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT NOT NULL,
-    carrier VARCHAR(255) NOT NULL,
-    tracking_number VARCHAR(255) NOT NULL,
-    status VARCHAR(255) NOT NULL,
-    estimated_delivery DATETIME,
-    shipped_at DATETIME,
-    delivered_at DATETIME,
-    created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    modified DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id)
-);
+-- order_addresses
+CREATE TABLE "order_addresses" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NOT NULL, "type" VARCHAR(32) NOT NULL, "name" VARCHAR(191) NOT NULL, "line_one" VARCHAR(191) NOT NULL, "line_two" VARCHAR(191) NULL, "postal_code" VARCHAR(50) NOT NULL, "city" VARCHAR(120) NOT NULL, "country" VARCHAR(120) NOT NULL, "email" VARCHAR(191) NOT NULL, "phone" VARCHAR(80) NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE INDEX "order_addresses_order_id_type_idx" ON "order_addresses" ("order_id", "type");
+
+-- order_entitlements
+CREATE TABLE "order_entitlements" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NOT NULL, "order_item_id" BIGINT NULL, "user_id" BIGINT NULL, "product_id" BIGINT NULL, "type" VARCHAR(40) NOT NULL, "status" VARCHAR(32) NOT NULL DEFAULT 'pending', "label" VARCHAR(191) NOT NULL, "access_key" VARCHAR(96) NOT NULL, "access_url" VARCHAR(255) NULL, "download_limit" INT NOT NULL DEFAULT 0, "downloads_used" INT NOT NULL DEFAULT 0, "starts_at" TEXT NULL, "expires_at" TEXT NULL, "last_accessed_at" TEXT NULL, "metadata" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, UNIQUE ("access_key"), FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("order_item_id") REFERENCES "order_items"("id") ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE INDEX "order_entitlements_order_id_status_idx" ON "order_entitlements" ("order_id", "status");
+CREATE INDEX "order_entitlements_product_id_type_idx" ON "order_entitlements" ("product_id", "type");
+CREATE INDEX "order_entitlements_user_id_status_idx" ON "order_entitlements" ("user_id", "status");
+
+-- order_subscriptions
+CREATE TABLE "order_subscriptions" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NOT NULL, "order_item_id" BIGINT NULL, "user_id" BIGINT NULL, "product_id" BIGINT NULL, "entitlement_id" BIGINT NULL, "latest_order_id" BIGINT NULL, "subscription_key" VARCHAR(96) NOT NULL, "plan_code" VARCHAR(96) NOT NULL, "plan_label" VARCHAR(191) NOT NULL, "status" VARCHAR(32) NOT NULL DEFAULT 'active', "interval" VARCHAR(24) NOT NULL DEFAULT 'monthly', "interval_count" INT NOT NULL DEFAULT 1, "quantity" INT NOT NULL DEFAULT 1, "amount_minor" INT NOT NULL DEFAULT 0, "currency" VARCHAR(12) NOT NULL DEFAULT 'SEK', "trial_ends_at" TEXT NULL, "current_period_start" TEXT NULL, "current_period_end" TEXT NULL, "next_billing_at" TEXT NULL, "next_retry_at" TEXT NULL, "retry_count" INT NOT NULL DEFAULT 0, "max_retries" INT NOT NULL DEFAULT 3, "renewal_count" INT NOT NULL DEFAULT 0, "payment_driver" VARCHAR(64) NOT NULL DEFAULT 'testing', "provider_subscription_reference" VARCHAR(191) NULL, "provider_customer_reference" VARCHAR(191) NULL, "cancellation_reason" VARCHAR(191) NULL, "paused_at" TEXT NULL, "resumed_at" TEXT NULL, "cancelled_at" TEXT NULL, "metadata" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, UNIQUE ("subscription_key"), FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("order_item_id") REFERENCES "order_items"("id") ON DELETE SET NULL ON UPDATE CASCADE, FOREIGN KEY ("entitlement_id") REFERENCES "order_entitlements"("id") ON DELETE SET NULL ON UPDATE CASCADE, FOREIGN KEY ("latest_order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE INDEX "order_subscriptions_next_billing_at_status_idx" ON "order_subscriptions" ("next_billing_at", "status");
+CREATE INDEX "order_subscriptions_order_id_status_idx" ON "order_subscriptions" ("order_id", "status");
+CREATE INDEX "order_subscriptions_product_id_status_idx" ON "order_subscriptions" ("product_id", "status");
+CREATE INDEX "order_subscriptions_provider_subscription_reference_payment_driver_idx" ON "order_subscriptions" ("provider_subscription_reference", "payment_driver");
+CREATE INDEX "order_subscriptions_user_id_status_idx" ON "order_subscriptions" ("user_id", "status");
+
+-- inventory_reservations
+CREATE TABLE "inventory_reservations" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NULL, "cart_id" BIGINT NULL, "product_id" BIGINT NOT NULL, "reservation_key" VARCHAR(96) NOT NULL, "quantity" INT NOT NULL DEFAULT 1, "status" VARCHAR(32) NOT NULL DEFAULT 'reserved', "source" VARCHAR(64) NOT NULL DEFAULT 'checkout', "expires_at" TEXT NULL, "committed_at" TEXT NULL, "released_at" TEXT NULL, "metadata" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE, FOREIGN KEY ("cart_id") REFERENCES "carts"("id") ON DELETE SET NULL ON UPDATE CASCADE, FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE);
+CREATE INDEX "inventory_reservations_cart_id_status_idx" ON "inventory_reservations" ("cart_id", "status");
+CREATE INDEX "inventory_reservations_expires_at_status_idx" ON "inventory_reservations" ("expires_at", "status");
+CREATE INDEX "inventory_reservations_order_id_status_idx" ON "inventory_reservations" ("order_id", "status");
+CREATE INDEX "inventory_reservations_product_id_status_idx" ON "inventory_reservations" ("product_id", "status");
+CREATE INDEX "inventory_reservations_reservation_key_idx" ON "inventory_reservations" ("reservation_key");
+
+-- order_returns
+CREATE TABLE "order_returns" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NOT NULL, "order_item_id" BIGINT NULL, "exchange_product_id" BIGINT NULL, "return_number" VARCHAR(64) NOT NULL, "type" VARCHAR(32) NOT NULL DEFAULT 'return', "status" VARCHAR(32) NOT NULL DEFAULT 'requested', "quantity" INT NOT NULL DEFAULT 1, "refund_minor" INT NOT NULL DEFAULT 0, "currency" VARCHAR(12) NOT NULL DEFAULT 'SEK', "reason" VARCHAR(191) NULL, "resolution" TEXT NULL, "restock" INTEGER NOT NULL DEFAULT 0, "metadata" TEXT NULL, "approved_at" TEXT NULL, "completed_at" TEXT NULL, "rejected_at" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, UNIQUE ("return_number"), FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("order_item_id") REFERENCES "order_items"("id") ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE INDEX "order_returns_order_id_status_idx" ON "order_returns" ("order_id", "status");
+CREATE INDEX "order_returns_order_item_id_idx" ON "order_returns" ("order_item_id");
+
+-- order_documents
+CREATE TABLE "order_documents" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "order_id" BIGINT NOT NULL, "return_id" BIGINT NULL, "document_number" VARCHAR(80) NOT NULL, "type" VARCHAR(32) NOT NULL DEFAULT 'invoice', "status" VARCHAR(32) NOT NULL DEFAULT 'issued', "currency" VARCHAR(12) NOT NULL DEFAULT 'SEK', "subtotal_minor" INT NOT NULL DEFAULT 0, "discount_minor" INT NOT NULL DEFAULT 0, "shipping_minor" INT NOT NULL DEFAULT 0, "tax_minor" INT NOT NULL DEFAULT 0, "total_minor" INT NOT NULL DEFAULT 0, "vat_rate_bps" INT NOT NULL DEFAULT 0, "seller_name" VARCHAR(191) NULL, "seller_vat_id" VARCHAR(80) NULL, "billing_country" VARCHAR(8) NULL, "notes" TEXT NULL, "content" TEXT NULL, "issued_at" TEXT NULL, "voided_at" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, UNIQUE ("document_number"), FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY ("return_id") REFERENCES "order_returns"("id") ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE INDEX "order_documents_order_id_type_idx" ON "order_documents" ("order_id", "type");
+CREATE INDEX "order_documents_return_id_idx" ON "order_documents" ("return_id");
+
+-- payment_webhook_events
+CREATE TABLE "payment_webhook_events" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "driver" VARCHAR(64) NOT NULL, "event_id" VARCHAR(191) NOT NULL, "order_id" BIGINT NULL, "order_reference" VARCHAR(191) NULL, "event_type" VARCHAR(120) NULL, "payment_status" VARCHAR(64) NULL, "processing_status" VARCHAR(32) NOT NULL DEFAULT 'received', "signature_verified" INTEGER NOT NULL DEFAULT 0, "payload" TEXT NULL, "message" TEXT NULL, "received_at" TEXT NULL, "processed_at" TEXT NULL, "created_at" TEXT NULL, "updated_at" TEXT NULL, UNIQUE ("driver", "event_id"), FOREIGN KEY ("order_id") REFERENCES "orders"("id") ON DELETE SET NULL ON UPDATE CASCADE);
+CREATE INDEX "payment_webhook_events_driver_processing_status_idx" ON "payment_webhook_events" ("driver", "processing_status");
+CREATE INDEX "payment_webhook_events_order_id_processing_status_idx" ON "payment_webhook_events" ("order_id", "processing_status");

@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (141 tests, 3156 assertions)`
+- Verification result: `OK (143 tests, 3162 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -101,6 +101,8 @@ This document records the current implementation state of LangelerMVC based on t
 - notification inspection command
 - event/listener inspection command
 - release readiness inspection command through `php console release:check`, including module-surface, payment-surface, commerce, route, docs, env, and template accessibility gates
+- release SQL reference inspection for `Data/*.sql`, including stale table detection for old pre-release schema names
+- repository consistency coverage for class/file/namespace naming across class-bearing `App/` PHP files
 - GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure
 
 ## Implemented First-Party Modules
@@ -221,7 +223,7 @@ The framework now has both a DB-matrix harness and a local backend verification 
 
 ### 2. Optional Runtime Backends
 
-Redis, Memcache/Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on the corresponding PHP extensions and services being installed in the target environment.
+Redis, Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on the corresponding PHP extensions and services being installed in the target environment.
 
 ### 3. Live Integration Breadth
 

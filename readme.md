@@ -3,8 +3,15 @@
 # LangelerMVC
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.4%2B-blue.svg)](https://www.php.net/)
+[![Release](https://img.shields.io/github/v/release/langeler/LangelerMVC?label=release)](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 
 LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles. It ships as a complete first-party platform baseline with native `.vide` templates, admin operations, commerce, payments, shipping, subscriptions, promotions, inventory, returns, VAT/order documents, health checks, audit tooling, and a guided installer.
+
+## Published Release
+
+The current public framework source release is [`v1.0.0`](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0), published on `2026-05-01`.
+
+This release is framework/package ready: the core runtime, first-party modules, installer, provider seams, docs, and release gates are complete and verified. Project go-live remains deployment-specific because live payment/subscription/carrier credentials, seller VAT/legal settings, optional matrix extensions, and browser/accessibility passes belong to each installed application environment.
 
 ## Verification Snapshot
 
@@ -299,7 +306,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - framework-wide Bootstrap-compatible light/dark/system theme management
 - a database-backed starter module plus user/admin/shop/cart/order slices
 
-The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution in provisioned environments, Redis/Memcached-backed runtime verification where those services/extensions exist, project-specific live payment/subscription/carrier credentials, full cross-browser visual/accessibility passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
+The framework release is complete. Remaining work is intentionally deployment-specific rather than missing platform implementation: live DB-matrix execution in provisioned environments, Redis/Memcached-backed runtime verification where those services/extensions exist, project-specific payment/subscription/carrier credentials, full cross-browser visual/accessibility passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
 
 ## Support
 

@@ -1,28 +1,30 @@
 # Release Checklist
 
-Use this checklist before tagging or deploying LangelerMVC.
+Use this checklist for future LangelerMVC maintenance releases and project deployments.
 
 ## Release Modes
 
-- Framework package release: acceptable when `composer validate --no-check-publish`, `composer test`, `composer ops:health`, and `composer release:check` pass, and repository docs/metadata are current.
+- Framework package release: acceptable when `composer validate --no-check-publish`, `composer test`, `composer ops:health`, and `composer release:check` pass, and repository docs/metadata are current. The current public framework source release is `v1.0.0`.
 - Project production go-live: requires the stricter deployment-specific checks, including live credentials, matrix services/extensions, VAT/legal seller data, live payment/subscription/carrier callbacks, and browser/accessibility smoke passes.
 - `php console release:check --strict=1` is the go-live posture check. It is allowed to fail for the public framework source release when failures are only deployment-local live integration warnings.
 
-## Latest Verified Snapshot
+## Published Release Snapshot / Latest Verified Snapshot
 
 - Date: `2026-05-01`
+- Release: `v1.0.0`
+- GitHub release: `https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
 - Result: `OK (146 tests, 3201 assertions)`
 - Local release gate: `composer release:check` returns `status=200`
 - Runtime backend harness: `composer test:runtime-backends` runs and skips cleanly when Redis/Memcached extensions are unavailable
 
-## Required Verification
+## Required Verification For Future Releases
 
 1. Run `composer test`.
 2. Run `composer verify:platform`.
 3. Run `composer release:check`.
-4. Run `composer verify:release` before tagging a release candidate.
+4. Run `composer verify:release` before preparing a release candidate.
 5. Run `composer test:db-matrix` against available MySQL, PostgreSQL, and SQL Server services.
 6. Run `composer test:runtime-backends` against available Redis and Memcached services/extensions.
 7. Run `composer ops:health` and confirm readiness checks match the target environment.
@@ -30,7 +32,7 @@ Use this checklist before tagging or deploying LangelerMVC.
 9. Confirm the guided installer stepper works with JavaScript enabled and that the full form remains usable when JavaScript is disabled.
 10. Confirm `Data/*.sql` remains a release-reference snapshot generated from migrations and does not contain stale pre-release table names.
 
-For production tagging, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, reference-mode carrier/payment adapters, or legal/VAT seller settings are still unresolved.
+For project production go-live validation, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, reference-mode carrier/payment adapters, or legal/VAT seller settings are still unresolved.
 
 ## Production Preflight
 
@@ -45,7 +47,7 @@ For production tagging, also run `php console release:check --strict=1`. Strict 
 - Confirm carrier/shipping adapters are configured for the target region, especially Swedish carrier flows for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket handoff expectations.
 - Confirm commerce settings for shipping, pickup/pre-order, subscriptions, inventory reservations, returns, and order documents match the target store policy.
 - Confirm `COMMERCE_DOCUMENTS_*`, `COMMERCE_RETURNS_*`, and `COMMERCE_INVENTORY_*` values were reviewed after installer generation.
-- Run browser/accessibility smoke checks for the public storefront, installer, and admin operator pages before tagging a public release. The local server smoke in this workspace verified `/`, `/install/`, and the tracked theme CSS/JS assets return `200 OK`.
+- Run browser/accessibility smoke checks for the public storefront, installer, and admin operator pages before a project go-live or future public release. The local server smoke in this workspace verified `/`, `/install/`, and the tracked theme CSS/JS assets return `200 OK`.
 
 ## Deployment Recipe
 
@@ -67,7 +69,7 @@ For production tagging, also run `php console release:check --strict=1`. Strict 
 5. Confirm admin order, promotion, operations, installer, and health pages load in the target browser matrix.
 6. Keep the previous release artifact and database backup available until payment webhooks, subscription events, queues, and carrier callbacks have been observed after deploy.
 
-## Release Notes
+## Release Notes For Future Releases
 
 - Update `CHANGELOG.md` with the tagged version and date.
 - Update `Docs/FrameworkStatus.md` with the latest test count and verification date.

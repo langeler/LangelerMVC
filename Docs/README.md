@@ -10,18 +10,20 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `../CONTRIBUTING.md`: contributor workflow, verification expectations, and coding standards for framework work.
 - `../SECURITY.md`: supported versions and responsible vulnerability disclosure guidance.
 - `../CHANGELOG.md`: release-facing change history.
-- `../RELEASE.md`: production preflight and tagging checklist.
+- `../RELEASE.md`: published `v1.0.0` snapshot, future release checks, and production deployment preflight.
 - `RepositoryMetadata.md`: canonical repository/package description, topics, about text, and release-publication posture.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
 - `DeploymentAndUpgrade.md`: production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.
-- `ReleaseReadinessPlan.md`: current P0/P1/P2 completion map and remaining release gaps.
+- `ReleaseReadinessPlan.md`: published release posture and deployment-specific hardening map.
+- `Wiki/`: versioned source pages for the GitHub Wiki. Push these to `LangelerMVC.wiki.git` after GitHub initializes the first wiki page.
 
 ## Structure And Layout
 
 - `FolderStructure.md`: the current repository layout by layer and responsibility.
 - `ModulesStructure.md`: module conventions, module loading, and the current state of each module.
 - `CompleteStructure.md`: a full repository tree snapshot kept for visual orientation.
+- `Wiki/`: public-facing wiki page source mirrored from the release docs.
 - `../Data/README.md`: release-reference SQL snapshot notes for the grouped `Data/*.sql` files.
 
 ## Subsystem And Reference Docs

@@ -8,6 +8,8 @@ Use this page as the canonical release-facing repository metadata source when up
 - Owner: `langeler`
 - Package name: `langeler/mvc`
 - Homepage: `https://github.com/langeler/LangelerMVC`
+- Current release: `v1.0.0`
+- Current release URL: `https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0`
 - License: `MIT`
 - Primary language/runtime: `PHP 8.4+`
 
@@ -46,6 +48,7 @@ GitHub currently supports a limited topic set per repository. Use this curated r
 
 ## Release Position
 
+- Current public framework source release: `v1.0.0`
 - Framework package release gate: `composer release:check`
 - Full local release verification: `composer verify:release`
 - Project go-live strict gate: `php console release:check --strict=1`
@@ -54,3 +57,7 @@ GitHub currently supports a limited topic set per repository. Use this curated r
 ## Package Publication
 
 The repository is currently a Composer `project` package. A GitHub release tag is appropriate for framework source distribution. Publishing to Packagist or GitHub Packages is appropriate only after the maintainer confirms the desired distribution channel and registry credentials outside the repository.
+
+## Wiki Publication
+
+Versioned wiki source pages live in `Docs/Wiki`. GitHub exposes wiki content through a separate `LangelerMVC.wiki.git` repository after the first wiki page has been initialized on GitHub. Once that backend exists, push the tracked `Docs/Wiki/*.md` pages to keep the GitHub Wiki synchronized with the released documentation.

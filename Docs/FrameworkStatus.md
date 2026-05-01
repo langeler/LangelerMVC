@@ -4,6 +4,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 ## Snapshot
 
+- Published framework source release: [`v1.0.0`](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
 - Verification result: `OK (146 tests, 3201 assertions)`
@@ -239,7 +240,7 @@ The major framework-level auth and commerce flows are implemented. The next gain
 
 ### 4. CI And Environment Breadth
 
-The repository now includes a stronger GitHub Actions workflow for the default regression suite plus supported MySQL/PostgreSQL matrix execution. The remaining step is repeated live execution on hosted runners and in provisioned local environments:
+The repository now includes a stronger GitHub Actions workflow for the default regression suite plus supported MySQL/PostgreSQL matrix execution. The continuing post-release hardening step is repeated live execution on hosted runners and in provisioned local environments:
 
 - GitHub-hosted MySQL/PostgreSQL verification against the updated workflow
 - SQL Server verification through the documented local/container path
@@ -255,7 +256,7 @@ For day-to-day framework development:
 3. Run `composer test:runtime-backends` when Redis/Memcached extensions and services are available
 4. Run `composer ops:health`
 5. Run `composer ops:ready` when your backing services are provisioned
-6. Run `composer release:check` before release candidates
+6. Run `composer release:check` before future release candidates
 7. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
 
 ## Extension Outlook

@@ -192,6 +192,7 @@ Primary current docs:
 - `CompleteStructure.md`
 - `RepositoryMetadata.md`
 - `SanitationValidationAPI.md`
+- `Wiki/`
 
 ### `Public`
 

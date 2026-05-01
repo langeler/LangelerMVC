@@ -5,7 +5,7 @@
 - The authoritative runtime schema lives in `App/Framework/Migrations` and `App/Modules/*Module/Migrations`.
 - These files are SQLite-compatible reference SQL for review, onboarding, and release auditing.
 - They intentionally contain no live credentials, secrets, tenant data, or project-specific provider settings.
-- Regenerate or update them whenever migrations materially change before tagging a release.
+- Regenerate or update them whenever migrations materially change before tagging a future release.
 
 Current grouped snapshots:
 

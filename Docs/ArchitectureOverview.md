@@ -236,9 +236,9 @@ The most important extension seams today are:
 - **Payments**: add project-specific drivers later against the now-stable capability contract without pushing vendor SDK concerns into framework core.
 - **Async**: add listeners, jobs, queue drivers, and failed-job strategies without rewriting runtime or modules.
 
-## Current Architectural Limits
+## Post-Release Architectural Boundaries
 
-The framework no longer has major missing platform subsystems. The main architectural work left is environment breadth and optional expansion:
+The framework no longer has major missing platform subsystems. After the `v1.0.0` source release, the main architectural work is environment breadth and optional project expansion:
 
 - live multi-database verification when external services are available
 - additional notification channels or payment drivers

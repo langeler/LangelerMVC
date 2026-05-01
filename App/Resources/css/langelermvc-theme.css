@@ -1,0 +1,326 @@
+/* LangelerMVC framework theme source. Keep Public/assets/css/langelermvc-theme.css synchronized. */
+:root,
+[data-theme-mode="light"] {
+    color-scheme: light;
+    --bs-blue: #0d6efd;
+    --bs-indigo: #3f51b5;
+    --bs-purple: #6f42c1;
+    --bs-pink: #d63384;
+    --bs-red: #dc3545;
+    --bs-orange: #fd7e14;
+    --bs-yellow: #ffc107;
+    --bs-green: #198754;
+    --bs-teal: #0f766e;
+    --bs-cyan: #0dcaf0;
+    --bs-black: #000;
+    --bs-white: #fff;
+    --bs-gray: #6c757d;
+    --bs-gray-dark: #343a40;
+    --bs-primary: #1d5f8a;
+    --bs-secondary: #64748b;
+    --bs-success: #198754;
+    --bs-info: #0ea5e9;
+    --bs-warning: #b7791f;
+    --bs-danger: #dc3545;
+    --bs-light: #f8fafc;
+    --bs-dark: #111827;
+    --bs-body-bg: #f6f8fb;
+    --bs-body-color: #17212b;
+    --bs-border-color: #d8e0e8;
+    --bs-border-radius: 0.85rem;
+    --bs-link-color: #175f8f;
+    --bs-link-hover-color: #10466b;
+    --lgx-bg: #f6f8fb;
+    --lgx-surface: #ffffff;
+    --lgx-surface-raised: #ffffff;
+    --lgx-ink: #17212b;
+    --lgx-muted: #647282;
+    --lgx-line: #d8e0e8;
+    --lgx-accent: #1d5f8a;
+    --lgx-accent-strong: #12496f;
+    --lgx-accent-soft: #e5f2fb;
+    --lgx-danger: #b42318;
+    --lgx-danger-soft: #ffe9e6;
+    --lgx-shadow: 0 1.5rem 4rem rgba(15, 23, 42, 0.10);
+    --lgx-radius: 1.25rem;
+    --lgx-focus: 0 0 0 0.22rem rgba(29, 95, 138, 0.25);
+}
+
+[data-theme-mode="dark"] {
+    color-scheme: dark;
+    --bs-primary: #71c7ff;
+    --bs-secondary: #94a3b8;
+    --bs-success: #4ade80;
+    --bs-info: #38bdf8;
+    --bs-warning: #facc15;
+    --bs-danger: #fb7185;
+    --bs-light: #1f2937;
+    --bs-dark: #f8fafc;
+    --bs-body-bg: #0b1120;
+    --bs-body-color: #e5edf6;
+    --bs-border-color: #263447;
+    --bs-link-color: #8fd3ff;
+    --bs-link-hover-color: #b9e6ff;
+    --lgx-bg: #0b1120;
+    --lgx-surface: #111a2b;
+    --lgx-surface-raised: #162238;
+    --lgx-ink: #e5edf6;
+    --lgx-muted: #a8b6c7;
+    --lgx-line: #263447;
+    --lgx-accent: #71c7ff;
+    --lgx-accent-strong: #a7ddff;
+    --lgx-accent-soft: rgba(113, 199, 255, 0.14);
+    --lgx-danger: #fb7185;
+    --lgx-danger-soft: rgba(251, 113, 133, 0.14);
+    --lgx-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.34);
+    --lgx-focus: 0 0 0 0.22rem rgba(113, 199, 255, 0.28);
+}
+
+@media (prefers-color-scheme: dark) {
+    [data-theme-mode="system"] {
+        color-scheme: dark;
+        --bs-primary: #71c7ff;
+        --bs-secondary: #94a3b8;
+        --bs-success: #4ade80;
+        --bs-info: #38bdf8;
+        --bs-warning: #facc15;
+        --bs-danger: #fb7185;
+        --bs-light: #1f2937;
+        --bs-dark: #f8fafc;
+        --bs-body-bg: #0b1120;
+        --bs-body-color: #e5edf6;
+        --bs-border-color: #263447;
+        --bs-link-color: #8fd3ff;
+        --bs-link-hover-color: #b9e6ff;
+        --lgx-bg: #0b1120;
+        --lgx-surface: #111a2b;
+        --lgx-surface-raised: #162238;
+        --lgx-ink: #e5edf6;
+        --lgx-muted: #a8b6c7;
+        --lgx-line: #263447;
+        --lgx-accent: #71c7ff;
+        --lgx-accent-strong: #a7ddff;
+        --lgx-accent-soft: rgba(113, 199, 255, 0.14);
+        --lgx-danger: #fb7185;
+        --lgx-danger-soft: rgba(251, 113, 133, 0.14);
+        --lgx-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.34);
+        --lgx-focus: 0 0 0 0.22rem rgba(113, 199, 255, 0.28);
+    }
+}
+
+.theme-surface {
+    min-height: 100vh;
+    background: var(--lgx-bg);
+    color: var(--lgx-ink);
+    text-rendering: optimizeLegibility;
+}
+
+.theme-surface a {
+    color: var(--bs-link-color);
+    text-underline-offset: 0.2em;
+}
+
+.theme-surface a:hover {
+    color: var(--bs-link-hover-color);
+}
+
+.theme-surface .panel,
+.theme-surface .section,
+.theme-surface .product-card,
+.theme-surface .status-card,
+.theme-surface .provider-card,
+.theme-surface .hero,
+.theme-surface .card {
+    background-color: var(--lgx-surface);
+    border-color: var(--lgx-line);
+    color: var(--lgx-ink);
+}
+
+.theme-surface .panel {
+    box-shadow: var(--lgx-shadow);
+}
+
+.theme-surface .intro__eyebrow,
+.theme-surface .intro__summary,
+.theme-surface .meta,
+.theme-surface .footer,
+.theme-surface .shell__footer,
+.theme-surface .product-card__eyebrow,
+.theme-surface .product-card__meta,
+.theme-surface .section-head p,
+.theme-surface small {
+    color: var(--lgx-muted);
+}
+
+.theme-surface input,
+.theme-surface select,
+.theme-surface textarea,
+.theme-surface .form-control,
+.theme-surface .form-select {
+    width: 100%;
+    border: 1px solid var(--lgx-line);
+    border-radius: 0.85rem;
+    background: var(--lgx-surface-raised);
+    color: var(--lgx-ink);
+}
+
+.theme-surface input:focus,
+.theme-surface select:focus,
+.theme-surface textarea:focus,
+.theme-surface button:focus-visible,
+.theme-surface a:focus-visible {
+    outline: none;
+    box-shadow: var(--lgx-focus);
+}
+
+.theme-surface button,
+.theme-surface .btn,
+.theme-surface .product-card__link,
+.theme-surface .cta-row a {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
+}
+
+.theme-surface button:hover,
+.theme-surface .btn:hover,
+.theme-surface .product-card__link:hover,
+.theme-surface .cta-row a:hover {
+    transform: translateY(-1px);
+}
+
+.theme-surface button,
+.theme-surface .btn-primary,
+.theme-surface .product-card__link,
+.theme-surface .cta-row a {
+    background: var(--lgx-accent);
+    color: #fff;
+}
+
+.theme-surface .btn-outline-primary,
+.theme-toggle {
+    background: var(--lgx-accent-soft);
+    border-color: color-mix(in srgb, var(--lgx-accent) 35%, transparent);
+    color: var(--lgx-accent-strong);
+}
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 2.4rem;
+    padding: 0.55rem 0.9rem;
+    white-space: nowrap;
+}
+
+.theme-toggle::before {
+    content: "";
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 0.25rem color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.theme-header-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.theme-surface .badge,
+.theme-surface .badge-list li {
+    background: var(--lgx-accent-soft);
+    color: var(--lgx-accent-strong);
+}
+
+.theme-surface .alert,
+.theme-surface .message {
+    background: var(--lgx-accent-soft);
+    border-color: color-mix(in srgb, var(--lgx-accent) 25%, transparent);
+    color: var(--lgx-ink);
+}
+
+.theme-surface .message--danger,
+.theme-surface .alert-danger {
+    background: var(--lgx-danger-soft);
+    border-color: color-mix(in srgb, var(--lgx-danger) 35%, transparent);
+    color: var(--lgx-danger);
+}
+
+.theme-surface .table,
+.theme-surface .data-table {
+    color: var(--lgx-ink);
+}
+
+.theme-surface .table th,
+.theme-surface .table td,
+.theme-surface .data-table th,
+.theme-surface .data-table td {
+    border-color: var(--lgx-line);
+}
+
+.container,
+.container-fluid {
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+
+.container {
+    max-width: 1140px;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-inline: -0.75rem;
+}
+
+.row > *,
+.col {
+    flex: 1 0 0%;
+    padding-inline: 0.75rem;
+}
+
+.card {
+    border: 1px solid var(--lgx-line);
+    border-radius: var(--lgx-radius);
+    box-shadow: var(--lgx-shadow);
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+@media (max-width: 720px) {
+    .theme-header-actions {
+        justify-content: flex-start;
+    }
+
+    .theme-toggle {
+        width: 100%;
+    }
+
+    .row > *,
+    .col {
+        flex-basis: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}

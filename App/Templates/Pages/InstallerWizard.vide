@@ -19,6 +19,9 @@
         $carrierAdapter = $form['COMMERCE_SHIPPING_ACTIVE_CARRIER'] ?? '';
         $fulfillmentType = $form['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? '';
         $subscriptionInterval = $form['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? '';
+        $themeDefault = $form['THEME_DEFAULT'] ?? '';
+        $themeModeValue = $form['THEME_MODE'] ?? '';
+        $themeAllowUserSelection = ($form['THEME_ALLOW_USER_SELECTION'] ?? 'true') === 'true';
         $autoReadyOnCapture = ($form['COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE'] ?? 'true') === 'true';
         $returnsAllowExchanges = ($form['COMMERCE_RETURNS_ALLOW_EXCHANGES'] ?? 'true') === 'true';
         $returnsAutoRestock = ($form['COMMERCE_RETURNS_AUTO_RESTOCK'] ?? 'true') === 'true';
@@ -41,6 +44,8 @@
         $carrierAdapters = $status['carrierAdapters'] ?? [];
         $fulfillmentTypes = $status['fulfillmentTypes'] ?? [];
         $subscriptionIntervals = $status['subscriptionIntervals'] ?? [];
+        $themes = $status['themes'] ?? ['bootstrap-light', 'bootstrap-dark', 'bootstrap-system'];
+        $themeModes = $status['themeModes'] ?? ['light', 'dark', 'system'];
     @endphp
     <div class="stack">
         @if($errors !== [])
@@ -104,6 +109,45 @@
                         <label><input type="checkbox" name="APP_DEBUG" value="true" @if($debugEnabled) checked @endif> Enable debug mode during setup</label>
                         <input type="hidden" name="AUTH_VERIFY_EMAIL" value="false">
                         <label><input type="checkbox" name="AUTH_VERIFY_EMAIL" value="true" @if($verifyEmailEnabled) checked @endif> Require email verification for new users</label>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="section-head">
+                        <h3>Theme & UX</h3>
+                        <p>Select the framework-wide Bootstrap-compatible theme defaults used by installer, public, identity, commerce, and admin surfaces.</p>
+                    </div>
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="THEME_DEFAULT">Default Theme</label>
+                            <select id="THEME_DEFAULT" name="THEME_DEFAULT">
+                                @foreach($themes as $value)
+                                    <option value="{{ $value }}" @if($themeDefault === $value) selected @endif>{{ ucwords(str_replace('-', ' ', (string) $value)) }}</option>
+                                @endforeach
+                            </select>
+                            <small>Ships with professional light, dark, and system Bootstrap token presets.</small>
+                        </div>
+                        <div class="field">
+                            <label for="THEME_MODE">Initial Color Mode</label>
+                            <select id="THEME_MODE" name="THEME_MODE">
+                                @foreach($themeModes as $value)
+                                    <option value="{{ $value }}" @if($themeModeValue === $value) selected @endif>{{ ucfirst((string) $value) }}</option>
+                                @endforeach
+                            </select>
+                            <small>`system` follows the browser color-scheme preference.</small>
+                        </div>
+                        <div class="field">
+                            <label for="THEME_ASSET_CSS">Theme CSS Asset</label>
+                            <input id="THEME_ASSET_CSS" name="THEME_ASSET_CSS" type="text" value="{{ $form['THEME_ASSET_CSS'] ?? '/assets/css/langelermvc-theme.css' }}">
+                        </div>
+                        <div class="field">
+                            <label for="THEME_ASSET_JS">Theme JS Asset</label>
+                            <input id="THEME_ASSET_JS" name="THEME_ASSET_JS" type="text" value="{{ $form['THEME_ASSET_JS'] ?? '/assets/js/langelermvc-theme.js' }}">
+                        </div>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="THEME_ALLOW_USER_SELECTION" value="false">
+                        <label><input type="checkbox" name="THEME_ALLOW_USER_SELECTION" value="true" @if($themeAllowUserSelection) checked @endif> Allow visitors and operators to toggle light, dark, and system modes</label>
                     </div>
                 </section>
 

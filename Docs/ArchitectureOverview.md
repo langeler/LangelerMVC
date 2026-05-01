@@ -76,6 +76,7 @@ Responsibility split:
 - `NotificationProvider`: notification channel resolution
 - `PaymentProvider`: payment driver resolution
 - `ShippingProvider`: carrier adapter resolution for shipping/service-point/label/tracking/cancellation operations
+- `CoreProvider` also exposes the `themes` service for framework-wide theme resolution
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -185,6 +186,7 @@ The following areas are implemented as framework-level subsystems today:
 - presentation resource / negotiated JSON layer
 - completed view/presenter/template layer with shared layouts, partials, and components
 - canonical `.vide` templates authored in native directives rather than embedded raw PHP
+- framework-wide Bootstrap-compatible theme management with tracked source/public CSS and JavaScript assets
 - database layer and SQL/query builders
 - cache subsystem
 - crypto subsystem
@@ -226,6 +228,7 @@ The most important extension seams today are:
 - **Persistence**: add migrations, seeds, repositories, and real schemas on top of the existing database/query/model base.
 - **Console**: extend the operational command set or add scaffolding/generator support when a project needs it.
 - **Views**: extend the shared presentation surface with new layouts, pages, partials, and components without duplicating module orchestration.
+- **Themes**: swap or extend `Config/theme.php`, `App/Resources/*`, and `Public/assets/*` without changing module controllers.
 - **Drivers**: add more concrete infrastructure backends through providers and contracts.
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.

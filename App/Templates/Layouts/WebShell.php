@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?= $view->escape((string) ($themeName ?? 'bootstrap-light')) ?>" data-theme-mode="<?= $view->escape((string) ($themeMode ?? 'system')) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -249,15 +249,27 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="<?= $view->escape((string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css')) ?>">
 </head>
-<body>
+<body class="theme-surface theme-surface--<?= $view->escape((string) ($themeSurface ?? 'web')) ?> <?= $view->escape((string) ($themeClass ?? 'theme-bootstrap-light')) ?>"
+      data-theme="<?= $view->escape((string) ($themeName ?? 'bootstrap-light')) ?>"
+      data-theme-mode="<?= $view->escape((string) ($themeMode ?? 'system')) ?>"
+      data-theme-default-mode="<?= $view->escape((string) ($themeDefaultMode ?? 'system')) ?>"
+      data-theme-storage-key="<?= $view->escape((string) ($themeStorageKey ?? 'langelermvc.theme')) ?>">
     <div class="shell">
         <header class="shell__header">
             <div class="brand">
                 <strong><?= $view->escape((string) ($appName ?? 'LangelerMVC')) ?></strong>
                 <span><?= $view->escape((string) ($moduleName ?? 'WebModule')) ?> presentation surface</span>
             </div>
-            <span>Version <?= $view->escape((string) ($appVersion ?? '1.0.0')) ?></span>
+            <div class="theme-header-actions">
+                <span>Version <?= $view->escape((string) ($appVersion ?? '1.0.0')) ?></span>
+                <?php if ($themeToggleEnabled ?? true): ?>
+                    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme" aria-pressed="false">
+                        <span data-theme-toggle-label><?= $view->escape(ucfirst((string) ($themeMode ?? 'system'))) ?></span>
+                    </button>
+                <?php endif; ?>
+            </div>
         </header>
 
         <main class="panel">
@@ -276,5 +288,6 @@
             <span>Web pages now render through reusable templates, shared partials, and module-aware layouts.</span>
         </footer>
     </div>
+    <script src="<?= $view->escape((string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js')) ?>" defer></script>
 </body>
 </html>

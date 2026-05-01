@@ -1,14 +1,14 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-04-30`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-05-01`.
 
 ## Snapshot
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (143 tests, 3162 assertions)`
+- Verification result: `OK (146 tests, 3196 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
-- Database verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, and SQL Server have a dedicated matrix harness in `Tests/DbMatrix`
+- Database/runtime verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, SQL Server, Redis, and Memcached have a dedicated matrix harness in `Tests/DbMatrix`
 
 ## Implemented And Working
 
@@ -73,6 +73,7 @@ This document records the current implementation state of LangelerMVC based on t
 - failed-job store
 - notification manager with mail/database channels
 - payment manager with a plug-and-play multi-driver compatibility surface, provider-specific environment keys, readiness metadata, and whole-catalog release checks
+- framework-wide theme manager with Bootstrap-compatible light/dark/system presets, installer/env parity, shared layout globals, tracked public assets, and release-gate coverage
 - first-party payment drivers for card, crypto, PayPal, Klarna, Swish, Qliro, Walley, and the framework testing/reference driver
 - shipping manager with a provider-backed carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket tracking-app handoff metadata
 - signed/idempotent payment webhook ingestion with event ledgers and order lifecycle reconciliation
@@ -100,7 +101,7 @@ This document records the current implementation state of LangelerMVC based on t
 - queue work/retry/failed commands
 - notification inspection command
 - event/listener inspection command
-- release readiness inspection command through `php console release:check`, including module-surface, payment-surface, commerce, route, docs, env, and template accessibility gates
+- release readiness inspection command through `php console release:check`, including module-surface, payment-surface, theme-surface, commerce, route, docs, env, and template accessibility gates
 - release SQL reference inspection for `Data/*.sql`, including stale table detection for old pre-release schema names
 - repository consistency coverage for class/file/namespace naming across class-bearing `App/` PHP files
 - GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure
@@ -219,11 +220,11 @@ The framework is in a strong completed state, but a few items remain environment
 
 ### 1. Live Environment Breadth
 
-The framework now has both a DB-matrix harness and a local backend verification stack, but real execution against MySQL, PostgreSQL, SQL Server, Redis, Memcached, and extension-gated paths still depends on local or CI services being available and configured.
+The framework now has both a DB/runtime-matrix harness and a local backend verification stack, but real execution against MySQL, PostgreSQL, SQL Server, Redis, Memcached, and extension-gated paths still depends on local or CI services being available and configured.
 
 ### 2. Optional Runtime Backends
 
-Redis, Memcached, Imagick, and vendor-specific runtime backends are implemented behind framework boundaries, but real verification still depends on the corresponding PHP extensions and services being installed in the target environment.
+Redis and Memcached now have an opt-in runtime harness for cache/session round-trips; those checks skip cleanly when extensions or services are unavailable. Imagick and vendor-specific runtime backends remain environment-dependent.
 
 ### 3. Live Integration Breadth
 
@@ -243,7 +244,7 @@ The repository now includes a stronger GitHub Actions workflow for the default r
 - GitHub-hosted MySQL/PostgreSQL verification against the updated workflow
 - SQL Server verification through the documented local/container path
 - Redis, Memcached, and Imagick verification where the corresponding services/extensions are available
-- browser and accessibility smoke passes for the public storefront, installer, and admin operator pages
+- full cross-browser visual/accessibility smoke passes for the public storefront, installer, and admin operator pages; this workspace has completed static template accessibility checks plus local server smoke for `/`, `/install/`, and the tracked theme CSS/JS assets
 
 ## Recommended Ongoing Verification
 
@@ -251,10 +252,11 @@ For day-to-day framework development:
 
 1. Run `composer test`
 2. Run `composer test:db-matrix` when external databases are available
-3. Run `composer ops:health`
-4. Run `composer ops:ready` when your backing services are provisioned
-5. Run `composer release:check` before release candidates
-6. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
+3. Run `composer test:runtime-backends` when Redis/Memcached extensions and services are available
+4. Run `composer ops:health`
+5. Run `composer ops:ready` when your backing services are provisioned
+6. Run `composer release:check` before release candidates
+7. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
 
 ## Extension Outlook
 

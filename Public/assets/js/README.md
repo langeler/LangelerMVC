@@ -1,3 +1,6 @@
 # Public JavaScript Assets
 
-Available for public JavaScript assets served directly by the web server. The current first-party modules keep most behavior server-rendered, so this directory is ready for progressive enhancement or app-specific client scripts when needed.
+Public JavaScript served directly by the web server.
+
+- `langelermvc-theme.js` is the release-tracked framework theme toggle used across first-party layouts.
+- Project-specific scripts can live alongside it or replace it by changing `THEME_ASSET_JS`.

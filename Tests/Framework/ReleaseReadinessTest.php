@@ -33,6 +33,10 @@ final class ReleaseReadinessTest extends TestCase
         self::assertTrue((bool) $payload['checks']['commerce_surface']['ok']);
         self::assertContains('postnord', $payload['checks']['commerce_surface']['carrier_adapters']);
         self::assertContains('ups', $payload['checks']['commerce_surface']['carrier_adapters']);
+        self::assertTrue((bool) $payload['checks']['theme_surface']['ok']);
+        self::assertContains('bootstrap-light', $payload['checks']['theme_surface']['catalog']);
+        self::assertContains('bootstrap-dark', $payload['checks']['theme_surface']['catalog']);
+        self::assertSame([], $payload['checks']['theme_surface']['missing_assets']);
         self::assertTrue((bool) $payload['checks']['template_accessibility']['ok']);
         self::assertSame([], $payload['checks']['template_accessibility']['raw_php_templates']);
         self::assertSame([], $payload['checks']['template_accessibility']['images_without_alt']);

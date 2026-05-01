@@ -4,10 +4,12 @@ Use this checklist before tagging or deploying LangelerMVC.
 
 ## Latest Verified Snapshot
 
-- Date: `2026-04-30`
+- Date: `2026-05-01`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (143 tests, 3162 assertions)`
+- Result: `OK (146 tests, 3196 assertions)`
+- Local release gate: `composer release:check` returns `status=200`
+- Runtime backend harness: `composer test:runtime-backends` runs and skips cleanly when Redis/Memcached extensions are unavailable
 
 ## Required Verification
 
@@ -16,9 +18,10 @@ Use this checklist before tagging or deploying LangelerMVC.
 3. Run `composer release:check`.
 4. Run `composer verify:release` before tagging a release candidate.
 5. Run `composer test:db-matrix` against available MySQL, PostgreSQL, and SQL Server services.
-6. Run `composer ops:health` and confirm readiness checks match the target environment.
-7. Exercise the installer from `Public/install/index.php` against the intended database, cache, session, queue, mail, payment, commerce, and admin-account settings.
-8. Confirm `Data/*.sql` remains a release-reference snapshot generated from migrations and does not contain stale pre-release table names.
+6. Run `composer test:runtime-backends` against available Redis and Memcached services/extensions.
+7. Run `composer ops:health` and confirm readiness checks match the target environment.
+8. Exercise the installer from `Public/install/index.php` against the intended database, cache, session, queue, mail, payment, commerce, theme, and admin-account settings.
+9. Confirm `Data/*.sql` remains a release-reference snapshot generated from migrations and does not contain stale pre-release table names.
 
 For production tagging, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, reference-mode carrier/payment adapters, or legal/VAT seller settings are still unresolved.
 
@@ -28,13 +31,14 @@ For production tagging, also run `php console release:check --strict=1`. Strict 
 - Confirm `.env.example` is the tracked release baseline; deployment-local `.env` files stay ignored and may contain project-specific values.
 - Confirm all secrets and runtime keys are deployment-local and not committed.
 - Confirm `Storage/Secure`, `Storage/Cache`, `Storage/Logs`, uploads, sessions, and queue runtime paths are writable by the PHP process.
+- Confirm `THEME_DEFAULT`, `THEME_MODE`, `THEME_ASSET_CSS`, and `THEME_ASSET_JS` point at tracked public assets or project-specific replacements.
 - Confirm migrations have run, including promotion, fulfillment, entitlement, subscription, inventory reservation, return/document, order-state, and audit/queue tables.
 - Confirm admin routes are protected by authentication and RBAC.
 - Confirm payment and subscription provider credentials, webhook URLs, return URLs, callback signatures, and provider-specific live endpoints are configured before live mode.
 - Confirm carrier/shipping adapters are configured for the target region, especially Swedish carrier flows for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, and Mina Paket handoff expectations.
 - Confirm commerce settings for shipping, pickup/pre-order, subscriptions, inventory reservations, returns, and order documents match the target store policy.
 - Confirm `COMMERCE_DOCUMENTS_*`, `COMMERCE_RETURNS_*`, and `COMMERCE_INVENTORY_*` values were reviewed after installer generation.
-- Run browser/accessibility smoke checks for the public storefront, installer, and admin operator pages before tagging a public release.
+- Run browser/accessibility smoke checks for the public storefront, installer, and admin operator pages before tagging a public release. The local server smoke in this workspace verified `/`, `/install/`, and the tracked theme CSS/JS assets return `200 OK`.
 
 ## Deployment Recipe
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="<?= $view->escape((string) ($themeName ?? 'bootstrap-light')) ?>" data-theme-mode="<?= $view->escape((string) ($themeMode ?? 'system')) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -180,6 +180,7 @@
             border-top: 1px solid var(--line);
         }
     </style>
+    <link rel="stylesheet" href="<?= $view->escape((string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css')) ?>">
     <script>
         window.LangelerPasskeys = {
             isSupported() {
@@ -301,14 +302,25 @@
         };
     </script>
 </head>
-<body>
+<body class="theme-surface theme-surface--<?= $view->escape((string) ($themeSurface ?? 'auth')) ?> <?= $view->escape((string) ($themeClass ?? 'theme-bootstrap-light')) ?>"
+      data-theme="<?= $view->escape((string) ($themeName ?? 'bootstrap-light')) ?>"
+      data-theme-mode="<?= $view->escape((string) ($themeMode ?? 'system')) ?>"
+      data-theme-default-mode="<?= $view->escape((string) ($themeDefaultMode ?? 'system')) ?>"
+      data-theme-storage-key="<?= $view->escape((string) ($themeStorageKey ?? 'langelermvc.theme')) ?>">
     <div class="shell">
         <header class="header">
             <div class="brand">
                 <strong><?= $view->escape((string) ($appName ?? 'LangelerMVC')) ?></strong>
                 <span><?= $view->escape((string) ($moduleName ?? 'UserModule')) ?> identity platform</span>
             </div>
-            <span>Version <?= $view->escape((string) ($appVersion ?? '1.0.0')) ?></span>
+            <div class="theme-header-actions">
+                <span>Version <?= $view->escape((string) ($appVersion ?? '1.0.0')) ?></span>
+                <?php if ($themeToggleEnabled ?? true): ?>
+                    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme" aria-pressed="false">
+                        <span data-theme-toggle-label><?= $view->escape(ucfirst((string) ($themeMode ?? 'system'))) ?></span>
+                    </button>
+                <?php endif; ?>
+            </div>
         </header>
         <main class="panel">
             <?= $content ?? '' ?>
@@ -324,5 +336,6 @@
             <span>Identity flows, OTP, passkeys, and JSON resources now share one presentation pipeline.</span>
         </footer>
     </div>
+    <script src="<?= $view->escape((string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js')) ?>" defer></script>
 </body>
 </html>

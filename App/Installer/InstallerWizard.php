@@ -29,6 +29,8 @@ final class InstallerWizard
     private const SUPPORTED_CARRIER_ADAPTERS = ['postnord', 'instabox', 'budbee', 'bring', 'dhl', 'schenker', 'earlybird', 'airmee', 'ups'];
     private const SUPPORTED_FULFILLMENT_TYPES = ['physical_shipping', 'digital_download', 'virtual_access', 'store_pickup', 'scheduled_pickup', 'preorder', 'subscription'];
     private const SUPPORTED_SUBSCRIPTION_INTERVALS = ['weekly', 'monthly', 'quarterly', 'yearly'];
+    private const SUPPORTED_THEMES = ['bootstrap-light', 'bootstrap-dark', 'bootstrap-system'];
+    private const SUPPORTED_THEME_MODES = ['light', 'dark', 'system'];
 
     /**
      * @var list<string>
@@ -52,6 +54,7 @@ final class InstallerWizard
         'SESSION_SECURE_COOKIE',
         'SESSION_HTTPONLY_COOKIE',
         'COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE',
+        'THEME_ALLOW_USER_SELECTION',
     ];
 
     private string $basePath;
@@ -129,6 +132,8 @@ final class InstallerWizard
             'carrierAdapters' => self::SUPPORTED_CARRIER_ADAPTERS,
             'fulfillmentTypes' => self::SUPPORTED_FULFILLMENT_TYPES,
             'subscriptionIntervals' => self::SUPPORTED_SUBSCRIPTION_INTERVALS,
+            'themes' => self::SUPPORTED_THEMES,
+            'themeModes' => self::SUPPORTED_THEME_MODES,
             'installState' => [
                 'status' => (string) ($installState['status'] ?? 'idle'),
                 'stage' => (string) ($installState['stage'] ?? 'idle'),
@@ -273,6 +278,8 @@ final class InstallerWizard
         $data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] = strtolower((string) ($data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? 'physical_shipping'));
         $data['COMMERCE_SHIPPING_ACTIVE_CARRIER'] = strtolower((string) ($data['COMMERCE_SHIPPING_ACTIVE_CARRIER'] ?? 'postnord'));
         $data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] = strtolower((string) ($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? 'monthly'));
+        $data['THEME_DEFAULT'] = strtolower((string) ($data['THEME_DEFAULT'] ?? 'bootstrap-light'));
+        $data['THEME_MODE'] = strtolower((string) ($data['THEME_MODE'] ?? 'system'));
         $data['MAIL_FROM_NAME'] = trim((string) ($data['MAIL_FROM_NAME'] ?? ''));
 
         if (($data['DB_CONNECTION'] ?? '') === 'sqlite' && ($data['DB_DATABASE'] ?? '') === '') {
@@ -365,6 +372,25 @@ final class InstallerWizard
 
         if (!in_array($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'], self::SUPPORTED_SUBSCRIPTION_INTERVALS, true)) {
             throw new \InvalidArgumentException('Unsupported default subscription interval selected.');
+        }
+
+        if (!in_array($data['THEME_DEFAULT'], self::SUPPORTED_THEMES, true)) {
+            throw new \InvalidArgumentException('Unsupported default framework theme selected.');
+        }
+
+        if (!in_array($data['THEME_MODE'], self::SUPPORTED_THEME_MODES, true)) {
+            throw new \InvalidArgumentException('Unsupported framework theme mode selected.');
+        }
+
+        foreach ([
+            'THEME_ASSET_CSS' => 'theme CSS asset path',
+            'THEME_ASSET_JS' => 'theme JavaScript asset path',
+        ] as $key => $label) {
+            $value = trim((string) ($data[$key] ?? ''));
+
+            if ($value === '' || !str_starts_with($value, '/assets/')) {
+                throw new \InvalidArgumentException(sprintf('The %s must point to a public /assets/ path.', $label));
+            }
         }
 
         if (!in_array($data['ENCRYPTION_TYPE'], ['openssl', 'sodium'], true)) {
@@ -581,6 +607,13 @@ final class InstallerWizard
                 'APP_MAINTENANCE',
                 'APP_LOG_LEVEL',
                 'APP_LOG_CHANNEL',
+            ],
+            'THEME' => [
+                'THEME_DEFAULT',
+                'THEME_MODE',
+                'THEME_ALLOW_USER_SELECTION',
+                'THEME_ASSET_CSS',
+                'THEME_ASSET_JS',
             ],
             'DATABASE' => [
                 'DB_CONNECTION',
@@ -1116,6 +1149,11 @@ final class InstallerWizard
             'APP_MAINTENANCE' => 'false',
             'APP_LOG_LEVEL' => 'info',
             'APP_LOG_CHANNEL' => 'daily',
+            'THEME_DEFAULT' => 'bootstrap-light',
+            'THEME_MODE' => 'system',
+            'THEME_ALLOW_USER_SELECTION' => 'true',
+            'THEME_ASSET_CSS' => '/assets/css/langelermvc-theme.css',
+            'THEME_ASSET_JS' => '/assets/js/langelermvc-theme.js',
             'DB_CONNECTION' => 'sqlite',
             'DB_HOST' => '127.0.0.1',
             'DB_PORT' => '3306',

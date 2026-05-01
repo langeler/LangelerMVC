@@ -6,6 +6,7 @@ namespace App\Modules\AdminModule\Views;
 
 use App\Abstracts\Presentation\View;
 use App\Core\Config;
+use App\Support\Theming\ThemeManager;
 use App\Utilities\Finders\DirectoryFinder;
 use App\Utilities\Finders\FileFinder;
 use App\Utilities\Managers\CacheManager;
@@ -22,13 +23,15 @@ class AdminView extends View
         FileManager $fileManager,
         PatternSanitizer $sanitizer,
         PatternValidator $validator,
-        Config $config
+        Config $config,
+        ?ThemeManager $themes = null
     ) {
         parent::__construct($files, $dirs, $cache, $fileManager, $sanitizer, $validator);
 
         $this->setDefaultLayout('AdminShell');
 
         $this->share([
+            ...($themes ?? new ThemeManager($config))->layoutGlobals('admin'),
             'appName' => (string) $config->get('app', 'NAME', 'LangelerMVC'),
             'appVersion' => (string) $config->get('app', 'VERSION', '1.0.0'),
             'moduleName' => 'AdminModule',

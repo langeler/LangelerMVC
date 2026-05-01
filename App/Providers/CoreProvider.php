@@ -27,6 +27,7 @@ use App\Contracts\Support\NotificationManagerInterface;
 use App\Contracts\Support\PaymentManagerInterface;
 use App\Exceptions\ContainerException;
 use App\Support\Commerce\ShippingManager;
+use App\Support\Theming\ThemeManager;
 use App\Utilities\Managers\Async\DatabaseFailedJobStore;
 use App\Utilities\Managers\Async\EventDispatcher;
 use App\Utilities\Managers\Async\QueueManager;
@@ -107,6 +108,7 @@ class CoreProvider extends Container
             'shipping' => ShippingManager::class,
             'shippingProvider' => ShippingProvider::class,
             'session'  => Session::class,
+            'themes' => ThemeManager::class,
             'guard' => SessionGuard::class,
             'userProvider' => DatabaseUserProvider::class,
             'failedJobs' => DatabaseFailedJobStore::class,

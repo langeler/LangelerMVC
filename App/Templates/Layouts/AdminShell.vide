@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}" data-theme-mode="{{ (string) ($themeMode ?? 'system') }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -145,12 +145,24 @@
             overflow: auto;
         }
     </style>
+    <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
 </head>
-<body>
+<body class="theme-surface theme-surface--{{ (string) ($themeSurface ?? 'admin') }} {{ (string) ($themeClass ?? 'theme-bootstrap-light') }}"
+      data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}"
+      data-theme-mode="{{ (string) ($themeMode ?? 'system') }}"
+      data-theme-default-mode="{{ (string) ($themeDefaultMode ?? 'system') }}"
+      data-theme-storage-key="{{ (string) ($themeStorageKey ?? 'langelermvc.theme') }}">
     <div class="shell">
         <header class="header">
             <strong>{{ (string) ($appName ?? 'LangelerMVC') }} Admin</strong>
-            <span>{{ (string) ($headline ?? 'Operations') }}</span>
+            <div class="theme-header-actions">
+                <span>{{ (string) ($headline ?? 'Operations') }}</span>
+                @if($themeToggleEnabled ?? true)
+                    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme" aria-pressed="false">
+                        <span data-theme-toggle-label>{{ ucfirst((string) ($themeMode ?? 'system')) }}</span>
+                    </button>
+                @endif
+            </div>
         </header>
         <main class="panel">
             {!! $content ?? '' !!}
@@ -166,5 +178,6 @@
             <span>Administrative surfaces now reuse the same presentation contracts as the rest of the framework.</span>
         </footer>
     </div>
+    <script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
 </body>
 </html>

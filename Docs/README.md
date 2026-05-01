@@ -2,7 +2,7 @@
 
 This folder contains the current LangelerMVC project documentation plus a small set of historical reference files kept in the repository for context.
 
-As of `2026-04-30`, the framework status, release readiness, and architecture documents below are the primary source of truth for what is implemented today.
+As of `2026-05-01`, the framework status, release readiness, and architecture documents below are the primary source of truth for what is implemented today.
 
 ## Start Here
 
@@ -29,6 +29,7 @@ As of `2026-04-30`, the framework status, release readiness, and architecture do
 - `DatabaseMatrixTesting.md`: how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
 - `DeploymentAndUpgrade.md`: production deployment and upgrade recipes.
 - `InstallationWizard.md`: first-run installer flow, what it configures, and post-install expectations.
+- `ThemeManagement.md`: framework-wide Bootstrap-compatible light/dark/system theme management.
 - `OperationsGuide.md`: health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - `PaymentDrivers.md`: first-party payment-driver matrix, supported method/flow/webhook taxonomy, and live-mode notes.
 - `ShippingAdapters.md`: first-party carrier adapter registry, Swedish carrier matrix, reference/live mode, and extension pattern.

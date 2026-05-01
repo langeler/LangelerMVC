@@ -69,6 +69,8 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertContains('klarna', $status['paymentDrivers']);
         self::assertContains('postnord', $status['carrierAdapters']);
         self::assertContains('ups', $status['carrierAdapters']);
+        self::assertContains('bootstrap-light', $status['themes']);
+        self::assertContains('system', $status['themeModes']);
         self::assertContains('WebModule', $status['modules']);
         self::assertContains('database', $status['contentSources']);
     }
@@ -89,6 +91,9 @@ final class InstallerAndViewCoverageTest extends TestCase
         self::assertSame('3', $defaults['QUEUE_MAX_ATTEMPTS']);
         self::assertSame('database,mail', $defaults['NOTIFICATIONS_DEFAULT_CHANNELS']);
         self::assertSame('true', $defaults['OPERATIONS_HEALTH_ENABLED']);
+        self::assertSame('bootstrap-light', $defaults['THEME_DEFAULT']);
+        self::assertSame('system', $defaults['THEME_MODE']);
+        self::assertSame('/assets/css/langelermvc-theme.css', $defaults['THEME_ASSET_CSS']);
         self::assertSame('true', $defaults['COMMERCE_INVENTORY_RESERVE_ON_CHECKOUT']);
         self::assertSame('postnord', $defaults['COMMERCE_SHIPPING_ACTIVE_CARRIER']);
         self::assertSame('30', $defaults['COMMERCE_SHIPPING_TIMEOUT']);
@@ -129,6 +134,9 @@ final class InstallerAndViewCoverageTest extends TestCase
 
         self::assertStringContainsString('Install LangelerMVC', $installerOutput);
         self::assertStringContainsString('Security & Identity', $installerOutput);
+        self::assertStringContainsString('Theme & UX', $installerOutput);
+        self::assertStringContainsString('/assets/css/langelermvc-theme.css', $installerOutput);
+        self::assertStringContainsString('data-theme-toggle', $installerOutput);
         self::assertStringContainsString('Installation Plan', $installerOutput);
         self::assertStringContainsString('Payment Compatibility', $installerOutput);
         self::assertStringContainsString('PayPal API Base', $installerOutput);

@@ -6,6 +6,7 @@ namespace App\Modules\CartModule\Views;
 
 use App\Abstracts\Presentation\View;
 use App\Core\Config;
+use App\Support\Theming\ThemeManager;
 use App\Utilities\Finders\DirectoryFinder;
 use App\Utilities\Finders\FileFinder;
 use App\Utilities\Managers\CacheManager;
@@ -22,12 +23,14 @@ class CartView extends View
         FileManager $fileManager,
         PatternSanitizer $sanitizer,
         PatternValidator $validator,
-        Config $config
+        Config $config,
+        ?ThemeManager $themes = null
     ) {
         parent::__construct($files, $dirs, $cache, $fileManager, $sanitizer, $validator);
 
         $this->setDefaultLayout('WebShell');
         $this->share([
+            ...($themes ?? new ThemeManager($config))->layoutGlobals('cart'),
             'appName' => (string) $config->get('app', 'NAME', 'LangelerMVC'),
             'moduleName' => 'CartModule',
         ]);

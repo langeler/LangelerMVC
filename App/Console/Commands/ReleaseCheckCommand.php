@@ -31,6 +31,7 @@ class ReleaseCheckCommand extends Command
         'Docs/OperationsGuide.md',
         'Docs/DatabaseMatrixTesting.md',
         'Docs/InstallationWizard.md',
+        'Docs/ThemeManagement.md',
         'Docs/PaymentDrivers.md',
         'Docs/ShippingAdapters.md',
     ];
@@ -43,6 +44,11 @@ class ReleaseCheckCommand extends Command
         'APP_ENV',
         'APP_URL',
         'APP_INSTALLED',
+        'THEME_DEFAULT',
+        'THEME_MODE',
+        'THEME_ALLOW_USER_SELECTION',
+        'THEME_ASSET_CSS',
+        'THEME_ASSET_JS',
         'DB_CONNECTION',
         'SESSION_DRIVER',
         'CACHE_DRIVER',
@@ -325,6 +331,7 @@ class ReleaseCheckCommand extends Command
             'module_surface' => $this->moduleSurfaceCheck(),
             'payment_surface' => $this->paymentSurfaceCheck(),
             'commerce_surface' => $this->commerceSurfaceCheck(),
+            'theme_surface' => $this->themeSurfaceCheck(),
             'template_accessibility' => $this->templateAccessibilityCheck(),
             'external_matrix' => $this->externalMatrixCheck(),
             'live_integrations' => $this->liveIntegrationCheck(),
@@ -354,7 +361,7 @@ class ReleaseCheckCommand extends Command
                 'database_cache_session_matrix' => ['mysql', 'pgsql', 'sqlsrv', 'redis', 'memcached'],
                 'live_carriers' => self::REQUIRED_SWEDISH_CARRIERS,
                 'live_payment_or_subscription_credentials' => ['card', 'paypal', 'klarna', 'swish', 'qliro', 'walley', 'crypto'],
-                'browser_accessibility_pass' => ['public', 'installer', 'admin'],
+                'browser_accessibility_pass' => ['public-light', 'public-dark', 'installer', 'admin'],
             ],
         ];
     }
@@ -407,11 +414,17 @@ class ReleaseCheckCommand extends Command
     {
         $contents = $this->read('.env.example');
         $missing = [];
+        $duplicates = [];
 
         foreach (self::REQUIRED_ENV_KEYS as $key) {
             if (!preg_match('/^' . preg_quote($key, '/') . '=/m', $contents)) {
                 $missing[] = $key;
             }
+        }
+
+        if (preg_match_all('/^([A-Z0-9_]+)=/m', $contents, $matches)) {
+            $counts = array_count_values($matches[1]);
+            $duplicates = array_keys(array_filter($counts, static fn(int $count): bool => $count > 1));
         }
 
         $report = method_exists($this->settings, 'environmentReport')
@@ -420,11 +433,15 @@ class ReleaseCheckCommand extends Command
         $unknown = array_values(array_map('strval', (array) ($report['unknown'] ?? [])));
 
         return [
-            'ok' => $missing === [],
+            'ok' => $missing === [] && $duplicates === [],
             'required_count' => count(self::REQUIRED_ENV_KEYS),
             'missing' => $missing,
+            'duplicates' => $duplicates,
             'runtime_unknown_env_keys' => $unknown,
-            'errors' => $missing === [] ? [] : ['Missing .env.example release keys: ' . implode(', ', $missing)],
+            'errors' => array_values(array_filter([
+                $missing === [] ? null : 'Missing .env.example release keys: ' . implode(', ', $missing),
+                $duplicates === [] ? null : 'Duplicate .env.example keys: ' . implode(', ', $duplicates),
+            ])),
             'warnings' => $unknown === [] ? [] : ['Runtime .env has unknown keys: ' . implode(', ', $unknown)],
         ];
     }
@@ -656,6 +673,74 @@ class ReleaseCheckCommand extends Command
             'carriers' => $carriers,
             'carrier_adapters' => $carrierAdapters,
             'tracking_apps' => $trackingApps,
+            'errors' => $errors,
+            'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function themeSurfaceCheck(): array
+    {
+        $requiredThemes = ['bootstrap-light', 'bootstrap-dark', 'bootstrap-system'];
+        $allowedModes = ['light', 'dark', 'system'];
+        $themes = array_keys((array) $this->config->get('theme', 'THEMES', []));
+        $themes = array_values(array_map('strtolower', array_map('strval', $themes)));
+        $defaultTheme = strtolower((string) $this->config->get('theme', 'DEFAULT', ''));
+        $mode = strtolower((string) $this->config->get('theme', 'MODE', ''));
+        $cssAsset = (string) $this->config->get('theme', 'ASSETS.CSS', '/assets/css/langelermvc-theme.css');
+        $jsAsset = (string) $this->config->get('theme', 'ASSETS.JS', '/assets/js/langelermvc-theme.js');
+        $assetFiles = [
+            'source_css' => 'App/Resources/css/langelermvc-theme.css',
+            'source_js' => 'App/Resources/js/langelermvc-theme.js',
+            'public_css' => 'Public/' . ltrim($cssAsset, '/'),
+            'public_js' => 'Public/' . ltrim($jsAsset, '/'),
+        ];
+        $missingThemes = array_values(array_diff($requiredThemes, $themes));
+        $missingAssets = [];
+        $errors = [];
+
+        foreach ($assetFiles as $label => $relative) {
+            if ($relative === '' || !is_file($this->path($relative))) {
+                $missingAssets[] = $label . ':' . $relative;
+            }
+        }
+
+        if ($missingThemes !== []) {
+            $errors[] = 'Missing framework theme definitions: ' . implode(', ', $missingThemes);
+        }
+
+        if (!in_array($defaultTheme, $themes, true)) {
+            $errors[] = sprintf('Default theme [%s] is not present in the configured theme catalog.', $defaultTheme);
+        }
+
+        if (!in_array($mode, $allowedModes, true)) {
+            $errors[] = sprintf('Theme mode [%s] is not one of: %s.', $mode, implode(', ', $allowedModes));
+        }
+
+        if ($missingAssets !== []) {
+            $errors[] = 'Missing theme assets: ' . implode(', ', $missingAssets);
+        }
+
+        foreach ([
+            'css_asset_path' => $cssAsset,
+            'js_asset_path' => $jsAsset,
+        ] as $label => $asset) {
+            if (!str_starts_with($asset, '/assets/')) {
+                $errors[] = sprintf('Theme %s must point at /assets/.', $label);
+            }
+        }
+
+        return [
+            'ok' => $errors === [],
+            'required' => $requiredThemes,
+            'catalog' => $themes,
+            'default' => $defaultTheme,
+            'mode' => $mode,
+            'assets' => $assetFiles,
+            'missing_themes' => $missingThemes,
+            'missing_assets' => $missingAssets,
             'errors' => $errors,
             'warnings' => [],
         ];

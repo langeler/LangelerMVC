@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}" data-theme-mode="{{ (string) ($themeMode ?? 'system') }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -221,8 +221,13 @@
             .hero, .panel { padding: 22px; border-radius: 22px; }
         }
     </style>
+    <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
 </head>
-<body>
+<body class="theme-surface theme-surface--{{ (string) ($themeSurface ?? 'installer') }} {{ (string) ($themeClass ?? 'theme-bootstrap-light') }}"
+      data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}"
+      data-theme-mode="{{ (string) ($themeMode ?? 'system') }}"
+      data-theme-default-mode="{{ (string) ($themeDefaultMode ?? 'system') }}"
+      data-theme-storage-key="{{ (string) ($themeStorageKey ?? 'langelermvc.theme') }}">
 <main class="shell">
     <section class="hero">
         <p class="eyebrow">Framework Installation</p>
@@ -231,6 +236,14 @@
             Configure the platform once, provision the database-backed starter modules, and finish with a ready-to-use administrator account.
             This wizard keeps the setup inside the framework instead of sending you through manual config editing and command juggling.
         </p>
+        @if($themeToggleEnabled ?? true)
+            <div class="theme-header-actions">
+                <span class="muted">Theme: {{ (string) ($themeLabel ?? 'Bootstrap Light') }}</span>
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle color theme" aria-pressed="false">
+                    <span data-theme-toggle-label>{{ ucfirst((string) ($themeMode ?? 'system')) }}</span>
+                </button>
+            </div>
+        @endif
         <div class="hero-grid">
             <article class="hero-card">
                 <strong>Framework-native setup</strong>
@@ -249,5 +262,6 @@
 
     {!! $content ?? '' !!}
 </main>
+<script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
 </body>
 </html>

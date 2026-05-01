@@ -8,15 +8,16 @@ LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on 
 
 ## Verification Snapshot
 
-As of `2026-04-30`:
+As of `2026-05-01`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (143 tests, 3162 assertions)`
+- `composer test` passes with `OK (146 tests, 3196 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
+- `composer release:check` returns `status=200`
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
-- SQLite is verified in the default suite, and a database-matrix harness is available for MySQL, PostgreSQL, and SQL Server verification
+- SQLite is verified in the default suite, and a database/runtime matrix harness is available for MySQL, PostgreSQL, SQL Server, Redis, and Memcached verification where services and PHP extensions exist
 
 ## Current State
 
@@ -25,6 +26,7 @@ As of `2026-04-30`:
 - The payment layer now exposes a plug-and-play compatibility surface with driver capability/readiness introspection, payment-method and flow discovery, provider-specific env/installer settings, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
 - First-party payment drivers now ship for `Credit / Debit Card`, `PayPal`, `Klarna`, `Swish`, `Qliro`, `Walley`, and `Crypto`, plus the framework testing/reference driver.
 - Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
+- The presentation layer now includes framework-wide theme management with Bootstrap-compatible light, dark, and system modes backed by `Config/theme.php`, installer settings, shared view globals, and tracked public assets.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -70,8 +72,8 @@ In the current starter slice, `WebModule` follows:
 - `Drivers/`: low-level pluggable adapters for cache, crypto, notifications, payments, passkeys, queueing, shipping, and sessions.
 - `Exceptions/`: typed framework exception classes grouped by concern.
 - `Modules/`: application modules. `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party slices.
-- `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, shipping, queueing, exceptions, and modules.
-- `Resources/`: source asset workspace that belongs to the application layer.
+- `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, shipping, queueing, theming, exceptions, and modules.
+- `Resources/`: source asset workspace that belongs to the application layer, including the canonical framework theme CSS/JS source.
 - `Templates/`: shared native `.vide` template files used by module views, including layouts, pages, partials, and reusable components. `.lmv` and `.php` remain readable as compatibility fallbacks.
 - `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
 
@@ -80,7 +82,7 @@ In the current starter slice, `WebModule` follows:
 - `Config/`: runtime configuration arrays loaded by the config facade and merged with `.env` overrides at runtime.
 - `Data/`: release-reference SQLite schema snapshots generated from the framework-managed migration system.
 - `Docs/`: current architecture and structure docs, plus older reference materials kept in the repository.
-- `Public/`: the public document root, front controller, Apache config, and public asset folders, including tracked storefront demo imagery.
+- `Public/`: the public document root, front controller, Apache config, tracked theme CSS/JS, and public asset folders, including tracked storefront demo imagery.
 - `Public/install/index.php`: the installer entrypoint for first-run setup.
 - `console`: the first-party CLI entrypoint for operational framework commands.
 - `Services/`: workspace for cross-application service composition outside a specific module.
@@ -118,6 +120,7 @@ The installer wizard now handles:
 - default database-backed `WebModule` setup
 - payment driver, method-family, flow defaults, provider live endpoint fields, and webhook-secret placeholders for the first commerce-ready baseline
 - carrier adapter defaults for Swedish-first shipping, tracking, service-point, and label flows
+- framework-wide theme defaults, public theme assets, and light/dark/system toggle behavior
 - commerce fulfillment, shipping, subscription, inventory reservation, return, and order-document defaults
 
 Manual `.env` editing is still supported, and `.env.example` remains the tracked baseline, but the intended production-first setup path is now the installer wizard rather than editing config files before first boot.
@@ -156,7 +159,7 @@ php console route:list
 For a clean production-style verification pass, the framework now ships with:
 
 - `composer verify:platform` for the default regression suite plus a health check
-- `composer release:check` for release docs, env parity, `Data/*.sql` schema references, critical routes, module/payment surfaces, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
+- `composer release:check` for release docs, env parity, `Data/*.sql` schema references, critical routes, module/payment/theme surfaces, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
 - `composer verify:release` for Composer metadata validation, the default regression suite, health liveness, and release gate execution
 - `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
 - `docker-compose.verify.yml` for local MySQL/PostgreSQL/SQL Server/Redis/Memcached verification
@@ -167,6 +170,7 @@ Typical local backend bring-up:
 ```bash
 docker compose -f docker-compose.verify.yml up -d
 composer test:db-matrix
+composer test:runtime-backends
 composer ops:health
 composer ops:ready
 ```
@@ -176,6 +180,8 @@ For local compose-based verification, use the standard service ports exposed by 
 - MySQL: `3306`
 - PostgreSQL: `5432`
 - SQL Server: `1433`
+- Redis: `6379`
+- Memcached: `11211`
 
 The GitHub Actions workflow uses isolated service-port mappings for hosted runners and prints the selected DB target before executing the matrix job.
 
@@ -189,6 +195,7 @@ The GitHub Actions workflow uses isolated service-port mappings for hosted runne
 - `Config/payment.php` now defines the default payment driver, currency, payment method family, and payment flow.
 - `Config/payment.php` now ships first-party driver entries for `testing`, `card`, `crypto`, `paypal`, `klarna`, `swish`, `qliro`, and `walley`.
 - `Config/commerce.php` defines commerce totals, fulfillment, shipping, subscription, inventory reservation, return, and order-document settings.
+- `Config/theme.php` defines framework-wide theme defaults, light/dark/system mode policy, and public CSS/JS asset paths.
 - The provider-specific payment drivers support the framework payment taxonomy without vendor SDKs in core:
   - `card`: credit/debit card flows
   - `paypal`: wallet/card flows
@@ -209,6 +216,7 @@ Run the current regression suite with:
 ```bash
 composer test
 composer test:db-matrix
+composer test:runtime-backends
 composer test:mysql
 composer test:pgsql
 composer test:sqlsrv
@@ -222,7 +230,7 @@ composer verify:release
 
 The active default regression tests live in `Tests/Framework`. `Tests/DbMatrix` contains the external-driver verification harness, while `Tests/Unit` and `Tests/Integration` remain available for additional isolated and cross-layer suites when a project needs them.
 
-The current DB-matrix harness verifies real schema creation, query execution, and repository round-trips for configured non-SQLite drivers. The default framework suite carries the broader module, security, payment, presentation, and operational lifecycle coverage.
+The current DB-matrix harness verifies real schema creation, query execution, and repository round-trips for configured non-SQLite drivers. The runtime-backend harness verifies Redis cache/session and Memcached cache round-trips when the matching PHP extensions and services are available. The default framework suite carries the broader module, security, payment, presentation, and operational lifecycle coverage.
 
 ## Payment Drivers
 
@@ -257,9 +265,10 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 - [`Docs/FolderStructure.md`](./Docs/FolderStructure.md): current architecture by layer and responsibility.
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
 - [`Docs/CompleteStructure.md`](./Docs/CompleteStructure.md): full current repository tree, excluding `.git` and `vendor`.
-- [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server verification harness locally.
+- [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server plus Redis/Memcached verification harness locally.
 - [`Docs/DeploymentAndUpgrade.md`](./Docs/DeploymentAndUpgrade.md): production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - [`Docs/InstallationWizard.md`](./Docs/InstallationWizard.md): first-run installer flow, configuration coverage, and post-install expectations.
+- [`Docs/ThemeManagement.md`](./Docs/ThemeManagement.md): framework-wide Bootstrap-compatible light/dark/system theme configuration.
 - [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.
 - [`Docs/ShippingAdapters.md`](./Docs/ShippingAdapters.md): first-party carrier adapter matrix, reference/live mode, and extension pattern.
@@ -285,9 +294,10 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - commerce coverage for physical shipping, digital/virtual access, pickup/pre-order, subscriptions, promotions, inventory reservations, returns/exchanges, partial refunds, and VAT/order documents
 - an executable release gate through `composer release:check` and `composer verify:release`
 - completed HTML + JSON presentation parity across first-party modules
+- framework-wide Bootstrap-compatible light/dark/system theme management
 - a database-backed starter module plus user/admin/shop/cart/order slices
 
-The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution, Redis/Memcached-backed runtime verification where those services exist, project-specific live payment/subscription/carrier credentials, browser/accessibility smoke passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
+The main remaining work is release execution rather than missing platform pieces: broader live DB-matrix execution in provisioned environments, Redis/Memcached-backed runtime verification where those services/extensions exist, project-specific live payment/subscription/carrier credentials, full cross-browser visual/accessibility passes, and ongoing domain/policy refinement as real applications are built on top of the framework.
 
 ## Support
 

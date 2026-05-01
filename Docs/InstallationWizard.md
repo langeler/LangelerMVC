@@ -19,6 +19,7 @@ The wizard collects and writes the runtime configuration needed to boot a real a
 - database driver and connectivity settings
 - session, cache, queue, and mail driver configuration
 - crypto / encryption driver defaults
+- framework-wide Bootstrap-compatible theme and light/dark/system mode defaults
 - framework security defaults such as verification and cookie behavior
 - first administrator account provisioning
 - `WebModule` starter-content mode
@@ -47,6 +48,7 @@ The installer also reports readiness and capability signals before writing confi
 - loaded PHP extensions
 - available framework modules
 - supported database/session/cache/mail/queue/payment driver options
+- supported framework themes and color modes
 - payment provider live-readiness inputs for card, PayPal, Klarna, Swish, Qliro, Walley, and crypto defaults
 - whether the framework has already been installed
 
@@ -60,6 +62,7 @@ Recommended production posture after the wizard completes:
 - verify HTTPS and secure cookie settings
 - replace development mail/payment credentials with real environment values
 - keep live payment webhook secrets and merchant credentials deployment-local; the repository intentionally ships empty placeholders only
+- confirm `THEME_DEFAULT`, `THEME_MODE`, `THEME_ASSET_CSS`, and `THEME_ASSET_JS` point at the desired project theme assets
 - review commerce policy values such as `COMMERCE_INVENTORY_*`, `COMMERCE_RETURNS_*`, `COMMERCE_DOCUMENTS_*`, `COMMERCE_SHIPPING_*`, and `COMMERCE_SUBSCRIPTION_*`
 - run the health checks:
   - `php console health:check`

@@ -1,7 +1,9 @@
 /Public/assets/css/*
 !/Public/assets/css/README.md
+!/Public/assets/css/langelermvc-theme.css
 /Public/assets/js/*
 !/Public/assets/js/README.md
+!/Public/assets/js/langelermvc-theme.js
 /Public/assets/images/*
 !/Public/assets/images/README.md
 !/Public/assets/images/*.svg

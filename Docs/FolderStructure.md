@@ -104,11 +104,11 @@ The application layer is module-first. Each module follows the same backend shap
 
 ### `App/Providers`
 
-Container/provider wiring for core, cache, crypto, exception, and module registration.
+Container/provider wiring for core, cache, crypto, exception, theming, payment, shipping, queue, notification, and module registration.
 
 ### `App/Resources`
 
-Source asset workspace that belongs to the application layer rather than the public web root.
+Source asset workspace that belongs to the application layer rather than the public web root. The framework theme source lives here and is mirrored to tracked public assets for release use.
 
 ### `App/Templates`
 
@@ -158,6 +158,7 @@ Notable current files include:
 - `payment.php`
 - `queue.php`
 - `session.php`
+- `theme.php`
 - `webmodule.php`
 
 `session.php` now also exposes `ENCRYPT`, which enables at-rest session payload encryption through the framework crypto subsystem.
@@ -197,7 +198,7 @@ The web-facing document root:
 
 - `index.php` is the thin front controller.
 - `.htaccess` contains the Apache rewrite and baseline public protections.
-- `assets/` contains public asset directories, including tracked demo storefront images under `assets/images/`.
+- `assets/` contains public asset directories, including tracked demo storefront images under `assets/images/` and the release-tracked framework theme CSS/JS files.
 
 ### `.github/workflows`
 
@@ -230,6 +231,7 @@ Runtime storage:
 Testing surface:
 
 - `Framework/`: current regression suite for the framework/backend itself
+- `DbMatrix/`: opt-in external database and Redis/Memcached runtime backend harnesses
 - `Unit/`: optional bucket for isolated class tests
 - `Integration/`: optional bucket for cross-layer tests
 

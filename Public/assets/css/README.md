@@ -1,3 +1,6 @@
 # Public CSS Assets
 
-Available for public CSS assets served directly by the front controller or web server. The current first-party templates still ship most layout styling inline, so this directory is ready for extracted or app-specific CSS when needed.
+Public stylesheets served directly by the web server.
+
+- `langelermvc-theme.css` is the release-tracked framework theme bundle used by installer, public, identity, commerce, and admin layouts.
+- Project-specific CSS can live alongside it or replace it by changing `THEME_ASSET_CSS`.

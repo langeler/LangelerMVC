@@ -38,6 +38,7 @@ If your changes affect non-SQLite persistence behavior or runtime backends, also
 
 ```bash
 composer test:db-matrix
+composer test:runtime-backends
 composer test:mysql
 composer test:pgsql
 composer test:sqlsrv
@@ -71,6 +72,7 @@ The following docs should stay aligned with meaningful framework changes:
 - `Docs/ModulesStructure.md`
 - `Docs/OperationsGuide.md`
 - `Docs/DatabaseMatrixTesting.md`
+- `Docs/ThemeManagement.md`
 - `Data/README.md` and `Data/*.sql` when schema migrations change
 
 If you add or remove tracked top-level or architectural files, update `Docs/CompleteStructure.md` as well.

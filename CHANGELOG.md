@@ -4,11 +4,13 @@ All notable LangelerMVC release work is tracked here.
 
 ## Unreleased
 
+- Added framework-wide Bootstrap-compatible theme management with light, dark, and system modes, installer/env settings, shared layout globals, tracked public CSS/JS assets, docs, tests, and release-gate coverage.
+- Added Redis/Memcached runtime backend harness commands for cache/session verification where matching PHP extensions and services are available.
 - Added first-party carrier adapter contracts, provider wiring, reference/live mode readiness, and PostNord/Instabox/Budbee/Bring/DHL/Schenker/Early Bird/Airmee/UPS adapter coverage.
 - Added payment-provider readiness metadata, provider-specific live endpoint/env/installer parity, and whole-catalog payment release checks for testing, card, PayPal, Klarna, Swish, Qliro, Walley, and crypto.
 - Added release-reference `Data/*.sql` snapshots generated from migrations, plus stale-table detection in the release gate.
 - Added repository consistency coverage for class/file/namespace naming conventions across class-bearing app files.
-- Added `release:check` and `verify:release` release gates covering release docs, `.env.example` parity, SQL reference freshness, module/payment surface completeness, critical routes, commerce fulfillment/carrier breadth, native template accessibility heuristics, external matrix readiness, and live integration warnings.
+- Added `release:check` and `verify:release` release gates covering release docs, `.env.example` parity, SQL reference freshness, module/payment/theme surface completeness, critical routes, commerce fulfillment/carrier breadth, native template accessibility heuristics, external matrix readiness, and live integration warnings.
 - Added structured admin operations panels for queue, notification, event, payment, health, inventory, return/document, and audit drilldown visibility.
 - Added admin bulk promotion workflows with confirmation UX for activation, deactivation, and deletion.
 - Added promotion analytics by code, source, currency, customer, customer segment, and day.

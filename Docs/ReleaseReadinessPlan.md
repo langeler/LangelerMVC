@@ -4,7 +4,7 @@ This plan tracks the remaining work to move LangelerMVC from late-stage framewor
 
 ## Current Release Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping adapters with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, and installer rollback are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, framework-wide theme management, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping adapters with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, runtime backend harnesses, and installer rollback are all present.
 
 The remaining work is now the final production layer: live integration credentials, environment matrix verification, deployment recipe validation, and browser/accessibility smoke passes.
 
@@ -12,12 +12,12 @@ The remaining work is now the final production layer: live integration credentia
 
 - Remove tracked runtime/security material from version control and ensure secrets are installer/runtime generated. The tracked secure cache key has been removed, and `Storage/Secure` stays ignored except for its README.
 - Update stale release documentation, status files, setup references, and test counts before tagging a release. `CHANGELOG.md`, `RELEASE.md`, and `Docs/DeploymentAndUpgrade.md` now act as release-facing anchors.
-- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, payment provider endpoints, commerce inventory, returns, documents, and list-style env handling.
+- Bring `.env.example`, installer defaults, and SettingsManager aliases into parity with the current framework surface. Current coverage includes queue workers, notifications, HTTP/auth, operations, theme management, payment provider endpoints, commerce inventory, returns, documents, and list-style env handling.
 - Keep `Data/*.sql` synchronized as release-reference schema snapshots generated from migrations; migrations remain authoritative, and local `.env` files remain deployment-specific and ignored.
 - Payment webhook environment parity is now included: installer defaults, `.env.example`, SettingsManager aliases, route integration, signature settings, and per-driver secrets are represented.
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Run `composer release:check` as the local release gate and `php console release:check --strict=1` when validating a production tag candidate with live credentials and matrix extensions available.
-- Verify the full database/cache/session matrix before release, not only the default local regression suite.
+- Verify the full database/cache/session matrix before release, not only the default local regression suite. `composer test:db-matrix` and `composer test:runtime-backends` are the documented opt-in harnesses.
 
 ## P1 - Commerce Fulfillment Spectrum
 
@@ -54,10 +54,10 @@ Promotions should be treated as rules plus benefits.
 
 ## Exact Remaining Work After Current Slice
 
-- P0: run and record the full supported database/cache/session matrix in real environments before release tagging.
-- P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, keeping `Data/*.sql` migration-aligned, and confirming no runtime-generated secrets or local artifacts are tracked.
+- P0: run and record the full supported database/cache/session matrix in real environments before release tagging; this workspace currently skips MySQL/PostgreSQL/SQL Server/Redis/Memcached checks because the services/extensions are not provisioned.
+- P0: complete final release hygiene by keeping status/test counts current, running `composer release:check`, keeping `Data/*.sql` migration-aligned, and confirming no runtime-generated secrets or local artifacts are tracked. Current local verification is `OK (146 tests, 3196 assertions)` plus `composer release:check` status `200`.
 - P1: configure live payment, webhook, subscription, and carrier credentials/endpoints per deployed project. These values intentionally remain outside the released repository.
-- P2: run browser/accessibility smoke passes for public and admin templates and fix any findings.
+- P2: run full cross-browser visual/accessibility smoke passes for public and admin templates and fix any findings. Static template accessibility checks and local server smoke for `/`, `/install/`, and theme CSS/JS assets are complete in this workspace.
 - P2: keep deployment and upgrade recipes validated against the target host before tagging.
 - P2: deepen provider-specific smoke tests once live payment, subscription, carrier, Redis, Memcached, SQL Server, and optional extension environments are provisioned.
 
@@ -65,6 +65,6 @@ Promotions should be treated as rules plus benefits.
 
 - Inventory reservations, expiry, and ledger entries are implemented and visible in admin operations/order views.
 - Returns, exchanges, partial refunds, VAT invoices, credit notes, return authorizations, and packing slips are implemented through admin-native workflows.
-- Accessibility, responsive, and browser smoke passes remain to be executed for public and admin templates.
+- Full cross-browser visual/accessibility passes remain target-environment work; static template accessibility checks and local server smoke for installer/theme assets now pass locally.
 - Upgrade notes and deployment recipes are now anchored in `Docs/DeploymentAndUpgrade.md` and `RELEASE.md`; expand them per target host as production environments are selected.
 - Continue deepening unit and integration tests around live provider adapters, fulfillment strategies, installer output, webhooks, inventory, subscriptions, documents, returns, and cross-database behavior.

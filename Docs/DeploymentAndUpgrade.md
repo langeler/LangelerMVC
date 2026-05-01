@@ -13,8 +13,10 @@ This document turns the release checklist into practical operator recipes. It is
 7. Run `php console migrate` and `php console seed` when the environment needs starter data.
 8. Start supervised queue workers for the configured queues, then verify `php console queue:failed` is empty after initial smoke tests.
 9. Run `php console health:check`, `php console health:check ready`, `composer ops:health`, `composer ops:ready`, and `composer release:check` against the target environment.
-10. Run `php console release:check --strict=1` once live credentials, seller/VAT values, matrix extensions, and provider adapters are configured.
-11. Run a browser smoke pass for public storefront pages, installer redirect behavior, admin dashboard, admin orders, admin promotions, admin operations, and auth flows.
+10. Run `composer test:runtime-backends` where Redis/Memcached services and PHP extensions are available.
+11. Confirm `THEME_DEFAULT`, `THEME_MODE`, `THEME_ASSET_CSS`, and `THEME_ASSET_JS` match the deployed project theme.
+12. Run `php console release:check --strict=1` once live credentials, seller/VAT values, matrix extensions, and provider adapters are configured.
+13. Run a browser smoke pass for public storefront pages, installer redirect behavior, admin dashboard, admin orders, admin promotions, admin operations, auth flows, and light/dark/system theme switching.
 
 ## Commerce Deployment Checks
 
@@ -56,4 +58,4 @@ This document turns the release checklist into practical operator recipes. It is
 - Admin: dashboard, pages, catalog, promotions, orders, operations, users, roles, system, and permissions.
 - Commerce: physical shipping, digital/virtual fulfillment, pickup/scheduled pickup, pre-order, subscription checkout, promotions/coupons, inventory reservations, returns/exchanges, partial refunds, and order documents.
 - Operations: health, readiness, queue work/retry/failure paths, notifications, audit list, payment webhooks, subscription webhooks, and carrier tracking sync.
-- Accessibility/browser: keyboard navigation, labels, focus states, responsive layout, and current Chrome/Safari/Firefox smoke coverage.
+- Accessibility/browser: keyboard navigation, labels, focus states, responsive layout, light/dark/system theme switching, and current Chrome/Safari/Firefox smoke coverage.

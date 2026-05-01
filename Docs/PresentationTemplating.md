@@ -12,6 +12,7 @@ The native templating surface is designed to align with the framework design goa
 - readable source templates with explicit directives instead of embedded PHP blocks
 - maintainable presentation code with less mixed rendering/runtime logic
 - compatibility with the existing view abstraction and layout pipeline
+- framework-wide theme globals for light/dark/system presentation without module-local styling forks
 - backward-readable `.lmv` and `.php` template fallbacks without making them the primary authoring surface
 
 ## Template Structure
@@ -24,6 +25,8 @@ Shared templates live under `App/Templates`:
 - `Components/`: reusable UI/data primitives such as `DataTable.vide`, `DefinitionGrid.vide`, and `ProductGrid.vide`
 
 Concrete module views render those templates through `App\Abstracts\Presentation\View`.
+
+First-party layouts also consume shared theme globals from `App\Support\Theming\ThemeManager`, including `themeName`, `themeMode`, `themeAssetCss`, `themeAssetJs`, and `themeToggleEnabled`.
 
 ## Authoring Rules
 

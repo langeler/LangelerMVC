@@ -508,10 +508,12 @@ LangelerMVC
 │   │   └── ShippingProvider.php
 │   ├── Resources
 │   │   ├── css
+│   │   │   ├── langelermvc-theme.css
 │   │   │   └── README.md
 │   │   ├── images
 │   │   │   └── README.md
 │   │   └── js
+│   │       ├── langelermvc-theme.js
 │   │       └── README.md
 │   ├── Support
 │   │   ├── Commerce
@@ -531,6 +533,8 @@ LangelerMVC
 │   │   │   ├── PaymentIntent.php
 │   │   │   ├── PaymentMethod.php
 │   │   │   └── PaymentResult.php
+│   │   ├── Theming
+│   │   │   └── ThemeManager.php
 │   │   └── ArrayMailable.php
 │   ├── Templates
 │   │   ├── Components
@@ -800,6 +804,7 @@ LangelerMVC
 │   ├── payment.php
 │   ├── queue.php
 │   ├── session.php
+│   ├── theme.php
 │   └── webmodule.php
 ├── Data
 │   ├── Carts.sql
@@ -831,6 +836,7 @@ LangelerMVC
 │   ├── ReleaseReadinessPlan.md
 │   ├── SanitationValidationAPI.md
 │   ├── ShippingAdapters.md
+│   ├── ThemeManagement.md
 │   ├── sodiumcryptoclass.rtf
 │   ├── Untitled 5.rtf
 │   ├── Untitled 6.rtf
@@ -839,6 +845,7 @@ LangelerMVC
 ├── Public
 │   ├── assets
 │   │   ├── css
+│   │   │   ├── langelermvc-theme.css
 │   │   │   └── README.md
 │   │   ├── images
 │   │   │   ├── admin-operations-pack.svg
@@ -846,6 +853,7 @@ LangelerMVC
 │   │   │   ├── README.md
 │   │   │   └── starter-platform-license.svg
 │   │   └── js
+│   │       ├── langelermvc-theme.js
 │   │       └── README.md
 │   ├── install
 │   │   └── index.php
@@ -867,7 +875,8 @@ LangelerMVC
 │       └── README.md
 ├── Tests
 │   ├── DbMatrix
-│   │   └── DatabaseMatrixHarnessTest.php
+│   │   ├── DatabaseMatrixHarnessTest.php
+│   │   └── RuntimeBackendHarnessTest.php
 │   ├── Framework
 │   │   ├── AdapterCompatibilityTest.php
 │   │   ├── AsyncOperationsHardeningTest.php
@@ -894,6 +903,7 @@ LangelerMVC
 │   │   ├── RepositoryConsistencyTest.php
 │   │   ├── RouterTest.php
 │   │   ├── SessionSubsystemTest.php
+│   │   ├── ThemeManagementTest.php
 │   │   ├── TraitSurfaceTest.php
 │   │   ├── UtilityLayerHardeningTest.php
 │   │   └── ValidationAndSanitizationTest.php

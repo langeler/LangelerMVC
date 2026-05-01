@@ -9,6 +9,7 @@ LangelerMVC now ships with a browser-based installation wizard at `Public/instal
 - When `APP_INSTALLED=false`, `App\Core\Bootstrap` redirects normal HTTP traffic into the installer automatically.
 - The installer prepares storage paths, validates database connectivity, writes `.env`, runs migrations + seeds, and provisions the first administrator account.
 - The installer also configures first-party payment defaults and the database-backed `WebModule` starter baseline.
+- The installer also configures framework-wide Bootstrap-compatible theme defaults and light/dark/system mode behavior.
 - Manual `.env` editing is still supported, but the intended production-first setup path is now the installer rather than hand-editing config files before first boot.
 
 For the full first-run walkthrough, see `InstallationWizard.md`.
@@ -61,16 +62,28 @@ composer ops:audit
 composer verify:platform
 composer release:check
 composer verify:release
+composer test:runtime-backends
 ```
 
 ## Release Gate Operations
 
 `php console release:check` is the executable local release gate.
 
-- It checks release docs, `.env.example` parity, `Data/*.sql` release schema references, release-critical routes, first-party module surface completeness, payment driver surface completeness, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
+- It checks release docs, `.env.example` parity, `Data/*.sql` release schema references, release-critical routes, first-party module surface completeness, payment driver surface completeness, theme surface completeness, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
 - Normal mode fails only on local release blockers such as missing docs, missing env keys, stale SQL references, missing routes, missing commerce definitions, raw PHP in native templates, images without alt text, or missing matrix compose services.
 - `--strict=1` also fails on unresolved release warnings such as reference-mode payment/shipping, missing live provider endpoints, empty active webhook secrets, missing seller VAT/address fields, or optional PHP extensions that are not loaded in the current environment.
 - `composer release:check` runs the command through Composer; `composer verify:release` chains Composer validation, the default regression suite, health liveness, and the release gate.
+
+## Theme Operations
+
+The framework-wide theme subsystem is managed through `Config/theme.php`, `.env` keys, and `App\Support\Theming\ThemeManager`.
+
+- Default release theme: `bootstrap-light`
+- Supported modes: `light`, `dark`, `system`
+- Source assets: `App/Resources/css/langelermvc-theme.css` and `App/Resources/js/langelermvc-theme.js`
+- Public assets: `Public/assets/css/langelermvc-theme.css` and `Public/assets/js/langelermvc-theme.js`
+
+Installer, public, identity, commerce, and admin layouts receive shared theme globals from their view classes. `THEME_ALLOW_USER_SELECTION=true` enables the accessible light/dark/system toggle in first-party layouts.
 
 ## Admin Dashboard Operations
 
@@ -226,6 +239,7 @@ Typical usage:
 docker compose -f docker-compose.verify.yml up -d
 composer test
 composer test:db-matrix
+composer test:runtime-backends
 composer test:mysql
 composer test:pgsql
 composer test:sqlsrv
@@ -233,7 +247,7 @@ composer ops:health
 composer release:check
 ```
 
-Redis, Memcached, and Imagick verification still depend on the relevant PHP extensions being available in the environment where the framework tests are executed.
+Redis and Memcached now have an opt-in runtime harness for cache/session checks; those checks skip cleanly if the relevant PHP extensions or services are unavailable. Imagick verification still depends on the relevant extension being available in the environment where the framework tests are executed.
 
 ## CI Posture
 

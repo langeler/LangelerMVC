@@ -4,14 +4,14 @@
 
 [![PHP Version](https://img.shields.io/badge/PHP-8.4%2B-blue.svg)](https://www.php.net/)
 
-LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles.
+LangelerMVC is a custom-built PHP MVC framework designed with a strong focus on structure, modularity, and best practices, including SRP, SoC, and OOP principles. It ships as a complete first-party platform baseline with native `.vide` templates, admin operations, commerce, payments, shipping, subscriptions, promotions, inventory, returns, VAT/order documents, health checks, audit tooling, and a guided installer.
 
 ## Verification Snapshot
 
 As of `2026-05-01`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (146 tests, 3196 assertions)`
+- `composer test` passes with `OK (146 tests, 3201 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - `composer release:check` returns `status=200`
@@ -112,6 +112,7 @@ Then open [http://127.0.0.1:8000](http://127.0.0.1:8000). If the framework is no
 
 The installer wizard now handles:
 
+- a guided step-based setup experience with progress navigation, runtime readiness panels, and no-JS fallback behavior
 - application name, URL, locale, and runtime defaults
 - database driver and connection setup
 - storage preparation
@@ -268,6 +269,7 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 - [`Docs/DatabaseMatrixTesting.md`](./Docs/DatabaseMatrixTesting.md): how to run the MySQL/PostgreSQL/SQL Server plus Redis/Memcached verification harness locally.
 - [`Docs/DeploymentAndUpgrade.md`](./Docs/DeploymentAndUpgrade.md): production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - [`Docs/InstallationWizard.md`](./Docs/InstallationWizard.md): first-run installer flow, configuration coverage, and post-install expectations.
+- [`Docs/RepositoryMetadata.md`](./Docs/RepositoryMetadata.md): release-facing repository/package description, topics, about text, and publication posture.
 - [`Docs/ThemeManagement.md`](./Docs/ThemeManagement.md): framework-wide Bootstrap-compatible light/dark/system theme configuration.
 - [`Docs/OperationsGuide.md`](./Docs/OperationsGuide.md): health endpoints, audit logging, console operations, trusted-device behavior, and local backend verification.
 - [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.

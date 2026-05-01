@@ -11,6 +11,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `../SECURITY.md`: supported versions and responsible vulnerability disclosure guidance.
 - `../CHANGELOG.md`: release-facing change history.
 - `../RELEASE.md`: production preflight and tagging checklist.
+- `RepositoryMetadata.md`: canonical repository/package description, topics, about text, and release-publication posture.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
 - `DeploymentAndUpgrade.md`: production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.

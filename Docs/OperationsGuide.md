@@ -10,6 +10,7 @@ LangelerMVC now ships with a browser-based installation wizard at `Public/instal
 - The installer prepares storage paths, validates database connectivity, writes `.env`, runs migrations + seeds, and provisions the first administrator account.
 - The installer also configures first-party payment defaults and the database-backed `WebModule` starter baseline.
 - The installer also configures framework-wide Bootstrap-compatible theme defaults and light/dark/system mode behavior.
+- The installer UI is a guided stepper with runtime readiness panels, validation-aware navigation, and a no-JS fallback that keeps all configuration sections visible.
 - Manual `.env` editing is still supported, but the intended production-first setup path is now the installer rather than hand-editing config files before first boot.
 
 For the full first-run walkthrough, see `InstallationWizard.md`.

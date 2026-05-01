@@ -834,6 +834,7 @@ LangelerMVC
 │   ├── PresentationTemplating.md
 │   ├── README.md
 │   ├── ReleaseReadinessPlan.md
+│   ├── RepositoryMetadata.md
 │   ├── SanitationValidationAPI.md
 │   ├── ShippingAdapters.md
 │   ├── ThemeManagement.md

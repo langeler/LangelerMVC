@@ -133,6 +133,11 @@ final class InstallerAndViewCoverageTest extends TestCase
         ]);
 
         self::assertStringContainsString('Install LangelerMVC', $installerOutput);
+        self::assertStringContainsString('Guided setup mode', $installerOutput);
+        self::assertStringContainsString('data-installer-step-trigger="0"', $installerOutput);
+        self::assertStringContainsString('data-installer-progress-text', $installerOutput);
+        self::assertStringContainsString('Previous section', $installerOutput);
+        self::assertStringContainsString('Next section', $installerOutput);
         self::assertStringContainsString('Security & Identity', $installerOutput);
         self::assertStringContainsString('Theme & UX', $installerOutput);
         self::assertStringContainsString('/assets/css/langelermvc-theme.css', $installerOutput);

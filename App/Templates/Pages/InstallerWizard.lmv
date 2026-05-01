@@ -16,6 +16,15 @@
         $paymentDriver = $form['PAYMENT_DRIVER'] ?? '';
         $paymentMethod = $form['PAYMENT_DEFAULT_METHOD'] ?? '';
         $paymentFlow = $form['PAYMENT_DEFAULT_FLOW'] ?? '';
+        $carrierAdapter = $form['COMMERCE_SHIPPING_ACTIVE_CARRIER'] ?? '';
+        $fulfillmentType = $form['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? '';
+        $subscriptionInterval = $form['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? '';
+        $themeDefault = $form['THEME_DEFAULT'] ?? '';
+        $themeModeValue = $form['THEME_MODE'] ?? '';
+        $themeAllowUserSelection = ($form['THEME_ALLOW_USER_SELECTION'] ?? 'true') === 'true';
+        $autoReadyOnCapture = ($form['COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE'] ?? 'true') === 'true';
+        $returnsAllowExchanges = ($form['COMMERCE_RETURNS_ALLOW_EXCHANGES'] ?? 'true') === 'true';
+        $returnsAutoRestock = ($form['COMMERCE_RETURNS_AUTO_RESTOCK'] ?? 'true') === 'true';
         $encryptionType = $form['ENCRYPTION_TYPE'] ?? '';
         $sessionSameSite = strtolower((string) ($form['SESSION_SAME_SITE'] ?? ''));
         $isInstalled = (bool) ($status['installed'] ?? false);
@@ -32,6 +41,11 @@
         $mailDrivers = $status['mailDrivers'] ?? [];
         $queueDrivers = $status['queueDrivers'] ?? [];
         $contentSources = $status['contentSources'] ?? [];
+        $carrierAdapters = $status['carrierAdapters'] ?? [];
+        $fulfillmentTypes = $status['fulfillmentTypes'] ?? [];
+        $subscriptionIntervals = $status['subscriptionIntervals'] ?? [];
+        $themes = $status['themes'] ?? ['bootstrap-light', 'bootstrap-dark', 'bootstrap-system'];
+        $themeModes = $status['themeModes'] ?? ['light', 'dark', 'system'];
     @endphp
     <div class="stack">
         @if($errors !== [])
@@ -61,11 +75,68 @@
                 <p>Write a production-ready `.env`, integrate the framework subsystems, and provision a usable application baseline in one pass.</p>
             </div>
 
-            <form method="post" action="">
-                <input type="hidden" name="_token" value="<?= $view->escape((string) ($csrfToken ?? '')) ?>">
-                <section>
+            <div class="installer-guide" aria-label="Installer guidance">
+                <div>
+                    <strong>Guided setup mode</strong>
+                    <span>Move section by section, keep advanced provider fields available, and review runtime readiness from the side panel at any point.</span>
+                </div>
+                <div>
+                    <strong>Safe defaults</strong>
+                    <span>Testing payments, reference carrier mode, generated secrets, and database-backed modules are ready for first boot.</span>
+                </div>
+                <div>
+                    <strong>Production handoff</strong>
+                    <span>Live credentials stay deployment-local; the wizard writes the integration seams and placeholders only.</span>
+                </div>
+            </div>
+
+            <form class="installer-form" method="post" action="" data-installer-form>
+                <input type="hidden" name="_token" value="{{ (string) ($csrfToken ?? '') }}">
+
+                <nav class="installer-stepper" aria-label="Installer sections">
+                    <button type="button" class="step-tab is-active" data-installer-step-trigger="0" aria-controls="installer-step-application" aria-current="step">
+                        <span>01</span>
+                        <strong>Application</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="1" aria-controls="installer-step-theme">
+                        <span>02</span>
+                        <strong>Theme</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="2" aria-controls="installer-step-database">
+                        <span>03</span>
+                        <strong>Database</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="3" aria-controls="installer-step-runtime">
+                        <span>04</span>
+                        <strong>Runtime</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="4" aria-controls="installer-step-mail">
+                        <span>05</span>
+                        <strong>Mail</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="5" aria-controls="installer-step-security">
+                        <span>06</span>
+                        <strong>Security</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="6" aria-controls="installer-step-commerce">
+                        <span>07</span>
+                        <strong>Commerce</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="7" aria-controls="installer-step-admin">
+                        <span>08</span>
+                        <strong>Admin</strong>
+                    </button>
+                </nav>
+
+                <div class="installer-progress" aria-hidden="true">
+                    <span data-installer-progress-bar></span>
+                </div>
+                <p class="installer-progress-copy" data-installer-progress-text>Section 1 of 8: Application</p>
+
+                <section class="installer-step-panel is-active" id="installer-step-application" data-installer-step-panel data-step-title="Application" aria-labelledby="installer-step-application-title">
                     <div class="section-head">
-                        <h3>Application</h3>
+                        <p class="step-kicker">Step 1 of 8</p>
+                        <h3 id="installer-step-application-title">Application</h3>
                         <p>These values define the runtime identity, locale policy, and the public origin that auth, signing, and passkeys rely on.</p>
                     </div>
                     <div class="field-grid">
@@ -98,9 +169,50 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-theme" data-installer-step-panel data-step-title="Theme" aria-labelledby="installer-step-theme-title">
                     <div class="section-head">
-                        <h3>Database</h3>
+                        <p class="step-kicker">Step 2 of 8</p>
+                        <h3 id="installer-step-theme-title">Theme & UX</h3>
+                        <p>Select the framework-wide Bootstrap-compatible theme defaults used by installer, public, identity, commerce, and admin surfaces.</p>
+                    </div>
+                    <div class="field-grid">
+                        <div class="field">
+                            <label for="THEME_DEFAULT">Default Theme</label>
+                            <select id="THEME_DEFAULT" name="THEME_DEFAULT">
+                                @foreach($themes as $value)
+                                    <option value="{{ $value }}" @if($themeDefault === $value) selected @endif>{{ ucwords(str_replace('-', ' ', (string) $value)) }}</option>
+                                @endforeach
+                            </select>
+                            <small>Ships with professional light, dark, and system Bootstrap token presets.</small>
+                        </div>
+                        <div class="field">
+                            <label for="THEME_MODE">Initial Color Mode</label>
+                            <select id="THEME_MODE" name="THEME_MODE">
+                                @foreach($themeModes as $value)
+                                    <option value="{{ $value }}" @if($themeModeValue === $value) selected @endif>{{ ucfirst((string) $value) }}</option>
+                                @endforeach
+                            </select>
+                            <small>`system` follows the browser color-scheme preference.</small>
+                        </div>
+                        <div class="field">
+                            <label for="THEME_ASSET_CSS">Theme CSS Asset</label>
+                            <input id="THEME_ASSET_CSS" name="THEME_ASSET_CSS" type="text" value="{{ $form['THEME_ASSET_CSS'] ?? '/assets/css/langelermvc-theme.css' }}">
+                        </div>
+                        <div class="field">
+                            <label for="THEME_ASSET_JS">Theme JS Asset</label>
+                            <input id="THEME_ASSET_JS" name="THEME_ASSET_JS" type="text" value="{{ $form['THEME_ASSET_JS'] ?? '/assets/js/langelermvc-theme.js' }}">
+                        </div>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="THEME_ALLOW_USER_SELECTION" value="false">
+                        <label><input type="checkbox" name="THEME_ALLOW_USER_SELECTION" value="true" @if($themeAllowUserSelection) checked @endif> Allow visitors and operators to toggle light, dark, and system modes</label>
+                    </div>
+                </section>
+
+                <section class="installer-step-panel" id="installer-step-database" data-installer-step-panel data-step-title="Database" aria-labelledby="installer-step-database-title">
+                    <div class="section-head">
+                        <p class="step-kicker">Step 3 of 8</p>
+                        <h3 id="installer-step-database-title">Database</h3>
                         <p>The installer validates the connection before it writes the environment and runs the schema lifecycle.</p>
                     </div>
                     <div class="field-grid">
@@ -148,9 +260,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-runtime" data-installer-step-panel data-step-title="Runtime" aria-labelledby="installer-step-runtime-title">
                     <div class="section-head">
-                        <h3>Runtime Services</h3>
+                        <p class="step-kicker">Step 4 of 8</p>
+                        <h3 id="installer-step-runtime-title">Runtime Services</h3>
                         <p>These are the framework-native transport and persistence drivers the modules will use immediately after install.</p>
                     </div>
                     <div class="field-grid">
@@ -227,9 +340,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-mail" data-installer-step-panel data-step-title="Mail" aria-labelledby="installer-step-mail-title">
                     <div class="section-head">
-                        <h3>Mail & Notifications</h3>
+                        <p class="step-kicker">Step 5 of 8</p>
+                        <h3 id="installer-step-mail-title">Mail & Notifications</h3>
                         <p>Configure the outgoing mail transport and the sender identity the auth and notification layers will use.</p>
                     </div>
                     <div class="field-grid">
@@ -280,9 +394,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-security" data-installer-step-panel data-step-title="Security" aria-labelledby="installer-step-security-title">
                     <div class="section-head">
-                        <h3>Security & Identity</h3>
+                        <p class="step-kicker">Step 6 of 8</p>
+                        <h3 id="installer-step-security-title">Security & Identity</h3>
                         <p>The installer generates fresh framework secrets and lets you tune cookie policy, signed URLs, passkeys, and remember-device behavior.</p>
                     </div>
                     <div class="field-grid">
@@ -350,9 +465,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-commerce" data-installer-step-panel data-step-title="Commerce" aria-labelledby="installer-step-commerce-title">
                     <div class="section-head">
-                        <h3>Commerce & Content</h3>
+                        <p class="step-kicker">Step 7 of 8</p>
+                        <h3 id="installer-step-commerce-title">Commerce & Content</h3>
                         <p>Set the default content source for the WebModule and the commerce defaults the Shop and Order layers will boot with.</p>
                     </div>
                     <div class="field-grid">
@@ -377,6 +493,151 @@
                             <input id="PAYMENT_CURRENCY" name="PAYMENT_CURRENCY" type="text" value="{{ $form['PAYMENT_CURRENCY'] ?? '' }}">
                         </div>
                         <div class="field">
+                            <label for="COMMERCE_CURRENCY">Commerce Currency</label>
+                            <input id="COMMERCE_CURRENCY" name="COMMERCE_CURRENCY" type="text" value="{{ $form['COMMERCE_CURRENCY'] ?? '' }}">
+                            <small>Used by cart totals, promotions, shipping rates, and seeded shop defaults.</small>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_TAX_RATE_BPS">Tax Rate (basis points)</label>
+                            <input id="COMMERCE_TAX_RATE_BPS" name="COMMERCE_TAX_RATE_BPS" type="text" value="{{ $form['COMMERCE_TAX_RATE_BPS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_VAT_RATE_BPS">Document VAT Rate (basis points)</label>
+                            <input id="COMMERCE_DOCUMENTS_VAT_RATE_BPS" name="COMMERCE_DOCUMENTS_VAT_RATE_BPS" type="text" value="{{ $form['COMMERCE_DOCUMENTS_VAT_RATE_BPS'] ?? '' }}">
+                            <small>Used when issuing VAT invoices, credit notes, and order document snapshots.</small>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_SELLER_NAME">Document Seller Name</label>
+                            <input id="COMMERCE_DOCUMENTS_SELLER_NAME" name="COMMERCE_DOCUMENTS_SELLER_NAME" type="text" value="{{ $form['COMMERCE_DOCUMENTS_SELLER_NAME'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_SELLER_VAT_ID">Seller VAT ID</label>
+                            <input id="COMMERCE_DOCUMENTS_SELLER_VAT_ID" name="COMMERCE_DOCUMENTS_SELLER_VAT_ID" type="text" value="{{ $form['COMMERCE_DOCUMENTS_SELLER_VAT_ID'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DOCUMENTS_SELLER_ADDRESS">Seller Address</label>
+                            <input id="COMMERCE_DOCUMENTS_SELLER_ADDRESS" name="COMMERCE_DOCUMENTS_SELLER_ADDRESS" type="text" value="{{ $form['COMMERCE_DOCUMENTS_SELLER_ADDRESS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_RETURNS_WINDOW_DAYS">Returns Window Days</label>
+                            <input id="COMMERCE_RETURNS_WINDOW_DAYS" name="COMMERCE_RETURNS_WINDOW_DAYS" type="text" value="{{ $form['COMMERCE_RETURNS_WINDOW_DAYS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DISCOUNT_RATE_BPS">Default Discount Rate (basis points)</label>
+                            <input id="COMMERCE_DISCOUNT_RATE_BPS" name="COMMERCE_DISCOUNT_RATE_BPS" type="text" value="{{ $form['COMMERCE_DISCOUNT_RATE_BPS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_DISCOUNT_MAX_MINOR">Default Discount Cap Minor</label>
+                            <input id="COMMERCE_DISCOUNT_MAX_MINOR" name="COMMERCE_DISCOUNT_MAX_MINOR" type="text" value="{{ $form['COMMERCE_DISCOUNT_MAX_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_DEFAULT_COUNTRY">Default Fulfillment Country</label>
+                            <input id="COMMERCE_SHIPPING_DEFAULT_COUNTRY" name="COMMERCE_SHIPPING_DEFAULT_COUNTRY" type="text" value="{{ $form['COMMERCE_SHIPPING_DEFAULT_COUNTRY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_DEFAULT_OPTION">Default Shipping Option</label>
+                            <input id="COMMERCE_SHIPPING_DEFAULT_OPTION" name="COMMERCE_SHIPPING_DEFAULT_OPTION" type="text" value="{{ $form['COMMERCE_SHIPPING_DEFAULT_OPTION'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_ACTIVE_CARRIER">Active Carrier Adapter</label>
+                            <select id="COMMERCE_SHIPPING_ACTIVE_CARRIER" name="COMMERCE_SHIPPING_ACTIVE_CARRIER">
+                                @foreach([
+                                    'postnord' => 'PostNord',
+                                    'instabox' => 'Instabox',
+                                    'budbee' => 'Budbee',
+                                    'bring' => 'Bring',
+                                    'dhl' => 'DHL',
+                                    'schenker' => 'Schenker',
+                                    'earlybird' => 'Early Bird',
+                                    'airmee' => 'Airmee',
+                                    'ups' => 'UPS',
+                                ] as $value => $label)
+                                    <option value="{{ $value }}" @if($carrierAdapter === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <small>Reference mode is safe for install; live mode uses the configured carrier endpoint fields.</small>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_FLAT_RATE_MINOR">Fallback Shipping Rate Minor</label>
+                            <input id="COMMERCE_SHIPPING_FLAT_RATE_MINOR" name="COMMERCE_SHIPPING_FLAT_RATE_MINOR" type="text" value="{{ $form['COMMERCE_SHIPPING_FLAT_RATE_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_FREE_OVER_MINOR">Free Shipping Over Minor</label>
+                            <input id="COMMERCE_SHIPPING_FREE_OVER_MINOR" name="COMMERCE_SHIPPING_FREE_OVER_MINOR" type="text" value="{{ $form['COMMERCE_SHIPPING_FREE_OVER_MINOR'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_INTEGRATION_MODE">Shipping Adapter Mode</label>
+                            <select id="COMMERCE_SHIPPING_INTEGRATION_MODE" name="COMMERCE_SHIPPING_INTEGRATION_MODE">
+                                @foreach(['reference' => 'Reference', 'live' => 'Live'] as $value => $label)
+                                    <option value="{{ $value }}" @if(($form['COMMERCE_SHIPPING_INTEGRATION_MODE'] ?? '') === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_API_BASE">Shipping API Base</label>
+                            <input id="COMMERCE_SHIPPING_API_BASE" name="COMMERCE_SHIPPING_API_BASE" type="url" value="{{ $form['COMMERCE_SHIPPING_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_API_KEY">Shipping API Key</label>
+                            <input id="COMMERCE_SHIPPING_API_KEY" name="COMMERCE_SHIPPING_API_KEY" type="password" value="{{ $form['COMMERCE_SHIPPING_API_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_BOOKING_URL">Booking Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_BOOKING_URL" name="COMMERCE_SHIPPING_BOOKING_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_BOOKING_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_SERVICE_POINTS_URL">Service Points Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_SERVICE_POINTS_URL" name="COMMERCE_SHIPPING_SERVICE_POINTS_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_SERVICE_POINTS_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_TRACKING_URL">Tracking Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_TRACKING_URL" name="COMMERCE_SHIPPING_TRACKING_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_TRACKING_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_CANCELLATION_URL">Cancellation Endpoint</label>
+                            <input id="COMMERCE_SHIPPING_CANCELLATION_URL" name="COMMERCE_SHIPPING_CANCELLATION_URL" type="text" value="{{ $form['COMMERCE_SHIPPING_CANCELLATION_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SHIPPING_TIMEOUT">Shipping Timeout</label>
+                            <input id="COMMERCE_SHIPPING_TIMEOUT" name="COMMERCE_SHIPPING_TIMEOUT" type="text" value="{{ $form['COMMERCE_SHIPPING_TIMEOUT'] ?? '30' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_FULFILLMENT_DEFAULT_TYPE">Default Product Fulfillment</label>
+                            <select id="COMMERCE_FULFILLMENT_DEFAULT_TYPE" name="COMMERCE_FULFILLMENT_DEFAULT_TYPE">
+                                @foreach([
+                                    'physical_shipping' => 'Physical shipping',
+                                    'digital_download' => 'Digital download',
+                                    'virtual_access' => 'Virtual / online access',
+                                    'store_pickup' => 'Pickup at store',
+                                    'scheduled_pickup' => 'Scheduled pickup',
+                                    'preorder' => 'Pre-order',
+                                    'subscription' => 'Subscription / recurring',
+                                ] as $value => $label)
+                                    <option value="{{ $value }}" @if($fulfillmentType === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL">Default Subscription Interval</label>
+                            <select id="COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL" name="COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL">
+                                @foreach(['weekly' => 'Weekly', 'monthly' => 'Monthly', 'quarterly' => 'Quarterly', 'yearly' => 'Yearly'] as $value => $label)
+                                    <option value="{{ $value }}" @if($subscriptionInterval === $value) selected @endif>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT">Default Download Limit</label>
+                            <input id="COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT" name="COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT" type="text" value="{{ $form['COMMERCE_ACCESS_DEFAULT_DOWNLOAD_LIMIT'] ?? '0' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS">Default Access Days</label>
+                            <input id="COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS" name="COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS" type="text" value="{{ $form['COMMERCE_ACCESS_DEFAULT_ACCESS_DAYS'] ?? '0' }}">
+                        </div>
+                        <div class="field">
+                            <label for="COMMERCE_ACCESS_KEY_PREFIX">Access Key Prefix</label>
+                            <input id="COMMERCE_ACCESS_KEY_PREFIX" name="COMMERCE_ACCESS_KEY_PREFIX" type="text" value="{{ $form['COMMERCE_ACCESS_KEY_PREFIX'] ?? 'ent' }}">
+                        </div>
+                        <div class="field">
                             <label for="PAYMENT_DEFAULT_METHOD">Default Payment Method</label>
                             <select id="PAYMENT_DEFAULT_METHOD" name="PAYMENT_DEFAULT_METHOD">
                                 @foreach(['card' => 'Card', 'wallet' => 'Wallet', 'bank_transfer' => 'Bank Transfer', 'bnpl' => 'Buy Now Pay Later', 'local_instant' => 'Local Instant', 'manual' => 'Manual', 'crypto' => 'Crypto'] as $value => $label)
@@ -392,12 +653,117 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_CREATE_URL">Card Create Endpoint</label>
+                            <input id="PAYMENT_CARD_CREATE_URL" name="PAYMENT_CARD_CREATE_URL" type="url" value="{{ $form['PAYMENT_CARD_CREATE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_CAPTURE_URL">Card Capture Endpoint</label>
+                            <input id="PAYMENT_CARD_CAPTURE_URL" name="PAYMENT_CARD_CAPTURE_URL" type="url" value="{{ $form['PAYMENT_CARD_CAPTURE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_REFUND_URL">Card Refund Endpoint</label>
+                            <input id="PAYMENT_CARD_REFUND_URL" name="PAYMENT_CARD_REFUND_URL" type="url" value="{{ $form['PAYMENT_CARD_REFUND_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CARD_API_KEY">Card API Key</label>
+                            <input id="PAYMENT_CARD_API_KEY" name="PAYMENT_CARD_API_KEY" type="password" value="{{ $form['PAYMENT_CARD_API_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_PAYPAL_API_BASE">PayPal API Base</label>
+                            <input id="PAYMENT_PAYPAL_API_BASE" name="PAYMENT_PAYPAL_API_BASE" type="url" value="{{ $form['PAYMENT_PAYPAL_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_PAYPAL_CLIENT_ID">PayPal Client ID</label>
+                            <input id="PAYMENT_PAYPAL_CLIENT_ID" name="PAYMENT_PAYPAL_CLIENT_ID" type="text" value="{{ $form['PAYMENT_PAYPAL_CLIENT_ID'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_PAYPAL_CLIENT_SECRET">PayPal Client Secret</label>
+                            <input id="PAYMENT_PAYPAL_CLIENT_SECRET" name="PAYMENT_PAYPAL_CLIENT_SECRET" type="password" value="{{ $form['PAYMENT_PAYPAL_CLIENT_SECRET'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_KLARNA_API_BASE">Klarna API Base</label>
+                            <input id="PAYMENT_KLARNA_API_BASE" name="PAYMENT_KLARNA_API_BASE" type="url" value="{{ $form['PAYMENT_KLARNA_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_KLARNA_USERNAME">Klarna Username</label>
+                            <input id="PAYMENT_KLARNA_USERNAME" name="PAYMENT_KLARNA_USERNAME" type="text" value="{{ $form['PAYMENT_KLARNA_USERNAME'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_KLARNA_PASSWORD">Klarna Password</label>
+                            <input id="PAYMENT_KLARNA_PASSWORD" name="PAYMENT_KLARNA_PASSWORD" type="password" value="{{ $form['PAYMENT_KLARNA_PASSWORD'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_API_BASE">Swish API Base</label>
+                            <input id="PAYMENT_SWISH_API_BASE" name="PAYMENT_SWISH_API_BASE" type="url" value="{{ $form['PAYMENT_SWISH_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_PAYEE_ALIAS">Swish Payee Alias</label>
+                            <input id="PAYMENT_SWISH_PAYEE_ALIAS" name="PAYMENT_SWISH_PAYEE_ALIAS" type="text" value="{{ $form['PAYMENT_SWISH_PAYEE_ALIAS'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_CERTIFICATE_PATH">Swish Certificate Path</label>
+                            <input id="PAYMENT_SWISH_CERTIFICATE_PATH" name="PAYMENT_SWISH_CERTIFICATE_PATH" type="text" value="{{ $form['PAYMENT_SWISH_CERTIFICATE_PATH'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_SWISH_PRIVATE_KEY_PATH">Swish Private Key Path</label>
+                            <input id="PAYMENT_SWISH_PRIVATE_KEY_PATH" name="PAYMENT_SWISH_PRIVATE_KEY_PATH" type="text" value="{{ $form['PAYMENT_SWISH_PRIVATE_KEY_PATH'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_API_BASE">Qliro API Base</label>
+                            <input id="PAYMENT_QLIRO_API_BASE" name="PAYMENT_QLIRO_API_BASE" type="url" value="{{ $form['PAYMENT_QLIRO_API_BASE'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_API_KEY">Qliro API Key</label>
+                            <input id="PAYMENT_QLIRO_API_KEY" name="PAYMENT_QLIRO_API_KEY" type="password" value="{{ $form['PAYMENT_QLIRO_API_KEY'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL">Qliro Confirmation URL</label>
+                            <input id="PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL" name="PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL" type="url" value="{{ $form['PAYMENT_QLIRO_MERCHANT_CONFIRMATION_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_QLIRO_MERCHANT_TERMS_URL">Qliro Terms URL</label>
+                            <input id="PAYMENT_QLIRO_MERCHANT_TERMS_URL" name="PAYMENT_QLIRO_MERCHANT_TERMS_URL" type="url" value="{{ $form['PAYMENT_QLIRO_MERCHANT_TERMS_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_CREATE_URL">Walley Create Endpoint</label>
+                            <input id="PAYMENT_WALLEY_CREATE_URL" name="PAYMENT_WALLEY_CREATE_URL" type="url" value="{{ $form['PAYMENT_WALLEY_CREATE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_CAPTURE_URL">Walley Capture Endpoint</label>
+                            <input id="PAYMENT_WALLEY_CAPTURE_URL" name="PAYMENT_WALLEY_CAPTURE_URL" type="url" value="{{ $form['PAYMENT_WALLEY_CAPTURE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_REFUND_URL">Walley Refund Endpoint</label>
+                            <input id="PAYMENT_WALLEY_REFUND_URL" name="PAYMENT_WALLEY_REFUND_URL" type="url" value="{{ $form['PAYMENT_WALLEY_REFUND_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_WALLEY_RECONCILE_URL">Walley Reconcile Endpoint</label>
+                            <input id="PAYMENT_WALLEY_RECONCILE_URL" name="PAYMENT_WALLEY_RECONCILE_URL" type="url" value="{{ $form['PAYMENT_WALLEY_RECONCILE_URL'] ?? '' }}">
+                        </div>
+                        <div class="field">
+                            <label for="PAYMENT_CRYPTO_DEFAULT_ASSET">Crypto Default Asset</label>
+                            <input id="PAYMENT_CRYPTO_DEFAULT_ASSET" name="PAYMENT_CRYPTO_DEFAULT_ASSET" type="text" value="{{ $form['PAYMENT_CRYPTO_DEFAULT_ASSET'] ?? 'BTC' }}">
+                        </div>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="false">
+                        <label><input type="checkbox" name="COMMERCE_FULFILLMENT_AUTO_READY_ON_CAPTURE" value="true" @if($autoReadyOnCapture) checked @endif> Move captured orders into ready-to-fulfill automatically</label>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="COMMERCE_RETURNS_ALLOW_EXCHANGES" value="false">
+                        <label><input type="checkbox" name="COMMERCE_RETURNS_ALLOW_EXCHANGES" value="true" @if($returnsAllowExchanges) checked @endif> Allow exchange workflows in admin returns</label>
+                    </div>
+                    <div class="field-inline">
+                        <input type="hidden" name="COMMERCE_RETURNS_AUTO_RESTOCK" value="false">
+                        <label><input type="checkbox" name="COMMERCE_RETURNS_AUTO_RESTOCK" value="true" @if($returnsAutoRestock) checked @endif> Restock eligible physical/pickup returns when completed</label>
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-admin" data-installer-step-panel data-step-title="Admin" aria-labelledby="installer-step-admin-title">
                     <div class="section-head">
-                        <h3>Administrator</h3>
+                        <p class="step-kicker">Step 8 of 8</p>
+                        <h3 id="installer-step-admin-title">Administrator</h3>
                         <p>The installer provisions the full user/admin/RBAC baseline and sets this account as the primary administrator.</p>
                     </div>
                     <div class="field-grid">
@@ -417,8 +783,10 @@
                     </div>
                 </section>
 
-                <div class="actions">
-                    <button class="button" type="submit">Install LangelerMVC</button>
+                <div class="actions installer-step-actions">
+                    <button class="button secondary" type="button" data-installer-prev>Previous section</button>
+                    <button class="button secondary" type="button" data-installer-next>Next section</button>
+                    <button class="button" type="submit" data-installer-submit>Install LangelerMVC</button>
                     <span class="muted">This writes `.env`, runs migrations + seeds, provisions core modules, and prepares the administrator login surface automatically.</span>
                 </div>
             </form>
@@ -530,6 +898,27 @@
                                 Recommended for the first install and local verification.
                             @else
                                 Available through the framework payment registry after credentials are configured.
+                            @endif
+                        </span>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <h2>Carrier Adapter Compatibility</h2>
+                <p>Shipping, service-point lookup, booking, label references, tracking sync, and cancellation all route through the carrier adapter registry.</p>
+            </div>
+            <div class="provider-grid">
+                @foreach($carrierAdapters as $adapter)
+                    <article class="provider-card">
+                        <strong>{{ strtoupper((string) $adapter) }}</strong>
+                        <span class="muted">
+                            @if($adapter === 'postnord')
+                                Default Swedish-first reference adapter.
+                            @else
+                                Available for plug-and-play carrier credentials or endpoint adapters.
                             @endif
                         </span>
                     </article>

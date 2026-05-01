@@ -75,11 +75,68 @@
                 <p>Write a production-ready `.env`, integrate the framework subsystems, and provision a usable application baseline in one pass.</p>
             </div>
 
-            <form method="post" action="">
+            <div class="installer-guide" aria-label="Installer guidance">
+                <div>
+                    <strong>Guided setup mode</strong>
+                    <span>Move section by section, keep advanced provider fields available, and review runtime readiness from the side panel at any point.</span>
+                </div>
+                <div>
+                    <strong>Safe defaults</strong>
+                    <span>Testing payments, reference carrier mode, generated secrets, and database-backed modules are ready for first boot.</span>
+                </div>
+                <div>
+                    <strong>Production handoff</strong>
+                    <span>Live credentials stay deployment-local; the wizard writes the integration seams and placeholders only.</span>
+                </div>
+            </div>
+
+            <form class="installer-form" method="post" action="" data-installer-form>
                 <input type="hidden" name="_token" value="{{ (string) ($csrfToken ?? '') }}">
-                <section>
+
+                <nav class="installer-stepper" aria-label="Installer sections">
+                    <button type="button" class="step-tab is-active" data-installer-step-trigger="0" aria-controls="installer-step-application" aria-current="step">
+                        <span>01</span>
+                        <strong>Application</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="1" aria-controls="installer-step-theme">
+                        <span>02</span>
+                        <strong>Theme</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="2" aria-controls="installer-step-database">
+                        <span>03</span>
+                        <strong>Database</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="3" aria-controls="installer-step-runtime">
+                        <span>04</span>
+                        <strong>Runtime</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="4" aria-controls="installer-step-mail">
+                        <span>05</span>
+                        <strong>Mail</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="5" aria-controls="installer-step-security">
+                        <span>06</span>
+                        <strong>Security</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="6" aria-controls="installer-step-commerce">
+                        <span>07</span>
+                        <strong>Commerce</strong>
+                    </button>
+                    <button type="button" class="step-tab" data-installer-step-trigger="7" aria-controls="installer-step-admin">
+                        <span>08</span>
+                        <strong>Admin</strong>
+                    </button>
+                </nav>
+
+                <div class="installer-progress" aria-hidden="true">
+                    <span data-installer-progress-bar></span>
+                </div>
+                <p class="installer-progress-copy" data-installer-progress-text>Section 1 of 8: Application</p>
+
+                <section class="installer-step-panel is-active" id="installer-step-application" data-installer-step-panel data-step-title="Application" aria-labelledby="installer-step-application-title">
                     <div class="section-head">
-                        <h3>Application</h3>
+                        <p class="step-kicker">Step 1 of 8</p>
+                        <h3 id="installer-step-application-title">Application</h3>
                         <p>These values define the runtime identity, locale policy, and the public origin that auth, signing, and passkeys rely on.</p>
                     </div>
                     <div class="field-grid">
@@ -112,9 +169,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-theme" data-installer-step-panel data-step-title="Theme" aria-labelledby="installer-step-theme-title">
                     <div class="section-head">
-                        <h3>Theme & UX</h3>
+                        <p class="step-kicker">Step 2 of 8</p>
+                        <h3 id="installer-step-theme-title">Theme & UX</h3>
                         <p>Select the framework-wide Bootstrap-compatible theme defaults used by installer, public, identity, commerce, and admin surfaces.</p>
                     </div>
                     <div class="field-grid">
@@ -151,9 +209,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-database" data-installer-step-panel data-step-title="Database" aria-labelledby="installer-step-database-title">
                     <div class="section-head">
-                        <h3>Database</h3>
+                        <p class="step-kicker">Step 3 of 8</p>
+                        <h3 id="installer-step-database-title">Database</h3>
                         <p>The installer validates the connection before it writes the environment and runs the schema lifecycle.</p>
                     </div>
                     <div class="field-grid">
@@ -201,9 +260,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-runtime" data-installer-step-panel data-step-title="Runtime" aria-labelledby="installer-step-runtime-title">
                     <div class="section-head">
-                        <h3>Runtime Services</h3>
+                        <p class="step-kicker">Step 4 of 8</p>
+                        <h3 id="installer-step-runtime-title">Runtime Services</h3>
                         <p>These are the framework-native transport and persistence drivers the modules will use immediately after install.</p>
                     </div>
                     <div class="field-grid">
@@ -280,9 +340,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-mail" data-installer-step-panel data-step-title="Mail" aria-labelledby="installer-step-mail-title">
                     <div class="section-head">
-                        <h3>Mail & Notifications</h3>
+                        <p class="step-kicker">Step 5 of 8</p>
+                        <h3 id="installer-step-mail-title">Mail & Notifications</h3>
                         <p>Configure the outgoing mail transport and the sender identity the auth and notification layers will use.</p>
                     </div>
                     <div class="field-grid">
@@ -333,9 +394,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-security" data-installer-step-panel data-step-title="Security" aria-labelledby="installer-step-security-title">
                     <div class="section-head">
-                        <h3>Security & Identity</h3>
+                        <p class="step-kicker">Step 6 of 8</p>
+                        <h3 id="installer-step-security-title">Security & Identity</h3>
                         <p>The installer generates fresh framework secrets and lets you tune cookie policy, signed URLs, passkeys, and remember-device behavior.</p>
                     </div>
                     <div class="field-grid">
@@ -403,9 +465,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-commerce" data-installer-step-panel data-step-title="Commerce" aria-labelledby="installer-step-commerce-title">
                     <div class="section-head">
-                        <h3>Commerce & Content</h3>
+                        <p class="step-kicker">Step 7 of 8</p>
+                        <h3 id="installer-step-commerce-title">Commerce & Content</h3>
                         <p>Set the default content source for the WebModule and the commerce defaults the Shop and Order layers will boot with.</p>
                     </div>
                     <div class="field-grid">
@@ -697,9 +760,10 @@
                     </div>
                 </section>
 
-                <section>
+                <section class="installer-step-panel" id="installer-step-admin" data-installer-step-panel data-step-title="Admin" aria-labelledby="installer-step-admin-title">
                     <div class="section-head">
-                        <h3>Administrator</h3>
+                        <p class="step-kicker">Step 8 of 8</p>
+                        <h3 id="installer-step-admin-title">Administrator</h3>
                         <p>The installer provisions the full user/admin/RBAC baseline and sets this account as the primary administrator.</p>
                     </div>
                     <div class="field-grid">
@@ -719,8 +783,10 @@
                     </div>
                 </section>
 
-                <div class="actions">
-                    <button class="button" type="submit">Install LangelerMVC</button>
+                <div class="actions installer-step-actions">
+                    <button class="button secondary" type="button" data-installer-prev>Previous section</button>
+                    <button class="button secondary" type="button" data-installer-next>Next section</button>
+                    <button class="button" type="submit" data-installer-submit>Install LangelerMVC</button>
                     <span class="muted">This writes `.env`, runs migrations + seeds, provisions core modules, and prepares the administrator login surface automatically.</span>
                 </div>
             </form>

@@ -26,6 +26,21 @@ The wizard collects and writes the runtime configuration needed to boot a real a
 - payment driver, payment method family, default payment flow, webhook secrets, and provider-specific live endpoint/credential fields
 - commerce shipping, carrier adapter, pickup/pre-order, subscription, inventory reservation, return, and order-document defaults
 
+## Guided Setup UX
+
+The installer is intentionally structured as a step-based setup cockpit rather than one long configuration wall.
+
+- `Application`: public identity, URL, locale, timezone, debug, and verification defaults.
+- `Theme`: framework-wide light/dark/system theme and public asset paths.
+- `Database`: SQL driver, database/file, host, credentials, timeouts, pooling, and SSL posture.
+- `Runtime`: session, cache, queue, cookie, and persistence driver defaults.
+- `Mail`: mail transport, sender identity, reply-to, and mail-log mirroring.
+- `Security`: encryption, signed URL, throttle, passkey, remember-me, and trusted-device settings.
+- `Commerce`: content source, payments, shipping/carrier adapters, fulfillment, subscriptions, returns, documents, and provider endpoint placeholders.
+- `Admin`: first administrator account provisioning.
+
+The stepper is progressive enhancement: without JavaScript, every section remains visible and the install form still posts normally. With JavaScript enabled, the same form becomes a guided tab/step flow with previous/next controls, progress text, and automatic routing to the section containing a browser validation error.
+
 ## What The Wizard Does
 
 On successful installation it can:

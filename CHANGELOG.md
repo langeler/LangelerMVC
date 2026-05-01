@@ -4,6 +4,8 @@ All notable LangelerMVC release work is tracked here.
 
 ## Unreleased
 
+- Added a guided step-based installer UX with section navigation, progress state, previous/next controls, validation-aware step focus, no-JS fallback behavior, and documentation.
+- Added canonical repository metadata documentation for release-facing description, topics, about text, package posture, and publication caveats.
 - Added framework-wide Bootstrap-compatible theme management with light, dark, and system modes, installer/env settings, shared layout globals, tracked public CSS/JS assets, docs, tests, and release-gate coverage.
 - Added Redis/Memcached runtime backend harness commands for cache/session verification where matching PHP extensions and services are available.
 - Added first-party carrier adapter contracts, provider wiring, reference/live mode readiness, and PostNord/Instabox/Budbee/Bring/DHL/Schenker/Early Bird/Airmee/UPS adapter coverage.

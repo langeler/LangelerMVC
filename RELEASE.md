@@ -2,12 +2,18 @@
 
 Use this checklist before tagging or deploying LangelerMVC.
 
+## Release Modes
+
+- Framework package release: acceptable when `composer validate --no-check-publish`, `composer test`, `composer ops:health`, and `composer release:check` pass, and repository docs/metadata are current.
+- Project production go-live: requires the stricter deployment-specific checks, including live credentials, matrix services/extensions, VAT/legal seller data, live payment/subscription/carrier callbacks, and browser/accessibility smoke passes.
+- `php console release:check --strict=1` is the go-live posture check. It is allowed to fail for the public framework source release when failures are only deployment-local live integration warnings.
+
 ## Latest Verified Snapshot
 
 - Date: `2026-05-01`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (146 tests, 3196 assertions)`
+- Result: `OK (146 tests, 3201 assertions)`
 - Local release gate: `composer release:check` returns `status=200`
 - Runtime backend harness: `composer test:runtime-backends` runs and skips cleanly when Redis/Memcached extensions are unavailable
 
@@ -21,7 +27,8 @@ Use this checklist before tagging or deploying LangelerMVC.
 6. Run `composer test:runtime-backends` against available Redis and Memcached services/extensions.
 7. Run `composer ops:health` and confirm readiness checks match the target environment.
 8. Exercise the installer from `Public/install/index.php` against the intended database, cache, session, queue, mail, payment, commerce, theme, and admin-account settings.
-9. Confirm `Data/*.sql` remains a release-reference snapshot generated from migrations and does not contain stale pre-release table names.
+9. Confirm the guided installer stepper works with JavaScript enabled and that the full form remains usable when JavaScript is disabled.
+10. Confirm `Data/*.sql` remains a release-reference snapshot generated from migrations and does not contain stale pre-release table names.
 
 For production tagging, also run `php console release:check --strict=1`. Strict mode intentionally fails while live credentials, optional matrix extensions, reference-mode carrier/payment adapters, or legal/VAT seller settings are still unresolved.
 

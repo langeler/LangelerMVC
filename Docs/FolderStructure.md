@@ -190,6 +190,7 @@ Primary current docs:
 - `FolderStructure.md`
 - `ModulesStructure.md`
 - `CompleteStructure.md`
+- `RepositoryMetadata.md`
 - `SanitationValidationAPI.md`
 
 ### `Public`

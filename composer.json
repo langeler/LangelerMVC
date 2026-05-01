@@ -1,6 +1,6 @@
 {
     "name": "langeler/mvc",
-    "description": "LangelerMVC is a modular PHP 8.4 MVC framework with first-party auth, passkeys, async operations, and plug-and-play payment/provider integration.",
+    "description": "LangelerMVC is a modular PHP 8.4 MVC framework with first-party auth, passkeys, admin operations, commerce, shipping, and plug-and-play provider integration.",
     "type": "project",
     "license": "MIT",
     "homepage": "https://github.com/langeler/LangelerMVC",
@@ -23,6 +23,9 @@
         "notifications",
         "payments",
         "ecommerce",
+        "shipping",
+        "subscriptions",
+        "installer",
         "paypal",
         "klarna",
         "swish",
@@ -96,7 +99,7 @@
         },
         "project": {
             "github": "https://github.com/langeler/LangelerMVC",
-            "description": "LangelerMVC is a modular PHP 8.4 MVC framework with first-party auth, passkeys, async operations, and plug-and-play payment/provider integration.",
+            "description": "LangelerMVC is a modular PHP 8.4 MVC framework with first-party auth, passkeys, admin operations, commerce, shipping, and plug-and-play provider integration.",
             "status": "Runtime, console, migrations/seeds, session/auth/RBAC, TOTP/trusted devices/passkeys, cache, crypto, SQL/query, async, notifications, plug-and-play payment drivers, presentation, and Web/Admin/User/Shop/Cart/Order modules are implemented and regression-tested; DB-matrix harness is available for MySQL/PostgreSQL/SQL Server verification.",
             "topics": [
                 "php",
@@ -117,6 +120,9 @@
                 "notifications",
                 "payments",
                 "ecommerce",
+                "shipping",
+                "subscriptions",
+                "installer",
                 "paypal",
                 "klarna",
                 "swish",

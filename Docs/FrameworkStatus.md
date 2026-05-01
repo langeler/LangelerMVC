@@ -6,7 +6,7 @@ This document records the current implementation state of LangelerMVC based on t
 
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (146 tests, 3196 assertions)`
+- Verification result: `OK (146 tests, 3201 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database/runtime verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, SQL Server, Redis, and Memcached have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -148,7 +148,7 @@ This document records the current implementation state of LangelerMVC based on t
 - composer scripts for regression, DB-matrix, health inspection, audit inspection, and platform verification
 - local backend verification stack through `docker-compose.verify.yml`
 - GitHub Actions workflow for default regression plus supported DB-matrix execution
-- first-run installer wizard through `Public/install/index.php` with bootstrap redirect handling and guided environment/database/admin provisioning
+- first-run installer wizard through `Public/install/index.php` with bootstrap redirect handling, guided step-based setup navigation, no-JS fallback behavior, and environment/database/admin provisioning
 
 ### `ShopModule`
 

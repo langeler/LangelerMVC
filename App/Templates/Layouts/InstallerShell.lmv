@@ -51,7 +51,9 @@
         .panel li,
         .panel label,
         .panel input,
-        .panel select {
+        .panel select,
+        .panel textarea,
+        .panel button {
             font-family: "Avenir Next", "Segoe UI", sans-serif;
         }
         .eyebrow {
@@ -118,8 +120,124 @@
         .status-ok { color: var(--accent); font-weight: 700; }
         .status-bad { color: var(--danger); font-weight: 700; }
         form { display: grid; gap: 24px; }
+        [hidden] { display: none !important; }
         .section-head { display: grid; gap: 6px; margin-bottom: 18px; }
         .section-head p { margin: 0; color: var(--muted); }
+        .step-kicker {
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+        .installer-guide {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+        .installer-guide > div {
+            display: grid;
+            gap: 6px;
+            padding: 15px;
+            border: 1px solid rgba(25, 93, 72, 0.12);
+            border-radius: 18px;
+            background:
+                linear-gradient(135deg, rgba(25, 93, 72, 0.10), rgba(25, 93, 72, 0.02)),
+                rgba(255, 255, 255, 0.68);
+        }
+        .installer-guide strong {
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
+            font-size: 14px;
+        }
+        .installer-guide span {
+            color: var(--muted);
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+        .installer-stepper {
+            position: sticky;
+            top: 12px;
+            z-index: 3;
+            display: none;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: color-mix(in srgb, var(--paper) 92%, white);
+            box-shadow: 0 14px 35px rgba(23, 52, 38, 0.10);
+        }
+        .installer-form--enhanced .installer-stepper { display: grid; }
+        .step-tab {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+            padding: 8px 10px;
+            border: 1px solid transparent;
+            border-radius: 16px;
+            background: transparent;
+            color: var(--muted);
+            text-align: left;
+            cursor: pointer;
+        }
+        .step-tab span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            background: rgba(25, 93, 72, 0.08);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 800;
+        }
+        .step-tab strong {
+            font-size: 13px;
+            line-height: 1.1;
+        }
+        .step-tab.is-active,
+        .step-tab:hover {
+            background: var(--accent-soft);
+            border-color: rgba(25, 93, 72, 0.18);
+            color: var(--accent);
+        }
+        .installer-progress {
+            display: none;
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(25, 93, 72, 0.10);
+        }
+        .installer-form--enhanced .installer-progress { display: block; }
+        .installer-progress span {
+            display: block;
+            width: 12.5%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), #57a584);
+            transition: width 180ms ease;
+        }
+        .installer-progress-copy {
+            display: none;
+            margin: -10px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .installer-form--enhanced .installer-progress-copy { display: block; }
+        .installer-step-panel {
+            display: grid;
+            gap: 16px;
+            padding: 22px;
+            border: 1px solid rgba(25, 93, 72, 0.10);
+            border-radius: 24px;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.54)),
+                rgba(255, 255, 255, 0.62);
+        }
         .field {
             display: grid;
             gap: 8px;
@@ -132,7 +250,8 @@
             font-weight: 700;
         }
         .field input,
-        .field select {
+        .field select,
+        .field textarea {
             width: 100%;
             border-radius: 16px;
             border: 1px solid var(--line);
@@ -141,6 +260,7 @@
             color: var(--ink);
             font-size: 15px;
         }
+        .field textarea { min-height: 110px; resize: vertical; }
         .field small { color: var(--muted); }
         .field-inline {
             display: flex;
@@ -167,6 +287,14 @@
             flex-wrap: wrap;
             align-items: center;
         }
+        .installer-step-actions [data-installer-prev],
+        .installer-step-actions [data-installer-next] {
+            display: none;
+        }
+        .installer-form--enhanced .installer-step-actions [data-installer-prev],
+        .installer-form--enhanced .installer-step-actions [data-installer-next] {
+            display: inline-flex;
+        }
         .button {
             appearance: none;
             border: 0;
@@ -182,6 +310,11 @@
             background: transparent;
             color: var(--accent);
             border: 1px solid rgba(25, 93, 72, 0.18);
+        }
+        .button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+            transform: none;
         }
         .notice {
             padding: 16px 18px;
@@ -219,6 +352,12 @@
             .layout { grid-template-columns: 1fr; }
             .shell { margin: 18px auto; width: min(100vw - 18px, 1180px); }
             .hero, .panel { padding: 22px; border-radius: 22px; }
+            .installer-stepper { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .installer-step-panel { padding: 18px; }
+        }
+        @media (max-width: 560px) {
+            .installer-stepper { grid-template-columns: 1fr; }
+            .step-tab { min-height: 40px; }
         }
     </style>
     <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
@@ -262,6 +401,105 @@
 
     {!! $content ?? '' !!}
 </main>
+<script>
+    (() => {
+        const form = document.querySelector('[data-installer-form]');
+
+        if (!form) {
+            return;
+        }
+
+        const panels = Array.from(form.querySelectorAll('[data-installer-step-panel]'));
+        const triggers = Array.from(form.querySelectorAll('[data-installer-step-trigger]'));
+        const previous = form.querySelector('[data-installer-prev]');
+        const next = form.querySelector('[data-installer-next]');
+        const submit = form.querySelector('[data-installer-submit]');
+        const progressBar = form.querySelector('[data-installer-progress-bar]');
+        const progressText = form.querySelector('[data-installer-progress-text]');
+
+        if (panels.length === 0 || triggers.length === 0) {
+            return;
+        }
+
+        form.classList.add('installer-form--enhanced');
+
+        let activeIndex = 0;
+
+        const clamp = (value) => Math.max(0, Math.min(value, panels.length - 1));
+        const stepTitle = (index) => panels[index]?.getAttribute('data-step-title') || `Step ${index + 1}`;
+
+        const showStep = (index, shouldFocus) => {
+            activeIndex = clamp(index);
+
+            panels.forEach((panel, panelIndex) => {
+                const isActive = panelIndex === activeIndex;
+                panel.hidden = !isActive;
+                panel.classList.toggle('is-active', isActive);
+            });
+
+            triggers.forEach((trigger, triggerIndex) => {
+                const isActive = triggerIndex === activeIndex;
+                trigger.classList.toggle('is-active', isActive);
+                trigger.setAttribute('aria-current', isActive ? 'step' : 'false');
+            });
+
+            if (progressBar) {
+                progressBar.style.width = `${((activeIndex + 1) / panels.length) * 100}%`;
+            }
+
+            if (progressText) {
+                progressText.textContent = `Section ${activeIndex + 1} of ${panels.length}: ${stepTitle(activeIndex)}`;
+            }
+
+            if (previous) {
+                previous.disabled = activeIndex === 0;
+            }
+
+            if (next) {
+                next.hidden = activeIndex === panels.length - 1;
+            }
+
+            if (submit) {
+                submit.hidden = activeIndex !== panels.length - 1;
+            }
+
+            if (shouldFocus) {
+                panels[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const focusTarget = panels[activeIndex].querySelector('input:not([type="hidden"]), select, textarea, button');
+
+                if (focusTarget) {
+                    focusTarget.focus({ preventScroll: true });
+                }
+            }
+        };
+
+        triggers.forEach((trigger) => {
+            trigger.addEventListener('click', () => {
+                showStep(Number.parseInt(trigger.getAttribute('data-installer-step-trigger') || '0', 10), true);
+            });
+        });
+
+        previous?.addEventListener('click', () => showStep(activeIndex - 1, true));
+        next?.addEventListener('click', () => showStep(activeIndex + 1, true));
+
+        form.addEventListener('invalid', (event) => {
+            const field = event.target;
+
+            if (!(field instanceof HTMLElement)) {
+                return;
+            }
+
+            const panel = field.closest('[data-installer-step-panel]');
+            const index = panels.indexOf(panel);
+
+            if (index >= 0) {
+                showStep(index, false);
+            }
+        }, true);
+
+        showStep(0, false);
+    })();
+</script>
 <script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
 </body>
 </html>

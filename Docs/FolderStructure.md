@@ -29,7 +29,7 @@ These are extension points, not application-specific implementations.
 
 ### `App/Contracts`
 
-Interfaces for the abstract and concrete framework surfaces. This layer now also includes console, session, presentation resource, operational, support-service, and framework-layer introspection contracts.
+Interfaces for the abstract and concrete framework surfaces. This layer now also includes console, session, presentation resource, operational, support-service, framework-layer introspection, and architecture-alignment contracts.
 
 ### `App/Console`
 
@@ -144,6 +144,7 @@ Important note:
 - `App/Utilities/Managers/System/*` and `App/Utilities/Managers/Data/*` contain concrete implementations for several services.
 - Some flat manager classes in `App/Utilities/Managers/*` exist as convenience or compatibility wrappers over those deeper implementations.
 - Legacy support paths such as `App/Support/Commerce/*Manager.php` and `App/Support/Theming/ThemeManager.php` are retained as compatibility aliases; new framework code should use the canonical manager namespaces under `App/Utilities/Managers/*`.
+- `Docs/ArchitectureAlignment.md` documents the executable `framework:architecture` rules that enforce the full repo contract: root release paths, App layer boundaries, public/bootstrap thinness, config/data parity, tests/CI/scripts, strict class files, canonical manager placement, module directory documentation, native presentation structure, and docs alignment.
 
 ## Other Top-Level Folders
 

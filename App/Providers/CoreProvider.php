@@ -22,6 +22,7 @@ use App\Contracts\Auth\PasswordBrokerInterface;
 use App\Contracts\Auth\UserProviderInterface;
 use App\Contracts\Presentation\AssetManagerInterface;
 use App\Contracts\Presentation\HtmlManagerInterface;
+use App\Contracts\Support\ArchitectureAlignmentManagerInterface;
 use App\Contracts\Support\AuditLoggerInterface;
 use App\Contracts\Support\FrameworkDoctorInterface;
 use App\Contracts\Support\FrameworkLayerManagerInterface;
@@ -47,6 +48,7 @@ use App\Utilities\Managers\Security\{
     SessionGuard
 };
 use App\Utilities\Managers\Support\{
+    ArchitectureAlignmentManager,
     AuditLogger,
     FrameworkDoctor,
     FrameworkLayerManager,
@@ -91,6 +93,7 @@ class CoreProvider extends Container
 
         $this->coreServiceMap = [
             'app'      => App::class,
+            'architecture' => ArchitectureAlignmentManager::class,
             'assets'   => AssetManager::class,
             'audit'    => AuditLogger::class,
             'auth'     => AuthManager::class,
@@ -156,6 +159,7 @@ class CoreProvider extends Container
                 $this->registerAlias(GuardInterface::class, SessionGuard::class);
                 $this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
                 $this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
+                $this->registerAlias(ArchitectureAlignmentManagerInterface::class, ArchitectureAlignmentManager::class);
                 $this->registerAlias(AssetManagerInterface::class, AssetManager::class);
                 $this->registerAlias(HtmlManagerInterface::class, HtmlManager::class);
                 $this->registerAlias(EventDispatcherInterface::class, EventDispatcher::class);
@@ -251,6 +255,7 @@ class CoreProvider extends Container
         return [
             \App\Support\Commerce\CartPricingManager::class => \App\Utilities\Managers\Commerce\CartPricingManager::class,
             \App\Support\Commerce\CatalogLifecycleManager::class => \App\Utilities\Managers\Commerce\CatalogLifecycleManager::class,
+            \App\Support\Commerce\CommerceTotalsCalculator::class => \App\Utilities\Managers\Commerce\CommerceTotalsCalculator::class,
             \App\Support\Commerce\EntitlementManager::class => \App\Utilities\Managers\Commerce\EntitlementManager::class,
             \App\Support\Commerce\InventoryManager::class => \App\Utilities\Managers\Commerce\InventoryManager::class,
             \App\Support\Commerce\OrderDocumentManager::class => \App\Utilities\Managers\Commerce\OrderDocumentManager::class,

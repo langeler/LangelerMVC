@@ -7,7 +7,7 @@ This document records the current implementation state of LangelerMVC based on t
 - Published framework source release: [`v1.0.0`](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (154 tests, 3288 assertions)`
+- Verification result: `OK (158 tests, 3325 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database/runtime verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, SQL Server, Redis, and Memcached have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -107,9 +107,11 @@ This document records the current implementation state of LangelerMVC based on t
 - notification inspection command
 - event/listener inspection command
 - framework layer inspection command through `php console framework:layers`
+- architecture alignment inspection command through `php console framework:architecture`
 - release readiness inspection command through `php console release:check`, including framework-layer, module-surface, payment-surface, theme-surface, commerce, route, docs, env, and template accessibility gates
 - release SQL reference inspection for `Data/*.sql`, including stale table detection for old pre-release schema names
 - repository consistency coverage for class/file/namespace naming across class-bearing `App/` PHP files
+- executable full-repo architecture alignment coverage for repository contract paths, App layer boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, documented module shape, native presentation structure, and documentation alignment
 - GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure
 
 ## Implemented First-Party Modules
@@ -261,8 +263,9 @@ For day-to-day framework development:
 3. Run `composer test:runtime-backends` when Redis/Memcached extensions and services are available
 4. Run `composer ops:health`
 5. Run `composer ops:ready` when your backing services are provisioned
-6. Run `composer release:check` before future release candidates
-7. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
+6. Run `composer architecture:check` when moving framework layers, managers, modules, templates, or docs
+7. Run `composer release:check` before future release candidates
+8. Use the console commands to verify operational flows such as migrations, seeds, routes, queue handling, and audit inspection
 
 ## Extension Outlook
 

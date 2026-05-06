@@ -26,6 +26,13 @@ final class ReleaseReadinessTest extends TestCase
         self::assertTrue((bool) $payload['checks']['framework_layers']['ok']);
         self::assertArrayHasKey('presentation', $payload['checks']['framework_layers']['layers']);
         self::assertSame([], $payload['checks']['framework_layers']['missing_required_paths']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['ok']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['repository_contract']['ok']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['public_bootstrap']['ok']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['config_data_release']['ok']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['tests_ci_scripts']['ok']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['module_contracts']['ok']);
+        self::assertSame([], $payload['checks']['architecture_alignment']['errors']);
         self::assertTrue((bool) $payload['checks']['framework_routes']['ok']);
         self::assertTrue((bool) $payload['checks']['module_surface']['ok']);
         self::assertArrayHasKey('OrderModule', $payload['checks']['module_surface']['modules']);

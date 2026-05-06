@@ -18,11 +18,12 @@ This release is framework/package ready: the core runtime, first-party modules, 
 As of `2026-05-01`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (154 tests, 3288 assertions)`
+- `composer test` passes with `OK (158 tests, 3325 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - `composer release:check` returns `status=200`
 - `php console framework:layers` reports all required framework layer paths present
+- `php console framework:architecture` reports the full-repo architecture contract, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, documented module shape, native presentation alignment, and documentation alignment as healthy
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database/runtime matrix harness is available for MySQL, PostgreSQL, SQL Server, Redis, and Memcached verification where services and PHP extensions exist
@@ -36,7 +37,7 @@ As of `2026-05-01`:
 - Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
 - Commerce operational managers are centralized under `App\Utilities\Managers\Commerce`, covering cart pricing, catalog lifecycle, entitlement, inventory, order lifecycle/document/return, promotion, shipping, and subscriptions while legacy support paths remain compatibility aliases.
 - The presentation layer now includes centralized asset, safe HTML, theme, and template managers under `App\Utilities\Managers\Presentation`, with Bootstrap-compatible light, dark, and system modes backed by `Config/theme.php`, installer settings, shared view globals, tracked public assets, versioned asset URLs, preload helpers, named asset bundles, and script-safe JSON output.
-- The framework now exposes a layer-introspection manager and `framework:layers` console command so public/bootstrap, core, provider, contract, MVC, presentation, data, security, driver, utility, module, installer, console, and release/docs/data surfaces stay enforceable.
+- The framework now exposes layer and architecture introspection managers through `framework:layers` and `framework:architecture`, so the repository contract, public/bootstrap, core, provider, contract, MVC, presentation, data, security, driver, utility, module, installer, console, release/docs/data, strict class files, canonical managers, documented module shape, and native presentation rules stay enforceable.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -100,7 +101,7 @@ In the current starter slice, `WebModule` follows:
 - `Tests/`: framework regression coverage, optional `Unit` and `Integration` suite buckets, and a separate DB-matrix harness.
 - `autoload.php`: legacy fallback autoload helper. The primary bootstrap path uses Composer through `bootstrap/app.php`.
 
-For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md). For the executable layer audit and mature-framework comparison, see [`Docs/FrameworkWideLayerEvaluation.md`](./Docs/FrameworkWideLayerEvaluation.md).
+For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md). For the executable layer audit and mature-framework comparison, see [`Docs/FrameworkWideLayerEvaluation.md`](./Docs/FrameworkWideLayerEvaluation.md). For the architecture-alignment release rules, see [`Docs/ArchitectureAlignment.md`](./Docs/ArchitectureAlignment.md).
 
 ## Installation
 
@@ -158,6 +159,8 @@ php console health:check
 php console health:check ready
 php console framework:doctor
 php console framework:doctor --strict
+php console framework:architecture
+php console framework:layers
 php console audit:list --limit=25
 php console migrate
 php console module:make Blog
@@ -170,7 +173,8 @@ php console route:list
 For a clean production-style verification pass, the framework now ships with:
 
 - `composer verify:platform` for the default regression suite plus a health check
-- `composer release:check` for release docs, env parity, `Data/*.sql` schema references, critical routes, module/payment/theme surfaces, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
+- `composer architecture:check` for full-repo architecture contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, module directory documentation, native presentation rules, and docs alignment
+- `composer release:check` for release docs, env parity, `Data/*.sql` schema references, framework layer/architecture alignment, critical routes, module/payment/theme surfaces, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
 - `composer verify:release` for Composer metadata validation, the default regression suite, health liveness, and release gate execution
 - `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
 - `docker-compose.verify.yml` for local MySQL/PostgreSQL/SQL Server/Redis/Memcached verification
@@ -235,6 +239,7 @@ composer ops:health
 composer ops:ready
 composer ops:audit
 composer verify:platform
+composer architecture:check
 composer release:check
 composer verify:release
 ```
@@ -272,6 +277,7 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 
 - [`Docs/README.md`](./Docs/README.md): documentation index and reading order.
 - [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md): framework architecture, runtime flow, subsystem map, and extension points.
+- [`Docs/ArchitectureAlignment.md`](./Docs/ArchitectureAlignment.md): executable full-repo architecture-alignment rules for repository contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, manager placement, module shape, presentation, and docs.
 - [`Docs/FrameworkStatus.md`](./Docs/FrameworkStatus.md): current implementation status, remaining hardening areas, and environment-dependent verification notes.
 - [`Docs/FolderStructure.md`](./Docs/FolderStructure.md): current architecture by layer and responsibility.
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.
@@ -306,6 +312,7 @@ LangelerMVC now ships as a complete first-party platform framework with:
 - admin-native content, catalog, promotion, order, operation, inventory, return, and document workflows
 - commerce coverage for physical shipping, digital/virtual access, pickup/pre-order, subscriptions, promotions, inventory reservations, returns/exchanges, partial refunds, and VAT/order documents
 - an executable release gate through `composer release:check` and `composer verify:release`
+- executable architecture alignment through `php console framework:architecture` and `composer architecture:check`
 - completed HTML + JSON presentation parity across first-party modules
 - framework-wide Bootstrap-compatible light/dark/system theme management
 - a database-backed starter module plus user/admin/shop/cart/order slices

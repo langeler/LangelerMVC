@@ -49,6 +49,31 @@ final class RepositoryConsistencyTest extends TestCase
         self::assertSame([], $errors);
     }
 
+    public function testClassBearingAppFilesDeclareStrictTypes(): void
+    {
+        $missing = [];
+
+        foreach ($this->appPhpFiles() as $file) {
+            $relative = $this->relativePath($file);
+
+            if ($this->isNonClassPhpSurface($relative)) {
+                continue;
+            }
+
+            $contents = (string) file_get_contents($file);
+
+            if (!preg_match('/^\s*(?:abstract\s+|final\s+|readonly\s+)?(?:class|interface|enum|trait)\s+/m', $contents)) {
+                continue;
+            }
+
+            if (!preg_match('/declare\s*\(\s*strict_types\s*=\s*1\s*\)\s*;/', $contents)) {
+                $missing[] = $relative;
+            }
+        }
+
+        self::assertSame([], $missing);
+    }
+
     public function testReleaseDataSqlReferencesMatchCurrentSchemaVocabulary(): void
     {
         $required = [
@@ -157,8 +182,16 @@ final class RepositoryConsistencyTest extends TestCase
         }
 
         self::assertFileExists(
-            $this->basePath('App/Support/Commerce/CommerceTotalsCalculator.php'),
-            'The focused commerce totals calculator should remain in the support commerce domain layer.'
+            $this->basePath('App/Utilities/Managers/Commerce/CommerceTotalsCalculator.php'),
+            'The commerce totals calculator should remain in the canonical commerce manager layer.'
+        );
+
+        $calculatorAlias = (string) file_get_contents($this->basePath('App/Support/Commerce/CommerceTotalsCalculator.php'));
+
+        self::assertStringContainsString(
+            'extends \\App\\Utilities\\Managers\\Commerce\\CommerceTotalsCalculator',
+            $calculatorAlias,
+            'The legacy totals calculator path should stay as a thin compatibility alias.'
         );
     }
 

@@ -71,6 +71,7 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('route:list', $kernel->commandDescriptions());
         self::assertArrayHasKey('module:list', $kernel->commandDescriptions());
         self::assertArrayHasKey('module:make', $kernel->commandDescriptions());
+        self::assertArrayHasKey('framework:architecture', $kernel->commandDescriptions());
         self::assertArrayHasKey('framework:doctor', $kernel->commandDescriptions());
         self::assertArrayHasKey('framework:layers', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:work', $kernel->commandDescriptions());
@@ -110,6 +111,20 @@ class PlatformFoundationTest extends TestCase
         self::assertTrue((bool) $payload['ok']);
         self::assertArrayHasKey('presentation', $payload['layers']);
         self::assertSame([], $payload['missing_required_paths']);
+    }
+
+    public function testConsoleKernelEmitsArchitectureAlignmentInspectionJson(): void
+    {
+        $lines = [];
+        $exitCode = 1;
+        exec(escapeshellarg(PHP_BINARY) . ' console framework:architecture', $lines, $exitCode);
+
+        $payload = json_decode(implode("\n", $lines), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(0, $exitCode);
+        self::assertTrue((bool) $payload['ok']);
+        self::assertArrayHasKey('manager_placement', $payload['checks']);
+        self::assertSame([], $payload['errors']);
     }
 
     public function testConsoleKernelScaffoldsNewModule(): void

@@ -214,6 +214,7 @@ class FrameworkLayerManager implements FrameworkLayerManagerInterface
                 '.env.example',
                 'Docs/FrameworkStatus.md',
                 'Docs/ReleaseReadinessPlan.md',
+                'Docs/ArchitectureAlignment.md',
                 'Docs/FrameworkWideLayerEvaluation.md',
                 'Docs/PresentationLayerEvaluation.md',
                 'Docs/Wiki',

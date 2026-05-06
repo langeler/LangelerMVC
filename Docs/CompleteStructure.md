@@ -8,7 +8,7 @@ Inside `App/Templates`, the tree includes the tracked native `.vide` templates a
 
 Presentation managers are canonical under `App/Utilities/Managers/Presentation`; `App/Support/Theming/ThemeManager.php` remains in the tree as a backward-compatible alias.
 
-Commerce operational managers are canonical under `App/Utilities/Managers/Commerce`; matching `App/Support/Commerce/*Manager.php` files remain as backward-compatible aliases while `CommerceTotalsCalculator.php` stays in support as a focused domain calculator.
+Commerce operational managers and calculators are canonical under `App/Utilities/Managers/Commerce`; matching `App/Support/Commerce/*Manager.php` files and `CommerceTotalsCalculator.php` remain as backward-compatible aliases.
 
 ```text
 LangelerMVC
@@ -57,6 +57,7 @@ LangelerMVC
 │   │   │   ├── CacheClearCommand.php
 │   │   │   ├── ConfigShowCommand.php
 │   │   │   ├── EventListCommand.php
+│   │   │   ├── FrameworkArchitectureCommand.php
 │   │   │   ├── FrameworkDoctorCommand.php
 │   │   │   ├── FrameworkLayersCommand.php
 │   │   │   ├── HealthCheckCommand.php
@@ -117,6 +118,7 @@ LangelerMVC
 │   │   ├── Session
 │   │   │   └── SessionDriverInterface.php
 │   │   └── Support
+│   │       ├── ArchitectureAlignmentManagerInterface.php
 │   │       ├── AuditLoggerInterface.php
 │   │       ├── CarrierAdapterInterface.php
 │   │       ├── FrameworkDoctorInterface.php
@@ -272,7 +274,8 @@ LangelerMVC
 │   │   │   │   ├── CartController.php
 │   │   │   │   └── README.md
 │   │   │   ├── Listeners
-│   │   │   │   └── MergeCartOnLoginListener.php
+│   │   │   │   ├── MergeCartOnLoginListener.php
+│   │   │   │   └── README.md
 │   │   │   ├── Middlewares
 │   │   │   │   └── README.md
 │   │   │   ├── Migrations
@@ -321,7 +324,8 @@ LangelerMVC
 │   │   │   │   ├── OrderController.php
 │   │   │   │   └── README.md
 │   │   │   ├── Listeners
-│   │   │   │   └── OrderLifecycleNotificationListener.php
+│   │   │   │   ├── OrderLifecycleNotificationListener.php
+│   │   │   │   └── README.md
 │   │   │   ├── Middlewares
 │   │   │   │   └── README.md
 │   │   │   ├── Migrations
@@ -347,7 +351,8 @@ LangelerMVC
 │   │   │   │   ├── PaymentWebhookEvent.php
 │   │   │   │   └── README.md
 │   │   │   ├── Notifications
-│   │   │   │   └── OrderStatusNotification.php
+│   │   │   │   ├── OrderStatusNotification.php
+│   │   │   │   └── README.md
 │   │   │   ├── Presenters
 │   │   │   │   ├── OrderPresenter.php
 │   │   │   │   ├── OrderResource.php
@@ -479,30 +484,39 @@ LangelerMVC
 │   │   │       └── UserView.php
 │   │   └── WebModule
 │   │       ├── Controllers
-│   │       │   └── HomeController.php
+│   │       │   ├── HomeController.php
+│   │       │   └── README.md
 │   │       ├── Middlewares
 │   │       │   └── README.md
 │   │       ├── Migrations
 │   │       │   ├── CreatePagesTable.php
 │   │       │   └── README.md
 │   │       ├── Models
-│   │       │   └── Page.php
+│   │       │   ├── Page.php
+│   │       │   └── README.md
 │   │       ├── Presenters
-│   │       │   └── PagePresenter.php
+│   │       │   ├── PagePresenter.php
+│   │       │   └── README.md
 │   │       ├── Repositories
-│   │       │   └── PageRepository.php
+│   │       │   ├── PageRepository.php
+│   │       │   └── README.md
 │   │       ├── Requests
+│   │       │   ├── README.md
 │   │       │   └── WebRequest.php
 │   │       ├── Responses
+│   │       │   ├── README.md
 │   │       │   └── WebResponse.php
 │   │       ├── Routes
+│   │       │   ├── README.md
 │   │       │   └── web.php
 │   │       ├── Seeds
 │   │       │   ├── PageSeed.php
 │   │       │   └── README.md
 │   │       ├── Services
-│   │       │   └── PageService.php
+│   │       │   ├── PageService.php
+│   │       │   └── README.md
 │   │       └── Views
+│   │           ├── README.md
 │   │           └── WebView.php
 │   ├── Providers
 │   │   ├── CacheProvider.php
@@ -692,6 +706,7 @@ LangelerMVC
 │       │   ├── Commerce
 │       │   │   ├── CartPricingManager.php
 │       │   │   ├── CatalogLifecycleManager.php
+│       │   │   ├── CommerceTotalsCalculator.php
 │       │   │   ├── EntitlementManager.php
 │       │   │   ├── InventoryManager.php
 │       │   │   ├── OrderDocumentManager.php
@@ -717,6 +732,7 @@ LangelerMVC
 │       │   │   ├── PolicyResolver.php
 │       │   │   └── SessionGuard.php
 │       │   ├── Support
+│       │   │   ├── ArchitectureAlignmentManager.php
 │       │   │   ├── AuditLogger.php
 │       │   │   ├── FrameworkDoctor.php
 │       │   │   ├── FrameworkLayerManager.php
@@ -844,6 +860,7 @@ LangelerMVC
 ├── Docs
 │   ├── abstractcryptoclass.rtf
 │   ├── ArchitectureOverview.md
+│   ├── ArchitectureAlignment.md
 │   ├── CompleteStructure.md
 │   ├── DatabaseMatrixTesting.md
 │   ├── DeploymentAndUpgrade.md
@@ -923,6 +940,7 @@ LangelerMVC
 │   │   ├── CacheSubsystemTest.php
 │   │   ├── ConfigAndDatabaseTest.php
 │   │   ├── CryptoSubsystemTest.php
+│   │   ├── ArchitectureAlignmentManagerTest.php
 │   │   ├── FinderUtilitiesAndSessionTest.php
 │   │   ├── FrameworkCompletionTest.php
 │   │   ├── FrameworkDoctorTest.php

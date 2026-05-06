@@ -9,6 +9,7 @@ use App\Console\Commands\AuditPruneCommand;
 use App\Console\Commands\CacheClearCommand;
 use App\Console\Commands\ConfigShowCommand;
 use App\Console\Commands\EventListCommand;
+use App\Console\Commands\FrameworkArchitectureCommand;
 use App\Console\Commands\FrameworkDoctorCommand;
 use App\Console\Commands\FrameworkLayersCommand;
 use App\Console\Commands\HealthCheckCommand;
@@ -51,6 +52,7 @@ class ConsoleKernel
         RouteListCommand $routeList,
         CacheClearCommand $cacheClear,
         ConfigShowCommand $configShow,
+        FrameworkArchitectureCommand $frameworkArchitecture,
         FrameworkDoctorCommand $frameworkDoctor,
         FrameworkLayersCommand $frameworkLayers,
         ModuleListCommand $moduleList,
@@ -76,6 +78,7 @@ class ConsoleKernel
             $routeList,
             $cacheClear,
             $configShow,
+            $frameworkArchitecture,
             $frameworkDoctor,
             $frameworkLayers,
             $moduleList,

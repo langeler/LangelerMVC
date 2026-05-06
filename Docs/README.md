@@ -13,6 +13,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `../RELEASE.md`: published `v1.0.0` snapshot, future release checks, and production deployment preflight.
 - `RepositoryMetadata.md`: canonical repository/package description, topics, about text, and release-publication posture.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
+- `ArchitectureAlignment.md`: executable full-repo architecture-alignment rules for repository contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical managers, documented module shape, presentation, and docs.
 - `FrameworkWideLayerEvaluation.md`: executable layer map, framework-wide production audit, and mature-framework comparison.
 - `DeploymentAndUpgrade.md`: production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.
@@ -22,6 +23,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 ## Structure And Layout
 
 - `FolderStructure.md`: the current repository layout by layer and responsibility.
+- `ArchitectureAlignment.md`: the enforceable conventions that keep the repository layout aligned as the framework grows.
 - `ModulesStructure.md`: module conventions, module loading, and the current state of each module.
 - `CompleteStructure.md`: a full repository tree snapshot kept for visual orientation.
 - `Wiki/`: public-facing wiki page source mirrored from the release docs.
@@ -40,6 +42,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `PresentationTemplating.md`: canonical `.vide` template authoring model, directives, and rendering flow.
 - `PresentationLayerEvaluation.md`: presentation-layer gap analysis, mature-framework comparison, differentiators, and next priorities.
 - `FrameworkWideLayerEvaluation.md`: layer-by-layer framework evaluation, competition comparison, differentiators, and next priorities.
+- `ArchitectureAlignment.md`: full-repo architecture alignment checks exposed through `php console framework:architecture` and `composer architecture:check`.
 - `UtilitiesTraitsOverview.md`: practical overview of the reusable trait surface.
 - `UtilitiesTraitsReference.md`: generated method-by-method trait reference.
 - `NativeToTraitConsistencyAudit.md`: audit of trait adoption across non-trait classes.

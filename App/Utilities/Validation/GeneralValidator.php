@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Validation;
 
 use App\Abstracts\Data\Validator;                // Abstract base class for data validation processes.

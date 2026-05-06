@@ -22,7 +22,7 @@ use App\Modules\ShopModule\Repositories\CategoryRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
 use App\Utilities\Managers\Commerce\CatalogLifecycleManager;
 use App\Utilities\Managers\Commerce\CartPricingManager;
-use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Utilities\Managers\Commerce\CommerceTotalsCalculator;
 use App\Utilities\Managers\Commerce\EntitlementManager;
 use App\Utilities\Managers\Commerce\InventoryManager;
 use App\Utilities\Managers\Commerce\OrderDocumentManager;

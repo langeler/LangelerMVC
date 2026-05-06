@@ -12,6 +12,8 @@
 !/Storage/Logs/README.md
 /Storage/Secure/*
 !/Storage/Secure/README.md
+/Storage/Sessions/*
+!/Storage/Sessions/README.md
 /Storage/Uploads/*
 !/Storage/Uploads/README.md
 /node_modules/

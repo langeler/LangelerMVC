@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Finders;
 
 use App\Abstracts\Data\Finder;                    // Abstract class for general data finding processes.

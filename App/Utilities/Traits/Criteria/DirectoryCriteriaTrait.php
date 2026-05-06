@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Traits\Criteria;
 
 use App\Utilities\Traits\{

@@ -76,7 +76,7 @@ Responsibility split:
 - `NotificationProvider`: notification channel resolution
 - `PaymentProvider`: payment driver resolution
 - `ShippingProvider`: carrier adapter resolution for shipping/service-point/label/tracking/cancellation operations
-- `CoreProvider` also exposes the `themes`, `assets`, and `frameworkLayers` services for framework-wide presentation and architecture inspection
+- `CoreProvider` also exposes the `themes`, `assets`, `frameworkLayers`, and `architecture` services for framework-wide presentation, layer, and architecture inspection
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -177,6 +177,7 @@ The following areas are implemented as framework-level subsystems today:
 - operational console and command kernel
 - runtime health/readiness/capability reporting
 - framework-wide layer introspection through `FrameworkLayerManager`, `php console framework:layers`, and the `framework_layers` release-check gate
+- full-repo architecture alignment through `ArchitectureAlignmentManager`, `php console framework:architecture`, and the `architecture_alignment` release-check gate, covering repository contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, manager placement, module shape, native presentation, and docs
 - migration and seed lifecycle management
 - framework-managed audit logging for sensitive flows
 - session runtime
@@ -241,6 +242,7 @@ The most important extension seams today are:
 - **Payments**: add project-specific drivers later against the now-stable capability contract without pushing vendor SDK concerns into framework core.
 - **Async**: add listeners, jobs, queue drivers, and failed-job strategies without rewriting runtime or modules.
 - **Layer Inspection**: update `FrameworkLayerManager` whenever a new required framework layer or release-critical surface is introduced.
+- **Architecture Alignment**: update `ArchitectureAlignmentManager` and `Docs/ArchitectureAlignment.md` whenever strict class-file, canonical manager, module-shape, presentation-native, or documentation source-of-truth rules intentionally change.
 
 ## Post-Release Architectural Boundaries
 

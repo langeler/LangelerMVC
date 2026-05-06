@@ -1,86 +1,5220 @@
 # Native PHP To Trait Consistency Audit
 
-This document summarizes the current native-PHP-to-framework-trait audit for classes under `App/`.
+This document audits framework classes under `App/` and highlights direct native PHP calls that already have a trait-level wrapper elsewhere in the framework.
 
-The audit is intentionally advisory. It highlights direct native PHP calls that have a framework trait wrapper somewhere in the codebase, but not every candidate should be blindly replaced. Low-level adapters, generated-template targets, provider integrations, and concise domain logic can still reasonably use native PHP when adding a trait would make the class less clear.
+## Snapshot
 
-To regenerate the full per-class report:
+- Class files scanned: `340`
+- Class files with at least one replacement candidate: `138`
+- Total native-call occurrences matching existing trait wrappers: `2095`
+- Low-friction replacement paths (`already-composed`): `336`
+- Structural replacement paths (`available-via-trait`): `2027`
 
-```bash
-perl Scripts/AuditNativeToTraitConsistency.pl . > /tmp/langelermvc-native-trait-audit.md
-```
+## Reading Notes
 
-## Current Snapshot
-
-Latest local audit after the framework layer manager, presentation sections/stacks, HTML helper, and commerce manager relocation:
-
-- Class files scanned: `337`
-- Class files with at least one replacement candidate: `136`
-- Total native-call occurrences matching existing trait wrappers: `2018`
-- Low-friction replacement paths (`already-composed`): `270`
-- Structural replacement paths (`available-via-trait`): `2015`
-
-## High-Value Interpretation
-
-- Presentation manager code now leans further into framework-native traits: `TemplateEngine`, `ThemeManager`, and `AssetManager` use shared array, string, pattern, hashing, type-checking, path, and encoding helpers where they add clarity.
-- `HtmlManager` now owns low-level safe HTML output using framework traits instead of leaving CSRF fields, method fields, conditional classes, attributes, and script-safe JSON as ad hoc view logic.
-- `FrameworkLayerManager` now uses the shared path, array, and string helper surface to keep layer inspection consistent with the rest of the manager layer.
-- Commerce operational managers now live under `App/Utilities/Managers/Commerce`, making future native-to-trait passes easier to target as a focused subsystem instead of scattered support classes.
-- The remaining high-count files are mostly deep commerce/admin orchestration classes where a full conversion should be deliberate, not mechanical.
-- The best next refactor candidates are classes that already compose the relevant trait and therefore can replace native calls without widening their dependencies.
-- Adding traits to domain services should be weighed against readability. The project goal is framework-native consistency, not trait maximalism at the cost of clarity.
+- `already-composed` means the class already uses the trait that exposes the wrapper method, so replacement is low-friction.
+- `available-via-trait` means the wrapper exists in the framework, but the class does not currently compose that trait.
+- This audit only covers global native PHP calls that have an obvious existing trait wrapper. It does not try to replace every language construct or object method.
 
 ## Top Native Calls With Existing Trait Replacements
 
-- `trim`: `395`
-- `is_array`: `307`
-- `array_map`: `165`
-- `array_values`: `157`
-- `strtolower`: `139`
-- `in_array`: `129`
-- `array_filter`: `93`
-- `strtoupper`: `78`
-- `is_string`: `77`
-- `substr`: `41`
-- `array_key_exists`: `40`
-- `array_unique`: `32`
-- `array_keys`: `30`
-- `preg_match`: `27`
-- `filter_var`: `26`
+- `trim`: `395` occurrence(s)
+- `is_array`: `308` occurrence(s)
+- `array_values`: `175` occurrence(s)
+- `array_map`: `169` occurrence(s)
+- `strtolower`: `140` occurrence(s)
+- `in_array`: `129` occurrence(s)
+- `array_filter`: `107` occurrence(s)
+- `is_string`: `78` occurrence(s)
+- `strtoupper`: `78` occurrence(s)
+- `array_key_exists`: `43` occurrence(s)
+- `substr`: `41` occurrence(s)
+- `str_contains`: `38` occurrence(s)
+- `array_unique`: `34` occurrence(s)
+- `array_keys`: `32` occurrence(s)
+- `preg_match`: `32` occurrence(s)
+- `filter_var`: `28` occurrence(s)
+- `array_merge`: `23` occurrence(s)
+- `json_encode`: `23` occurrence(s)
+- `str_replace`: `20` occurrence(s)
+- `str_starts_with`: `19` occurrence(s)
+- `rtrim`: `18` occurrence(s)
+- `preg_replace`: `17` occurrence(s)
+- `rawurlencode`: `15` occurrence(s)
+- `class_exists`: `13` occurrence(s)
+- `is_bool`: `13` occurrence(s)
+- `method_exists`: `12` occurrence(s)
+- `is_int`: `10` occurrence(s)
+- `is_object`: `9` occurrence(s)
+- `json_decode`: `8` occurrence(s)
+- `array_reduce`: `7` occurrence(s)
+- `preg_split`: `7` occurrence(s)
+- `is_callable`: `6` occurrence(s)
+- `preg_quote`: `6` occurrence(s)
+- `array_replace_recursive`: `5` occurrence(s)
+- `htmlspecialchars`: `5` occurrence(s)
+- `is_scalar`: `5` occurrence(s)
+- `array_pop`: `4` occurrence(s)
+- `is_numeric`: `4` occurrence(s)
+- `array_replace`: `3` occurrence(s)
+- `base64_encode`: `3` occurrence(s)
+- `preg_match_all`: `3` occurrence(s)
+- `str_ends_with`: `3` occurrence(s)
+- `function_exists`: `2` occurrence(s)
+- `is_float`: `2` occurrence(s)
+- `array_key_last`: `1` occurrence(s)
+- `array_sum`: `1` occurrence(s)
+- `preg_replace_callback`: `1` occurrence(s)
 
 ## Top Classes By Replacement Opportunity
 
-- `App/Modules/AdminModule/Services/AdminAccessService.php`: `169` occurrences
-- `App/Utilities/Managers/Commerce/ShippingManager.php`: `145` occurrences
-- `App/Utilities/Managers/Commerce/PromotionManager.php`: `126` occurrences
-- `App/Modules/OrderModule/Services/OrderService.php`: `98` occurrences
-- `App/Installer/InstallerWizard.php`: `95` occurrences
-- `App/Console/Commands/ReleaseCheckCommand.php`: `93` occurrences
-- `App/Abstracts/Support/CarrierAdapter.php`: `88` occurrences
-- `App/Modules/CartModule/Repositories/PromotionRepository.php`: `76` occurrences
-- `App/Utilities/Managers/Commerce/SubscriptionManager.php`: `43` occurrences
-- `App/Utilities/Managers/Async/QueueManager.php`: `40` occurrences
+- `App/Modules/AdminModule/Services/AdminAccessService.php`: `169` native-call occurrence(s), `0` low-friction replacement path(s), `181` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/ShippingManager.php`: `145` native-call occurrence(s), `0` low-friction replacement path(s), `184` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/PromotionManager.php`: `126` native-call occurrence(s), `0` low-friction replacement path(s), `147` structural replacement path(s)
+- `App/Modules/OrderModule/Services/OrderService.php`: `98` native-call occurrence(s), `0` low-friction replacement path(s), `113` structural replacement path(s)
+- `App/Installer/InstallerWizard.php`: `95` native-call occurrence(s), `0` low-friction replacement path(s), `107` structural replacement path(s)
+- `App/Console/Commands/ReleaseCheckCommand.php`: `93` native-call occurrence(s), `0` low-friction replacement path(s), `103` structural replacement path(s)
+- `App/Abstracts/Support/CarrierAdapter.php`: `88` native-call occurrence(s), `0` low-friction replacement path(s), `104` structural replacement path(s)
+- `App/Utilities/Managers/Support/ArchitectureAlignmentManager.php`: `76` native-call occurrence(s), `66` low-friction replacement path(s), `11` structural replacement path(s)
+- `App/Modules/CartModule/Repositories/PromotionRepository.php`: `76` native-call occurrence(s), `0` low-friction replacement path(s), `90` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/SubscriptionManager.php`: `43` native-call occurrence(s), `0` low-friction replacement path(s), `50` structural replacement path(s)
+- `App/Utilities/Managers/Async/QueueManager.php`: `40` native-call occurrence(s), `33` low-friction replacement path(s), `7` structural replacement path(s)
+- `App/Utilities/Managers/Support/FrameworkDoctor.php`: `37` native-call occurrence(s), `30` low-friction replacement path(s), `7` structural replacement path(s)
+- `App/Utilities/Managers/Support/PaymentManager.php`: `34` native-call occurrence(s), `9` low-friction replacement path(s), `26` structural replacement path(s)
+- `App/Abstracts/Support/PaymentDriver.php`: `31` native-call occurrence(s), `11` low-friction replacement path(s), `23` structural replacement path(s)
+- `App/Modules/AdminModule/Requests/AdminRequest.php`: `30` native-call occurrence(s), `0` low-friction replacement path(s), `37` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/PaymentWebhookEventRepository.php`: `29` native-call occurrence(s), `0` low-friction replacement path(s), `33` structural replacement path(s)
+- `App/Modules/AdminModule/Presenters/AdminResource.php`: `26` native-call occurrence(s), `0` low-friction replacement path(s), `26` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/OrderLifecycleManager.php`: `25` native-call occurrence(s), `0` low-friction replacement path(s), `28` structural replacement path(s)
+- `App/Modules/AdminModule/Presenters/AdminPresenter.php`: `24` native-call occurrence(s), `0` low-friction replacement path(s), `24` structural replacement path(s)
+- `App/Utilities/Managers/Security/HttpSecurityManager.php`: `23` native-call occurrence(s), `8` low-friction replacement path(s), `19` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/InventoryReservationRepository.php`: `23` native-call occurrence(s), `0` low-friction replacement path(s), `26` structural replacement path(s)
+- `App/Drivers/Payments/PayPalPaymentDriver.php`: `22` native-call occurrence(s), `0` low-friction replacement path(s), `25` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/EntitlementManager.php`: `22` native-call occurrence(s), `0` low-friction replacement path(s), `26` structural replacement path(s)
+- `App/Utilities/Managers/System/SettingsManager.php`: `19` native-call occurrence(s), `18` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Async/EventDispatcher.php`: `18` native-call occurrence(s), `14` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Drivers/Payments/TestingPaymentDriver.php`: `18` native-call occurrence(s), `1` low-friction replacement path(s), `20` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderDocumentRepository.php`: `18` native-call occurrence(s), `0` low-friction replacement path(s), `25` structural replacement path(s)
+- `App/Drivers/Payments/KlarnaPaymentDriver.php`: `17` native-call occurrence(s), `0` low-friction replacement path(s), `18` structural replacement path(s)
+- `App/Modules/UserModule/Repositories/UserPasskeyRepository.php`: `16` native-call occurrence(s), `0` low-friction replacement path(s), `18` structural replacement path(s)
+- `App/Console/Commands/ModuleMakeCommand.php`: `15` native-call occurrence(s), `0` low-friction replacement path(s), `20` structural replacement path(s)
+- `App/Drivers/Payments/WalleyPaymentDriver.php`: `14` native-call occurrence(s), `0` low-friction replacement path(s), `16` structural replacement path(s)
+- `App/Modules/CartModule/Services/CartService.php`: `14` native-call occurrence(s), `0` low-friction replacement path(s), `18` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderSubscriptionRepository.php`: `14` native-call occurrence(s), `0` low-friction replacement path(s), `15` structural replacement path(s)
+- `App/Modules/UserModule/Presenters/UserPresenter.php`: `14` native-call occurrence(s), `0` low-friction replacement path(s), `14` structural replacement path(s)
+- `App/Modules/WebModule/Repositories/PageRepository.php`: `14` native-call occurrence(s), `0` low-friction replacement path(s), `18` structural replacement path(s)
+- `App/Modules/UserModule/Services/UserAuthService.php`: `13` native-call occurrence(s), `21` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderReturnRepository.php`: `13` native-call occurrence(s), `0` low-friction replacement path(s), `18` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/OrderReturnManager.php`: `13` native-call occurrence(s), `0` low-friction replacement path(s), `15` structural replacement path(s)
+- `App/Utilities/Managers/Support/HealthManager.php`: `13` native-call occurrence(s), `0` low-friction replacement path(s), `14` structural replacement path(s)
+- `App/Console/Commands/ConfigShowCommand.php`: `12` native-call occurrence(s), `0` low-friction replacement path(s), `12` structural replacement path(s)
+- `App/Drivers/Payments/QliroPaymentDriver.php`: `12` native-call occurrence(s), `0` low-friction replacement path(s), `14` structural replacement path(s)
+- `App/Modules/UserModule/Presenters/UserResource.php`: `12` native-call occurrence(s), `0` low-friction replacement path(s), `12` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/OrderDocumentManager.php`: `12` native-call occurrence(s), `0` low-friction replacement path(s), `14` structural replacement path(s)
+- `App/Drivers/Passkeys/TestingPasskeyDriver.php`: `11` native-call occurrence(s), `11` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Core/MigrationRunner.php`: `11` native-call occurrence(s), `10` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/OrderModule/Presenters/OrderResource.php`: `11` native-call occurrence(s), `0` low-friction replacement path(s), `11` structural replacement path(s)
+- `App/Modules/ShopModule/Repositories/ProductRepository.php`: `11` native-call occurrence(s), `0` low-friction replacement path(s), `12` structural replacement path(s)
+- `App/Modules/UserModule/Repositories/UserRepository.php`: `11` native-call occurrence(s), `0` low-friction replacement path(s), `11` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/InventoryManager.php`: `11` native-call occurrence(s), `0` low-friction replacement path(s), `15` structural replacement path(s)
+- `App/Abstracts/Presentation/View.php`: `10` native-call occurrence(s), `10` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/Support/MailManager.php`: `10` native-call occurrence(s), `8` low-friction replacement path(s), `2` structural replacement path(s)
+- `App/Utilities/Managers/Security/PolicyResolver.php`: `10` native-call occurrence(s), `2` low-friction replacement path(s), `8` structural replacement path(s)
+- `App/Drivers/Payments/SwishPaymentDriver.php`: `10` native-call occurrence(s), `0` low-friction replacement path(s), `13` structural replacement path(s)
+- `App/Modules/ShopModule/Presenters/ShopResource.php`: `10` native-call occurrence(s), `0` low-friction replacement path(s), `10` structural replacement path(s)
+- `App/Core/Session.php`: `9` native-call occurrence(s), `9` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/Support/AuditLogger.php`: `9` native-call occurrence(s), `3` low-friction replacement path(s), `6` structural replacement path(s)
+- `App/Modules/OrderModule/Presenters/OrderPresenter.php`: `9` native-call occurrence(s), `0` low-friction replacement path(s), `9` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderEntitlementRepository.php`: `9` native-call occurrence(s), `0` low-friction replacement path(s), `9` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderRepository.php`: `9` native-call occurrence(s), `0` low-friction replacement path(s), `11` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/CommerceTotalsCalculator.php`: `9` native-call occurrence(s), `0` low-friction replacement path(s), `14` structural replacement path(s)
+- `App/Drivers/Passkeys/WebAuthnPasskeyDriver.php`: `8` native-call occurrence(s), `8` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/Support/NotificationManager.php`: `8` native-call occurrence(s), `8` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Core/Schema/Blueprint.php`: `8` native-call occurrence(s), `4` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Abstracts/Database/Migration.php`: `8` native-call occurrence(s), `0` low-friction replacement path(s), `12` structural replacement path(s)
+- `App/Modules/ShopModule/Presenters/ShopPresenter.php`: `8` native-call occurrence(s), `0` low-friction replacement path(s), `8` structural replacement path(s)
+- `App/Modules/ShopModule/Requests/ShopRequest.php`: `8` native-call occurrence(s), `0` low-friction replacement path(s), `10` structural replacement path(s)
+- `App/Core/SeedRunner.php`: `7` native-call occurrence(s), `6` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Support/FrameworkLayerManager.php`: `7` native-call occurrence(s), `6` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Drivers/Payments/CryptoPaymentDriver.php`: `7` native-call occurrence(s), `0` low-friction replacement path(s), `12` structural replacement path(s)
+- `App/Modules/UserModule/Models/UserPasskey.php`: `7` native-call occurrence(s), `0` low-friction replacement path(s), `7` structural replacement path(s)
+- `App/Modules/UserModule/Repositories/RoleRepository.php`: `7` native-call occurrence(s), `0` low-friction replacement path(s), `7` structural replacement path(s)
+- `App/Utilities/Managers/Support/PasskeyManager.php`: `6` native-call occurrence(s), `5` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Drivers/Payments/CardPaymentDriver.php`: `6` native-call occurrence(s), `0` low-friction replacement path(s), `8` structural replacement path(s)
+- `App/Modules/ShopModule/Repositories/CategoryRepository.php`: `6` native-call occurrence(s), `0` low-friction replacement path(s), `6` structural replacement path(s)
+- `App/Modules/UserModule/Models/User.php`: `6` native-call occurrence(s), `0` low-friction replacement path(s), `6` structural replacement path(s)
+- `App/Modules/UserModule/Requests/UserRequest.php`: `6` native-call occurrence(s), `0` low-friction replacement path(s), `7` structural replacement path(s)
+- `App/Core/Router.php`: `5` native-call occurrence(s), `6` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Drivers/Queue/SyncQueueDriver.php`: `5` native-call occurrence(s), `4` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Drivers/Session/RedisSessionDriver.php`: `5` native-call occurrence(s), `2` low-friction replacement path(s), `3` structural replacement path(s)
+- `App/Console/Commands/AuditListCommand.php`: `5` native-call occurrence(s), `0` low-friction replacement path(s), `5` structural replacement path(s)
+- `App/Modules/CartModule/Requests/CartRequest.php`: `5` native-call occurrence(s), `0` low-friction replacement path(s), `6` structural replacement path(s)
+- `App/Modules/UserModule/Repositories/PermissionRepository.php`: `5` native-call occurrence(s), `0` low-friction replacement path(s), `5` structural replacement path(s)
+- `App/Drivers/Queue/DatabaseQueueDriver.php`: `4` native-call occurrence(s), `4` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Console/Commands/QueueFailedCommand.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Console/Commands/QueueRetryCommand.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Console/Commands/QueueWorkCommand.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Modules/CartModule/Repositories/CartItemRepository.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Modules/OrderModule/Controllers/OrderController.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderItemRepository.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Modules/UserModule/Repositories/UserAuthTokenRepository.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Support/ArrayMailable.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Utilities/Managers/Data/SessionManager.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Utilities/Managers/Support/OtpManager.php`: `4` native-call occurrence(s), `0` low-friction replacement path(s), `6` structural replacement path(s)
+- `App/Drivers/Cryptography/OpenSSLCrypto.php`: `3` native-call occurrence(s), `6` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/Presentation/AssetManager.php`: `3` native-call occurrence(s), `3` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Core/App.php`: `3` native-call occurrence(s), `2` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Console/Commands/EventListCommand.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `3` structural replacement path(s)
+- `App/Core/Bootstrap.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `3` structural replacement path(s)
+- `App/Modules/CartModule/Presenters/CartPresenter.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `3` structural replacement path(s)
+- `App/Modules/CartModule/Presenters/CartResource.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `3` structural replacement path(s)
+- `App/Modules/CartModule/Repositories/CartRepository.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Modules/OrderModule/Repositories/OrderAddressRepository.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `3` structural replacement path(s)
+- `App/Modules/OrderModule/Requests/OrderRequest.php`: `3` native-call occurrence(s), `0` low-friction replacement path(s), `4` structural replacement path(s)
+- `App/Modules/UserModule/Services/UserPasskeyService.php`: `2` native-call occurrence(s), `2` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/Security/DatabaseUserProvider.php`: `2` native-call occurrence(s), `1` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/ShopModule/Services/CatalogService.php`: `2` native-call occurrence(s), `0` low-friction replacement path(s), `2` structural replacement path(s)
+- `App/Modules/UserModule/Seeds/UserPlatformSeed.php`: `2` native-call occurrence(s), `0` low-friction replacement path(s), `2` structural replacement path(s)
+- `App/Providers/ShippingProvider.php`: `2` native-call occurrence(s), `0` low-friction replacement path(s), `2` structural replacement path(s)
+- `App/Support/Payments/PaymentIntent.php`: `2` native-call occurrence(s), `0` low-friction replacement path(s), `2` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/CartPricingManager.php`: `2` native-call occurrence(s), `0` low-friction replacement path(s), `2` structural replacement path(s)
+- `App/Abstracts/Http/Request.php`: `1` native-call occurrence(s), `1` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Console/ConsoleKernel.php`: `1` native-call occurrence(s), `1` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Presentation/TemplateEngine.php`: `1` native-call occurrence(s), `1` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/Security/PermissionRegistry.php`: `1` native-call occurrence(s), `1` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Utilities/Managers/System/IteratorManager.php`: `1` native-call occurrence(s), `1` low-friction replacement path(s), `0` structural replacement path(s)
+- `App/Abstracts/Data/SchemaProcessor.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Console/Commands/AuditPruneCommand.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Console/Commands/FrameworkArchitectureCommand.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Console/Commands/FrameworkDoctorCommand.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Console/Commands/FrameworkLayersCommand.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Drivers/Caching/MemCache.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Drivers/Caching/RedisCache.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Drivers/Notifications/MailNotificationChannel.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/AdminModule/Controllers/AdminController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/CartModule/Controllers/CartController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/OrderModule/Notifications/OrderStatusNotification.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/ShopModule/Controllers/ShopController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/UserModule/Controllers/AuthController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/UserModule/Controllers/PasskeyController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/UserModule/Controllers/ProfileController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Modules/WebModule/Controllers/HomeController.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Providers/NotificationProvider.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Providers/PaymentProvider.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Providers/QueueProvider.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Async/DatabaseFailedJobStore.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Commerce/CatalogLifecycleManager.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Presentation/ThemeManager.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `1` structural replacement path(s)
+- `App/Utilities/Managers/Security/PasswordBroker.php`: `1` native-call occurrence(s), `0` low-friction replacement path(s), `2` structural replacement path(s)
 
-## Refactor Policy
+## Per-Class Findings
 
-Prefer framework-native traits when:
+### `App/Abstracts/Data/SchemaProcessor.php`
 
-- the class already composes the trait that provides the wrapper;
-- the replacement makes intent clearer, such as `isArray`, `keyExists`, `replaceByPattern`, or `hashString`;
-- the class is framework infrastructure rather than a one-off adapter;
-- the replacement keeps error handling, escaping, path normalization, or validation inside existing framework seams.
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ExistenceCheckerTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `689` uses native `str_contains` in ``return str_contains($value, '.') || stripos($value, 'e') !== false``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
 
-Keep native PHP when:
+### `App/Abstracts/Database/Migration.php`
 
-- the native call is a language-level construct or a clearer one-liner;
-- adding a trait would significantly widen a small class dependency surface;
-- the call lives in a provider SDK adapter where vendor terminology is clearer;
-- the code is a generated compatibility template target rather than canonical `.vide` source.
+- Current traits: none
+- Line `40` uses native `array_key_exists` in ``if (array_key_exists('default', $options)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `42` uses native `is_numeric` in ``$definition .= ' DEFAULT ' . (is_numeric($default) ? (string) $default : "'" . str_replace("'", "''", (string) $default) . "'");``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isNumeric()` (`Prefer the shared type helper for numeric checks.`)
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::isDigitString()` (`Digit-only string validation also exists in the checker trait.`)
+- Line `42` uses native `str_replace` in ``$definition .= ' DEFAULT ' . (is_numeric($default) ? (string) $default : "'" . str_replace("'", "''", (string) $default) . "'");``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `130` uses native `strtolower` in ``return strtolower((string) $this->database->getAttribute('driverName'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `161` uses native `strtoupper` in ``strtoupper($onDelete),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `162` uses native `strtoupper` in ``strtoupper($onUpdate)``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `184` uses native `array_map` in ``return implode(', ', array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `186` uses native `array_values` in ``array_values($columns)``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
 
-## Current Priority
+### `App/Abstracts/Http/Request.php`
 
-The next sensible native-to-trait improvements are:
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ExistenceCheckerTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `104` uses native `is_array` in ``$this->server = $this->server !== [] ? $this->server : (is_array($_SERVER) ? $_SERVER : []);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
 
-- continue with classes already composing low-friction traits, especially queue, doctor, payment manager, and HTTP security code;
-- refactor commerce/admin orchestration only in focused passes with regression tests;
-- avoid sweeping mechanical rewrites across high-value release code without a behavior test around each touched workflow.
+### `App/Abstracts/Presentation/View.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\EncodingTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `146` uses native `array_pop` in ``$name = (string) array_pop($this->sectionBuffers);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::pop()` (`Prefer the shared array pop helper.`)
+- Line `155` uses native `array_key_exists` in ``return array_key_exists($normalized, $this->sections)``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `164` uses native `array_key_exists` in ``return array_key_exists($normalized, $this->sections) && (string) $this->sections[$normalized] !== '';``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `179` uses native `array_pop` in ``$name = (string) array_pop($this->pushBuffers);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::pop()` (`Prefer the shared array pop helper.`)
+- Line `189` uses native `array_map` in ``return $this->joinStrings("\n", array_map('strval', $this->stacks[$normalized] ?? []));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `429` uses native `array_pop` in ``array_pop($this->sectionBuffers);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::pop()` (`Prefer the shared array pop helper.`)
+- Line `436` uses native `array_pop` in ``array_pop($this->pushBuffers);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::pop()` (`Prefer the shared array pop helper.`)
+- Line `522` uses native `array_filter` in ``$extensions = array_values(array_unique(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `522` uses native `array_unique` in ``$extensions = array_values(array_unique(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `522` uses native `array_values` in ``$extensions = array_values(array_unique(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Abstracts/Support/CarrierAdapter.php`
+
+- Current traits: none
+- Line `56` uses native `trim` in ``foreach (explode('.', trim($feature)) as $segment) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `57` uses native `array_key_exists` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `57` uses native `is_array` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `75` uses native `is_string` in ``if ($value === null || (is_string($value) && trim($value) === '')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `75` uses native `trim` in ``if ($value === null || (is_string($value) && trim($value) === '')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `208` uses native `str_replace` in ``return ucwords(str_replace(['_', '-'], ' ', $this->carrierCode()));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `249` uses native `in_array` in ``return in_array($mode, ['reference', 'live'], true) ? $mode : 'reference';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `259` uses native `trim` in ``$url = trim((string) $this->setting('DOCS_URL', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `330` uses native `preg_replace` in ``$postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `330` uses native `strtoupper` in ``$postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `330` uses native `trim` in ``$postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `331` uses native `trim` in ``$city = trim((string) ($payload['city'] ?? $context['shipping_city'] ?? 'Stockholm'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `335` uses native `preg_replace` in ``$seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `335` uses native `strtoupper` in ``$seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `335` uses native `substr` in ``$seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `339` uses native `in_array` in ``$locker = in_array($this->carrierCode(), ['instabox', 'budbee'], true) || $serviceLevel === 'locker';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `373` uses native `trim` in ``$shipmentReference = trim((string) ($payload['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `377` uses native `trim` in ``$trackingNumber = trim((string) ($payload['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `381` uses native `strtolower` in ``$labelFormat = strtolower(trim((string) ($payload['label_format'] ?? $this->setting('LABEL_FORMAT', 'pdf'))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `381` uses native `trim` in ``$labelFormat = strtolower(trim((string) ($payload['label_format'] ?? $this->setting('LABEL_FORMAT', 'pdf'))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `383` uses native `trim` in ``$labelReference = trim((string) ($payload['label_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `386` uses native `trim` in ``$servicePointId = trim((string) ($payload['service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `387` uses native `trim` in ``$servicePointName = trim((string) ($payload['service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `400` uses native `substr` in ``'provider_reference' => sprintf('%s-%s', $this->referencePrefix(), substr(hash('sha256', $shipmentReference), 0, 12)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `416` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `431` uses native `trim` in ``$trackingNumber = trim((string) ($order['tracking_number'] ?? $payload['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `445` uses native `trim` in ``$label = trim((string) ($payload['label'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `447` uses native `trim` in ``$location = trim((string) ($payload['location'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `451` uses native `trim` in ``$shipmentReference = trim((string) ($order['shipment_reference'] ?? $payload['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `464` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `488` uses native `trim` in ``$trackingNumber = trim((string) ($order['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `489` uses native `trim` in ``$shipmentReference = trim((string) ($order['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `500` uses native `trim` in ``$reason = trim((string) ($payload['reason'] ?? 'Operator cancelled the shipment booking.'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `522` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `542` uses native `is_array` in ``if (!is_array($points) || $points === []) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `550` uses native `is_array` in ``if (!is_array($point)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `583` uses native `array_merge` in ``$referenceResult = $this->referenceBooking($order, array_merge($payload, [``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `587` uses native `is_array` in ``$attributes = is_array($referenceResult['attributes'] ?? null) ? $referenceResult['attributes'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `594` uses native `trim` in ``$servicePointId = trim((string) ($payload['service_point_id'] ?? $json['service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `595` uses native `trim` in ``$servicePointName = trim((string) ($payload['service_point_name'] ?? $json['service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `624` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `641` uses native `array_merge` in ``return $this->referenceTrackingUpdate($order, array_merge($payload, [``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `680` uses native `trim` in ``$url = trim((string) $this->setting($key, ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `686` uses native `preg_match` in ``if (preg_match('/^https?:\/\//i', $url) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `690` uses native `rtrim` in ``$base = rtrim(trim((string) $this->setting('API_BASE', '')), '/');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `690` uses native `trim` in ``$base = rtrim(trim((string) $this->setting('API_BASE', '')), '/');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `704` uses native `trim` in ``$apiKey = trim((string) $this->setting('API_KEY', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `707` uses native `trim` in ``$scheme = trim((string) $this->setting('AUTH_SCHEME', 'Bearer'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `708` uses native `trim` in ``$headers['Authorization'] = trim($scheme . ' ' . $apiKey);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `712` uses native `json_encode` in ``$body = $json === null ? '' : json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `713` uses native `function_exists` in ``$response = function_exists('curl_init')``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::functionExists()` (`A framework existence check wrapper already exists.`)
+- Line `719` uses native `json_decode` in ``? json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR)``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `725` uses native `is_array` in ``$response['json'] = is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `744` uses native `strtoupper` in ``CURLOPT_CUSTOMREQUEST => strtoupper($method),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `752` uses native `trim` in ``$header = trim($line);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `754` uses native `str_contains` in ``if ($header === '' || !str_contains($header, ':')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `759` uses native `trim` in ``$responseHeaders[trim($name)] = trim($value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `798` uses native `strtoupper` in ``'method' => strtoupper($method),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `815` uses native `preg_match` in ``if ($index === 0 && preg_match('/\s(\d{3})\s/', $headerLine, $matches) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `820` uses native `str_contains` in ``if (!str_contains($headerLine, ':')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `825` uses native `trim` in ``$responseHeaders[trim($name)] = trim($value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `845` uses native `trim` in ``$lines[] = trim((string) $name) . ': ' . trim((string) $value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `856` uses native `in_array` in ``return in_array((int) ($response['status'] ?? 0), [200, 201, 202, 204], true);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `864` uses native `is_array` in ``if (!is_array($current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `891` uses native `is_array` in ``if (!is_array($values)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `898` uses native `trim` in ``$string = trim((string) $value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `901` uses native `in_array` in ``if ($string === '' || in_array($string, $results, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `913` uses native `strtoupper` in ``$normalized = strtoupper(trim((string) $country));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `913` uses native `trim` in ``$normalized = strtoupper(trim((string) $country));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `920` uses native `substr` in ``default => strlen($normalized) > 2 ? substr($normalized, 0, 2) : $normalized,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `930` uses native `is_string` in ``if (is_string($events)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `932` uses native `json_decode` in ``$events = json_decode($events, true, 512, JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `938` uses native `is_array` in ``if (!is_array($events)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `945` uses native `is_array` in ``if (!is_array($event)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1005` uses native `preg_replace` in ``return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1005` uses native `strtoupper` in ``return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1005` uses native `substr` in ``return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1010` uses native `strtoupper` in ``return sprintf('%s%sSE', $this->referencePrefix(), strtoupper(substr(hash('sha256', $shipmentReference), 0, 10)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1010` uses native `substr` in ``return sprintf('%s%sSE', $this->referencePrefix(), strtoupper(substr(hash('sha256', $shipmentReference), 0, 10)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1015` uses native `trim` in ``$base = trim((string) $this->setting('LABEL_BASE_URL', 'https:``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1021` uses native `rawurlencode` in ``return rtrim($base, '/') . '/' . rawurlencode($this->carrierCode()) . '/' . rawurlencode($shipmentReference) . '.' . rawurlencode($labelFormat);``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `1021` uses native `rtrim` in ``return rtrim($base, '/') . '/' . rawurlencode($this->carrierCode()) . '/' . rawurlencode($shipmentReference) . '.' . rawurlencode($labelFormat);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `1036` uses native `preg_replace` in ``default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $this->carrierCode()) ?: 'CAR', 0, 3)),``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1036` uses native `strtoupper` in ``default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $this->carrierCode()) ?: 'CAR', 0, 3)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1036` uses native `substr` in ``default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $this->carrierCode()) ?: 'CAR', 0, 3)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1042` uses native `str_replace` in ``return strtolower(str_replace('-', '_', trim($value)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `1042` uses native `strtolower` in ``return strtolower(str_replace('-', '_', trim($value)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1042` uses native `trim` in ``return strtolower(str_replace('-', '_', trim($value)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Abstracts/Support/PaymentDriver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `45` uses native `array_merge` in ``return array_merge([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `71` uses native `array_key_exists` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `71` uses native `is_array` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `89` uses native `is_string` in ``if ($value === null || (is_string($value) && $this->trimStringValue($value) === '')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `119` uses native `in_array` in ``return in_array(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `128` uses native `in_array` in ``return in_array(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `169` uses native `in_array` in ``return in_array($mode, ['live', 'reference'], true) ? $mode : 'reference';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `245` uses native `substr` in ``$suffix = substr(hash('sha256', $seed), 0, 16);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `259` uses native `is_array` in ``if (!is_array($metadata)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `266` uses native `is_array` in ``if (!is_array($current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `293` uses native `is_array` in ``if (!is_array($current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `334` uses native `is_string` in ``if (is_string($value) && $this->trimStringValue($value) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `360` uses native `array_merge` in ``$response = $this->request($method, $url, array_merge([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `373` uses native `is_array` in ``$response['json'] = is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `385` uses native `function_exists` in ``if (function_exists('curl_init')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::functionExists()` (`A framework existence check wrapper already exists.`)
+- Line `408` uses native `strtoupper` in ``CURLOPT_CUSTOMREQUEST => strtoupper($method),``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `416` uses native `trim` in ``$header = trim($line);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `418` uses native `str_contains` in ``if ($header === '' || !str_contains($header, ':')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `423` uses native `trim` in ``$responseHeaders[trim($name)] = trim($value);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `433` uses native `is_array` in ``if (isset($options['basic_auth']) && is_array($options['basic_auth'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `440` uses native `is_array` in ``if (isset($options['ssl']) && is_array($options['ssl'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `485` uses native `is_array` in ``$ssl = isset($options['ssl']) && is_array($options['ssl']) ? $options['ssl'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `488` uses native `strtoupper` in ``'method' => strtoupper($method),``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `494` uses native `array_filter` in ``'ssl' => array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `516` uses native `preg_match` in ``if ($index === 0 && preg_match('/\s(\d{3})\s/', $headerLine, $matches) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `521` uses native `str_contains` in ``if (!str_contains($headerLine, ':')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `526` uses native `trim` in ``$responseHeaders[trim($name)] = trim($value);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `546` uses native `trim` in ``$normalized[] = trim((string) $name) . ': ' . trim((string) $value);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `558` uses native `is_array` in ``if (!is_array($values)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `567` uses native `in_array` in ``if ($string === '' || in_array($string, $normalized, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `590` uses native `in_array` in ``if (in_array((int) ($response['status'] ?? 0), $acceptedStatuses, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+
+### `App/Console/Commands/AuditListCommand.php`
+
+- Current traits: none
+- Line `29` uses native `array_filter` in ``$criteria = array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `66` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `70` uses native `is_int` in ``if (is_int($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `74` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `75` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/AuditPruneCommand.php`
+
+- Current traits: none
+- Line `30` uses native `array_filter` in ``$criteria = array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+
+### `App/Console/Commands/ConfigShowCommand.php`
+
+- Current traits: none
+- Line `37` uses native `is_array` in ``$this->dumpJson(is_array($payload) ? $payload : []);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `45` uses native `is_bool` in ``is_bool($value) => $value,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `46` uses native `is_int` in ``is_int($value) => $value !== 0,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `47` uses native `filter_var` in ``is_string($value) => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `47` uses native `is_string` in ``is_string($value) => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `62` uses native `is_string` in ``$segment = is_string($key) ? $key : (string) $key;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `63` uses native `array_merge` in ``$currentPath = array_merge($path, [$segment]);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `65` uses native `is_array` in ``if (is_array($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `88` uses native `str_ends_with` in ``|| str_ends_with($normalized, '_key')``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::endsWith()` (`Prefer the shared string check helper.`)
+- Line `89` uses native `str_contains` in ``|| str_contains($normalized, 'password')``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `90` uses native `str_contains` in ``|| str_contains($normalized, 'secret')``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `91` uses native `str_contains` in ``|| str_contains($normalized, 'token')``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+
+### `App/Console/Commands/EventListCommand.php`
+
+- Current traits: none
+- Line `40` uses native `is_string` in ``$description = is_string($listener)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `42` uses native `is_array` in ``: (is_array($listener) && count($listener) === 2``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `43` uses native `is_object` in ``? sprintf('%s@%s', is_object($listener[0]) ? $listener[0]::class : (string) $listener[0], (string) $listener[1])``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+
+### `App/Console/Commands/FrameworkArchitectureCommand.php`
+
+- Current traits: none
+- Line `49` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/FrameworkDoctorCommand.php`
+
+- Current traits: none
+- Line `50` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/FrameworkLayersCommand.php`
+
+- Current traits: none
+- Line `49` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/ModuleMakeCommand.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`
+- Line `124` uses native `preg_split` in ``$segments = preg_split('/[^A-Za-z0-9]+/', $this->trimString($raw)) ?: [];``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `128` uses native `preg_replace` in ``$segment = preg_replace('/[^A-Za-z0-9]/', '', $segment);``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `130` uses native `is_string` in ``if (!is_string($segment) || $segment === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `134` uses native `strtoupper` in ``$normalized .= strtoupper(substr($segment, 0, 1)) . substr($segment, 1);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `134` uses native `substr` in ``$normalized .= strtoupper(substr($segment, 0, 1)) . substr($segment, 1);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `137` uses native `preg_match` in ``if ($normalized === '' || !preg_match('/^[A-Za-z]/', $normalized)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `141` uses native `preg_match` in ``$base = preg_match('/module$/i', $normalized) === 1``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `142` uses native `substr` in ``? substr($normalized, 0, -6)``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `145` uses native `is_string` in ``if (!is_string($base) || $base === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `149` uses native `strtoupper` in ``$base = strtoupper(substr($base, 0, 1)) . substr($base, 1);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `149` uses native `substr` in ``$base = strtoupper(substr($base, 0, 1)) . substr($base, 1);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `191` uses native `preg_replace` in ``$kebab = preg_replace('/(?<!^)[A-Z]/', '-$0', $value);``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `192` uses native `is_string` in ``$kebab = is_string($kebab) ? $kebab : $value;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `195` uses native `trim` in ``return trim($kebab, '-');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `430` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/QueueFailedCommand.php`
+
+- Current traits: none
+- Line `63` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `67` uses native `is_int` in ``if (is_int($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `71` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `72` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/QueueRetryCommand.php`
+
+- Current traits: none
+- Line `60` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `64` uses native `is_int` in ``if (is_int($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `68` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `69` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/QueueWorkCommand.php`
+
+- Current traits: none
+- Line `50` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `54` uses native `is_int` in ``if (is_int($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `58` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `59` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/Commands/ReleaseCheckCommand.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`
+- Line `352` uses native `array_map` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `352` uses native `array_merge` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `353` uses native `array_map` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `353` uses native `array_merge` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `356` uses native `array_unique` in ``$errors = array_values(array_unique($errors));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `356` uses native `array_values` in ``$errors = array_values(array_unique($errors));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `357` uses native `array_unique` in ``$warnings = array_values(array_unique($warnings));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `357` uses native `array_values` in ``$warnings = array_values(array_unique($warnings));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `403` uses native `str_contains` in ``if ($contents !== '' && !str_contains($contents, $phrase)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `428` uses native `preg_match` in ``if (!preg_match('/^' . preg_quote($key, '/') . '=/m', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `428` uses native `preg_quote` in ``if (!preg_match('/^' . preg_quote($key, '/') . '=/m', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `433` uses native `preg_match_all` in ``if (preg_match_all('/^([A-Z0-9_]+)=/m', $contents, $matches)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::matchAll()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `435` uses native `array_filter` in ``$duplicates = array_keys(array_filter($counts, static fn(int $count): bool => $count > 1));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `435` uses native `array_keys` in ``$duplicates = array_keys(array_filter($counts, static fn(int $count): bool => $count > 1));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `438` uses native `method_exists` in ``$report = method_exists($this->settings, 'environmentReport')``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `441` uses native `array_map` in ``$unknown = array_values(array_map('strval', (array) ($report['unknown'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `441` uses native `array_values` in ``$unknown = array_values(array_map('strval', (array) ($report['unknown'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `449` uses native `array_filter` in ``'errors' => array_values(array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `449` uses native `array_values` in ``'errors' => array_values(array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `475` uses native `preg_match` in ``if (!preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`\[]?' . preg_quote($table, '/') . '["`\]]?/i', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `475` uses native `preg_quote` in ``if (!preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`\[]?' . preg_quote($table, '/') . '["`\]]?/i', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `481` uses native `preg_match` in ``if (preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`\[]?' . preg_quote($table, '/') . '["`\]]?/i', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `481` uses native `preg_quote` in ``if (preg_match('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`\[]?' . preg_quote($table, '/') . '["`\]]?/i', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `509` uses native `array_keys` in ``'required_files' => array_values(array_keys(self::REQUIRED_DATA_SQL)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `509` uses native `array_values` in ``'required_files' => array_values(array_keys(self::REQUIRED_DATA_SQL)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `510` uses native `array_map` in ``'required_table_count' => array_sum(array_map('count', self::REQUIRED_DATA_SQL)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `510` uses native `array_sum` in ``'required_table_count' => array_sum(array_map('count', self::REQUIRED_DATA_SQL)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::sum()` (`Use the shared array summation helper.`)
+- Line `511` uses native `array_unique` in ``'missing_files' => array_values(array_unique($missingFiles)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `511` uses native `array_values` in ``'missing_files' => array_values(array_unique($missingFiles)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `512` uses native `array_unique` in ``'missing_tables' => array_values(array_unique($missingTables)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `512` uses native `array_values` in ``'missing_tables' => array_values(array_unique($missingTables)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `513` uses native `array_unique` in ``'stale_tables' => array_values(array_unique($staleTables)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `513` uses native `array_values` in ``'stale_tables' => array_values(array_unique($staleTables)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `527` uses native `trim` in ``$routes[] = trim((string) ($route['method'] ?? '') . ' ' . (string) ($route['path'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `530` uses native `array_values` in ``$missing = array_values(array_diff(self::REQUIRED_ROUTES, $routes));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `564` uses native `array_filter` in ``? array_values(array_filter(glob($componentRoot . DIRECTORY_SEPARATOR . '*.php') ?: [], 'is_file'))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `564` uses native `array_values` in ``? array_values(array_filter(glob($componentRoot . DIRECTORY_SEPARATOR . '*.php') ?: [], 'is_file'))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `594` uses native `array_keys` in ``$configured = array_keys((array) $this->config->get('payment', 'DRIVERS', []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `595` uses native `array_map` in ``$configured = array_values(array_map('strtolower', array_map('strval', $configured)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `595` uses native `array_values` in ``$configured = array_values(array_map('strtolower', array_map('strval', $configured)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `597` uses native `array_keys` in ``$catalogDrivers = array_keys($catalog);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `598` uses native `array_values` in ``$missingConfigured = array_values(array_diff(self::REQUIRED_PAYMENT_DRIVERS, $configured));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `599` uses native `array_values` in ``$missingCatalog = array_values(array_diff(self::REQUIRED_PAYMENT_DRIVERS, $catalogDrivers));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `622` uses native `array_key_exists` in ``if (!array_key_exists('live_ready', $definition)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `643` uses native `array_keys` in ``$fulfillmentTypes = array_keys((array) $this->config->get('commerce', 'FULFILLMENT.TYPES', []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `644` uses native `array_keys` in ``$carriers = array_keys((array) $this->config->get('commerce', 'SHIPPING.CARRIERS', []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `645` uses native `array_keys` in ``$carrierAdapters = array_keys((array) $this->config->get('commerce', 'SHIPPING.ADAPTERS', []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `646` uses native `array_keys` in ``$trackingApps = array_keys((array) $this->config->get('commerce', 'SHIPPING.TRACKING_APPS', []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `647` uses native `array_values` in ``$missingTypes = array_values(array_diff(self::REQUIRED_FULFILLMENT_TYPES, $fulfillmentTypes));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `648` uses native `array_values` in ``$missingCarriers = array_values(array_diff(self::REQUIRED_SWEDISH_CARRIERS, $carriers));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `649` uses native `array_values` in ``$missingCarrierAdapters = array_values(array_diff(self::REQUIRED_SWEDISH_CARRIERS, $carrierAdapters));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `664` uses native `in_array` in ``if (!in_array('mina_paket', $trackingApps, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `696` uses native `array_keys` in ``$themes = array_keys((array) $this->config->get('theme', 'THEMES', []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `697` uses native `array_map` in ``$themes = array_values(array_map('strtolower', array_map('strval', $themes)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `697` uses native `array_values` in ``$themes = array_values(array_map('strtolower', array_map('strval', $themes)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `698` uses native `strtolower` in ``$defaultTheme = strtolower((string) $this->config->get('theme', 'DEFAULT', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `699` uses native `strtolower` in ``$mode = strtolower((string) $this->config->get('theme', 'MODE', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `708` uses native `array_values` in ``$missingThemes = array_values(array_diff($requiredThemes, $themes));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `722` uses native `in_array` in ``if (!in_array($defaultTheme, $themes, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `726` uses native `in_array` in ``if (!in_array($mode, $allowedModes, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `738` uses native `str_starts_with` in ``if (!str_starts_with($asset, '/assets/')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `771` uses native `str_contains` in ``if (str_contains($contents, '<?php') || str_contains($contents, '<?=') || str_contains($contents, '<? ')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `775` uses native `preg_match_all` in ``if (preg_match_all('/<img\b(?![^>]*\balt\s*=)[^>]*>/i', $contents, $matches, PREG_OFFSET_CAPTURE)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::matchAll()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `819` uses native `str_contains` in ``if (!str_contains($compose, $service)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `835` uses native `array_filter` in ``$missingOptional = array_keys(array_filter($extensions, static fn(bool $loaded): bool => !$loaded));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `835` uses native `array_keys` in ``$missingOptional = array_keys(array_filter($extensions, static fn(bool $loaded): bool => !$loaded));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `856` uses native `strtolower` in ``$driver = strtolower((string) $this->config->get('payment', 'DRIVER', 'testing'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `858` uses native `strtolower` in ``$mode = strtolower((string) ($driverConfig['MODE'] ?? 'reference'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `859` uses native `trim` in ``$webhookSecret = trim((string) $this->config->get('payment', 'WEBHOOKS.SECRETS.' . $driver, ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `860` uses native `strtolower` in ``$shippingMode = strtolower((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.MODE', 'reference'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `861` uses native `trim` in ``$sellerVatId = trim((string) $this->config->get('commerce', 'DOCUMENTS.SELLER_VAT_ID', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `862` uses native `trim` in ``$sellerAddress = trim((string) $this->config->get('commerce', 'DOCUMENTS.SELLER_ADDRESS', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `876` uses native `trim` in ``if (trim((string) ($driverConfig[$field] ?? '')) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `888` uses native `trim` in ``if (trim((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.' . $field, '')) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `904` uses native `strtolower` in ``'shipping_active_carrier' => strtolower((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.ACTIVE_CARRIER', 'postnord')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `968` uses native `preg_match_all` in ``if (!preg_match_all('/<(input|select|textarea)\b[^>]*>/i', $contents, $matches, PREG_OFFSET_CAPTURE)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::matchAll()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `978` uses native `preg_match` in ``if (preg_match('/\btype\s*=\s*["\']hidden["\']/i', $tag)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `989` uses native `array_unique` in ``return array_values(array_unique($lines));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `989` uses native `array_values` in ``return array_values(array_unique($lines));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `994` uses native `preg_match` in ``if (preg_match('/\baria-label\s*=|\baria-labelledby\s*=/i', $tag)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `998` uses native `preg_match` in ``if (preg_match('/\bid\s*=\s*["\']([^"\']+)["\']/i', $tag, $idMatch)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `999` uses native `preg_quote` in ``$id = preg_quote((string) $idMatch[1], '/');``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `1001` uses native `preg_match` in ``if (preg_match('/<label\b[^>]*\bfor\s*=\s*["\']' . $id . '["\']/i', $contents)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1006` uses native `substr` in ``$before = substr($contents, max(0, $offset - 300), min(300, $offset));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1014` uses native `substr` in ``$after = substr($contents, $offset, 600);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1021` uses native `substr` in ``return substr_count(substr($contents, 0, $offset), "\n") + 1;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1031` uses native `rtrim` in ``$base = rtrim($this->frameworkBasePath(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `1033` uses native `str_starts_with` in ``return str_starts_with($path, $base) ? substr($path, strlen($base)) : $path;``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `1033` uses native `substr` in ``return str_starts_with($path, $base) ? substr($path, strlen($base)) : $path;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `1045` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `1049` uses native `is_int` in ``if (is_int($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `1053` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1054` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Console/ConsoleKernel.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `164` uses native `substr` in ``$trimmed = substr($argument, 2);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+
+### `App/Core/App.php`
+
+- Current traits: `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ExistenceCheckerTrait`, `App\Utilities\Traits\Filters\FiltrationTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `205` uses native `is_array` in ``if ($this->isHttpContext() && is_array($payload) && isset($payload['status']) && $this->isInt($payload['status'])) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `267` uses native `in_array` in ``if (!$this->isString($path) || !in_array($path, ['/health', '/ready'], true)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `392` uses native `preg_match` in ``return preg_match('/<(?:!doctype|html|head|body|main|section|form)\b/i', $content) === 1;``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+
+### `App/Core/Bootstrap.php`
+
+- Current traits: `App\Utilities\Traits\ExistenceCheckerTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `180` uses native `is_string` in ``return is_string($path) && str_contains($path, '/install');``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `180` uses native `str_contains` in ``return is_string($path) && str_contains($path, '/install');``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `190` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOL);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Core/MigrationRunner.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `80` uses native `array_filter` in ``$pending = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `80` uses native `array_values` in ``$pending = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `164` uses native `array_map` in ``foreach (array_reverse(array_values(array_unique(array_map('strval', $migrations)))) as $migrationName) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `164` uses native `array_unique` in ``foreach (array_reverse(array_values(array_unique(array_map('strval', $migrations)))) as $migrationName) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `164` uses native `array_values` in ``foreach (array_reverse(array_values(array_unique(array_map('strval', $migrations)))) as $migrationName) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `223` uses native `array_map` in ``return array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `279` uses native `is_callable` in ``$dependencies = is_callable([$class, 'dependencies']) ? $class::dependencies() : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isCallable()` (`Prefer the shared type helper for callable checks.`)
+- Line `284` uses native `is_string` in ``?? (is_string($dependency) ? $dependency : '');``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `431` uses native `array_merge` in ``return array_merge(...array_values(array_slice($batches, 0, $steps, true)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `431` uses native `array_values` in ``return array_merge(...array_values(array_slice($batches, 0, $steps, true)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `482` uses native `class_exists` in ``if (!class_exists($class) || !is_subclass_of($class, Migration::class)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+
+### `App/Core/Router.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\EncodingTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ExistenceCheckerTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `574` uses native `array_key_exists` in ``if (array_key_exists('csrf', $options)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `750` uses native `trim` in ``'previous' => trim($existingMethod . ' ' . $existingPath),``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `751` uses native `trim` in ``'incoming' => trim($incomingMethod . ' ' . $incomingPath),``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `778` uses native `array_map` in ``$normalized[$key][] = array_map('strval', $entry);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `952` uses native `htmlspecialchars` in ``. htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')``
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::encodeSpecialCharsString()` (`Prefer the shared encoding helper for special-char escaping.`)
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::escapeHtml()` (`This helper also exposes HTML escaping.`)
+
+### `App/Core/Schema/Blueprint.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `260` uses native `is_bool` in ``is_bool($value) => $value ? '1' : '0',``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `261` uses native `is_float` in ``is_int($value), is_float($value) => (string) $value,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isFloat()` (`Prefer the shared type helper for float checks.`)
+- Line `261` uses native `is_int` in ``is_int($value), is_float($value) => (string) $value,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `263` uses native `str_replace` in ``default => "'" . str_replace("'", "''", (string) $value) . "'",``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `273` uses native `is_string` in ``if (is_string($columns)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `277` uses native `array_map` in ``return array_values(array_map(static fn(string $column): string => trim($column), $columns));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `277` uses native `array_values` in ``return array_values(array_map(static fn(string $column): string => trim($column), $columns));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `277` uses native `trim` in ``return array_values(array_map(static fn(string $column): string => trim($column), $columns));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Core/SeedRunner.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `72` uses native `array_map` in ``return array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `87` uses native `array_filter` in ``$selected = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `87` uses native `array_values` in ``$selected = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `177` uses native `class_exists` in ``if (!class_exists($typeName)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `202` uses native `in_array` in ``if (in_array($class, $stack, true)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `315` uses native `is_callable` in ``$dependencies = is_callable([$class, 'dependencies']) ? $class::dependencies() : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isCallable()` (`Prefer the shared type helper for callable checks.`)
+- Line `320` uses native `is_string` in ``?? (is_string($dependency) ? $dependency : '');``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+
+### `App/Core/Session.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\EncodingTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `282` uses native `array_values` in ``$metadata['flash'][self::FLASH_NEW_KEY] = array_values($this->unique($new));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `283` uses native `array_values` in ``$metadata['flash'][self::FLASH_OLD_KEY] = array_values(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `529` uses native `array_values` in ``$metadata['flash'][$name] = array_values(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `530` uses native `array_filter` in ``array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `538` uses native `array_values` in ``$metadata['flash'][$bucket] = array_values($this->unique($metadata['flash'][$bucket]));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `549` uses native `array_values` in ``$metadata['flash'][$bucket] = array_values(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `550` uses native `array_filter` in ``array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `569` uses native `array_values` in ``return array_values(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `570` uses native `array_filter` in ``array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+
+### `App/Drivers/Caching/MemCache.php`
+
+- Current traits: none
+- Line `52` uses native `class_exists` in ``'extension' => class_exists(Memcached::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+
+### `App/Drivers/Caching/RedisCache.php`
+
+- Current traits: none
+- Line `52` uses native `class_exists` in ``'extension' => class_exists(Redis::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+
+### `App/Drivers/Cryptography/OpenSSLCrypto.php`
+
+- Current traits: `App\Utilities\Traits\EncodingTrait`, `App\Utilities\Traits\HashingTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `328` uses native `strtolower` in ``return match (strtolower($type)) {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `351` uses native `strtolower` in ``return match (strtolower($action)) {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `356` uses native `strtolower` in ``$this->passwordNeedsRehash($hash, match (strtolower($type)) {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+
+### `App/Drivers/Notifications/MailNotificationChannel.php`
+
+- Current traits: none
+- Line `31` uses native `is_array` in ``if (is_array($message)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Drivers/Passkeys/TestingPasskeyDriver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `65` uses native `array_map` in ``'excludeCredentials' => array_values(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `65` uses native `array_values` in ``'excludeCredentials' => array_values(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `69` uses native `array_map` in ``'transports' => array_values(array_map('strval', (array) ($credential['transports'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `69` uses native `array_values` in ``'transports' => array_values(array_map('strval', (array) ($credential['transports'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `89` uses native `array_map` in ``'transports' => array_values(array_map('strval', (array) ($credential['transports'] ?? ['internal']))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `89` uses native `array_values` in ``'transports' => array_values(array_map('strval', (array) ($credential['transports'] ?? ['internal']))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `114` uses native `array_map` in ``'allowCredentials' => array_values(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `114` uses native `array_values` in ``'allowCredentials' => array_values(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `118` uses native `array_map` in ``'transports' => array_values(array_map('strval', (array) ($credential['transports'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `118` uses native `array_values` in ``'transports' => array_values(array_map('strval', (array) ($credential['transports'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `157` uses native `array_key_exists` in ``if (!$this->isArray($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+
+### `App/Drivers/Passkeys/WebAuthnPasskeyDriver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `225` uses native `array_filter` in ``return array_values(array_filter(array_map(function (array $credential): ?PublicKeyCredentialDescriptor {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `225` uses native `array_map` in ``return array_values(array_filter(array_map(function (array $credential): ?PublicKeyCredentialDescriptor {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `225` uses native `array_values` in ``return array_values(array_filter(array_map(function (array $credential): ?PublicKeyCredentialDescriptor {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `235` uses native `array_map` in ``array_values(array_map('strval', (array) ($credential['transports'] ?? [])))``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `235` uses native `array_values` in ``array_values(array_map('strval', (array) ($credential['transports'] ?? [])))``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `247` uses native `array_map` in ``array_values(array_map('strval', (array) ($context['allowed_origins'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `247` uses native `array_values` in ``array_values(array_map('strval', (array) ($context['allowed_origins'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `267` uses native `array_key_exists` in ``if (!$this->isArray($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+
+### `App/Drivers/Payments/CardPaymentDriver.php`
+
+- Current traits: none
+- Line `83` uses native `is_array` in ``$nextAction = is_array($payload['next_action'] ?? null) ? $payload['next_action'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `266` uses native `is_array` in ``->withNextAction(is_array($data['next_action'] ?? null) ? $data['next_action'] : [], (bool) ($data['customer_action_required'] ?? false))``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `279` uses native `strtolower` in ``$requestedStatus = strtolower(trim((string) ($payload['status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `279` uses native `trim` in ``$requestedStatus = strtolower(trim((string) ($payload['status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `308` uses native `trim` in ``$apiKey = trim((string) $this->setting('API_KEY', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `309` uses native `strtoupper` in ``$scheme = strtoupper((string) $this->setting('AUTH_SCHEME', 'Bearer')) === 'BASIC' ? 'Basic' : 'Bearer';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+
+### `App/Drivers/Payments/CryptoPaymentDriver.php`
+
+- Current traits: none
+- Line `51` uses native `strtoupper` in ``$asset = strtoupper((string) $this->paymentMetadata($intent, 'asset', $this->setting('DEFAULT_ASSET', 'BTC')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `52` uses native `strtolower` in ``$network = strtolower((string) $this->paymentMetadata($intent, 'network', $this->setting('NETWORK', 'mainnet')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `64` uses native `strtolower` in ``'qr_uri' => sprintf('%s:%s?amount=%s', strtolower($asset), $address, $amountAsset),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `91` uses native `in_array` in ``if (in_array($intent->status, ['captured', 'partially_refunded', 'refunded'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `125` uses native `strtolower` in ``$status = strtolower(trim((string) ($payload['status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `125` uses native `trim` in ``$status = strtolower(trim((string) ($payload['status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `171` uses native `strtolower` in ``return 'demo-' . strtolower($asset) . '-address';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+
+### `App/Drivers/Payments/KlarnaPaymentDriver.php`
+
+- Current traits: none
+- Line `63` uses native `substr` in ``'client_token' => 'klarna-client-token-' . substr(hash('sha256', $this->referenceSet($intent)[0]), 0, 24),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `87` uses native `array_filter` in ``'merchant_urls' => array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `154` uses native `rawurlencode` in ``$this->apiUrl('/ordermanagement/v1/orders/' . rawurlencode((string) $intent->providerReference) . '/captures'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `155` uses native `array_merge` in ``array_merge($this->basicAuthHeaders(), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `176` uses native `is_string` in ``->withReferences($intent->reference, $intent->providerReference, is_string($captureId) ? $captureId : $intent->externalReference, $intent->webhookReference)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `199` uses native `rawurlencode` in ``$this->apiUrl('/ordermanagement/v1/orders/' . rawurlencode((string) $intent->providerReference) . '/cancel'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `235` uses native `rawurlencode` in ``$this->apiUrl('/ordermanagement/v1/orders/' . rawurlencode((string) $intent->providerReference) . '/refunds'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `236` uses native `array_merge` in ``array_merge($this->basicAuthHeaders(), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `264` uses native `trim` in ``$authorizationToken = trim((string) ($payload['authorization_token'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `286` uses native `rawurlencode` in ``$this->apiUrl('/payments/v1/authorizations/' . rawurlencode($authorizationToken) . '/order'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `325` uses native `base64_encode` in ``$credentials = base64_encode((string) $this->setting('USERNAME') . ':' . (string) $this->setting('PASSWORD'));``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::base64EncodeString()` (`Use the encoding helper to keep binary/text conversions centralized.`)
+- Line `335` uses native `rtrim` in ``return rtrim((string) $this->setting('API_BASE', $this->setting('BASE_URL', '')), '/') . $path;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `345` uses native `is_array` in ``if (is_array($lines) && $lines !== []) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `346` uses native `array_filter` in ``return array_values(array_filter($lines, static fn(mixed $line): bool => is_array($line)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `346` uses native `array_values` in ``return array_values(array_filter($lines, static fn(mixed $line): bool => is_array($line)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `346` uses native `is_array` in ``return array_values(array_filter($lines, static fn(mixed $line): bool => is_array($line)));``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `368` uses native `is_array` in ``return is_array($address) ? $address : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Drivers/Payments/PayPalPaymentDriver.php`
+
+- Current traits: none
+- Line `94` uses native `array_filter` in ``'application_context' => array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `145` uses native `rawurlencode` in ``$this->apiUrl('/v2/checkout/orders/' . rawurlencode((string) $intent->providerReference) . '/capture'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `156` uses native `strtolower` in ``$status = strtolower((string) ($this->nestedValue($payload, ['purchase_units', 0, 'payments', 'captures', 0, 'status']) ?? 'COMPLETED')) === 'completed'``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `162` uses native `is_string` in ``->withReferences($intent->reference, $intent->providerReference, is_string($captureId) ? $captureId : $intent->externalReference, $intent->webhookReference)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `187` uses native `rawurlencode` in ``$this->apiUrl('/v2/payments/authorizations/' . rawurlencode($authorizationId) . '/void'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `227` uses native `rawurlencode` in ``$this->apiUrl('/v2/payments/captures/' . rawurlencode($captureId) . '/refund'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `260` uses native `strtolower` in ``$requestedStatus = strtolower(trim((string) ($payload['status'] ?? 'approved')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `260` uses native `trim` in ``$requestedStatus = strtolower(trim((string) ($payload['status'] ?? 'approved')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `283` uses native `rawurlencode` in ``$this->apiUrl('/v2/checkout/orders/' . rawurlencode((string) $intent->providerReference)),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `292` uses native `strtoupper` in ``$status = strtoupper((string) ($order['status'] ?? 'CREATED'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `301` uses native `rawurlencode` in ``$this->apiUrl('/v2/checkout/orders/' . rawurlencode((string) $intent->providerReference) . '/authorize'),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `314` uses native `is_string` in ``->withReferences($intent->reference, $intent->providerReference, is_string($authorizationId) ? $authorizationId : $intent->externalReference, $intent->webhookReference)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `323` uses native `in_array` in ``if (in_array($status, ['VOIDED', 'CANCELLED'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `355` uses native `is_array` in ``if (!is_array($payload) || !isset($payload['access_token'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `364` uses native `rtrim` in ``return rtrim((string) $this->setting('API_BASE', $this->setting('BASE_URL', '')), '/') . $path;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `371` uses native `is_array` in ``if (!is_array($links)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `376` uses native `is_array` in ``if (!is_array($link)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `393` uses native `is_int` in ``if (is_int($segment)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `394` uses native `array_key_exists` in ``if (!is_array($current) || !array_key_exists($segment, $current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `394` uses native `is_array` in ``if (!is_array($current) || !array_key_exists($segment, $current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `402` uses native `array_key_exists` in ``if (!is_array($current) || !array_key_exists($segment, $current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `402` uses native `is_array` in ``if (!is_array($current) || !array_key_exists($segment, $current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Drivers/Payments/QliroPaymentDriver.php`
+
+- Current traits: none
+- Line `107` uses native `rawurlencode` in ``$this->apiUrl('/checkout/merchantapi/orders/' . rawurlencode($orderId)),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `241` uses native `strtolower` in ``$status = strtolower(trim((string) ($payload['status'] ?? 'completed')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `241` uses native `trim` in ``$status = strtolower(trim((string) ($payload['status'] ?? 'completed')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `242` uses native `in_array` in ``$paymentStatus = in_array($status, ['completed', 'accepted'], true) ? 'authorized' : ($status === 'onhold' ? 'authorized' : 'requires_action');``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `256` uses native `rawurlencode` in ``$this->apiUrl('/checkout/merchantapi/orders/' . rawurlencode((string) $intent->providerReference)),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `262` uses native `strtolower` in ``$checkoutStatus = strtolower((string) ($payloadResponse['CustomerCheckoutStatus'] ?? 'inprocess'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `264` uses native `in_array` in ``if (in_array($checkoutStatus, ['completed', 'onhold'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `283` uses native `rtrim` in ``return rtrim((string) $this->setting('API_BASE', $this->setting('BASE_URL', '')), '/') . $path;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `293` uses native `is_array` in ``if (is_array($items) && $items !== []) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `294` uses native `array_filter` in ``return array_values(array_filter($items, static fn(mixed $item): bool => is_array($item)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `294` uses native `array_values` in ``return array_values(array_filter($items, static fn(mixed $item): bool => is_array($item)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `294` uses native `is_array` in ``return array_values(array_filter($items, static fn(mixed $item): bool => is_array($item)));``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Drivers/Payments/SwishPaymentDriver.php`
+
+- Current traits: none
+- Line `79` uses native `rtrim` in ``rtrim((string) $this->setting('API_BASE'), '/') . '/paymentrequests',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `88` uses native `substr` in ``'message' => substr($intent->description !== '' ? $intent->description : 'LangelerMVC order', 0, 50),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `102` uses native `trim` in ``$requestId = trim((string) basename($location)) !== '' ? (string) basename($location) : $instructionUuid;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `163` uses native `strtolower` in ``$status = strtolower(trim((string) ($payload['status'] ?? 'paid')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `163` uses native `trim` in ``$status = strtolower(trim((string) ($payload['status'] ?? 'paid')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `165` uses native `in_array` in ``if (in_array($status, ['cancelled', 'declined', 'error'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `181` uses native `rawurlencode` in ``rtrim((string) $this->setting('API_BASE'), '/') . '/paymentrequests/' . rawurlencode($requestId),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `181` uses native `rtrim` in ``rtrim((string) $this->setting('API_BASE'), '/') . '/paymentrequests/' . rawurlencode($requestId),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `196` uses native `strtoupper` in ``$providerStatus = strtoupper((string) ($response['json']['status'] ?? 'CREATED'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `198` uses native `in_array` in ``if (in_array($providerStatus, ['DECLINED', 'ERROR', 'CANCELLED'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+
+### `App/Drivers/Payments/TestingPaymentDriver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`
+- Line `67` uses native `trim` in ``foreach (explode('.', trim($feature)) as $segment) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `68` uses native `array_key_exists` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `68` uses native `is_array` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `100` uses native `trim` in ``$value = $method instanceof PaymentMethod ? $method->value : trim((string) $method);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `102` uses native `in_array` in ``return in_array($value, $this->supportedMethods(), true);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `107` uses native `trim` in ``$value = $flow instanceof PaymentFlow ? $flow->value : trim((string) $flow);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `109` uses native `in_array` in ``return in_array($value, $this->supportedFlows(), true);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `171` uses native `in_array` in ``if (!in_array($intent->status, ['authorized', 'partially_captured', 'captured'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `193` uses native `in_array` in ``!in_array($intent->status, ['pending', 'authorized', 'requires_action', 'processing', 'pending_review'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `215` uses native `in_array` in ``if (!in_array($intent->status, ['captured', 'partially_refunded', 'refunded'], true) && $intent->capturedAmount === 0) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `235` uses native `trim` in ``$requestedStatus = $this->normalizeStatus(trim((string) ($payload['status'] ?? $payload['payment_status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `249` uses native `in_array` in ``if (in_array($requestedStatus, ['authorized', 'captured'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `311` uses native `strtolower` in ``$status = strtolower(trim($status));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `311` uses native `trim` in ``$status = strtolower(trim($status));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `324` uses native `strtolower` in ``$mode = strtolower(trim((string) ($this->settings['MODE'] ?? 'reference')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `324` uses native `trim` in ``$mode = strtolower(trim((string) ($this->settings['MODE'] ?? 'reference')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `326` uses native `in_array` in ``return in_array($mode, ['reference', 'live'], true) ? $mode : 'reference';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `339` uses native `substr` in ``$suffix = substr(hash('sha256', $seed), 0, 16);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+
+### `App/Drivers/Payments/WalleyPaymentDriver.php`
+
+- Current traits: none
+- Line `78` uses native `is_array` in ``$nextAction = is_array($payload['next_action'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `91` uses native `array_filter` in ``!empty(array_filter($nextAction)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `265` uses native `strtolower` in ``$status = strtolower(trim((string) ($payloadResponse['status'] ?? $payloadResponse['payment_status'] ?? 'authorized')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `265` uses native `trim` in ``$status = strtolower(trim((string) ($payloadResponse['status'] ?? $payloadResponse['payment_status'] ?? 'authorized')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `284` uses native `strtolower` in ``$status = strtolower(trim((string) ($payload['status'] ?? 'authorized')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `284` uses native `trim` in ``$status = strtolower(trim((string) ($payload['status'] ?? 'authorized')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `317` uses native `trim` in ``$apiKey = trim((string) $this->setting('API_KEY', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `323` uses native `trim` in ``$username = trim((string) $this->setting('USERNAME', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `324` uses native `trim` in ``$password = trim((string) $this->setting('PASSWORD', ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `327` uses native `base64_encode` in ``$headers['Authorization'] = 'Basic ' . base64_encode($username . ':' . $password);``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::base64EncodeString()` (`Use the encoding helper to keep binary/text conversions centralized.`)
+- Line `335` uses native `trim` in ``$url = trim((string) $this->setting($key, ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `337` uses native `preg_match` in ``if (preg_match('/^https?:\/\//i', $url) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `341` uses native `rtrim` in ``$base = rtrim(trim((string) $this->setting('API_BASE', '')), '/');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `341` uses native `trim` in ``$base = rtrim(trim((string) $this->setting('API_BASE', '')), '/');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Drivers/Queue/DatabaseQueueDriver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `47` uses native `trim` in ``foreach (explode('.', trim($feature)) as $segment) {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `48` uses native `array_key_exists` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `48` uses native `is_array` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `163` uses native `array_map` in ``return array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+
+### `App/Drivers/Queue/SyncQueueDriver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `40` uses native `trim` in ``foreach (explode('.', trim($feature)) as $segment) {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `41` uses native `array_key_exists` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `41` uses native `is_array` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `111` uses native `array_filter` in ``return array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `111` uses native `array_values` in ``return array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Drivers/Session/RedisSessionDriver.php`
+
+- Current traits: `App\Utilities\Traits\ManipulationTrait`
+- Line `37` uses native `class_exists` in ``'extension' => class_exists(Redis::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `69` uses native `is_string` in ``return is_string($value) ? $value : '';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `97` uses native `class_exists` in ``if (!class_exists(Redis::class)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `129` uses native `trim` in ``$prefix = trim((string) ($this->config['prefix'] ?? 'langelermvc_session'), ':');``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `131` uses native `trim` in ``return $prefix . ':' . trim($id);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Installer/InstallerWizard.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`
+- Line `80` uses native `array_replace` in ``$defaults = array_replace($this->templateEnvironment(), $this->baseDefaults());``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceElements()` (`Prefer the framework array replacement helper.`)
+- Line `94` uses native `filter_var` in ``return filter_var($environment['APP_INSTALLED'] ?? false, FILTER_VALIDATE_BOOL);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `114` uses native `str_starts_with` in ``'httpsRecommended' => str_starts_with(strtolower($appUrl), 'https:``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `114` uses native `strtolower` in ``'httpsRecommended' => str_starts_with(strtolower($appUrl), 'https:``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `140` uses native `in_array` in ``'resumeAvailable' => in_array((string) ($installState['status'] ?? ''), ['failed', 'rolled_back'], true),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `142` uses native `is_array` in ``'error' => is_array($installState['error'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `264` uses native `array_map` in ``$data = array_replace($this->defaults(), array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `264` uses native `array_replace` in ``$data = array_replace($this->defaults(), array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceElements()` (`Prefer the framework array replacement helper.`)
+- Line `265` uses native `is_scalar` in ``static fn(mixed $value): string => is_string($value) ? trim($value) : (is_scalar($value) ? (string) $value : ''),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isScalar()` (`Prefer the shared type helper for scalar checks.`)
+- Line `265` uses native `is_string` in ``static fn(mixed $value): string => is_string($value) ? trim($value) : (is_scalar($value) ? (string) $value : ''),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `265` uses native `trim` in ``static fn(mixed $value): string => is_string($value) ? trim($value) : (is_scalar($value) ? (string) $value : ''),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `273` uses native `rtrim` in ``$data['APP_URL'] = rtrim((string) ($data['APP_URL'] ?? ''), '/');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `274` uses native `strtolower` in ``$data['APP_LOCALE'] = strtolower((string) ($data['APP_LOCALE'] ?? 'en'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `275` uses native `strtolower` in ``$data['APP_FALLBACK_LOCALE'] = strtolower((string) ($data['APP_FALLBACK_LOCALE'] ?? 'en'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `276` uses native `strtoupper` in ``$data['PAYMENT_CURRENCY'] = strtoupper((string) ($data['PAYMENT_CURRENCY'] ?? 'SEK'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `277` uses native `strtoupper` in ``$data['COMMERCE_CURRENCY'] = strtoupper((string) ($data['COMMERCE_CURRENCY'] ?? $data['PAYMENT_CURRENCY'] ?? 'SEK'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `278` uses native `strtolower` in ``$data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] = strtolower((string) ($data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'] ?? 'physical_shipping'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `279` uses native `strtolower` in ``$data['COMMERCE_SHIPPING_ACTIVE_CARRIER'] = strtolower((string) ($data['COMMERCE_SHIPPING_ACTIVE_CARRIER'] ?? 'postnord'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `280` uses native `strtolower` in ``$data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] = strtolower((string) ($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'] ?? 'monthly'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `281` uses native `strtolower` in ``$data['THEME_DEFAULT'] = strtolower((string) ($data['THEME_DEFAULT'] ?? 'bootstrap-light'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `282` uses native `strtolower` in ``$data['THEME_MODE'] = strtolower((string) ($data['THEME_MODE'] ?? 'system'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `283` uses native `trim` in ``$data['MAIL_FROM_NAME'] = trim((string) ($data['MAIL_FROM_NAME'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `313` uses native `filter_var` in ``if (filter_var($data['APP_URL'], FILTER_VALIDATE_URL) === false) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `317` uses native `in_array` in ``if (!in_array($data['APP_TIMEZONE'], timezone_identifiers_list(), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `321` uses native `filter_var` in ``if (filter_var($data['ADMIN_EMAIL'], FILTER_VALIDATE_EMAIL) === false) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `329` uses native `in_array` in ``if (!in_array($data['DB_CONNECTION'], self::SUPPORTED_DATABASE_DRIVERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `333` uses native `in_array` in ``if (!in_array($data['SESSION_DRIVER'], self::SUPPORTED_SESSION_DRIVERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `337` uses native `in_array` in ``if (!in_array($data['CACHE_DRIVER'], self::SUPPORTED_CACHE_DRIVERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `341` uses native `in_array` in ``if (!in_array($data['MAIL_MAILER'], self::SUPPORTED_MAIL_DRIVERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `345` uses native `in_array` in ``if (!in_array($data['QUEUE_DRIVER'], self::SUPPORTED_QUEUE_DRIVERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `349` uses native `in_array` in ``if (!in_array($data['WEBMODULE_CONTENT_SOURCE'], self::SUPPORTED_CONTENT_SOURCES, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `353` uses native `in_array` in ``if (!in_array($data['PAYMENT_DRIVER'], self::SUPPORTED_PAYMENT_DRIVERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `357` uses native `in_array` in ``if (!in_array($data['PAYMENT_DEFAULT_METHOD'], self::SUPPORTED_PAYMENT_METHODS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `361` uses native `in_array` in ``if (!in_array($data['PAYMENT_DEFAULT_FLOW'], self::SUPPORTED_PAYMENT_FLOWS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `365` uses native `in_array` in ``if (!in_array($data['COMMERCE_FULFILLMENT_DEFAULT_TYPE'], self::SUPPORTED_FULFILLMENT_TYPES, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `369` uses native `in_array` in ``if (!in_array($data['COMMERCE_SHIPPING_ACTIVE_CARRIER'], self::SUPPORTED_CARRIER_ADAPTERS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `373` uses native `in_array` in ``if (!in_array($data['COMMERCE_SUBSCRIPTION_DEFAULT_INTERVAL'], self::SUPPORTED_SUBSCRIPTION_INTERVALS, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `377` uses native `in_array` in ``if (!in_array($data['THEME_DEFAULT'], self::SUPPORTED_THEMES, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `381` uses native `in_array` in ``if (!in_array($data['THEME_MODE'], self::SUPPORTED_THEME_MODES, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `389` uses native `trim` in ``$value = trim((string) ($data[$key] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `391` uses native `str_starts_with` in ``if ($value === '' || !str_starts_with($value, '/assets/')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `396` uses native `in_array` in ``if (!in_array($data['ENCRYPTION_TYPE'], ['openssl', 'sodium'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `404` uses native `filter_var` in ``if (($data[$key] ?? '') !== '' && filter_var($data[$key], FILTER_VALIDATE_EMAIL) === false) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `451` uses native `preg_match` in ``if (($data['PAYMENT_CURRENCY'] ?? '') === '' || preg_match('/^[A-Z]{3}$/', $data['PAYMENT_CURRENCY']) !== 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `455` uses native `preg_match` in ``if (($data['COMMERCE_CURRENCY'] ?? '') === '' || preg_match('/^[A-Z]{3}$/', $data['COMMERCE_CURRENCY']) !== 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `459` uses native `filter_var` in ``if (($data['AUTH_PASSKEY_ORIGINS'] ?? '') !== '' && filter_var($data['AUTH_PASSKEY_ORIGINS'], FILTER_VALIDATE_URL) === false) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `463` uses native `in_array` in ``if (in_array($data['CACHE_DRIVER'], ['redis'], true) && !extension_loaded('redis')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `467` uses native `in_array` in ``if (in_array($data['CACHE_DRIVER'], ['memcache'], true) && !extension_loaded('memcached')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `505` uses native `array_unique` in ``foreach (array_unique($paths) as $path) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `571` uses native `array_replace` in ``$environment = array_replace($this->templateEnvironment(), $this->baseDefaults(), $data);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceElements()` (`Prefer the framework array replacement helper.`)
+- Line `573` uses native `array_keys` in ``foreach (array_keys($environment) as $key) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `574` uses native `str_starts_with` in ``if (str_starts_with($key, 'ADMIN_')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `864` uses native `array_key_exists` in ``if (!array_key_exists($key, $environment)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `994` uses native `array_keys` in ``foreach (array_reverse(array_keys($migrated)) as $module) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `995` uses native `array_filter` in ``$executed = array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `995` uses native `array_values` in ``$executed = array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `996` uses native `array_map` in ``array_map('strval', (array) ($migrated[$module] ?? [])),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1007` uses native `array_filter` in ``return array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `1018` uses native `array_keys` in ``$writtenKeys = array_keys($writtenEnvironment);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `1026` uses native `array_keys` in ``$this->unsetEnvironmentKeys(array_diff($writtenKeys, array_keys($restored)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `1078` uses native `is_string` in ``if (!is_string($contents) || trim($contents) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1078` uses native `trim` in ``if (!is_string($contents) || trim($contents) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1083` uses native `json_decode` in ``$decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `1085` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1102` uses native `json_encode` in ``$payload = json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `1378` uses native `trim` in ``$appName = trim((string) ($environment['APP_NAME'] ?? 'LangelerMVC'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1379` uses native `trim` in ``$appUrl = trim((string) ($environment['APP_URL'] ?? 'http:``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1381` uses native `str_starts_with` in ``$secureByUrl = str_starts_with(strtolower($appUrl), 'https:``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `1381` uses native `strtolower` in ``$secureByUrl = str_starts_with(strtolower($appUrl), 'https:``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1419` uses native `trim` in ``$value = trim((string) ($environment[$key] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1421` uses native `str_contains` in ``if ($value === '' || str_contains($value, 'langelermvc.test')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `1422` uses native `rtrim` in ``$environment[$key] = rtrim($appUrl, '/') . $path;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `1457` uses native `is_string` in ``if (!is_string($contents) || $contents === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1463` uses native `preg_split` in ``foreach (preg_split('/\R/', $contents) ?: [] as $line) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `1464` uses native `trim` in ``$line = trim($line);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1466` uses native `str_contains` in ``if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `1466` uses native `str_starts_with` in ``if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `1471` uses native `trim` in ``$variables[trim($key)] = trim(trim($value), "\"'");``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1519` uses native `preg_match` in ``if (str_starts_with($path, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1519` uses native `str_starts_with` in ``if (str_starts_with($path, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `1528` uses native `trim` in ``$trimmed = trim($path);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1534` uses native `preg_match` in ``if (str_starts_with($trimmed, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\\/]/', $trimmed) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1534` uses native `str_starts_with` in ``if (str_starts_with($trimmed, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\\/]/', $trimmed) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `1545` uses native `is_string` in ``if (is_string($host) && trim($host) !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1545` uses native `trim` in ``if (is_string($host) && trim($host) !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1546` uses native `trim` in ``return trim($host);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1554` uses native `strtolower` in ``$normalized = strtolower(trim($host));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1554` uses native `trim` in ``$normalized = strtolower(trim($host));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1570` uses native `base64_encode` in ``? 'base64:' . base64_encode(random_bytes($bytes))``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::base64EncodeString()` (`Use the encoding helper to keep binary/text conversions centralized.`)
+- Line `1589` uses native `trim` in ``$trimmed = trim($value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1596` uses native `str_contains` in ``if ($fragment !== '' && str_contains($trimmed, $fragment)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `1606` uses native `trim` in ``return trim($value) === '';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1611` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false;``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `1620` uses native `preg_match` in ``if (preg_match('/\s/', $value) === 1 || str_contains($value, '#')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1620` uses native `str_contains` in ``if (preg_match('/\s/', $value) === 1 || str_contains($value, '#')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+
+### `App/Modules/AdminModule/Controllers/AdminController.php`
+
+- Current traits: none
+- Line `504` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/AdminModule/Presenters/AdminPresenter.php`
+
+- Current traits: none
+- Line `20` uses native `is_array` in ``'metrics' => is_array($data['metrics'] ?? null) ? $data['metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'users' => is_array($data['users'] ?? null) ? $data['users'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'roles' => is_array($data['roles'] ?? null) ? $data['roles'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'permissions' => is_array($data['permissions'] ?? null) ? $data['permissions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'pages' => is_array($data['pages'] ?? null) ? $data['pages'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'page_form' => is_array($data['page_form'] ?? null) ? $data['page_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'page_metrics' => is_array($data['page_metrics'] ?? null) ? $data['page_metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `27` uses native `is_array` in ``'modules' => is_array($data['modules'] ?? null) ? $data['modules'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `28` uses native `is_array` in ``'system' => is_array($data['system'] ?? null) ? $data['system'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `29` uses native `is_array` in ``'catalog' => is_array($data['catalog'] ?? null) ? $data['catalog'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `30` uses native `is_array` in ``'catalog_metrics' => is_array($data['catalog_metrics'] ?? null) ? $data['catalog_metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `31` uses native `is_array` in ``'category_form' => is_array($data['category_form'] ?? null) ? $data['category_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `32` uses native `is_array` in ``'product_form' => is_array($data['product_form'] ?? null) ? $data['product_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `33` uses native `is_array` in ``'categories' => is_array($data['categories'] ?? null) ? $data['categories'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `34` uses native `is_array` in ``'promotions' => is_array($data['promotions'] ?? null) ? $data['promotions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `35` uses native `is_array` in ``'configured_promotions' => is_array($data['configured_promotions'] ?? null) ? $data['configured_promotions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `36` uses native `is_array` in ``'promotion_usage' => is_array($data['promotion_usage'] ?? null) ? $data['promotion_usage'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `37` uses native `is_array` in ``'promotion_analytics' => is_array($data['promotion_analytics'] ?? null) ? $data['promotion_analytics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `38` uses native `is_array` in ``'promotion_form' => is_array($data['promotion_form'] ?? null) ? $data['promotion_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `39` uses native `is_array` in ``'promotion_metrics' => is_array($data['promotion_metrics'] ?? null) ? $data['promotion_metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `40` uses native `is_array` in ``'carts' => is_array($data['carts'] ?? null) ? $data['carts'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `41` uses native `is_array` in ``'orders' => is_array($data['orders'] ?? null) ? $data['orders'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `42` uses native `is_array` in ``'order' => is_array($data['order'] ?? null) ? $data['order'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `43` uses native `is_array` in ``'operations' => is_array($data['operations'] ?? null) ? $data['operations'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/AdminModule/Presenters/AdminResource.php`
+
+- Current traits: none
+- Line `13` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `19` uses native `is_array` in ``'metrics' => is_array($payload['metrics'] ?? null) ? $payload['metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `20` uses native `is_array` in ``'users' => is_array($payload['users'] ?? null) ? $payload['users'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'roles' => is_array($payload['roles'] ?? null) ? $payload['roles'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'permissions' => is_array($payload['permissions'] ?? null) ? $payload['permissions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'pages' => is_array($payload['pages'] ?? null) ? $payload['pages'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'page_form' => is_array($payload['page_form'] ?? null) ? $payload['page_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'page_metrics' => is_array($payload['page_metrics'] ?? null) ? $payload['page_metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'modules' => is_array($payload['modules'] ?? null) ? $payload['modules'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `27` uses native `is_array` in ``'system' => is_array($payload['system'] ?? null) ? $payload['system'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `28` uses native `is_array` in ``'catalog' => is_array($payload['catalog'] ?? null) ? $payload['catalog'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `29` uses native `is_array` in ``'catalog_metrics' => is_array($payload['catalog_metrics'] ?? null) ? $payload['catalog_metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `30` uses native `is_array` in ``'category_form' => is_array($payload['category_form'] ?? null) ? $payload['category_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `31` uses native `is_array` in ``'product_form' => is_array($payload['product_form'] ?? null) ? $payload['product_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `32` uses native `is_array` in ``'categories' => is_array($payload['categories'] ?? null) ? $payload['categories'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `33` uses native `is_array` in ``'promotions' => is_array($payload['promotions'] ?? null) ? $payload['promotions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `34` uses native `is_array` in ``'configured_promotions' => is_array($payload['configured_promotions'] ?? null) ? $payload['configured_promotions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `35` uses native `is_array` in ``'promotion_usage' => is_array($payload['promotion_usage'] ?? null) ? $payload['promotion_usage'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `36` uses native `is_array` in ``'promotion_analytics' => is_array($payload['promotion_analytics'] ?? null) ? $payload['promotion_analytics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `37` uses native `is_array` in ``'promotion_form' => is_array($payload['promotion_form'] ?? null) ? $payload['promotion_form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `38` uses native `is_array` in ``'promotion_metrics' => is_array($payload['promotion_metrics'] ?? null) ? $payload['promotion_metrics'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `39` uses native `is_array` in ``'carts' => is_array($payload['carts'] ?? null) ? $payload['carts'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `40` uses native `is_array` in ``'orders' => is_array($payload['orders'] ?? null) ? $payload['orders'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `41` uses native `is_array` in ``'order' => is_array($payload['order'] ?? null) ? $payload['order'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `42` uses native `is_array` in ``'operations' => is_array($payload['operations'] ?? null) ? $payload['operations'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `48` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/AdminModule/Requests/AdminRequest.php`
+
+- Current traits: none
+- Line `215` uses native `is_string` in ``if (isset($data[$key]) && is_string($data[$key])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `216` uses native `array_map` in ``$parts = array_map('trim', explode(',', $data[$key]));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `217` uses native `array_filter` in ``$data[$key] = array_values(array_filter($parts, static fn(string $value): bool => $value !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `217` uses native `array_values` in ``$data[$key] = array_values(array_filter($parts, static fn(string $value): bool => $value !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `271` uses native `is_string` in ``if (isset($data[$key]) && is_string($data[$key])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `272` uses native `trim` in ``$data[$key] = trim($data[$key]);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `316` uses native `is_array` in ``if (isset($data['promotion_ids']) && is_array($data['promotion_ids'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `317` uses native `array_filter` in ``$data['promotion_ids'] = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `317` uses native `array_map` in ``$data['promotion_ids'] = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `317` uses native `array_values` in ``$data['promotion_ids'] = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `323` uses native `is_string` in ``if (isset($data['currency']) && is_string($data['currency'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `324` uses native `strtoupper` in ``$data['currency'] = strtoupper($data['currency']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `327` uses native `is_string` in ``if (isset($data['code']) && is_string($data['code'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `328` uses native `strtoupper` in ``$data['code'] = strtoupper($data['code']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `331` uses native `is_string` in ``if (isset($data['visibility']) && is_string($data['visibility'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `332` uses native `strtolower` in ``$data['visibility'] = strtolower($data['visibility']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `335` uses native `is_string` in ``if (isset($data['fulfillment_type']) && is_string($data['fulfillment_type'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `336` uses native `strtolower` in ``$data['fulfillment_type'] = strtolower($data['fulfillment_type']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `340` uses native `is_string` in ``if (isset($data[$key]) && is_string($data[$key])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `341` uses native `strtolower` in ``$data[$key] = strtolower($data[$key]);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `345` uses native `array_key_exists` in ``if (array_key_exists('is_published', $data)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `347` uses native `in_array` in ``$normalized = is_bool($value) ? $value : in_array(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `347` uses native `is_bool` in ``$normalized = is_bool($value) ? $value : in_array(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `348` uses native `strtolower` in ``strtolower(trim((string) $value)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `348` uses native `trim` in ``strtolower(trim((string) $value)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `356` uses native `array_key_exists` in ``if (array_key_exists($key, $data)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `358` uses native `in_array` in ``$data[$key] = is_bool($value) ? $value : in_array(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `358` uses native `is_bool` in ``$data[$key] = is_bool($value) ? $value : in_array(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `359` uses native `strtolower` in ``strtolower(trim((string) $value)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `359` uses native `trim` in ``strtolower(trim((string) $value)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/AdminModule/Services/AdminAccessService.php`
+
+- Current traits: none
+- Line `231` uses native `array_keys` in ``'modules' => array_keys($this->modules->getModules()),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `265` uses native `array_map` in ``$roles = array_map('strval', (array) ($this->payload['roles'] ?? []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `311` uses native `array_map` in ``'permissions' => array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `335` uses native `array_map` in ``$values = array_map('strval', (array) ($this->payload['permissions'] ?? []));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `363` uses native `array_map` in ``'permissions' => array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `387` uses native `array_keys` in ``'modules' => array_keys($this->modules->getModules()),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `456` uses native `trim` in ``$title = trim((string) ($this->payload['title'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `458` uses native `trim` in ``$content = trim((string) ($this->payload['content'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `488` uses native `array_key_exists` in ``'is_published' => array_key_exists('is_published', $this->payload)``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `643` uses native `trim` in ``$name = trim((string) ($this->payload['name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `673` uses native `trim` in ``'description' => trim((string) ($this->payload['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `771` uses native `trim` in ``$name = trim((string) ($this->payload['name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `801` uses native `trim` in ``$availableAt = trim((string) ($this->payload['available_at'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `806` uses native `trim` in ``'description' => trim((string) ($this->payload['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `808` uses native `strtoupper` in ``'currency' => strtoupper(trim((string) ($this->payload['currency'] ?? 'SEK'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `808` uses native `trim` in ``'currency' => strtoupper(trim((string) ($this->payload['currency'] ?? 'SEK'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `809` uses native `in_array` in ``'visibility' => in_array((string) ($this->payload['visibility'] ?? 'published'), ['draft', 'published', 'archived'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `910` uses native `strtoupper` in ``$code = strtoupper(trim((string) ($this->payload['code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `910` uses native `trim` in ``$code = strtoupper(trim((string) ($this->payload['code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `911` uses native `trim` in ``$label = trim((string) ($this->payload['label'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1047` uses native `strtolower` in ``$action = strtolower(trim((string) ($this->payload['bulk_action'] ?? $this->payload['action'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1047` uses native `trim` in ``$action = strtolower(trim((string) ($this->payload['bulk_action'] ?? $this->payload['action'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1049` uses native `in_array` in ``if ($ids === [] || !in_array($action, ['activate', 'deactivate', 'delete'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `1274` uses native `is_array` in ``$return = is_array($result['return'] ?? null) ? $result['return'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1281` uses native `trim` in ``'reason' => trim((string) ($this->payload['reason'] ?? 'Admin return refund')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1353` uses native `is_array` in ``$return = is_array($result['return'] ?? null) ? $result['return'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1359` uses native `trim` in ``'reason' => trim((string) ($this->payload['reason'] ?? 'Admin return refund')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1413` uses native `str_replace` in ``$result = $this->documents->issue($orderId, str_replace('-', '_', $type), $this->payload);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `1479` uses native `is_array` in ``'service_points' => is_array($lookup['service_points'] ?? null) ? $lookup['service_points'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1480` uses native `is_array` in ``'service_point_carrier' => is_array($lookup['carrier'] ?? null) ? $lookup['carrier'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1491` uses native `array_filter` in ``$belongsToOrder = array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `1549` uses native `array_filter` in ``$belongsToOrder = array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `1671` uses native `array_keys` in ``'registered' => array_keys($listeners),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `1724` uses native `trim` in ``$value = trim((string) ($payload[$inputKey] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1746` uses native `array_map` in ``'listener_refs' => implode(', ', array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1760` uses native `is_array` in ``if (is_array($listener)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1761` uses native `array_map` in ``return implode('::', array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1767` uses native `is_object` in ``if (is_object($listener)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `1771` uses native `is_bool` in ``if (is_bool($listener)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `1779` uses native `is_scalar` in ``return is_scalar($listener) ? (string) $listener : gettype($listener);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isScalar()` (`Prefer the shared type helper for scalar checks.`)
+- Line `1791` uses native `is_array` in ``$definition = is_array($definition) ? $definition : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1795` uses native `array_map` in ``'methods' => implode(', ', array_map('strval', (array) ($definition['methods'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1796` uses native `array_map` in ``'flows' => implode(', ', array_map('strval', (array) ($definition['flows'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1797` uses native `array_map` in ``'regions' => implode(', ', array_map('strval', (array) ($definition['regions'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1800` uses native `array_map` in ``'missing' => implode(', ', array_map('strval', (array) ($definition['missing_required_settings'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1816` uses native `is_array` in ``$definition = is_array($definition) ? $definition : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1817` uses native `array_map` in ``$missing = array_values(array_map('strval', (array) ($definition['missing_required_settings'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1817` uses native `array_values` in ``$missing = array_values(array_map('strval', (array) ($definition['missing_required_settings'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `1822` uses native `array_map` in ``'service_levels' => implode(', ', array_map('strval', (array) ($definition['service_levels'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1823` uses native `array_map` in ``'regions' => implode(', ', array_map('strval', (array) ($definition['regions'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1842` uses native `is_array` in ``if (!is_array($payload)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1847` uses native `array_key_exists` in ``$available = array_key_exists('available', $payload)``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `1855` uses native `array_keys` in ``'details' => implode(', ', array_slice(array_keys($payload), 0, 8)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `1868` uses native `array_map` in ``return array_map(static function (array $record): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1869` uses native `is_array` in ``$context = is_array($record['context'] ?? null) ? $record['context'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1878` uses native `json_encode` in ``'context' => json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `1926` uses native `array_filter` in ``'published_pages' => count(array_filter($pages, static fn(array $page): bool => !empty($page['is_published']))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `1927` uses native `array_filter` in ``'draft_pages' => count(array_filter($pages, static fn(array $page): bool => empty($page['is_published']))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2024` uses native `array_filter` in ``'active_database_promotions' => count(array_filter($databasePromotions, static fn(array $promotion): bool => !empty($promotion['active']))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2025` uses native `array_filter` in ``'inactive_database_promotions' => count(array_filter($databasePromotions, static fn(array $promotion): bool => empty($promotion['active']))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2040` uses native `array_filter` in ``'published_categories' => count(array_filter($categories, static fn(array $category): bool => !empty($category['is_published']))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2042` uses native `array_filter` in ``'published_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'published')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2043` uses native `array_filter` in ``'draft_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'draft')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2044` uses native `array_filter` in ``'archived_products' => count(array_filter($catalog, static fn(array $product): bool => ($product['visibility'] ?? '') === 'archived')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2045` uses native `array_filter` in ``'out_of_stock' => count(array_filter($catalog, static fn(array $product): bool => (int) ($product['stock'] ?? 0) <= 0)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2056` uses native `trim` in ``'name' => trim((string) ($input['name'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2057` uses native `trim` in ``'slug' => trim((string) ($input['slug'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2058` uses native `trim` in ``'description' => trim((string) ($input['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2059` uses native `array_key_exists` in ``'is_published' => array_key_exists('is_published', $input) ? !empty($input['is_published']) : true,``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `2071` uses native `trim` in ``'title' => trim((string) ($input['title'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2073` uses native `trim` in ``'content' => trim((string) ($input['content'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2074` uses native `array_key_exists` in ``'is_published' => array_key_exists('is_published', $input) ? !empty($input['is_published']) : true,``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `2090` uses native `trim` in ``'name' => trim((string) ($input['name'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2091` uses native `trim` in ``'slug' => trim((string) ($input['slug'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2092` uses native `trim` in ``'description' => trim((string) ($input['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2094` uses native `strtoupper` in ``'currency' => strtoupper(trim((string) ($input['currency'] ?? 'SEK'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `2094` uses native `trim` in ``'currency' => strtoupper(trim((string) ($input['currency'] ?? 'SEK'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2095` uses native `in_array` in ``'visibility' => in_array((string) ($input['visibility'] ?? 'published'), ['draft', 'published', 'archived'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2099` uses native `trim` in ``'media' => trim((string) ($input['media'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2101` uses native `trim` in ``'fulfillment_policy' => trim((string) ($input['fulfillment_policy'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2102` uses native `trim` in ``'available_at' => trim((string) ($input['available_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2116` uses native `strtoupper` in ``'code' => strtoupper(trim((string) ($input['code'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `2116` uses native `trim` in ``'code' => strtoupper(trim((string) ($input['code'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2117` uses native `trim` in ``'label' => trim((string) ($input['label'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2118` uses native `trim` in ``'description' => trim((string) ($input['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2120` uses native `in_array` in ``'applies_to' => in_array((string) ($input['applies_to'] ?? 'cart_subtotal'), ['cart_subtotal', 'qualified_items'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2123` uses native `array_key_exists` in ``'active' => array_key_exists('active', $input) ? !empty($input['active']) : true,``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `2133` uses native `trim` in ``'starts_at' => trim((string) ($input['starts_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2134` uses native `trim` in ``'ends_at' => trim((string) ($input['ends_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2150` uses native `is_array` in ``if (!is_array($configured)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2154` uses native `array_map` in ``return array_values(array_map(function (string|int $code, mixed $definition) use ($currency): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2154` uses native `array_values` in ``return array_values(array_map(function (string|int $code, mixed $definition) use ($currency): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `2155` uses native `is_array` in ``$definition = is_array($definition) ? $definition : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2156` uses native `strtolower` in ``$type = strtolower((string) ($definition['TYPE'] ?? $definition['type'] ?? 'fixed_amount'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `2162` uses native `strtoupper` in ``'code' => strtoupper((string) ($definition['CODE'] ?? $code)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `2172` uses native `array_keys` in ``}, array_keys($configured), array_values($configured)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `2172` uses native `array_values` in ``}, array_keys($configured), array_values($configured)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `2182` uses native `is_array` in ``if (!is_array($map)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2187` uses native `strtoupper` in ``if (strtoupper((string) $key) === strtoupper($currency)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `2202` uses native `strtoupper` in ``'code' => strtoupper(trim((string) ($payload['code'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `2202` uses native `trim` in ``'code' => strtoupper(trim((string) ($payload['code'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2203` uses native `trim` in ``'label' => trim((string) ($payload['label'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2204` uses native `trim` in ``'description' => trim((string) ($payload['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2206` uses native `in_array` in ``'applies_to' => in_array((string) ($payload['applies_to'] ?? 'cart_subtotal'), ['cart_subtotal', 'qualified_items'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2219` uses native `trim` in ``'starts_at' => trim((string) ($payload['starts_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2220` uses native `trim` in ``'ends_at' => trim((string) ($payload['ends_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2235` uses native `is_string` in ``if (!is_string($criteriaPayload) && is_string($payload['criteria'] ?? null)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `2239` uses native `is_array` in ``if (is_array($payload['criteria'] ?? null)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2243` uses native `is_string` in ``$json = trim(is_string($criteriaPayload) ? $criteriaPayload : '');``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `2243` uses native `trim` in ``$json = trim(is_string($criteriaPayload) ? $criteriaPayload : '');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2248` uses native `is_array` in ``if (is_array($decoded)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2292` uses native `array_key_exists` in ``if (array_key_exists('free_shipping_eligible_only', $payload)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `2312` uses native `preg_split` in ``$parts = preg_split('/[\s,]+/', trim($input)) ?: [];``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `2312` uses native `trim` in ``$parts = preg_split('/[\s,]+/', trim($input)) ?: [];``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2314` uses native `array_filter` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2314` uses native `array_map` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2314` uses native `array_values` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `2315` uses native `trim` in ``static fn(string $value): string => trim($value),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2325` uses native `array_filter` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2325` uses native `array_map` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2325` uses native `array_values` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `2336` uses native `is_array` in ``$values = is_array($input) ? $input : preg_split('/[\s,]+/', trim((string) $input));``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2336` uses native `preg_split` in ``$values = is_array($input) ? $input : preg_split('/[\s,]+/', trim((string) $input));``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `2336` uses native `trim` in ``$values = is_array($input) ? $input : preg_split('/[\s,]+/', trim((string) $input));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2337` uses native `is_array` in ``$values = is_array($values) ? $values : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2339` uses native `array_filter` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2339` uses native `array_map` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2339` uses native `array_unique` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `2339` uses native `array_values` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `2350` uses native `array_map` in ``return array_map(function (array $order): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2352` uses native `trim` in ``$reference = trim((string) ($order['payment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2371` uses native `trim` in ``$reference = trim((string) ($summary['payment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2376` uses native `array_map` in ``'items' => array_map(function (array $item) use ($currency): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2403` uses native `array_map` in ``return array_map(function (array $entitlement) use ($orderId): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2419` uses native `array_map` in ``return array_map(function (array $subscription) use ($orderId): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2425` uses native `in_array` in ``'pause_path' => in_array($status, ['active', 'trialing', 'past_due'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2428` uses native `in_array` in ``'resume_path' => in_array($status, ['paused', 'past_due', 'unpaid'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2447` uses native `array_map` in ``return array_map(function (array $return) use ($orderId): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2454` uses native `in_array` in ``'reject_path' => in_array($status, ['requested', 'approved'], true) ? '/admin/orders/' . $orderId . '/returns/' . $id . '/reject' : '',``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2455` uses native `in_array` in ``'complete_path' => in_array($status, ['requested', 'approved'], true) ? '/admin/orders/' . $orderId . '/returns/' . $id . '/complete' : '',``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2478` uses native `is_array` in ``$nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2479` uses native `trim` in ``$reference = trim((string) ($order['payment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2511` uses native `trim` in ``trim((string) ($order['shipping_carrier'] ?? '')) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2512` uses native `in_array` in ``&& !in_array((string) ($order['status'] ?? ''), ['cancelled', 'refunded', 'completed'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2513` uses native `in_array` in ``&& !in_array((string) ($order['fulfillment_status'] ?? ''), ['delivered', 'access_granted', 'not_required', 'cancelled', 'refunded'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2533` uses native `trim` in ``$seed = trim($candidate) !== '' ? $candidate : $fallback;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2534` uses native `strtolower` in ``$seed = strtolower(trim($seed));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `2534` uses native `trim` in ``$seed = strtolower(trim($seed));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2535` uses native `preg_replace` in ``$seed = preg_replace('/[^a-z0-9]+/', '-', $seed) ?? '';``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `2537` uses native `trim` in ``return trim($seed, '-');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2545` uses native `str_replace` in ``$normalized = str_replace(["\r\n", "\r"], "\n", trim($input));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `2545` uses native `trim` in ``$normalized = str_replace(["\r\n", "\r"], "\n", trim($input));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2551` uses native `preg_split` in ``$parts = preg_split('/[\n,]+/', $normalized) ?: [];``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `2553` uses native `array_filter` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2553` uses native `array_map` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2553` uses native `array_values` in ``return array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `2554` uses native `trim` in ``static fn(string $item): string => trim($item),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2561` uses native `strtolower` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `2561` uses native `trim` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2563` uses native `in_array` in ``return in_array($type, [``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2579` uses native `trim` in ``$input = trim($input);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2591` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `2596` uses native `strtolower` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `2596` uses native `trim` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `2598` uses native `in_array` in ``return in_array($type, ['percentage', 'fixed_amount', 'free_shipping', 'shipping_fixed', 'shipping_percentage'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `2605` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOL);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `2648` uses native `array_map` in ``return array_map(function (mixed $cart): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `2670` uses native `array_filter` in ``}, array_values(array_filter($this->carts->all(), static fn(mixed $cart): bool => $cart instanceof Cart)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `2670` uses native `array_values` in ``}, array_values(array_filter($this->carts->all(), static fn(mixed $cart): bool => $cart instanceof Cart)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/CartModule/Controllers/CartController.php`
+
+- Current traits: none
+- Line `89` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/CartModule/Presenters/CartPresenter.php`
+
+- Current traits: none
+- Line `20` uses native `is_array` in ``'cart' => is_array($data['cart'] ?? null) ? $data['cart'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``$cart = is_array($data['cart'] ?? null) ? $data['cart'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `29` uses native `is_array` in ``'itemCount' => is_array($cart['items'] ?? null) ? count($cart['items']) : 0,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/CartModule/Presenters/CartResource.php`
+
+- Current traits: none
+- Line `13` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `19` uses native `is_array` in ``'cart' => is_array($payload['cart'] ?? null) ? $payload['cart'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/CartModule/Repositories/CartItemRepository.php`
+
+- Current traits: none
+- Line `20` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `20` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `112` uses native `array_map` in ``return array_map(function (CartItem $item): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `132` uses native `is_array` in ``'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/CartModule/Repositories/CartRepository.php`
+
+- Current traits: none
+- Line `77` uses native `strtoupper` in ``'discount_code' => $code !== null && trim($code) !== '' ? strtoupper(trim($code)) : null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `77` uses native `trim` in ``'discount_code' => $code !== null && trim($code) !== '' ? strtoupper(trim($code)) : null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `78` uses native `trim` in ``'discount_label' => $label !== null && trim($label) !== '' ? trim($label) : null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/CartModule/Repositories/PromotionRepository.php`
+
+- Current traits: none
+- Line `48` uses native `strtoupper` in ``$code = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `48` uses native `trim` in ``$code = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `64` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `66` uses native `array_filter` in ``array_values(array_filter($this->all(), static fn(mixed $promotion): bool => $promotion instanceof Promotion))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `66` uses native `array_values` in ``array_values(array_filter($this->all(), static fn(mixed $promotion): bool => $promotion instanceof Promotion))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `75` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `86` uses native `array_key_exists` in ``if ($promotionId > 0 && !array_key_exists('usage_count', $attributes)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `124` uses native `strtoupper` in ``$code = strtoupper(trim((string) ($usage['promotion_code'] ?? $usage['code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `124` uses native `trim` in ``$code = strtoupper(trim((string) ($usage['promotion_code'] ?? $usage['code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `136` uses native `is_array` in ``$context = is_array($usage['context'] ?? null) ? $usage['context'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `144` uses native `strtoupper` in ``'currency' => strtoupper(trim((string) ($usage['currency'] ?? 'SEK'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `144` uses native `trim` in ``'currency' => strtoupper(trim((string) ($usage['currency'] ?? 'SEK'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `148` uses native `trim` in ``'source' => trim((string) ($usage['source'] ?? ($promotionId > 0 ? 'database' : 'config'))) ?: 'database',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `178` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `196` uses native `array_filter` in ``'database_promotion_usage' => count(array_filter($rows, static fn(array $row): bool => ($row['source'] ?? '') === 'database')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `197` uses native `array_filter` in ``'configured_promotion_usage' => count(array_filter($rows, static fn(array $row): bool => ($row['source'] ?? '') === 'config')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `198` uses native `array_reduce` in ``'total_discount_minor' => array_reduce($rows, static fn(int $carry, array $row): int => $carry + max(0, (int) ($row['discount_minor'] ?? 0)), 0),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `199` uses native `array_reduce` in ``'shipping_discount_minor' => array_reduce($rows, static fn(int $carry, array $row): int => $carry + max(0, (int) ($row['shipping_discount_minor'] ?? 0)), 0),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `216` uses native `is_array` in ``$context = is_array($row['context'] ?? null) ? $row['context'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `217` uses native `strtolower` in ``$email = strtolower(trim((string) ($context['customer_email'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `217` uses native `trim` in ``$email = strtolower(trim((string) ($context['customer_email'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `238` uses native `strtoupper` in ``$code = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `238` uses native `trim` in ``$code = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `240` uses native `strtolower` in ``$email = strtolower(trim($email));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `240` uses native `trim` in ``$email = strtolower(trim($email));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `246` uses native `array_filter` in ``return count(array_filter($this->usageRowsForCode($code), function (array $row) use ($userId, $email): bool {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `248` uses native `strtolower` in ``$rowEmail = strtolower(trim((string) ($context['customer_email'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `248` uses native `trim` in ``$rowEmail = strtolower(trim((string) ($context['customer_email'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `260` uses native `strtoupper` in ``$code = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `260` uses native `trim` in ``$code = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `261` uses native `array_filter` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `261` uses native `array_map` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `261` uses native `array_unique` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `261` uses native `array_values` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `262` uses native `strtolower` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `262` uses native `trim` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `270` uses native `array_filter` in ``return count(array_filter($this->usageRowsForCode($code), function (array $row) use ($segments): bool {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `272` uses native `array_filter` in ``$rowSegments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `272` uses native `array_map` in ``$rowSegments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `272` uses native `array_unique` in ``$rowSegments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `272` uses native `array_values` in ``$rowSegments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `273` uses native `strtolower` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `273` uses native `trim` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `287` uses native `strtoupper` in ``$code = strtoupper((string) ($promotion->getAttribute('code') ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `339` uses native `is_array` in ``$criteria = is_array($summary['criteria'] ?? null) ? $summary['criteria'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `393` uses native `is_array` in ``$criteria = is_array($attributes['criteria'] ?? null) ? $attributes['criteria'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `396` uses native `strtoupper` in ``'code' => strtoupper(trim((string) ($attributes['code'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `396` uses native `trim` in ``'code' => strtoupper(trim((string) ($attributes['code'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `397` uses native `trim` in ``'label' => trim((string) ($attributes['label'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `398` uses native `trim` in ``'description' => trim((string) ($attributes['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `400` uses native `in_array` in ``'applies_to' => in_array((string) ($attributes['applies_to'] ?? 'cart_subtotal'), ['cart_subtotal', 'qualified_items'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `417` uses native `trim` in ``'source' => trim((string) ($attributes['source'] ?? 'database')) ?: 'database',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `430` uses native `array_filter` in ``$values = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `430` uses native `array_map` in ``$values = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `430` uses native `array_values` in ``$values = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `431` uses native `trim` in ``static fn(mixed $value): string => trim((string) $value),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `441` uses native `array_filter` in ``$values = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `441` uses native `array_map` in ``$values = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `441` uses native `array_values` in ``$values = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `451` uses native `array_key_exists` in ``if (array_key_exists('free_shipping_eligible_only', $criteria)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `477` uses native `trim` in ``if (trim($payload) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `497` uses native `json_encode` in ``: json_encode($criteria, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `502` uses native `strtolower` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `502` uses native `trim` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `504` uses native `in_array` in ``return in_array($type, ['percentage', 'fixed_amount', 'free_shipping', 'shipping_fixed', 'shipping_percentage'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `551` uses native `trim` in ``$key = trim($keyResolver($row)) ?: 'unknown';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `578` uses native `array_map` in ``$summary = array_map(static function (array $bucket): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `588` uses native `array_values` in ``}, array_values($buckets));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `606` uses native `is_array` in ``$context = is_array($row['context'] ?? null) ? $row['context'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `607` uses native `array_filter` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `607` uses native `array_map` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `607` uses native `array_unique` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `607` uses native `array_values` in ``$segments = array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `608` uses native `strtolower` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `608` uses native `trim` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `644` uses native `trim` in ``$value = trim((string) ($value ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/CartModule/Requests/CartRequest.php`
+
+- Current traits: none
+- Line `63` uses native `is_string` in ``if (isset($data['slug']) && is_string($data['slug'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `64` uses native `trim` in ``$data['slug'] = trim($data['slug']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `68` uses native `is_string` in ``if (isset($data[$key]) && is_string($data[$key])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `69` uses native `strtoupper` in ``$data[$key] = strtoupper(trim($data[$key]));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `69` uses native `trim` in ``$data[$key] = strtoupper(trim($data[$key]));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/CartModule/Services/CartService.php`
+
+- Current traits: none
+- Line `98` uses native `is_array` in ``'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `223` uses native `strtoupper` in ``$code = strtoupper(trim((string) ($this->payload['coupon_code'] ?? $this->payload['discount_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `223` uses native `trim` in ``$code = strtoupper(trim((string) ($this->payload['coupon_code'] ?? $this->payload['discount_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `236` uses native `is_array` in ``$promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `290` uses native `is_string` in ``if (is_string($key) && $key !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `316` uses native `is_array` in ``$promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `317` uses native `strtoupper` in ``$storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `317` uses native `trim` in ``$storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `320` uses native `strtoupper` in ``if (($promotion['applied'] ?? false) && strtoupper((string) ($promotion['code'] ?? '')) === $storedCode) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `369` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `374` uses native `in_array` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `374` uses native `strtolower` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `374` uses native `trim` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `386` uses native `is_array` in ``$snapshot = is_array($promotion['snapshot'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/OrderModule/Controllers/OrderController.php`
+
+- Current traits: none
+- Line `141` uses native `in_array` in ``if (in_array($this->action, ['paymentWebhook', 'subscriptionWebhook'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `143` uses native `method_exists` in ``$payload['_webhook_raw_body'] = method_exists($this->request, 'rawBody')``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `153` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `157` uses native `in_array` in ``if (in_array($this->action, ['paymentWebhook', 'subscriptionWebhook'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+
+### `App/Modules/OrderModule/Notifications/OrderStatusNotification.php`
+
+- Current traits: none
+- Line `28` uses native `trim` in ``? sprintf(' Shipment: %s %s.', $shippingCarrier !== '' ? $shippingCarrier : 'carrier', trim($trackingNumber))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/OrderModule/Presenters/OrderPresenter.php`
+
+- Current traits: none
+- Line `20` uses native `is_array` in ``'cart' => is_array($data['cart'] ?? null) ? $data['cart'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'payment' => is_array($data['payment'] ?? null) ? $data['payment'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'checkout' => is_array($data['checkout'] ?? null) ? $data['checkout'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'shipping' => is_array($data['shipping'] ?? null) ? $data['shipping'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'lookup' => is_array($data['lookup'] ?? null) ? $data['lookup'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'order' => is_array($data['order'] ?? null) ? $data['order'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'orders' => is_array($data['orders'] ?? null) ? $data['orders'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `27` uses native `is_array` in ``'webhook' => is_array($data['webhook'] ?? null) ? $data['webhook'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `34` uses native `is_array` in ``'orderCount' => is_array($data['orders'] ?? null) ? count($data['orders']) : 0,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/OrderModule/Presenters/OrderResource.php`
+
+- Current traits: none
+- Line `13` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `19` uses native `is_array` in ``'cart' => is_array($payload['cart'] ?? null) ? $payload['cart'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `20` uses native `is_array` in ``'payment' => is_array($payload['payment'] ?? null) ? $payload['payment'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'checkout' => is_array($payload['checkout'] ?? null) ? $payload['checkout'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'shipping' => is_array($payload['shipping'] ?? null) ? $payload['shipping'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'lookup' => is_array($payload['lookup'] ?? null) ? $payload['lookup'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'order' => is_array($payload['order'] ?? null) ? $payload['order'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'orders' => is_array($payload['orders'] ?? null) ? $payload['orders'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'entitlement' => is_array($payload['entitlement'] ?? null) ? $payload['entitlement'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `27` uses native `is_array` in ``'webhook' => is_array($payload['webhook'] ?? null) ? $payload['webhook'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `33` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/OrderModule/Repositories/InventoryReservationRepository.php`
+
+- Current traits: none
+- Line `24` uses native `trim` in ``'reservation_key' => trim((string) ($attributes['reservation_key'] ?? $this->nextReservationKey())),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `27` uses native `trim` in ``'source' => trim((string) ($attributes['source'] ?? 'checkout')) ?: 'checkout',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `32` uses native `is_array` in ``is_array($attributes['metadata'] ?? null) ? $attributes['metadata'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `42` uses native `strtolower` in ``return 'invres-' . gmdate('YmdHis') . '-' . strtolower(substr(bin2hex(random_bytes(6)), 0, 12));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `42` uses native `substr` in ``return 'invres-' . gmdate('YmdHis') . '-' . strtolower(substr(bin2hex(random_bytes(6)), 0, 12));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `47` uses native `trim` in ``$reservationKey = trim($reservationKey);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `80` uses native `array_filter` in ``$ids = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `80` uses native `array_map` in ``$ids = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `80` uses native `array_values` in ``$ids = array_values(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `127` uses native `array_map` in ``return array_map(fn(array $row): array => $this->mapSummary($this->mapRowToModel($row)), $rows);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `154` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `169` uses native `array_filter` in ``'reserved_inventory' => count(array_filter($rows, static fn(array $row): bool => ($row['status'] ?? '') === 'reserved')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `170` uses native `array_filter` in ``'committed_inventory' => count(array_filter($rows, static fn(array $row): bool => ($row['status'] ?? '') === 'committed')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `171` uses native `array_filter` in ``'released_inventory' => count(array_filter($rows, static fn(array $row): bool => in_array(($row['status'] ?? ''), ['released', 'expired'], true))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `171` uses native `in_array` in ``'released_inventory' => count(array_filter($rows, static fn(array $row): bool => in_array(($row['status'] ?? ''), ['released', 'expired'], true))),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `221` uses native `in_array` in ``if (in_array($status, ['released', 'expired'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `240` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `242` uses native `array_filter` in ``array_values(array_filter($this->findBy($criteria), static fn(mixed $reservation): bool => $reservation instanceof InventoryReservation))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `242` uses native `array_values` in ``array_values(array_filter($this->findBy($criteria), static fn(mixed $reservation): bool => $reservation instanceof InventoryReservation))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `248` uses native `strtolower` in ``$status = strtolower(trim($status));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `248` uses native `trim` in ``$status = strtolower(trim($status));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `250` uses native `in_array` in ``return in_array($status, ['reserved', 'committed', 'released', 'expired'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `264` uses native `trim` in ``$value = trim((string) ($value ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/OrderModule/Repositories/OrderAddressRepository.php`
+
+- Current traits: none
+- Line `19` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `19` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `30` uses native `array_map` in ``return array_map(function (OrderAddress $address): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+
+### `App/Modules/OrderModule/Repositories/OrderDocumentRepository.php`
+
+- Current traits: none
+- Line `16` uses native `strtolower` in ``$prefix = match (strtolower(trim($type))) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `16` uses native `trim` in ``$prefix = match (strtolower(trim($type))) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `23` uses native `strtoupper` in ``return $prefix . '-' . gmdate('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `23` uses native `substr` in ``return $prefix . '-' . gmdate('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `31` uses native `strtolower` in ``$type = strtolower(trim((string) ($attributes['type'] ?? 'invoice'))) ?: 'invoice';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `31` uses native `trim` in ``$type = strtolower(trim((string) ($attributes['type'] ?? 'invoice'))) ?: 'invoice';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `32` uses native `trim` in ``$attributes['document_number'] = trim((string) ($attributes['document_number'] ?? '')) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `36` uses native `trim` in ``$attributes['status'] = trim((string) ($attributes['status'] ?? 'issued')) ?: 'issued';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `37` uses native `trim` in ``$attributes['issued_at'] = trim((string) ($attributes['issued_at'] ?? '')) ?: $this->freshTimestamp();``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `51` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `51` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `62` uses native `array_map` in ``return array_map(fn(OrderDocument $document): array => $this->mapSummary($document), $this->forOrder($orderId));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `97` uses native `strtolower` in ``$type = strtolower((string) ($row['type'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `98` uses native `strtolower` in ``$status = strtolower((string) ($row['status'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `164` uses native `is_array` in ``return json_encode(is_array($payload) ? $payload : [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `164` uses native `json_encode` in ``return json_encode(is_array($payload) ? $payload : [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `172` uses native `trim` in ``if (trim($payload) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `187` uses native `strtolower` in ``return match (strtolower((string) $this->db->getAttribute('driverName'))) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+
+### `App/Modules/OrderModule/Repositories/OrderEntitlementRepository.php`
+
+- Current traits: none
+- Line `16` uses native `trim` in ``$accessKey = trim($accessKey);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `39` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `39` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `50` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `50` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `61` uses native `array_map` in ``return array_map(fn(OrderEntitlement $entitlement): array => $this->mapSummary($entitlement), $this->forOrder($orderId));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `69` uses native `array_map` in ``return array_map(fn(OrderEntitlement $entitlement): array => $this->mapSummary($entitlement), $this->forUser($userId));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `117` uses native `rawurlencode` in ``'access_path' => '/orders/entitlements/' . rawurlencode((string) ($entitlement->getAttribute('access_key') ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `136` uses native `trim` in ``if (trim($payload) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/OrderModule/Repositories/OrderItemRepository.php`
+
+- Current traits: none
+- Line `19` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `19` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `30` uses native `array_map` in ``return array_map(function (OrderItem $item): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `50` uses native `is_array` in ``'fulfillment_policy' => is_array($metadata['fulfillment_policy'] ?? null) ? $metadata['fulfillment_policy'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/OrderModule/Repositories/OrderRepository.php`
+
+- Current traits: none
+- Line `16` uses native `trim` in ``$reference = trim($reference);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `54` uses native `strtoupper` in ``return 'ORD-' . gmdate('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `54` uses native `substr` in ``return 'ORD-' . gmdate('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `69` uses native `array_map` in ``return array_map(fn(array $row): array => $this->mapSummary($this->mapRowToModel($row)), $this->db->fetchAll($query['sql'], $query['bindings']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `77` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `79` uses native `array_filter` in ``array_values(array_filter($this->all(), static fn(mixed $order): bool => $order instanceof Order))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `79` uses native `array_values` in ``array_values(array_filter($this->all(), static fn(mixed $order): bool => $order instanceof Order))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `87` uses native `array_merge` in ``->update($this->getTable(), array_merge(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `129` uses native `array_values` in ``$trackingEvents = $this->isArray($trackingEvents) ? array_values($trackingEvents) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/OrderModule/Repositories/OrderReturnRepository.php`
+
+- Current traits: none
+- Line `16` uses native `strtoupper` in ``return 'RET-' . gmdate('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `16` uses native `substr` in ``return 'RET-' . gmdate('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 8));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `24` uses native `trim` in ``$attributes['return_number'] = trim((string) ($attributes['return_number'] ?? '')) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `40` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `40` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `51` uses native `array_map` in ``return array_map(fn(OrderReturn $return): array => $this->mapSummary($return), $this->forOrder($orderId));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `91` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `117` uses native `strtolower` in ``$status = strtolower((string) ($row['status'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `118` uses native `strtolower` in ``$type = strtolower((string) ($row['type'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `170` uses native `is_array` in ``return json_encode(is_array($payload) ? $payload : [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `170` uses native `json_encode` in ``return json_encode(is_array($payload) ? $payload : [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `178` uses native `trim` in ``if (trim($payload) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `193` uses native `strtolower` in ``return match (strtolower((string) $this->db->getAttribute('driverName'))) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+
+### `App/Modules/OrderModule/Repositories/OrderSubscriptionRepository.php`
+
+- Current traits: none
+- Line `23` uses native `trim` in ``$subscriptionKey = trim($subscriptionKey);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `36` uses native `trim` in ``$reference = trim($reference);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `43` uses native `strtolower` in ``'payment_driver' => strtolower(trim($driver)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `43` uses native `trim` in ``'payment_driver' => strtolower(trim($driver)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `55` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `55` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `66` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `66` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `77` uses native `array_map` in ``return array_map(fn(OrderSubscription $subscription): array => $this->mapSummary($subscription), $this->forOrder($orderId));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `85` uses native `array_map` in ``return array_map(fn(OrderSubscription $subscription): array => $this->mapSummary($subscription), $this->forUser($userId));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `93` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `95` uses native `array_filter` in ``array_values(array_filter($this->all(), static fn(mixed $subscription): bool => $subscription instanceof OrderSubscription))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `95` uses native `array_values` in ``array_values(array_filter($this->all(), static fn(mixed $subscription): bool => $subscription instanceof OrderSubscription))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `163` uses native `trim` in ``if (trim($payload) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/OrderModule/Repositories/PaymentWebhookEventRepository.php`
+
+- Current traits: none
+- Line `16` uses native `strtolower` in ``$driver = strtolower(trim($driver));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `16` uses native `trim` in ``$driver = strtolower(trim($driver));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `17` uses native `trim` in ``$eventId = trim($eventId);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `36` uses native `strtolower` in ``$driver = strtolower(trim((string) ($attributes['driver'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `36` uses native `trim` in ``$driver = strtolower(trim((string) ($attributes['driver'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `37` uses native `trim` in ``$eventId = trim((string) ($attributes['event_id'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `79` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `107` uses native `is_array` in ``'payload' => is_array($payload) ? $payload : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `124` uses native `strtolower` in ``'driver' => strtolower(trim((string) ($attributes['driver'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `124` uses native `trim` in ``'driver' => strtolower(trim((string) ($attributes['driver'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `125` uses native `trim` in ``'event_id' => trim((string) ($attributes['event_id'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `127` uses native `trim` in ``'order_reference' => trim((string) ($attributes['order_reference'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `128` uses native `trim` in ``'event_type' => trim((string) ($attributes['event_type'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `129` uses native `trim` in ``'payment_status' => trim((string) ($attributes['payment_status'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `130` uses native `trim` in ``'processing_status' => trim((string) ($attributes['processing_status'] ?? $defaultStatus)) ?: $defaultStatus,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `132` uses native `is_array` in ``'payload' => is_array($payload)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `135` uses native `trim` in ``'message' => trim((string) ($attributes['message'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `136` uses native `trim` in ``'received_at' => trim((string) ($attributes['received_at'] ?? '')) ?: $this->freshTimestamp(),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `137` uses native `trim` in ``'processed_at' => trim((string) ($attributes['processed_at'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `160` uses native `array_key_exists` in ``if (!array_key_exists($key, $attributes)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `165` uses native `strtolower` in ``'driver' => strtolower(trim((string) $attributes[$key])),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `165` uses native `trim` in ``'driver' => strtolower(trim((string) $attributes[$key])),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `166` uses native `trim` in ``'processing_status' => trim((string) $attributes[$key]) ?: $defaultStatus,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `167` uses native `trim` in ``default => trim((string) $attributes[$key]) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `171` uses native `array_key_exists` in ``if (array_key_exists('order_id', $attributes)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `175` uses native `array_key_exists` in ``if (array_key_exists('signature_verified', $attributes)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `179` uses native `array_key_exists` in ``if (array_key_exists('payload', $attributes)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `181` uses native `is_array` in ``$normalized['payload'] = is_array($payload)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `186` uses native `array_key_exists` in ``if (!array_key_exists('processing_status', $normalized)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+
+### `App/Modules/OrderModule/Requests/OrderRequest.php`
+
+- Current traits: none
+- Line `69` uses native `is_string` in ``if (isset($data['coupon_code']) && is_string($data['coupon_code'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `70` uses native `strtoupper` in ``$data['coupon_code'] = strtoupper(trim($data['coupon_code']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `70` uses native `trim` in ``$data['coupon_code'] = strtoupper(trim($data['coupon_code']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/OrderModule/Services/OrderService.php`
+
+- Current traits: none
+- Line `142` uses native `trim` in ``$requestedIdempotencyKey = trim((string) ($this->payload['idempotency_key'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `157` uses native `strtoupper` in ``$couponCode = strtoupper(trim((string) ($this->payload['coupon_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `157` uses native `trim` in ``$couponCode = strtoupper(trim((string) ($this->payload['coupon_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `170` uses native `is_array` in ``$promotion = is_array($couponPricing['promotion'] ?? null) ? $couponPricing['promotion'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `191` uses native `trim` in ``$requestedDriver = trim((string) ($this->payload['payment_driver'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `327` uses native `is_array` in ``'fulfillment_policy' => is_array($item['fulfillment_policy'] ?? null) ? $item['fulfillment_policy'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `414` uses native `array_map` in ``$orders = array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `541` uses native `strtolower` in ``$driver = strtolower(trim($driver !== '' ? $driver : (string) ($this->payload['driver'] ?? $this->payments->driverName())));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `541` uses native `trim` in ``$driver = strtolower(trim($driver !== '' ? $driver : (string) ($this->payload['driver'] ?? $this->payments->driverName())));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `542` uses native `is_array` in ``$headers = is_array($this->payload['_webhook_headers'] ?? null) ? $this->payload['_webhook_headers'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `554` uses native `trim` in ``$signature = trim((string) ($eventPayload['signature'] ?? $eventPayload['webhook_signature'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `610` uses native `strtolower` in ``if ($driver !== '' && strtolower((string) ($order->getAttribute('payment_driver') ?? '')) !== $driver) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `679` uses native `strtolower` in ``$driver = strtolower(trim($driver !== '' ? $driver : (string) ($this->payload['driver'] ?? $this->payments->driverName())));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `679` uses native `trim` in ``$driver = strtolower(trim($driver !== '' ? $driver : (string) ($this->payload['driver'] ?? $this->payments->driverName())));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `680` uses native `is_array` in ``$headers = is_array($this->payload['_webhook_headers'] ?? null) ? $this->payload['_webhook_headers'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `691` uses native `trim` in ``$signature = trim((string) ($eventPayload['signature'] ?? $eventPayload['webhook_signature'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `807` uses native `array_keys` in ``foreach (array_keys($payload) as $key) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `808` uses native `str_starts_with` in ``if (str_starts_with((string) $key, '_webhook_')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `823` uses native `trim` in ``$headerName = trim((string) ($settings['EVENT_ID_HEADER'] ?? 'X-Langeler-Event'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `824` uses native `trim` in ``$headerEventId = trim((string) $this->headerValue($headers, $headerName, ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `834` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `841` uses native `substr` in ``return 'evt_' . substr(hash('sha256', $driver . '|' . $rawBody), 0, 32);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `856` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `859` uses native `strtolower` in ``return strtolower($candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `913` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `940` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `955` uses native `array_filter` in ``$candidates = array_values(array_filter(array_unique([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `955` uses native `array_unique` in ``$candidates = array_values(array_filter(array_unique([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `955` uses native `array_values` in ``$candidates = array_values(array_filter(array_unique([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `957` uses native `trim` in ``trim((string) ($payload['order_id'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `958` uses native `trim` in ``trim((string) $this->nestedValue($payload, 'metadata.order_id')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1054` uses native `strtolower` in ``$status = strtolower(trim($status));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1054` uses native `trim` in ``$status = strtolower(trim($status));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1071` uses native `strtolower` in ``$needle = strtolower(trim($name));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1071` uses native `trim` in ``$needle = strtolower(trim($name));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1074` uses native `strtolower` in ``if (strtolower(trim((string) $key)) === $needle) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1074` uses native `trim` in ``if (strtolower(trim((string) $key)) === $needle) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1090` uses native `array_key_exists` in ``if (!is_array($cursor) || !array_key_exists($segment, $cursor)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `1090` uses native `is_array` in ``if (!is_array($cursor) || !array_key_exists($segment, $cursor)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1112` uses native `array_map` in ``'items' => array_map(function (array $item) use ($summary): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `1148` uses native `is_array` in ``'entitlement' => is_array($access['entitlement'] ?? null) ? $access['entitlement'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1185` uses native `is_array` in ``$promotion = is_array($pricing['promotion'] ?? null) ? $pricing['promotion'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1186` uses native `strtoupper` in ``$storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1186` uses native `trim` in ``$storedCode = strtoupper(trim((string) ($cart->getAttribute('discount_code') ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1189` uses native `strtoupper` in ``if (($promotion['applied'] ?? false) && strtoupper((string) ($promotion['code'] ?? '')) === $storedCode) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1212` uses native `trim` in ``$requested = trim((string) ($this->payload['payment_driver'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1214` uses native `in_array` in ``if ($requested !== '' && in_array($requested, $this->payments->availableDrivers(), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `1226` uses native `is_string` in ``return PaymentMethod::fromMixed(is_string($requested) ? $requested : null);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1234` uses native `is_string` in ``return PaymentFlow::fromMixed(is_string($requested) ? $requested : null);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1239` uses native `trim` in ``$requested = trim((string) ($this->payload['idempotency_key'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1257` uses native `is_string` in ``if (is_string($key) && $key !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1297` uses native `in_array` in ``return in_array($intent->status, ['requires_action', 'processing', 'pending_review'], true) ? 202 : 201;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `1336` uses native `trim` in ``'country' => trim((string) ($this->payload['country'] ?? $this->shipping->defaultCountry())),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1337` uses native `trim` in ``'shipping_option' => trim((string) ($this->payload['shipping_option'] ?? $this->shipping->defaultOptionCode())),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1341` uses native `trim` in ``'name' => trim((string) ($this->payload['name'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1342` uses native `trim` in ``'email' => trim((string) ($this->payload['email'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1343` uses native `trim` in ``'line_one' => trim((string) ($this->payload['line_one'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1344` uses native `trim` in ``'line_two' => trim((string) ($this->payload['line_two'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1345` uses native `trim` in ``'postal_code' => trim((string) ($this->payload['postal_code'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1346` uses native `trim` in ``'city' => trim((string) ($this->payload['city'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1347` uses native `trim` in ``'country' => trim((string) ($this->payload['country'] ?? $this->shipping->defaultCountry())),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1348` uses native `trim` in ``'phone' => trim((string) ($this->payload['phone'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1349` uses native `trim` in ``'shipping_option' => trim((string) ($this->payload['shipping_option'] ?? ($quote['selected']['code'] ?? $this->shipping->defaultOptionCode()))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1350` uses native `trim` in ``'service_point_id' => trim((string) ($this->payload['service_point_id'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1351` uses native `trim` in ``'service_point_name' => trim((string) ($this->payload['service_point_name'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1352` uses native `strtoupper` in ``'coupon_code' => strtoupper(trim((string) ($this->payload['coupon_code'] ?? ($this->currentCart()->getAttribute('discount_code') ?? '')))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1352` uses native `trim` in ``'coupon_code' => strtoupper(trim((string) ($this->payload['coupon_code'] ?? ($this->currentCart()->getAttribute('discount_code') ?? '')))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1356` uses native `trim` in ``'idempotency_key' => trim((string) ($this->payload['idempotency_key'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1366` uses native `is_array` in ``$quote = is_array($cart['shipping_quote'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1382` uses native `is_array` in ``'fulfillment' => is_array($quote['fulfillment'] ?? null) ? $quote['fulfillment'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1383` uses native `is_array` in ``'options' => is_array($quote['options'] ?? null) ? $quote['options'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1384` uses native `is_array` in ``'carriers' => is_array($quote['carriers'] ?? null) ? $quote['carriers'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1385` uses native `is_array` in ``'tracking_apps' => is_array($quote['tracking_apps'] ?? null) ? $quote['tracking_apps'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1386` uses native `trim` in ``'service_point_id' => trim((string) ($this->payload['service_point_id'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1387` uses native `trim` in ``'service_point_name' => trim((string) ($this->payload['service_point_name'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1439` uses native `array_filter` in ``$candidates = array_values(array_filter(array_unique([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `1439` uses native `array_unique` in ``$candidates = array_values(array_filter(array_unique([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `1439` uses native `array_values` in ``$candidates = array_values(array_filter(array_unique([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `1440` uses native `trim` in ``trim($reference),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1441` uses native `trim` in ``trim((string) ($this->payload['reference'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1442` uses native `trim` in ``trim((string) ($this->payload['payment_reference'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1443` uses native `trim` in ``trim((string) ($this->payload['provider_reference'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1444` uses native `trim` in ``trim((string) ($this->payload['external_reference'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1445` uses native `trim` in ``trim((string) ($this->payload['webhook_reference'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1446` uses native `trim` in ``trim((string) ($this->payload['order_number'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1470` uses native `is_array` in ``$nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1490` uses native `in_array` in ``if (!in_array($transition, ['capture', 'refund', 'reconcile'], true) && $transition !== 'cancel') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `1517` uses native `is_array` in ``$nextAction = is_array($order['payment_next_action'] ?? null) ? $order['payment_next_action'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1531` uses native `is_array` in ``$snapshot = is_array($promotion['snapshot'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1560` uses native `strtoupper` in ``$code = strtoupper(trim((string) ($cartPayload['discount_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `1560` uses native `trim` in ``$code = strtoupper(trim((string) ($cartPayload['discount_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1567` uses native `is_array` in ``$snapshot = is_array($cartPayload['discount_snapshot'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1591` uses native `is_array` in ``'fulfillment' => is_array($cartPayload['fulfillment'] ?? null) ? $cartPayload['fulfillment'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1605` uses native `trim` in ``$email = $user?->getEmailForVerification() ?? trim((string) ($this->payload['email'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `1609` uses native `strtolower` in ``'customer_email' => strtolower($email),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1618` uses native `str_contains` in ``if (str_contains(strtolower($title), 'cancelled')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `1618` uses native `strtolower` in ``if (str_contains(strtolower($title), 'cancelled')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1641` uses native `trim` in ``$reference = trim((string) ($order->getAttribute('payment_reference') ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/ShopModule/Controllers/ShopController.php`
+
+- Current traits: none
+- Line `79` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/ShopModule/Presenters/ShopPresenter.php`
+
+- Current traits: none
+- Line `20` uses native `is_array` in ``'products' => is_array($data['products'] ?? null) ? $data['products'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'product' => is_array($data['product'] ?? null) ? $data['product'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'categories' => is_array($data['categories'] ?? null) ? $data['categories'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'category' => is_array($data['category'] ?? null) ? $data['category'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'filters' => is_array($data['filters'] ?? null) ? $data['filters'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'related' => is_array($data['related'] ?? null) ? $data['related'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'pagination' => is_array($data['pagination'] ?? null) ? $data['pagination'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `33` uses native `is_array` in ``'hasProduct' => is_array($data['product'] ?? null) && $data['product'] !== [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/ShopModule/Presenters/ShopResource.php`
+
+- Current traits: none
+- Line `13` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `19` uses native `is_array` in ``'products' => is_array($payload['products'] ?? null) ? $payload['products'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `20` uses native `is_array` in ``'product' => is_array($payload['product'] ?? null) ? $payload['product'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'categories' => is_array($payload['categories'] ?? null) ? $payload['categories'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'category' => is_array($payload['category'] ?? null) ? $payload['category'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'filters' => is_array($payload['filters'] ?? null) ? $payload['filters'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'related' => is_array($payload['related'] ?? null) ? $payload['related'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'pagination' => is_array($payload['pagination'] ?? null) ? $payload['pagination'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `31` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `33` uses native `array_filter` in ``return array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+
+### `App/Modules/ShopModule/Repositories/CategoryRepository.php`
+
+- Current traits: none
+- Line `36` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `38` uses native `array_filter` in ``array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `38` uses native `array_values` in ``array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `50` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `52` uses native `array_filter` in ``array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `52` uses native `array_values` in ``array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/ShopModule/Repositories/ProductRepository.php`
+
+- Current traits: none
+- Line `87` uses native `array_map` in ``'data' => array_map(fn(array $row): array => $this->mapProductData($this->mapRowToModel($row)), $rows),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `110` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `147` uses native `array_map` in ``return array_map(function (array $row): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `226` uses native `trim` in ``$search = trim((string) ($filters['q'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `252` uses native `strtolower` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `252` uses native `trim` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `254` uses native `in_array` in ``return in_array($type, [``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `280` uses native `in_array` in ``return in_array($this->normalizeFulfillmentType($type), [``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `305` uses native `trim` in ``if (trim($payload) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `329` uses native `array_map` in ``return $this->isArray($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `329` uses native `array_values` in ``return $this->isArray($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/ShopModule/Requests/ShopRequest.php`
+
+- Current traits: none
+- Line `47` uses native `is_string` in ``if (isset($data['q']) && is_string($data['q'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `48` uses native `trim` in ``$data['q'] = trim($data['q']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `51` uses native `is_string` in ``if (isset($data['availability']) && is_string($data['availability'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `52` uses native `strtolower` in ``$data['availability'] = strtolower(trim($data['availability']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `52` uses native `trim` in ``$data['availability'] = strtolower(trim($data['availability']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `55` uses native `is_string` in ``if (isset($data['sort']) && is_string($data['sort'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `56` uses native `strtolower` in ``$data['sort'] = strtolower(trim($data['sort']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `56` uses native `trim` in ``$data['sort'] = strtolower(trim($data['sort']));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/ShopModule/Services/CatalogService.php`
+
+- Current traits: none
+- Line `155` uses native `trim` in ``'q' => trim((string) ($this->context['q'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `175` uses native `trim` in ``'q' => trim((string) ($filters['q'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/UserModule/Controllers/AuthController.php`
+
+- Current traits: none
+- Line `179` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/UserModule/Controllers/PasskeyController.php`
+
+- Current traits: none
+- Line `88` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/UserModule/Controllers/ProfileController.php`
+
+- Current traits: none
+- Line `60` uses native `is_array` in ``if (!is_array($result)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/UserModule/Models/User.php`
+
+- Current traits: none
+- Line `43` uses native `is_string` in ``return is_string($value) && $value !== '' ? $value : null;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `50` uses native `is_string` in ``return is_string($value) && $value !== '' ? $value : null;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `62` uses native `is_string` in ``return is_string($value) && $value !== '';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `69` uses native `is_string` in ``return is_string($value) && $value !== '' ? $value : null;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `77` uses native `is_string` in ``return is_string($secret) && $secret !== '' && is_string($confirmed) && $confirmed !== '';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `84` uses native `is_string` in ``return is_string($secret) && $secret !== '';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+
+### `App/Modules/UserModule/Models/UserPasskey.php`
+
+- Current traits: none
+- Line `35` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `45` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `55` uses native `is_string` in ``if (is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `65` uses native `array_map` in ``return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `65` uses native `array_values` in ``return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `65` uses native `is_array` in ``return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `72` uses native `is_string` in ``return is_string($value) ? $value : '';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+
+### `App/Modules/UserModule/Presenters/UserPresenter.php`
+
+- Current traits: none
+- Line `20` uses native `is_array` in ``'user' => is_array($data['user'] ?? null) ? $data['user'] : null,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'roles' => is_array($data['roles'] ?? null) ? $data['roles'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'permissions' => is_array($data['permissions'] ?? null) ? $data['permissions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'users' => is_array($data['users'] ?? null) ? $data['users'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'form' => is_array($data['form'] ?? null) ? $data['form'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'otp' => is_array($data['otp'] ?? null) ? $data['otp'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'recoveryCodes' => is_array($data['recoveryCodes'] ?? null) ? $data['recoveryCodes'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `27` uses native `is_array` in ``'trustedDevices' => is_array($data['trustedDevices'] ?? null) ? $data['trustedDevices'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `28` uses native `is_array` in ``'link' => is_array($data['link'] ?? null) ? $data['link'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `29` uses native `is_array` in ``'passkey' => is_array($data['passkey'] ?? null) ? $data['passkey'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `30` uses native `is_array` in ``'passkeys' => is_array($data['passkeys'] ?? null) ? $data['passkeys'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `31` uses native `is_array` in ``'passkeySupport' => is_array($data['passkeySupport'] ?? null) ? $data['passkeySupport'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `38` uses native `is_array` in ``'hasUser' => is_array($data['user'] ?? null),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `39` uses native `is_array` in ``'hasRecoveryCodes' => is_array($data['recoveryCodes'] ?? null) && $data['recoveryCodes'] !== [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/UserModule/Presenters/UserResource.php`
+
+- Current traits: none
+- Line `13` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `19` uses native `is_array` in ``'user' => is_array($payload['user'] ?? null) ? $payload['user'] : null,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `20` uses native `is_array` in ``'roles' => is_array($payload['roles'] ?? null) ? $payload['roles'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `21` uses native `is_array` in ``'permissions' => is_array($payload['permissions'] ?? null) ? $payload['permissions'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `22` uses native `is_array` in ``'otp' => is_array($payload['otp'] ?? null) ? $payload['otp'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `23` uses native `is_array` in ``'recoveryCodes' => is_array($payload['recoveryCodes'] ?? null) ? $payload['recoveryCodes'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `24` uses native `is_array` in ``'trustedDevices' => is_array($payload['trustedDevices'] ?? null) ? $payload['trustedDevices'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `25` uses native `is_array` in ``'passkey' => is_array($payload['passkey'] ?? null) ? $payload['passkey'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `26` uses native `is_array` in ``'passkeys' => is_array($payload['passkeys'] ?? null) ? $payload['passkeys'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `27` uses native `is_array` in ``'passkeySupport' => is_array($payload['passkeySupport'] ?? null) ? $payload['passkeySupport'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `34` uses native `is_array` in ``$payload = is_array($this->resource) ? $this->resource : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `36` uses native `array_filter` in ``return array_filter([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+
+### `App/Modules/UserModule/Repositories/PermissionRepository.php`
+
+- Current traits: none
+- Line `27` uses native `array_filter` in ``$names = array_values(array_filter(array_unique($names), static fn(string $name): bool => $name !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `27` uses native `array_unique` in ``$names = array_values(array_filter(array_unique($names), static fn(string $name): bool => $name !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `27` uses native `array_values` in ``$names = array_values(array_filter(array_unique($names), static fn(string $name): bool => $name !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `40` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `40` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/UserModule/Repositories/RoleRepository.php`
+
+- Current traits: none
+- Line `38` uses native `array_filter` in ``return array_values(array_filter(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `38` uses native `array_map` in ``return array_values(array_filter(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `38` uses native `array_unique` in ``return array_values(array_filter(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `38` uses native `array_values` in ``return array_values(array_filter(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `74` uses native `array_map` in ``$permissionIds = array_values(array_unique(array_map('intval', $permissionIds)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `74` uses native `array_unique` in ``$permissionIds = array_values(array_unique(array_map('intval', $permissionIds)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `74` uses native `array_values` in ``$permissionIds = array_values(array_unique(array_map('intval', $permissionIds)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/UserModule/Repositories/UserAuthTokenRepository.php`
+
+- Current traits: none
+- Line `86` uses native `array_map` in ``return array_values(array_map(function (array $record): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `86` uses native `array_values` in ``return array_values(array_map(function (array $record): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `89` uses native `is_string` in ``if (is_string($record['payload'] ?? null) && $record['payload'] !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `92` uses native `is_array` in ``$payload = is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/UserModule/Repositories/UserPasskeyRepository.php`
+
+- Current traits: none
+- Line `20` uses native `array_map` in ``return array_values(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `20` uses native `array_values` in ``return array_values(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `34` uses native `array_filter` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `34` uses native `array_values` in ``return array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `77` uses native `array_map` in ``'transports' => $this->toJson(array_values(array_map('strval', (array) ($source['transports'] ?? []))), JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `77` uses native `array_values` in ``'transports' => $this->toJson(array_values(array_map('strval', (array) ($source['transports'] ?? []))), JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `105` uses native `array_map` in ``return array_values(array_map(function (UserPasskey $passkey): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `105` uses native `array_values` in ``return array_values(array_map(function (UserPasskey $passkey): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `132` uses native `array_map` in ``'transports' => $this->toJson(array_values(array_map('strval', (array) ($source['transports'] ?? []))), JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `132` uses native `array_values` in ``'transports' => $this->toJson(array_values(array_map('strval', (array) ($source['transports'] ?? []))), JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `148` uses native `array_merge` in ``->update($this->getTable(), array_merge(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `161` uses native `is_bool` in ``is_bool($value) => $value,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `162` uses native `is_numeric` in ``is_numeric($value) => (int) $value === 1,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isNumeric()` (`Prefer the shared type helper for numeric checks.`)
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::isDigitString()` (`Digit-only string validation also exists in the checker trait.`)
+- Line `163` uses native `in_array` in ``is_string($value) => in_array(strtolower($value), ['1', 'true', 'yes'], true),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `163` uses native `is_string` in ``is_string($value) => in_array(strtolower($value), ['1', 'true', 'yes'], true),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `163` uses native `strtolower` in ``is_string($value) => in_array(strtolower($value), ['1', 'true', 'yes'], true),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+
+### `App/Modules/UserModule/Repositories/UserRepository.php`
+
+- Current traits: none
+- Line `72` uses native `array_map` in ``return array_values(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `72` uses native `array_unique` in ``return array_values(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `72` uses native `array_values` in ``return array_values(array_unique(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `100` uses native `array_map` in ``$names = array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `105` uses native `array_filter` in ``$names = array_values(array_filter(array_unique($names), static fn(string $name): bool => $name !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `105` uses native `array_unique` in ``$names = array_values(array_filter(array_unique($names), static fn(string $name): bool => $name !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `105` uses native `array_values` in ``$names = array_values(array_filter(array_unique($names), static fn(string $name): bool => $name !== ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `143` uses native `array_map` in ``$roleIds = array_values(array_unique(array_map('intval', $roleIds)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `143` uses native `array_unique` in ``$roleIds = array_values(array_unique(array_map('intval', $roleIds)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `143` uses native `array_values` in ``$roleIds = array_values(array_unique(array_map('intval', $roleIds)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `184` uses native `array_merge` in ``->update($this->getTable(), array_merge(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+
+### `App/Modules/UserModule/Requests/UserRequest.php`
+
+- Current traits: none
+- Line `86` uses native `is_string` in ``if (isset($data[$key]) && is_string($data[$key])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `87` uses native `trim` in ``$data[$key] = trim($data[$key]);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `91` uses native `is_string` in ``if (isset($data['email']) && is_string($data['email'])) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `92` uses native `strtolower` in ``$data['email'] = strtolower($data['email']);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `96` uses native `filter_var` in ``$data['remember'] = filter_var($data['remember'], FILTER_VALIDATE_BOOL);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `100` uses native `filter_var` in ``$data['trust_device'] = filter_var($data['trust_device'], FILTER_VALIDATE_BOOL);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Modules/UserModule/Seeds/UserPlatformSeed.php`
+
+- Current traits: none
+- Line `48` uses native `str_replace` in ``'label' => ucwords(str_replace(['.', '_'], ' ', $name)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `76` uses native `array_values` in ``$this->roles->syncPermissions((int) $administrator->getKey(), array_values($permissionMap));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Modules/UserModule/Services/UserAuthService.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\EncodingTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `596` uses native `htmlspecialchars` in ``->html('<p>Verify your email by visiting:</p><pre>' . htmlspecialchars($this->path, ENT_QUOTES, 'UTF-8') . '</pre>');``
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::encodeSpecialCharsString()` (`Prefer the shared encoding helper for special-char escaping.`)
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::escapeHtml()` (`This helper also exposes HTML escaping.`)
+- Line `687` uses native `array_map` in ``return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `687` uses native `array_values` in ``return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `687` uses native `is_array` in ``return is_array($decoded) ? array_values(array_map('strval', $decoded)) : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `753` uses native `substr` in ``$nonce = substr($raw, 0, $nonceLength);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `754` uses native `substr` in ``$cipher = substr($raw, $nonceLength);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `761` uses native `substr` in ``$iv = substr($raw, 0, $ivLength);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `762` uses native `substr` in ``$cipher = substr($raw, $ivLength);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `866` uses native `strtolower` in ``'secure' => !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off',``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `884` uses native `strtolower` in ``'secure' => !empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off',``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `895` uses native `trim` in ``$agent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `897` uses native `substr` in ``return $agent !== '' ? substr($agent, 0, 120) : 'Trusted browser';``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `already-composed` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `912` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/UserModule/Services/UserPasskeyService.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `124` uses native `is_array` in ``$source = is_array($credential['source'] ?? null) ? $credential['source'] : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `222` uses native `is_array` in ``$source = is_array($credential['source'] ?? null) ? $credential['source'] : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Modules/WebModule/Controllers/HomeController.php`
+
+- Current traits: none
+- Line `45` uses native `trim` in ``$this->slug = trim($slug) !== '' ? trim($slug) : 'home';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Modules/WebModule/Repositories/PageRepository.php`
+
+- Current traits: none
+- Line `20` uses native `strtolower` in ``$slug = strtolower(trim($slug));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `20` uses native `trim` in ``$slug = strtolower(trim($slug));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `36` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `38` uses native `array_filter` in ``array_values(array_filter($this->all(), static fn(mixed $page): bool => $page instanceof Page))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `38` uses native `array_values` in ``array_values(array_filter($this->all(), static fn(mixed $page): bool => $page instanceof Page))``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `102` uses native `strtolower` in ``$driver = strtolower((string) $this->db->getAttribute('driverName'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `132` uses native `strtolower` in ``'slug' => strtolower(trim((string) ($attributes['slug'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `132` uses native `trim` in ``'slug' => strtolower(trim((string) ($attributes['slug'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `133` uses native `trim` in ``'title' => trim((string) ($attributes['title'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `134` uses native `trim` in ``'content' => trim((string) ($attributes['content'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `141` uses native `preg_replace` in ``$content = preg_replace('/\s+/', ' ', trim($content)) ?? '';``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `141` uses native `trim` in ``$content = preg_replace('/\s+/', ' ', trim($content)) ?? '';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `147` uses native `rtrim` in ``return rtrim(substr($content, 0, 137)) . '...';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `147` uses native `substr` in ``return rtrim(substr($content, 0, 137)) . '...';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+
+### `App/Providers/NotificationProvider.php`
+
+- Current traits: `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`
+- Line `68` uses native `array_keys` in ``return array_keys($this->channelMap);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+
+### `App/Providers/PaymentProvider.php`
+
+- Current traits: `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`
+- Line `80` uses native `array_keys` in ``return array_keys($this->driverMap);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+
+### `App/Providers/QueueProvider.php`
+
+- Current traits: `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`
+- Line `68` uses native `array_keys` in ``return array_keys($this->driverMap);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+
+### `App/Providers/ShippingProvider.php`
+
+- Current traits: `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`
+- Line `77` uses native `array_merge` in ``return $instance->configure(array_merge($settings, ['CODE' => $carrierCode]));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `85` uses native `array_keys` in ``return array_keys($this->adapterMap);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+
+### `App/Support/ArrayMailable.php`
+
+- Current traits: none
+- Line `21` uses native `is_array` in ``if (is_array($recipient)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `30` uses native `is_array` in ``if (is_array($recipient)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `39` uses native `is_array` in ``if (is_array($recipient)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `47` uses native `is_array` in ``if (is_array($this->message['reply_to'] ?? null)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Support/Payments/PaymentIntent.php`
+
+- Current traits: none
+- Line `40` uses native `is_array` in ``is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `49` uses native `is_array` in ``is_array($payload['nextAction'] ?? null) ? $payload['nextAction'] : (is_array($payload['next_action'] ?? null) ? $payload['next_action'] : []),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Utilities/Managers/Async/DatabaseFailedJobStore.php`
+
+- Current traits: `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `66` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+
+### `App/Utilities/Managers/Async/EventDispatcher.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `48` uses native `is_array` in ``$definitions = is_array($definitions) ? $definitions : [$definitions];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `55` uses native `array_key_exists` in ``if (is_array($definition) && array_key_exists('listener', $definition)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `55` uses native `is_array` in ``if (is_array($definition) && array_key_exists('listener', $definition)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `68` uses native `is_object` in ``$eventName = is_object($event) ? $event::class : $event;``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `99` uses native `is_string` in ``if (is_string($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `102` uses native `method_exists` in ``if ($instance instanceof ListenerInterface || method_exists($instance, 'handle')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `106` uses native `is_callable` in ``if (is_callable($instance)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isCallable()` (`Prefer the shared type helper for callable checks.`)
+- Line `111` uses native `is_array` in ``if (is_array($listener) && count($listener) === 2) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `113` uses native `is_object` in ``$instance = is_object($target) ? $target : $this->resolveClass((string) $target);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `115` uses native `method_exists` in ``if (!method_exists($instance, (string) $method)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `122` uses native `is_callable` in ``if (is_callable($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isCallable()` (`Prefer the shared type helper for callable checks.`)
+- Line `131` uses native `str_starts_with` in ``if ($class !== '' && str_starts_with($class, 'App\\Modules\\')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `145` uses native `is_string` in ``if (is_string($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `149` uses native `is_array` in ``if (is_array($listener) && count($listener) === 2) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `150` uses native `is_object` in ``return sprintf('%s@%s', is_object($listener[0]) ? $listener[0]::class : (string) $listener[0], (string) $listener[1]);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `161` uses native `class_exists` in ``if ($listenerClass === '' || !class_exists($listenerClass) || !method_exists($listenerClass, 'subscriptions')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `161` uses native `method_exists` in ``if ($listenerClass === '' || !class_exists($listenerClass) || !method_exists($listenerClass, 'subscriptions')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `174` uses native `is_array` in ``: (is_array($definitions) ? $definitions : []);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Utilities/Managers/Async/QueueManager.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `92` uses native `is_array` in ``if (is_callable($listener) && !is_array($listener) && !is_string($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `92` uses native `is_callable` in ``if (is_callable($listener) && !is_array($listener) && !is_string($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isCallable()` (`Prefer the shared type helper for callable checks.`)
+- Line `92` uses native `is_string` in ``if (is_callable($listener) && !is_array($listener) && !is_string($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `214` uses native `array_filter` in ``return array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `214` uses native `array_values` in ``return array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `232` uses native `is_array` in ``'payload' => is_array($failed['payload'] ?? null) ? $failed['payload'] : [],``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `281` uses native `json_encode` in ``$payload = json_encode([``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `344` uses native `is_array` in ``is_array($settings) ? $settings : ['DRIVER' => $this->driverName()]``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `374` uses native `is_array` in ``$job->withPayload(is_array($envelope['payload'] ?? null) ? $envelope['payload'] : []);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `385` uses native `is_array` in ``$payload = is_array($envelope['payload'] ?? null) ? $envelope['payload'] : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `387` uses native `is_array` in ``$data = is_array($payload['data'] ?? null) ? $payload['data'] : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `398` uses native `is_array` in ``$payload = is_array($envelope['payload'] ?? null) ? $envelope['payload'] : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `405` uses native `method_exists` in ``if (!method_exists($notificationManager, 'deliverSnapshot')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `410` uses native `is_array` in ``is_array($payload['notifiable'] ?? null) ? $payload['notifiable'] : [],``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `412` uses native `is_array` in ``is_array($payload['notification'] ?? null) ? $payload['notification'] : [],``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `413` uses native `array_map` in ``array_values(array_map('strval', (array) ($payload['channels'] ?? [])))``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `413` uses native `array_values` in ``array_values(array_map('strval', (array) ($payload['channels'] ?? [])))``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `419` uses native `is_string` in ``if (is_string($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `422` uses native `method_exists` in ``if (method_exists($instance, 'handle')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `429` uses native `is_array` in ``if (is_array($listener) && count($listener) === 2) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `431` uses native `is_object` in ``$instance = is_object($target) ? $target : $this->resolveClass((string) $target);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `433` uses native `method_exists` in ``if (!method_exists($instance, (string) $method)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `440` uses native `is_callable` in ``if (is_callable($listener)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isCallable()` (`Prefer the shared type helper for callable checks.`)
+- Line `453` uses native `str_starts_with` in ``if ($class !== '' && str_starts_with($class, 'App\\Modules\\')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `567` uses native `array_key_exists` in ``if (!array_key_exists($key, $options)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `573` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `577` uses native `is_int` in ``if (is_int($value)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `581` uses native `is_string` in ``if (!is_string($value)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `585` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `595` uses native `array_key_exists` in ``if (!array_key_exists($key, $options)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `604` uses native `trim` in ``$path = trim((string) $this->config->get('queue', 'WORKER.CONTROL_PATH', 'Storage/Framework/Queue'));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `610` uses native `preg_match` in ``if ($path[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `611` uses native `str_replace` in ``return str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `614` uses native `str_replace` in ``$normalized = ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `616` uses native `str_starts_with` in ``if (str_starts_with($normalized, 'Storage' . DIRECTORY_SEPARATOR)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `630` uses native `trim` in ``return $this->toLowerString(trim($signal)) === self::SIGNAL_DRAIN``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `648` uses native `is_string` in ``if (!is_string($contents) || trim($contents) === '') {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `648` uses native `trim` in ``if (!is_string($contents) || trim($contents) === '') {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `656` uses native `json_decode` in ``$decoded = json_decode($contents, true);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `658` uses native `is_array` in ``if (!is_array($decoded)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Utilities/Managers/Commerce/CartPricingManager.php`
+
+- Current traits: none
+- Line `45` uses native `is_array` in ``'fulfillment' => is_array($quote['fulfillment'] ?? null) ? $quote['fulfillment'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `50` uses native `is_array` in ``'discount_snapshot' => is_array($promotion['snapshot'] ?? null) ? $promotion['snapshot'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Utilities/Managers/Commerce/CatalogLifecycleManager.php`
+
+- Current traits: none
+- Line `148` uses native `in_array` in ``$visibility = in_array($visibility, ['published', 'draft', 'archived'], true) ? $visibility : 'draft';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+
+### `App/Utilities/Managers/Commerce/CommerceTotalsCalculator.php`
+
+- Current traits: `App\Utilities\Traits\MoneyFormattingTrait`
+- Line `25` uses native `strtoupper` in ``$currency = strtoupper(trim($currency)) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `25` uses native `trim` in ``$currency = strtoupper(trim($currency)) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `26` uses native `strtoupper` in ``? strtoupper(trim($currency))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `26` uses native `trim` in ``? strtoupper(trim($currency))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `27` uses native `strtoupper` in ``: strtoupper((string) $this->config->get('commerce', 'CURRENCY', 'SEK'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `29` uses native `array_reduce` in ``$subtotalMinor = array_reduce(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `36` uses native `array_key_exists` in ``$hasExplicitItemDiscount = array_key_exists('item_discount_minor', $context) || array_key_exists('discount_minor', $context);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `53` uses native `is_numeric` in ``$shippingBaseMinor = is_numeric($configuredShippingMinor)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isNumeric()` (`Prefer the shared type helper for numeric checks.`)
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::isDigitString()` (`Digit-only string validation also exists in the checker trait.`)
+- Line `63` uses native `is_numeric` in ``$taxMinor = is_numeric($configuredTaxMinor)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isNumeric()` (`Prefer the shared type helper for numeric checks.`)
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::isDigitString()` (`Digit-only string validation also exists in the checker trait.`)
+
+### `App/Utilities/Managers/Commerce/EntitlementManager.php`
+
+- Current traits: none
+- Line `58` uses native `strtolower` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `58` uses native `trim` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `60` uses native `in_array` in ``if (!in_array($type, $eligibleTypes, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `119` uses native `in_array` in ``if (in_array($status, ['revoked', 'expired'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `155` uses native `in_array` in ``if (!in_array($status, ['active', 'revoked', 'expired', 'pending'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `284` uses native `is_array` in ``$policy = is_array($item['fulfillment_policy'] ?? null) ? $item['fulfillment_policy'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `285` uses native `strtolower` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? 'digital_download')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `285` uses native `trim` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? 'digital_download')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `305` uses native `json_encode` in ``'metadata' => json_encode([``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `323` uses native `array_filter` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `323` uses native `array_map` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `323` uses native `array_unique` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `323` uses native `array_values` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `324` uses native `strtolower` in ``static fn(mixed $type): string => strtolower(trim((string) $type)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `324` uses native `trim` in ``static fn(mixed $type): string => strtolower(trim((string) $type)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `325` uses native `is_array` in ``is_array($types) ? $types : []``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `350` uses native `trim` in ``$value = trim((string) ($policy[$key] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `366` uses native `trim` in ``$value = trim((string) ($policy[$key] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `394` uses native `trim` in ``$value = trim((string) ($policy[$key] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `406` uses native `strtolower` in ``$prefix = strtolower(trim((string) $this->config->get('commerce', 'FULFILLMENT.ACCESS.ACCESS_KEY_PREFIX', 'ent'))) ?: 'ent';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `406` uses native `trim` in ``$prefix = strtolower(trim((string) $this->config->get('commerce', 'FULFILLMENT.ACCESS.ACCESS_KEY_PREFIX', 'ent'))) ?: 'ent';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `420` uses native `trim` in ``$value = trim($value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Utilities/Managers/Commerce/InventoryManager.php`
+
+- Current traits: none
+- Line `81` uses native `trim` in ``$reservationKey = trim((string) ($context['reservation_key'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `188` uses native `array_map` in ``array_map(static fn(array $row): int => (int) ($row['id'] ?? 0), $rows),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `236` uses native `array_map` in ``array_map(static fn(array $row): int => (int) ($row['id'] ?? 0), $rows),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `294` uses native `strtolower` in ``'fulfillment_type' => strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping'))) ?: 'physical_shipping',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `294` uses native `trim` in ``'fulfillment_type' => strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping'))) ?: 'physical_shipping',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `304` uses native `in_array` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `304` uses native `strtolower` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `304` uses native `trim` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `316` uses native `trim` in ``$explicit = trim((string) ($context['expires_at'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `329` uses native `strtolower` in ``return 'invres-' . gmdate('YmdHis') . '-' . strtolower(substr(bin2hex(random_bytes(6)), 0, 12));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `329` uses native `substr` in ``return 'invres-' . gmdate('YmdHis') . '-' . strtolower(substr(bin2hex(random_bytes(6)), 0, 12));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+
+### `App/Utilities/Managers/Commerce/OrderDocumentManager.php`
+
+- Current traits: `App\Utilities\Traits\MoneyFormattingTrait`
+- Line `75` uses native `trim` in ``'notes' => trim((string) ($payload['notes'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `91` uses native `strtoupper` in ``'billing_country' => strtoupper(trim((string) ($payload['billing_country'] ?? $summary['shipping_country'] ?? 'SE'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `91` uses native `trim` in ``'billing_country' => strtoupper(trim((string) ($payload['billing_country'] ?? $summary['shipping_country'] ?? 'SE'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `92` uses native `trim` in ``'notes' => trim((string) ($payload['notes'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `114` uses native `str_replace` in ``'message' => sprintf('%s document was issued for the order.', ucfirst(str_replace('_', ' ', $type))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `137` uses native `strtolower` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `137` uses native `trim` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `139` uses native `in_array` in ``return in_array($type, ['invoice', 'credit_note', 'packing_slip', 'return_authorization'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `214` uses native `trim` in ``'name' => trim((string) ($payload['seller_name'] ?? $this->config->get('commerce', 'DOCUMENTS.SELLER_NAME', $this->config->get('app', 'NAME', 'LangelerMVC')))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `215` uses native `trim` in ``'vat_id' => trim((string) ($payload['seller_vat_id'] ?? $this->config->get('commerce', 'DOCUMENTS.SELLER_VAT_ID', ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `216` uses native `trim` in ``'address' => trim((string) ($payload['seller_address'] ?? $this->config->get('commerce', 'DOCUMENTS.SELLER_ADDRESS', ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `225` uses native `array_map` in ``return array_map(function (array $line) use ($currency): array {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+
+### `App/Utilities/Managers/Commerce/OrderLifecycleManager.php`
+
+- Current traits: none
+- Line `95` uses native `json_encode` in ``'payment_next_action' => json_encode($result->intent->nextAction, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `96` uses native `json_encode` in ``'payment_intent' => json_encode($result->intent->toArray(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `105` uses native `in_array` in ``if (in_array($result->intent->status, ['captured', 'partially_captured'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `120` uses native `in_array` in ``if (in_array($result->intent->status, ['cancelled', 'refunded'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `178` uses native `in_array` in ``if (!in_array($action, $allowed, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `223` uses native `is_array` in ``...(is_array($transitionAttributes['attributes'] ?? null) ? $transitionAttributes['attributes'] : []),``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `246` uses native `str_replace` in ``'message' => ucfirst(str_replace('_', ' ', $action)) . ' completed successfully.',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `260` uses native `in_array` in ``if (in_array($paymentStatus, ['authorized', 'partially_captured'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `264` uses native `in_array` in ``if (in_array($paymentStatus, ['authorized', 'requires_action', 'processing', 'pending_review'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `268` uses native `in_array` in ``if (in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `272` uses native `in_array` in ``if (!in_array($paymentStatus, ['cancelled', 'refunded'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `289` uses native `in_array` in ``if (!in_array($paymentStatus, ['captured', 'partially_captured', 'partially_refunded'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `293` uses native `in_array` in ``if (in_array($status, ['cancelled', 'refunded', 'completed'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `297` uses native `in_array` in ``if (in_array($fulfillmentStatus, ['access_granted', 'not_required'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `303` uses native `trim` in ``'packed' => trim((string) ($order['tracking_number'] ?? '')) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `376` uses native `array_key_exists` in ``if (array_key_exists($key, $payload) && trim((string) $payload[$key]) !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `376` uses native `trim` in ``if (array_key_exists($key, $payload) && trim((string) $payload[$key]) !== '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `390` uses native `trim` in ``$reason = trim((string) ($payload[$key] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `406` uses native `json_decode` in ``$decoded = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `411` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `441` uses native `trim` in ``if ($action === 'pack' && trim((string) ($order['shipment_reference'] ?? '')) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `448` uses native `preg_replace` in ``preg_replace('/[^A-Z0-9]+/', '', strtoupper((string) ($order['order_number'] ?? 'ORD'))) ?: 'ORDER',``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `448` uses native `strtoupper` in ``preg_replace('/[^A-Z0-9]+/', '', strtoupper((string) ($order['order_number'] ?? 'ORD'))) ?: 'ORDER',``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `449` uses native `strtoupper` in ``strtoupper(substr(bin2hex(random_bytes(4)), 0, 6))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `449` uses native `substr` in ``strtoupper(substr(bin2hex(random_bytes(4)), 0, 6))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+
+### `App/Utilities/Managers/Commerce/OrderReturnManager.php`
+
+- Current traits: none
+- Line `56` uses native `array_key_exists` in ``$restock = array_key_exists('restock', $payload)``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `68` uses native `trim` in ``'reason' => trim((string) ($payload['reason'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `69` uses native `trim` in ``'resolution' => trim((string) ($payload['resolution'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `146` uses native `trim` in ``trim((string) ($payload['resolution'] ?? $payload['note'] ?? $return->getAttribute('resolution') ?? ''))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `217` uses native `json_decode` in ``$intent = json_decode((string) ($order->getAttribute('payment_intent') ?? '{}'), true, 512, JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `222` uses native `is_array` in ``$intent = is_array($intent) ? $intent : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `233` uses native `strtolower` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `233` uses native `trim` in ``$type = strtolower(trim($type));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `235` uses native `in_array` in ``return in_array($type, ['return', 'exchange'], true) ? $type : 'return';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `240` uses native `in_array` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `240` uses native `strtolower` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `240` uses native `trim` in ``return in_array(strtolower(trim($fulfillmentType)), [``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `249` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOL);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Utilities/Managers/Commerce/PromotionManager.php`
+
+- Current traits: `App\Utilities\Traits\MoneyFormattingTrait`
+- Line `30` uses native `strtoupper` in ``$normalizedCode = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `30` uses native `trim` in ``$normalizedCode = strtoupper(trim($code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `109` uses native `array_reduce` in ``$subtotalMinor = array_reduce(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `115` uses native `array_reduce` in ``$eligibleSubtotalMinor = array_reduce(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `122` uses native `array_reduce` in ``$itemCount = array_reduce(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `128` uses native `is_array` in ``$selected = is_array($quote['selected'] ?? null) ? $quote['selected'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `130` uses native `strtoupper` in ``$country = strtoupper((string) ($quote['country'] ?? $context['country'] ?? 'SE'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `131` uses native `strtoupper` in ``$zone = strtoupper((string) ($quote['zone'] ?? $context['zone'] ?? 'SE'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `132` uses native `strtolower` in ``$carrier = strtolower((string) ($selected['carrier_code'] ?? $context['carrier_code'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `133` uses native `strtolower` in ``$shippingOption = strtolower((string) ($selected['code'] ?? $context['shipping_option'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `248` uses native `array_map` in ``$requiredFulfillmentTypes = array_map('strtolower', array_map('strval', (array) ($promotion['required_fulfillment_types'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `250` uses native `in_array` in ``if (!in_array($requiredType, $fulfillmentTypes, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `265` uses native `array_map` in ``$allowedCountries = array_map('strtoupper', array_map('strval', (array) ($promotion['allowed_countries'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `266` uses native `in_array` in ``if ($allowedCountries !== [] && !in_array($country, $allowedCountries, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `273` uses native `array_map` in ``$allowedZones = array_map('strtoupper', array_map('strval', (array) ($promotion['allowed_zones'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `274` uses native `in_array` in ``if ($allowedZones !== [] && !in_array($zone, $allowedZones, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `281` uses native `array_map` in ``$allowedCarriers = array_map('strtolower', array_map('strval', (array) ($promotion['allowed_carriers'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `282` uses native `in_array` in ``if ($allowedCarriers !== [] && !in_array($carrier, $allowedCarriers, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `289` uses native `array_map` in ``$allowedOptions = array_map('strtolower', array_map('strval', (array) ($promotion['allowed_shipping_options'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `290` uses native `in_array` in ``if ($allowedOptions !== [] && !in_array($shippingOption, $allowedOptions, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `405` uses native `is_array` in ``if (is_array($configured)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `407` uses native `is_array` in ``if (!is_array($definition)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `435` uses native `array_values` in ``return array_values($byCode);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `465` uses native `strtoupper` in ``'code' => strtoupper(trim((string) ($definition['CODE'] ?? $code))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `465` uses native `trim` in ``'code' => strtoupper(trim((string) ($definition['CODE'] ?? $code))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `466` uses native `strtoupper` in ``'label' => trim((string) ($definition['LABEL'] ?? $definition['label'] ?? strtoupper($code))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `466` uses native `trim` in ``'label' => trim((string) ($definition['LABEL'] ?? $definition['label'] ?? strtoupper($code))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `467` uses native `trim` in ``'description' => trim((string) ($definition['DESCRIPTION'] ?? $definition['description'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `468` uses native `strtolower` in ``'type' => strtolower(trim((string) ($definition['TYPE'] ?? $definition['type'] ?? 'fixed_amount'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `468` uses native `trim` in ``'type' => strtolower(trim((string) ($definition['TYPE'] ?? $definition['type'] ?? 'fixed_amount'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `469` uses native `strtolower` in ``'applies_to' => strtolower(trim((string) ($definition['APPLIES_TO'] ?? $definition['applies_to'] ?? 'cart_subtotal'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `469` uses native `trim` in ``'applies_to' => strtolower(trim((string) ($definition['APPLIES_TO'] ?? $definition['applies_to'] ?? 'cart_subtotal'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `482` uses native `trim` in ``'starts_at' => trim((string) ($definition['STARTS_AT'] ?? $definition['starts_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `483` uses native `trim` in ``'ends_at' => trim((string) ($definition['ENDS_AT'] ?? $definition['ends_at'] ?? '')),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `484` uses native `array_map` in ``'allowed_currencies' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_CURRENCIES'] ?? $definition['allowed_currencies'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `484` uses native `array_values` in ``'allowed_currencies' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_CURRENCIES'] ?? $definition['allowed_currencies'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `485` uses native `array_map` in ``'allowed_countries' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_COUNTRIES'] ?? $definition['allowed_countries'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `485` uses native `array_values` in ``'allowed_countries' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_COUNTRIES'] ?? $definition['allowed_countries'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `486` uses native `array_map` in ``'allowed_zones' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_ZONES'] ?? $definition['allowed_zones'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `486` uses native `array_values` in ``'allowed_zones' => array_values(array_map('strtoupper', array_map('strval', (array) ($definition['ALLOWED_ZONES'] ?? $definition['allowed_zones'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `487` uses native `array_map` in ``'allowed_carriers' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CARRIERS'] ?? $definition['allowed_carriers'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `487` uses native `array_values` in ``'allowed_carriers' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CARRIERS'] ?? $definition['allowed_carriers'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `488` uses native `array_map` in ``'allowed_shipping_options' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_SHIPPING_OPTIONS'] ?? $definition['allowed_shipping_options'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `488` uses native `array_values` in ``'allowed_shipping_options' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_SHIPPING_OPTIONS'] ?? $definition['allowed_shipping_options'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `489` uses native `array_map` in ``'allowed_product_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_PRODUCT_IDS'] ?? $definition['allowed_product_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `489` uses native `array_values` in ``'allowed_product_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_PRODUCT_IDS'] ?? $definition['allowed_product_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `490` uses native `array_map` in ``'allowed_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_PRODUCT_SLUGS'] ?? $definition['allowed_product_slugs'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `490` uses native `array_values` in ``'allowed_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_PRODUCT_SLUGS'] ?? $definition['allowed_product_slugs'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `491` uses native `array_map` in ``'allowed_category_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_CATEGORY_IDS'] ?? $definition['allowed_category_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `491` uses native `array_values` in ``'allowed_category_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_CATEGORY_IDS'] ?? $definition['allowed_category_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `492` uses native `array_map` in ``'allowed_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_FULFILLMENT_TYPES'] ?? $definition['allowed_fulfillment_types'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `492` uses native `array_values` in ``'allowed_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_FULFILLMENT_TYPES'] ?? $definition['allowed_fulfillment_types'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `493` uses native `array_map` in ``'allowed_user_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_USER_IDS'] ?? $definition['allowed_user_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `493` uses native `array_values` in ``'allowed_user_ids' => array_values(array_map('intval', (array) ($definition['ALLOWED_USER_IDS'] ?? $definition['allowed_user_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `494` uses native `array_map` in ``'allowed_customer_emails' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CUSTOMER_EMAILS'] ?? $definition['allowed_customer_emails'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `494` uses native `array_values` in ``'allowed_customer_emails' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CUSTOMER_EMAILS'] ?? $definition['allowed_customer_emails'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `495` uses native `array_map` in ``'allowed_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CUSTOMER_SEGMENTS'] ?? $definition['allowed_customer_segments'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `495` uses native `array_values` in ``'allowed_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['ALLOWED_CUSTOMER_SEGMENTS'] ?? $definition['allowed_customer_segments'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `496` uses native `array_map` in ``'excluded_product_ids' => array_values(array_map('intval', (array) ($definition['EXCLUDED_PRODUCT_IDS'] ?? $definition['excluded_product_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `496` uses native `array_values` in ``'excluded_product_ids' => array_values(array_map('intval', (array) ($definition['EXCLUDED_PRODUCT_IDS'] ?? $definition['excluded_product_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `497` uses native `array_map` in ``'excluded_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_PRODUCT_SLUGS'] ?? $definition['excluded_product_slugs'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `497` uses native `array_values` in ``'excluded_product_slugs' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_PRODUCT_SLUGS'] ?? $definition['excluded_product_slugs'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `498` uses native `array_map` in ``'excluded_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_FULFILLMENT_TYPES'] ?? $definition['excluded_fulfillment_types'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `498` uses native `array_values` in ``'excluded_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_FULFILLMENT_TYPES'] ?? $definition['excluded_fulfillment_types'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `499` uses native `array_map` in ``'excluded_user_ids' => array_values(array_map('intval', (array) ($definition['EXCLUDED_USER_IDS'] ?? $definition['excluded_user_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `499` uses native `array_values` in ``'excluded_user_ids' => array_values(array_map('intval', (array) ($definition['EXCLUDED_USER_IDS'] ?? $definition['excluded_user_ids'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `500` uses native `array_map` in ``'excluded_customer_emails' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_CUSTOMER_EMAILS'] ?? $definition['excluded_customer_emails'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `500` uses native `array_values` in ``'excluded_customer_emails' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_CUSTOMER_EMAILS'] ?? $definition['excluded_customer_emails'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `501` uses native `array_map` in ``'excluded_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_CUSTOMER_SEGMENTS'] ?? $definition['excluded_customer_segments'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `501` uses native `array_values` in ``'excluded_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['EXCLUDED_CUSTOMER_SEGMENTS'] ?? $definition['excluded_customer_segments'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `502` uses native `array_map` in ``'required_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_FULFILLMENT_TYPES'] ?? $definition['required_fulfillment_types'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `502` uses native `array_values` in ``'required_fulfillment_types' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_FULFILLMENT_TYPES'] ?? $definition['required_fulfillment_types'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `503` uses native `array_map` in ``'required_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_CUSTOMER_SEGMENTS'] ?? $definition['required_customer_segments'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `503` uses native `array_values` in ``'required_customer_segments' => array_values(array_map('strtolower', array_map('strval', (array) ($definition['REQUIRED_CUSTOMER_SEGMENTS'] ?? $definition['required_customer_segments'] ?? [])))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `506` uses native `strtolower` in ``'source' => strtolower(trim((string) ($definition['SOURCE'] ?? $definition['source'] ?? 'config'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `506` uses native `trim` in ``'source' => strtolower(trim((string) ($definition['SOURCE'] ?? $definition['source'] ?? 'config'))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `579` uses native `array_filter` in ``return array_values(array_filter($items, fn(array $item): bool => $this->itemMatchesCriteria($item, $promotion)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `579` uses native `array_values` in ``return array_values(array_filter($items, fn(array $item): bool => $this->itemMatchesCriteria($item, $promotion)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `617` uses native `strtolower` in ``$slug = strtolower((string) ($item['slug'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `619` uses native `strtolower` in ``$fulfillmentType = strtolower((string) ($item['fulfillment_type'] ?? 'physical_shipping'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `622` uses native `in_array` in ``if ($allowedProductIds !== [] && !in_array($productId, $allowedProductIds, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `627` uses native `in_array` in ``if ($allowedProductSlugs !== [] && !in_array($slug, $allowedProductSlugs, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `632` uses native `in_array` in ``if ($allowedCategoryIds !== [] && !in_array($categoryId, $allowedCategoryIds, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `637` uses native `in_array` in ``if ($allowedFulfillmentTypes !== [] && !in_array($fulfillmentType, $allowedFulfillmentTypes, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `641` uses native `in_array` in ``if (in_array($productId, (array) ($promotion['excluded_product_ids'] ?? []), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `645` uses native `in_array` in ``if ($slug !== '' && in_array($slug, (array) ($promotion['excluded_product_slugs'] ?? []), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `649` uses native `in_array` in ``return !in_array($fulfillmentType, (array) ($promotion['excluded_fulfillment_types'] ?? []), true);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `661` uses native `strtolower` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `661` uses native `trim` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? 'physical_shipping')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `668` uses native `array_unique` in ``return array_values(array_unique($types));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `668` uses native `array_values` in ``return array_values(array_unique($types));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `673` uses native `array_map` in ``$allowed = array_map('strtoupper', array_map('strval', (array) ($promotion['allowed_currencies'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `675` uses native `in_array` in ``return $allowed === [] || in_array(strtoupper($currency), $allowed, true);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `675` uses native `strtoupper` in ``return $allowed === [] || in_array(strtoupper($currency), $allowed, true);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `688` uses native `strtolower` in ``'email' => strtolower(trim((string) ($context['customer_email'] ?? $context['email'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `688` uses native `trim` in ``'email' => strtolower(trim((string) ($context['customer_email'] ?? $context['email'] ?? ''))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `689` uses native `array_filter` in ``'segments' => array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `689` uses native `array_map` in ``'segments' => array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `689` uses native `array_unique` in ``'segments' => array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `689` uses native `array_values` in ``'segments' => array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `690` uses native `strtolower` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `690` uses native `trim` in ``static fn(mixed $segment): string => strtolower(trim((string) $segment)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `706` uses native `array_filter` in ``$allowedUserIds = array_values(array_filter(array_map('intval', (array) ($promotion['allowed_user_ids'] ?? []))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `706` uses native `array_map` in ``$allowedUserIds = array_values(array_filter(array_map('intval', (array) ($promotion['allowed_user_ids'] ?? []))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `706` uses native `array_values` in ``$allowedUserIds = array_values(array_filter(array_map('intval', (array) ($promotion['allowed_user_ids'] ?? []))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `708` uses native `in_array` in ``if ($allowedUserIds !== [] && !in_array($userId, $allowedUserIds, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `712` uses native `array_filter` in ``if ($userId > 0 && in_array($userId, array_values(array_filter(array_map('intval', (array) ($promotion['excluded_user_ids'] ?? [])))), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `712` uses native `array_map` in ``if ($userId > 0 && in_array($userId, array_values(array_filter(array_map('intval', (array) ($promotion['excluded_user_ids'] ?? [])))), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `712` uses native `array_values` in ``if ($userId > 0 && in_array($userId, array_values(array_filter(array_map('intval', (array) ($promotion['excluded_user_ids'] ?? [])))), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `712` uses native `in_array` in ``if ($userId > 0 && in_array($userId, array_values(array_filter(array_map('intval', (array) ($promotion['excluded_user_ids'] ?? [])))), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `717` uses native `in_array` in ``if ($allowedEmails !== [] && ($email === '' || !in_array($email, $allowedEmails, true))) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `722` uses native `in_array` in ``if ($email !== '' && in_array($email, $excludedEmails, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `793` uses native `array_filter` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `793` uses native `array_map` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `793` uses native `array_unique` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `793` uses native `array_values` in ``return array_values(array_unique(array_filter(array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `794` uses native `strtolower` in ``static fn(mixed $value): string => strtolower(trim((string) $value)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `794` uses native `trim` in ``static fn(mixed $value): string => strtolower(trim((string) $value)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `805` uses native `trim` in ``$startsAt = trim((string) ($promotion['starts_at'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `806` uses native `trim` in ``$endsAt = trim((string) ($promotion['ends_at'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `823` uses native `is_array` in ``if (!is_array($map)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `827` uses native `strtoupper` in ``$currency = strtoupper($currency);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `830` uses native `strtoupper` in ``if (strtoupper((string) $key) === $currency) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `840` uses native `strtoupper` in ``$currency = strtoupper(trim($currency));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `840` uses native `trim` in ``$currency = strtoupper(trim($currency));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `842` uses native `strtoupper` in ``return $currency !== '' ? $currency : strtoupper((string) $this->config->get('commerce', 'CURRENCY', 'SEK'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+
+### `App/Utilities/Managers/Commerce/ShippingManager.php`
+
+- Current traits: `App\Utilities\Traits\MoneyFormattingTrait`
+- Line `31` uses native `strtoupper` in ``$currency = strtoupper(trim($currency)) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `31` uses native `trim` in ``$currency = strtoupper(trim($currency)) !== ''``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `32` uses native `strtoupper` in ``? strtoupper(trim($currency))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `32` uses native `trim` in ``? strtoupper(trim($currency))``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `33` uses native `strtoupper` in ``: strtoupper((string) $this->config->get('commerce', 'CURRENCY', 'SEK'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `37` uses native `array_reduce` in ``$subtotalMinor = array_reduce(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::reduce()` (`Prefer the shared array reduction helper.`)
+- Line `44` uses native `trim` in ``$requestedCode = trim((string) ($context['shipping_option'] ?? $context['option'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `74` uses native `array_replace_recursive` in ``$carriers = array_replace_recursive($this->defaultCarriers(), $this->configuredCarriers());``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceRecursive()` (`A framework recursive replace helper already exists.`)
+- Line `78` uses native `strtolower` in ``$carrierCode = strtolower((string) ($carrier['code'] ?? $code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `79` uses native `array_map` in ``$zones = array_map('strtoupper', array_map('strval', (array) ($carrier['zones'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `81` uses native `in_array` in ``if ($zones !== [] && !in_array($zone, $zones, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `89` uses native `array_map` in ``'service_levels' => array_values(array_map('strval', (array) ($carrier['service_levels'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `89` uses native `array_values` in ``'service_levels' => array_values(array_map('strval', (array) ($carrier['service_levels'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `133` uses native `is_array` in ``$selected = is_array($quote['selected'] ?? null) ? $quote['selected'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `134` uses native `trim` in ``$servicePointId = trim((string) ($payload['service_point_id'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `135` uses native `trim` in ``$servicePointName = trim((string) ($payload['service_point_name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `151` uses native `json_encode` in ``'tracking_events' => json_encode([], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `165` uses native `strtolower` in ``$carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $order['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `165` uses native `trim` in ``$carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $order['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `178` uses native `trim` in ``$trackingNumber = trim((string) ($payload['tracking_number'] ?? $order['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `187` uses native `is_array` in ``$bookingAttributes = is_array($booking['attributes'] ?? null) ? $booking['attributes'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `188` uses native `trim` in ``$trackingNumber = trim((string) ($bookingAttributes['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `200` uses native `trim` in ``$shipmentReference = trim((string) ($payload['shipment_reference'] ?? $bookingAttributes['shipment_reference'] ?? $order['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `206` uses native `trim` in ``$servicePointId = trim((string) ($payload['service_point_id'] ?? $bookingAttributes['shipping_service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `207` uses native `trim` in ``$servicePointName = trim((string) ($payload['service_point_name'] ?? $bookingAttributes['shipping_service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `233` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `249` uses native `strtolower` in ``$carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $context['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `249` uses native `trim` in ``$carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $context['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `283` uses native `preg_replace` in ``$postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `283` uses native `strtoupper` in ``$postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `283` uses native `trim` in ``$postalCode = strtoupper(preg_replace('/\s+/', '', trim((string) ($payload['postal_code'] ?? $context['shipping_postal_code'] ?? '11122'))) ?? '11122');``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `284` uses native `trim` in ``$city = trim((string) ($payload['city'] ?? $context['shipping_city'] ?? 'Stockholm'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `286` uses native `strtolower` in ``$serviceLevel = strtolower(trim((string) ($payload['service_level'] ?? $context['shipping_service'] ?? 'service_point')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `286` uses native `trim` in ``$serviceLevel = strtolower(trim((string) ($payload['service_level'] ?? $context['shipping_service'] ?? 'service_point')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `288` uses native `preg_replace` in ``$seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `288` uses native `strtoupper` in ``$seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `288` uses native `substr` in ``$seed = substr(preg_replace('/[^A-Z0-9]+/', '', $postalCode . strtoupper($city)) ?: 'SE', 0, 8);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `304` uses native `in_array` in ``'supports_locker' => in_array($carrierCode, ['instabox', 'budbee'], true) || $serviceLevel === 'locker',``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `326` uses native `strtolower` in ``$carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $order['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `326` uses native `trim` in ``$carrierCode = strtolower(trim((string) ($payload['carrier_code'] ?? $order['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `351` uses native `trim` in ``$shipmentReference = trim((string) ($payload['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `355` uses native `trim` in ``$trackingNumber = trim((string) ($payload['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `359` uses native `trim` in ``$labelReference = trim((string) ($payload['label_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `363` uses native `strtolower` in ``$labelFormat = strtolower(trim((string) ($payload['label_format'] ?? $this->config->get('commerce', 'SHIPPING.INTEGRATION.LABEL_FORMAT', 'pdf'))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `363` uses native `trim` in ``$labelFormat = strtolower(trim((string) ($payload['label_format'] ?? $this->config->get('commerce', 'SHIPPING.INTEGRATION.LABEL_FORMAT', 'pdf'))));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `366` uses native `trim` in ``$servicePointId = trim((string) ($payload['service_point_id'] ?? $order['shipping_service_point_id'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `367` uses native `trim` in ``$servicePointName = trim((string) ($payload['service_point_name'] ?? $order['shipping_service_point_name'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `380` uses native `substr` in ``'provider_reference' => sprintf('%s-%s', $this->carrierReferencePrefix($carrierCode), substr(hash('sha256', $shipmentReference), 0, 12)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `396` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `413` uses native `trim` in ``$trackingNumber = trim((string) ($order['tracking_number'] ?? $payload['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `424` uses native `strtolower` in ``$carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? $payload['carrier_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `424` uses native `trim` in ``$carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? $payload['carrier_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `432` uses native `strtolower` in ``$status = strtolower(trim((string) ($payload['tracking_status'] ?? $payload['status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `432` uses native `trim` in ``$status = strtolower(trim((string) ($payload['tracking_status'] ?? $payload['status'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `434` uses native `str_replace` in ``$status = str_replace('-', '_', $status);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `435` uses native `trim` in ``$label = trim((string) ($payload['label'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `437` uses native `trim` in ``$location = trim((string) ($payload['location'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `441` uses native `strtolower` in ``$carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? $payload['carrier_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `441` uses native `trim` in ``$carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? $payload['carrier_code'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `442` uses native `trim` in ``$shipmentReference = trim((string) ($order['shipment_reference'] ?? $payload['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `455` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `480` uses native `trim` in ``$trackingNumber = trim((string) ($order['tracking_number'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `481` uses native `trim` in ``$shipmentReference = trim((string) ($order['shipment_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `492` uses native `strtolower` in ``$carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `492` uses native `trim` in ``$carrierCode = strtolower(trim((string) ($order['shipping_carrier'] ?? '')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `499` uses native `trim` in ``$reason = trim((string) ($payload['reason'] ?? 'Operator cancelled the shipment booking.'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `520` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `546` uses native `json_encode` in ``'tracking_events' => json_encode($events, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `594` uses native `trim` in ``$configured = trim((string) $this->config->get('commerce', 'SHIPPING.DEFAULT_OPTION', 'postnord-service-point'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `597` uses native `strtolower` in ``return strtolower($configured);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `607` uses native `array_replace_recursive` in ``foreach (array_replace_recursive($this->defaultCarriers(), $this->configuredCarriers()) as $code => $carrier) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceRecursive()` (`A framework recursive replace helper already exists.`)
+- Line `608` uses native `strtolower` in ``$resolvedCode = strtolower((string) ($carrier['code'] ?? $code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `610` uses native `strtolower` in ``if ($resolvedCode === strtolower($carrierCode)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `615` uses native `array_map` in ``'service_levels' => array_values(array_map('strval', (array) ($carrier['service_levels'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `615` uses native `array_values` in ``'service_levels' => array_values(array_map('strval', (array) ($carrier['service_levels'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `626` uses native `strtolower` in ``$carrierCode = strtolower(trim($carrierCode));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `626` uses native `trim` in ``$carrierCode = strtolower(trim($carrierCode));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `645` uses native `is_array` in ``$global = is_array($global) ? $this->normalizeConfigKeys($global) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `648` uses native `is_array` in ``$adapter = is_array($adapters[$carrierCode] ?? null) ? $adapters[$carrierCode] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `650` uses native `array_replace_recursive` in ``return array_replace_recursive($global, $carrier, $adapter, [``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceRecursive()` (`A framework recursive replace helper already exists.`)
+- Line `662` uses native `array_replace_recursive` in ``$options = array_replace_recursive($this->defaultOptions(), $this->configuredOptions());``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceRecursive()` (`A framework recursive replace helper already exists.`)
+- Line `675` uses native `strtolower` in ``$optionCode = strtolower((string) ($option['code'] ?? $code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `676` uses native `array_map` in ``$zones = array_map('strtoupper', array_map('strval', (array) ($option['zones'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `678` uses native `in_array` in ``if ($zones !== [] && !in_array($zone, $zones, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `682` uses native `array_map` in ``$countries = array_map([$this, 'normalizeCountryCode'], array_map('strval', (array) ($option['countries'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `684` uses native `in_array` in ``if ($countries !== [] && !in_array($country, $countries, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `688` uses native `strtolower` in ``$carrierCode = strtolower((string) ($option['carrier'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `697` uses native `str_replace` in ``'label' => (string) ($option['label'] ?? ucfirst(str_replace('-', ' ', $optionCode))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `719` uses native `array_values` in ``return array_values($results);``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `747` uses native `strtolower` in ``$defaultType = strtolower(trim((string) $this->config->get('commerce', 'FULFILLMENT.DEFAULT_TYPE', 'physical_shipping')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `747` uses native `trim` in ``$defaultType = strtolower(trim((string) $this->config->get('commerce', 'FULFILLMENT.DEFAULT_TYPE', 'physical_shipping')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `748` uses native `array_map` in ``$shippingTypes = array_map('strtolower', array_map('strval', (array) $this->config->get('commerce', 'FULFILLMENT.SHIPPING_REQUIRED_TYPES', ['physical_shipping', 'preorder'])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `749` uses native `array_map` in ``$pickupTypes = array_map('strtolower', array_map('strval', (array) $this->config->get('commerce', 'FULFILLMENT.PICKUP_TYPES', ['store_pickup', 'scheduled_pickup'])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `750` uses native `array_map` in ``$stockManagedTypes = array_map('strtolower', array_map('strval', (array) $this->config->get('commerce', 'FULFILLMENT.STOCK_MANAGED_TYPES', ['physical_shipping', 'store_pickup', 'scheduled_pickup'])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `754` uses native `strtolower` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? $defaultType)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `754` uses native `trim` in ``$type = strtolower(trim((string) ($item['fulfillment_type'] ?? $defaultType)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `758` uses native `array_unique` in ``$types = array_values(array_unique($types));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `758` uses native `array_values` in ``$types = array_values(array_unique($types));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `779` uses native `is_array` in ``$configured = is_array($configured) ? array_change_key_case($configured, CASE_LOWER) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `780` uses native `strtolower` in ``$code = strtolower((string) ($configured['code'] ?? 'digital-delivery'));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `812` uses native `is_array` in ``$configured = is_array($configured) ? $this->normalizeConfigKeys($configured) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `816` uses native `is_array` in ``if (!is_array($option)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `820` uses native `array_map` in ``$zones = array_map('strtoupper', array_map('strval', (array) ($option['zones'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `821` uses native `in_array` in ``if ($zones !== [] && !in_array($zone, $zones, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `825` uses native `array_map` in ``$countries = array_map([$this, 'normalizeCountryCode'], array_map('strval', (array) ($option['countries'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `826` uses native `in_array` in ``if ($countries !== [] && !in_array($country, $countries, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `830` uses native `strtolower` in ``$optionCode = strtolower((string) ($option['code'] ?? $code));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `836` uses native `str_replace` in ``'label' => (string) ($option['label'] ?? ucfirst(str_replace('-', ' ', $optionCode))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `910` uses native `strtoupper` in ``$normalized = strtoupper(trim($country));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `910` uses native `trim` in ``$normalized = strtoupper(trim($country));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `917` uses native `substr` in ``default => strlen($normalized) > 2 ? substr($normalized, 0, 2) : $normalized,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `926` uses native `array_replace_recursive` in ``$apps = array_replace_recursive($this->defaultTrackingApps(), $this->configuredTrackingApps());``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::replaceRecursive()` (`A framework recursive replace helper already exists.`)
+- Line `930` uses native `array_map` in ``$countries = array_map([$this, 'normalizeCountryCode'], array_map('strval', (array) ($app['countries'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `931` uses native `array_map` in ``$carriers = array_map('strtolower', array_map('strval', (array) ($app['carriers'] ?? [])));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `933` uses native `in_array` in ``if ($countries !== [] && !in_array($country, $countries, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `937` uses native `in_array` in ``if ($carriers !== [] && !in_array(strtolower($carrierCode), $carriers, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `937` uses native `strtolower` in ``if ($carriers !== [] && !in_array(strtolower($carrierCode), $carriers, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `942` uses native `strtolower` in ``'code' => strtolower((string) ($app['code'] ?? $appCode)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `944` uses native `array_map` in ``'platforms' => array_values(array_map('strval', (array) ($app['platforms'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `944` uses native `array_values` in ``'platforms' => array_values(array_map('strval', (array) ($app['platforms'] ?? []))),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `954` uses native `preg_replace` in ``return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `954` uses native `strtoupper` in ``return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `954` uses native `substr` in ``return sprintf('SHP-%s-%s', preg_replace('/[^A-Z0-9]+/', '', strtoupper($orderNumber)) ?: 'ORDER', strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `959` uses native `strtoupper` in ``return sprintf('%s%sSE', $this->carrierReferencePrefix($carrierCode), strtoupper(substr(hash('sha256', $shipmentReference), 0, 10)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `959` uses native `substr` in ``return sprintf('%s%sSE', $this->carrierReferencePrefix($carrierCode), strtoupper(substr(hash('sha256', $shipmentReference), 0, 10)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `964` uses native `strtolower` in ``return match (strtolower($carrierCode)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `974` uses native `preg_replace` in ``default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $carrierCode) ?: 'CAR', 0, 3)),``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `974` uses native `strtoupper` in ``default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $carrierCode) ?: 'CAR', 0, 3)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `974` uses native `substr` in ``default => strtoupper(substr(preg_replace('/[^a-z0-9]+/i', '', $carrierCode) ?: 'CAR', 0, 3)),``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `980` uses native `array_key_exists` in ``if (array_key_exists('book_label', $payload) || array_key_exists('book_shipment', $payload)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `981` uses native `filter_var` in ``return filter_var($payload['book_label'] ?? $payload['book_shipment'], FILTER_VALIDATE_BOOLEAN);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `984` uses native `filter_var` in ``return filter_var($this->config->get('commerce', 'SHIPPING.INTEGRATION.AUTO_BOOK_LABELS', true), FILTER_VALIDATE_BOOLEAN);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `989` uses native `trim` in ``$base = trim((string) $this->config->get('commerce', 'SHIPPING.INTEGRATION.LABEL_BASE_URL', 'https:``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `995` uses native `rawurlencode` in ``return rtrim($base, '/') . '/' . rawurlencode($carrierCode) . '/' . rawurlencode($shipmentReference) . '.' . rawurlencode($labelFormat);``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeStringForRawUrl()` (`Prefer the shared encoding helper for raw URL encoding.`)
+- Line `995` uses native `rtrim` in ``return rtrim($base, '/') . '/' . rawurlencode($carrierCode) . '/' . rawurlencode($shipmentReference) . '.' . rawurlencode($labelFormat);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `1004` uses native `json_decode` in ``$events = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `1009` uses native `is_array` in ``return is_array($events) ? $this->normalizeTrackingEvents($events) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1021` uses native `is_array` in ``if (!is_array($event)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1107` uses native `is_array` in ``return is_array($configured) ? $this->normalizeConfigKeys($configured) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1117` uses native `is_array` in ``return is_array($configured) ? $this->normalizeConfigKeys($configured) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1127` uses native `is_array` in ``return is_array($configured) ? $this->normalizeConfigKeys($configured) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1137` uses native `is_array` in ``return is_array($configured) ? $this->normalizeConfigKeys($configured) : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `1149` uses native `is_string` in ``$resolvedKey = is_string($key) ? strtolower($key) : $key;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1149` uses native `strtolower` in ``$resolvedKey = is_string($key) ? strtolower($key) : $key;``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `1150` uses native `is_array` in ``$normalized[$resolvedKey] = is_array($item)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Utilities/Managers/Commerce/SubscriptionManager.php`
+
+- Current traits: none
+- Line `59` uses native `strtolower` in ``if (strtolower(trim((string) ($item['fulfillment_type'] ?? ''))) !== 'subscription') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `59` uses native `trim` in ``if (strtolower(trim((string) ($item['fulfillment_type'] ?? ''))) !== 'subscription') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `156` uses native `in_array` in ``'pause' => in_array($currentStatus, ['active', 'trialing', 'past_due'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `159` uses native `in_array` in ``'resume' => in_array($currentStatus, ['paused', 'past_due', 'unpaid'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `266` uses native `is_array` in ``$resolved = is_array($result['subscription'] ?? null) ? $result['subscription'] : $this->subscriptionSummary((int) ($summary['id'] ?? 0));``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `301` uses native `is_array` in ``$policy = is_array($item['fulfillment_policy'] ?? null) ? $item['fulfillment_policy'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `311` uses native `trim` in ``$providerReference = trim((string) ($policy['provider_subscription_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `341` uses native `trim` in ``'provider_customer_reference' => trim((string) ($policy['provider_customer_reference'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `495` uses native `is_array` in ``$resolved = is_array($transition['subscription'] ?? null) ? $transition['subscription'] : $subscription;``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `526` uses native `trim` in ``$reference = trim((string) ($payload['payment_reference'] ?? $payload['invoice_reference'] ?? ''));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `527` uses native `substr` in ``$reference = $reference !== '' ? $reference : 'ren_' . substr(hash('sha256', $eventId . (string) ($subscription['subscription_key'] ?? '')), 0, 24);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `543` uses native `trim` in ``trim((string) ($payload['provider_reference'] ?? $payload['invoice_id'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `544` uses native `trim` in ``trim((string) ($payload['external_reference'] ?? '')) ?: null,``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `615` uses native `is_array` in ``'fulfillment_policy' => is_array($sourceItem['fulfillment_policy'] ?? null) ? $sourceItem['fulfillment_policy'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `660` uses native `is_array` in ``$metadata = is_array($subscription['metadata'] ?? null) ? $subscription['metadata'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `661` uses native `is_array` in ``$metadata['provider_events'] = is_array($metadata['provider_events'] ?? null) ? $metadata['provider_events'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `662` uses native `is_array` in ``$metadata['renewal_orders'] = is_array($metadata['renewal_orders'] ?? null) ? $metadata['renewal_orders'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `680` uses native `is_array` in ``$metadata = is_array($subscription['metadata'] ?? null) ? $subscription['metadata'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `681` uses native `is_array` in ``$metadata['lifecycle_events'] = is_array($metadata['lifecycle_events'] ?? null) ? $metadata['lifecycle_events'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `696` uses native `is_array` in ``$metadata = is_array($subscription['metadata'] ?? null) ? $subscription['metadata'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `699` uses native `is_array` in ``if (is_array($event) && (string) ($event['event_id'] ?? '') === $eventId) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `721` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `753` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `777` uses native `array_key_exists` in ``if (!is_array($current) || !array_key_exists($segment, $current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `777` uses native `is_array` in ``if (!is_array($current) || !array_key_exists($segment, $current)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `789` uses native `strtolower` in ``$eventType = strtolower(trim($eventType));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `789` uses native `trim` in ``$eventType = strtolower(trim($eventType));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `812` uses native `trim` in ``$candidate = trim((string) $candidate);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `819` uses native `json_encode` in ``return 'subevt_' . substr(hash('sha256', $driver . '|' . json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)), 0, 32);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `819` uses native `substr` in ``return 'subevt_' . substr(hash('sha256', $driver . '|' . json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)), 0, 32);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `828` uses native `strtolower` in ``$code = strtolower(trim((string) ($policy['plan_code'] ?? $policy['code'] ?? $item['slug'] ?? 'subscription')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `828` uses native `trim` in ``$code = strtolower(trim((string) ($policy['plan_code'] ?? $policy['code'] ?? $item['slug'] ?? 'subscription')));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `829` uses native `preg_replace` in ``$code = preg_replace('/[^a-z0-9]+/', '-', $code) ?? 'subscription';``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `831` uses native `trim` in ``return trim($code, '-') ?: 'subscription';``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `836` uses native `strtolower` in ``$interval = strtolower(trim($interval));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `836` uses native `trim` in ``$interval = strtolower(trim($interval));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `838` uses native `in_array` in ``return in_array($interval, ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'], true)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `863` uses native `is_array` in ``$metadata = is_array($subscription['metadata'] ?? null) ? $subscription['metadata'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `864` uses native `is_array` in ``$policy = is_array($metadata['policy'] ?? null) ? $metadata['policy'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `865` uses native `is_array` in ``$retryDays = is_array($policy['dunning_retry_days'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `882` uses native `strtolower` in ``return strtolower($prefix) . '_' . bin2hex(random_bytes(16));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `887` uses native `json_encode` in ``return json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `899` uses native `trim` in ``$value = trim($value);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+
+### `App/Utilities/Managers/Data/SessionManager.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `107` uses native `class_exists` in ``'redis' => class_exists(\Redis::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `112` uses native `class_exists` in ``'redis' => class_exists(\Redis::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `113` uses native `class_exists` in ``'memcached' => class_exists(\Memcached::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `681` uses native `preg_match` in ``|| preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1;``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+
+### `App/Utilities/Managers/Presentation/AssetManager.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\EncodingTrait`, `App\Utilities\Traits\HashingTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `363` uses native `array_values` in ``'preload' => array_values((array) ($bundle['preload'] ?? [])),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `364` uses native `array_values` in ``'css' => array_values((array) ($bundle['css'] ?? [])),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `365` uses native `array_values` in ``'js' => array_values((array) ($bundle['js'] ?? [])),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Utilities/Managers/Presentation/TemplateEngine.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\HashingTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `54` uses native `is_string` in ``if (!is_string($source)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+
+### `App/Utilities/Managers/Presentation/ThemeManager.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `151` uses native `filter_var` in ``return filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? $fallback;``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Utilities/Managers/Security/DatabaseUserProvider.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\HashingTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `116` uses native `is_string` in ``if (is_string($hash) && $hash !== '') {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `168` uses native `class_exists` in ``|| !class_exists($class)``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+
+### `App/Utilities/Managers/Security/HttpSecurityManager.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `27` uses native `rtrim` in ``$base = rtrim((string) $this->config->get('app', 'URL', ''), '/');``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `83` uses native `trim` in ``$bucketKey = 'throttle:' . trim($key);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `89` uses native `is_array` in ``if (!is_array($bucket) || (int) ($bucket['expires_at'] ?? 0) <= time()) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `159` uses native `in_array` in ``&& !in_array(strtoupper($this->trimString($method)), ['GET', 'HEAD', 'OPTIONS'], true);``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `159` uses native `strtoupper` in ``&& !in_array(strtoupper($this->trimString($method)), ['GET', 'HEAD', 'OPTIONS'], true);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `222` uses native `htmlspecialchars` in ``$token = htmlspecialchars($this->csrfToken($session), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeSpecialCharsString()` (`Prefer the shared encoding helper for special-char escaping.`)
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::escapeHtml()` (`This helper also exposes HTML escaping.`)
+- Line `223` uses native `htmlspecialchars` in ``$field = htmlspecialchars($this->csrfField(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeSpecialCharsString()` (`Prefer the shared encoding helper for special-char escaping.`)
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::escapeHtml()` (`This helper also exposes HTML escaping.`)
+- Line `234` uses native `trim` in ``return $this->cache->forget('throttle:' . trim($key));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `294` uses native `preg_match` in ``if (preg_match('/<meta\s+name=["\']csrf-token["\']/i', $html) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `300` uses native `preg_match` in ``if (preg_match('/<\/head>/i', $html) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `301` uses native `preg_replace` in ``return preg_replace('/<\/head>/i', $meta . '</head>', $html, 1) ?? $html;``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `309` uses native `str_contains` in ``if (str_contains($html, 'data-langeler-security="csrf-bootstrap"')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `390` uses native `preg_match` in ``if (preg_match('/<\/head>/i', $html) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `391` uses native `preg_replace` in ``return preg_replace('/<\/head>/i', $script . PHP_EOL . '</head>', $html, 1) ?? $html;``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `399` uses native `preg_replace_callback` in ``return preg_replace_callback(``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceCallback()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `404` uses native `str_contains` in ``if (str_contains($openingTag, 'data-csrf-protected="1"')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `410` uses native `rtrim` in ``return rtrim(substr($openingTag, 0, -1)) . ' data-csrf-protected="1">' . $hidden;``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `410` uses native `substr` in ``return rtrim(substr($openingTag, 0, -1)) . ' data-csrf-protected="1">' . $hidden;``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+- Line `418` uses native `is_bool` in ``if (is_bool($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isBool()` (`Prefer the shared type helper for boolean checks.`)
+- Line `422` uses native `is_float` in ``if (is_int($value) || is_float($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isFloat()` (`Prefer the shared type helper for float checks.`)
+- Line `422` uses native `is_int` in ``if (is_int($value) || is_float($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInt()` (`Prefer the shared type helper for integer checks.`)
+- Line `426` uses native `is_string` in ``if (!is_string($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `430` uses native `filter_var` in ``$normalized = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Utilities/Managers/Security/PasswordBroker.php`
+
+- Current traits: none
+- Line `51` uses native `htmlspecialchars` in ``->html('<p>Use this password reset token:</p><pre>' . htmlspecialchars($this->token, ENT_QUOTES, 'UTF-8') . '</pre>');``
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::encodeSpecialCharsString()` (`Prefer the shared encoding helper for special-char escaping.`)
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::escapeHtml()` (`This helper also exposes HTML escaping.`)
+
+### `App/Utilities/Managers/Security/PermissionRegistry.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `33` uses native `is_string` in ``$list = is_string($permissions) ? [$permissions] : $permissions;``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+
+### `App/Utilities/Managers/Security/PolicyResolver.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `47` uses native `is_object` in ``is_object($subject) => $subject::class,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `48` uses native `is_string` in ``is_string($subject) && $subject !== '' => $subject,``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `59` uses native `is_object` in ``if (is_object($policy) && method_exists($policy, $method)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `59` uses native `method_exists` in ``if (is_object($policy) && method_exists($policy, $method)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `63` uses native `class_exists` in ``if (is_string($policy) && class_exists($policy)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `63` uses native `is_string` in ``if (is_string($policy) && class_exists($policy)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `66` uses native `method_exists` in ``if (method_exists($instance, $method)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `81` uses native `preg_split` in ``$segments = preg_split('/[^a-z0-9]+/i', $ability) ?: [];``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `82` uses native `array_filter` in ``$segments = array_values(array_filter($segments, static fn(string $segment): bool => $segment !== ''));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `82` uses native `array_values` in ``$segments = array_values(array_filter($segments, static fn(string $segment): bool => $segment !== ''));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Utilities/Managers/Support/ArchitectureAlignmentManager.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `258` uses native `rtrim` in ``$this->basePath = rtrim($basePath ?? $this->frameworkBasePath(), DIRECTORY_SEPARATOR);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `280` uses native `array_map` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `280` uses native `array_merge` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `281` uses native `array_map` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `281` uses native `array_merge` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `284` uses native `array_unique` in ``$errors = array_values(array_unique($errors));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `284` uses native `array_values` in ``$errors = array_values(array_unique($errors));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `285` uses native `array_unique` in ``$warnings = array_values(array_unique($warnings));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `285` uses native `array_values` in ``$warnings = array_values(array_unique($warnings));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `348` uses native `array_map` in ``'errors' => array_values(array_map('strval', (array) ($payload['errors'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `348` uses native `array_values` in ``'errors' => array_values(array_map('strval', (array) ($payload['errors'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `349` uses native `array_map` in ``'warnings' => array_values(array_map('strval', (array) ($payload['warnings'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `349` uses native `array_values` in ``'warnings' => array_values(array_map('strval', (array) ($payload['warnings'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `358` uses native `array_filter` in ``$missingPaths = array_values(array_filter(self::REQUIRED_ROOT_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `358` uses native `array_values` in ``$missingPaths = array_values(array_filter(self::REQUIRED_ROOT_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `375` uses native `str_contains` in ``if (!str_contains($gitignore, $pattern)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `380` uses native `array_filter` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `380` uses native `array_values` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `401` uses native `array_filter` in ``$missingDirectories = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `401` uses native `array_values` in ``$missingDirectories = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `425` uses native `array_filter` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `425` uses native `array_values` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `447` uses native `array_filter` in ``$missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `447` uses native `array_values` in ``$missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `455` uses native `str_contains` in ``if (!str_contains($publicIndex, '/bootstrap/app.php') || !str_contains($publicIndex, '->run()')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `463` uses native `str_contains` in ``if (!str_contains($bootstrapApp, 'new Bootstrap') || !str_contains($bootstrapApp, 'createApplication')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `467` uses native `str_contains` in ``if (!str_contains($bootstrapConsole, 'new Bootstrap') || !str_contains($bootstrapConsole, 'createConsoleKernel')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `471` uses native `str_contains` in ``if (!str_starts_with($console, '#!/usr/bin/env php') || !str_contains($console, 'bootstrap/console.php')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `471` uses native `str_starts_with` in ``if (!str_starts_with($console, '#!/usr/bin/env php') || !str_contains($console, 'bootstrap/console.php')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `476` uses native `str_contains` in ``if (!str_contains($installer, $symbol)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `499` uses native `array_filter` in ``$missingConfig = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `499` uses native `array_values` in ``$missingConfig = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `503` uses native `array_filter` in ``$missingData = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `503` uses native `array_values` in ``$missingData = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `511` uses native `str_contains` in ``if (!str_contains($env, $anchor)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `520` uses native `str_contains` in ``if ($file !== 'README.md' && !str_contains($dataReadme, $file)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `525` uses native `array_filter` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `525` uses native `array_values` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `550` uses native `json_decode` in ``$composer = json_decode($this->read('composer.json'), true);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
+- Line `551` uses native `is_array` in ``$scripts = is_array($composer) && is_array($composer['scripts'] ?? null) ? $composer['scripts'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `552` uses native `array_filter` in ``$missingScripts = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `552` uses native `array_values` in ``$missingScripts = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `554` uses native `array_key_exists` in ``fn(string $script): bool => !array_key_exists($script, $scripts)``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `560` uses native `str_contains` in ``if (!str_contains($workflow, $anchor)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `569` uses native `preg_match` in ``if (!preg_match('/^\s{2}' . preg_quote($service, '/') . ':\s*$/m', $compose)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `569` uses native `preg_quote` in ``if (!preg_match('/^\s{2}' . preg_quote($service, '/') . ':\s*$/m', $compose)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `574` uses native `array_filter` in ``$missingTestPaths = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `574` uses native `array_values` in ``$missingTestPaths = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `583` uses native `array_filter` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `583` uses native `array_values` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `640` uses native `array_filter` in ``$managerFiles = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `640` uses native `array_values` in ``$managerFiles = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `642` uses native `str_ends_with` in ``fn(string $file): bool => str_ends_with($this->relativePath($file), 'Manager.php')``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::endsWith()` (`Prefer the shared string check helper.`)
+- Line `682` uses native `array_merge` in ``$errors = array_merge(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `753` uses native `array_merge` in ``$errors = array_merge($errors, $moduleErrors);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `792` uses native `array_filter` in ``$missingPaths = array_values(array_filter($requiredPaths, fn(string $path): bool => !$this->pathExists($path)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `792` uses native `array_values` in ``$missingPaths = array_values(array_filter($requiredPaths, fn(string $path): bool => !$this->pathExists($path)));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `801` uses native `str_contains` in ``!str_contains($templateEngine, "'" . $directive . "'")``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `802` uses native `str_contains` in ``&& !str_contains($templateEngine, '@' . $directive)``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `803` uses native `str_contains` in ``&& !str_contains($templateEngine, '\\@' . $directive)``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `810` uses native `preg_match` in ``if (!preg_match('/function\s+' . preg_quote($method, '/') . '\s*\(/', $viewInterface)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `810` uses native `preg_quote` in ``if (!preg_match('/function\s+' . preg_quote($method, '/') . '\s*\(/', $viewInterface)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `818` uses native `str_contains` in ``if (str_contains($this->read($relative), '<?php')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `823` uses native `array_filter` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `823` uses native `array_values` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `871` uses native `str_contains` in ``if (!str_contains($contents, $phrase)) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `884` uses native `str_contains` in ``if ($this->pathExists($doc) && !str_contains($docsReadme, basename($doc))) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `891` uses native `array_keys` in ``'required_docs' => array_keys($requiredDocs),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `927` uses native `strtolower` in ``if (strtolower($entry->getExtension()) === strtolower($extension)) {``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+- Line `967` uses native `preg_match` in ``return preg_match('/^namespace\s+[^;]+;/m', $contents) === 1``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `968` uses native `preg_match` in ``&& preg_match('/^\s*(?:abstract\s+|final\s+|readonly\s+)*(?:class|interface|trait|enum)\s+[A-Za-z_][A-Za-z0-9_]*/m', $contents) === 1;``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `973` uses native `preg_match` in ``return preg_match('/declare\s*\(\s*strict_types\s*=\s*1\s*\)\s*;/', $contents) === 1;``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `984` uses native `str_contains` in ``return str_contains($contents, 'extends \\' . $target);``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `998` uses native `is_string` in ``return is_string($contents) ? $contents : '';``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1006` uses native `str_replace` in ``return ltrim(str_replace($normalizedBase, '', $normalizedPath), '/');``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `1016` uses native `str_replace` in ``return str_replace('\\', '/', $path);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+
+### `App/Utilities/Managers/Support/AuditLogger.php`
+
+- Current traits: `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `83` uses native `is_scalar` in ``$query->where((string) $column, '=', is_scalar($value) ? $value : (string) $value);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isScalar()` (`Prefer the shared type helper for scalar checks.`)
+- Line `91` uses native `array_map` in ``return array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `127` uses native `array_filter` in ``$recentWindow = array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `127` uses native `array_values` in ``$recentWindow = array_values(array_filter(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `145` uses native `array_map` in ``$timestamps = array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `149` uses native `array_filter` in ``$timestamps = array_values(array_filter($timestamps, static fn(int $value): bool => $value > 0));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `149` uses native `array_values` in ``$timestamps = array_values(array_filter($timestamps, static fn(int $value): bool => $value > 0));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `203` uses native `is_scalar` in ``$query->where((string) $column, '=', is_scalar($value) ? $value : (string) $value);``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isScalar()` (`Prefer the shared type helper for scalar checks.`)
+- Line `301` uses native `is_array` in ``return is_array($decoded) ? $decoded : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+
+### `App/Utilities/Managers/Support/FrameworkDoctor.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `101` uses native `array_merge` in ``$errors = array_values(array_unique(array_merge($errors, $this->extractMessages($check, 'errors'))));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `101` uses native `array_unique` in ``$errors = array_values(array_unique(array_merge($errors, $this->extractMessages($check, 'errors'))));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `101` uses native `array_values` in ``$errors = array_values(array_unique(array_merge($errors, $this->extractMessages($check, 'errors'))));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `102` uses native `array_merge` in ``$warnings = array_values(array_unique(array_merge($warnings, $this->extractMessages($check, 'warnings'))));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `102` uses native `array_unique` in ``$warnings = array_values(array_unique(array_merge($warnings, $this->extractMessages($check, 'warnings'))));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `102` uses native `array_values` in ``$warnings = array_values(array_unique(array_merge($warnings, $this->extractMessages($check, 'warnings'))));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `123` uses native `array_keys` in ``$loadedFiles = array_keys($this->config->all());``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `124` uses native `array_map` in ``$loadedLookup = array_map(fn(string $file): string => $this->toLowerString($file), $loadedFiles);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `125` uses native `array_values` in ``$missing = array_values(array_diff(self::REQUIRED_CONFIG_FILES, $loadedLookup));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `134` uses native `array_keys` in ``$errors[] = 'Invalid config files detected: ' . implode(', ', array_keys($invalid));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `153` uses native `method_exists` in ``$report = method_exists($this->settingsManager, 'environmentReport')``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `166` uses native `array_map` in ``$warnings[] = 'Unknown .env keys detected: ' . implode(', ', array_map('strval', (array) $report['unknown']));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `174` uses native `array_map` in ``'unknown' => array_values(array_map('strval', (array) ($report['unknown'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `174` uses native `array_values` in ``'unknown' => array_values(array_map('strval', (array) ($report['unknown'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `175` uses native `array_map` in ``'override_files' => array_values(array_map('strval', (array) ($report['override_files'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `175` uses native `array_values` in ``'override_files' => array_values(array_map('strval', (array) ($report['override_files'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `212` uses native `str_starts_with` in ``if ($environment === 'production' && $appUrl !== '' && str_starts_with($this->toLowerString($appUrl), 'http:``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `253` uses native `in_array` in ``if (!in_array($driver, $supportedDrivers, true)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `428` uses native `in_array` in ``if (!in_array($strategy, ['none', 'fixed', 'linear', 'exponential'], true)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `480` uses native `rtrim` in ``$surfacePath = rtrim((string) $path, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $surface;``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `516` uses native `method_exists` in ``$diagnostics = method_exists($this->router, 'diagnostics')``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::methodExists()` (`A framework existence check wrapper already exists.`)
+- Line `520` uses native `array_filter` in ``$namedRoutes = count(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `524` uses native `array_filter` in ``$unsafeRoutes = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `524` uses native `array_values` in ``$unsafeRoutes = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `526` uses native `in_array` in ``fn(array $route): bool => !in_array($this->toLowerString((string) ($route['method'] ?? 'get')), ['get', 'head', 'options'], true)``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `528` uses native `array_filter` in ``$unsafeWithoutCsrf = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `528` uses native `array_values` in ``$unsafeWithoutCsrf = array_values(array_filter(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `530` uses native `array_key_exists` in ``static fn(array $route): bool => array_key_exists('csrf', $route) && ($route['csrf'] === false)``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `558` uses native `array_map` in ``'unsafe_without_csrf' => array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `580` uses native `array_map` in ``return array_values(array_map('strval', $messages));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `580` uses native `array_values` in ``return array_values(array_map('strval', $messages));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `591` uses native `preg_match` in ``if ($path[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $path) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `592` uses native `str_replace` in ``return str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `595` uses native `str_replace` in ``$normalized = ltrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `597` uses native `str_starts_with` in ``if (str_starts_with($normalized, 'Storage' . DIRECTORY_SEPARATOR)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `641` uses native `preg_replace` in ``return $this->trimString((string) preg_replace('/\s+/', '', $value));``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::replaceByPattern()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `681` uses native `filter_var` in ``$parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+
+### `App/Utilities/Managers/Support/FrameworkLayerManager.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ManipulationTrait`
+- Line `232` uses native `rtrim` in ``$this->basePath = rtrim($basePath ?? $this->frameworkBasePath(), DIRECTORY_SEPARATOR);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
+- Line `251` uses native `array_keys` in ``'required_layer_keys' => array_keys(self::LAYERS),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `264` uses native `array_map` in ``$required = array_values(array_map('strval', (array) ($definition['required_paths'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `264` uses native `array_values` in ``$required = array_values(array_map('strval', (array) ($definition['required_paths'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `297` uses native `array_map` in ``$paths = array_values(array_map('strval', (array) ($layer['missing_paths'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `297` uses native `array_values` in ``$paths = array_values(array_map('strval', (array) ($layer['missing_paths'] ?? [])));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `321` uses native `str_ends_with` in ``if ($this->files->fileExists($path) && str_ends_with($path, '.php')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::endsWith()` (`Prefer the shared string check helper.`)
+
+### `App/Utilities/Managers/Support/HealthManager.php`
+
+- Current traits: none
+- Line `75` uses native `array_map` in ``$ready = !in_array(false, array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `75` uses native `in_array` in ``$ready = !in_array(false, array_map(``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `148` uses native `array_keys` in ``'modules' => array_keys($this->modules->getModules()),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `153` uses native `array_keys` in ``'registered' => array_keys($this->events->listeners()),``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `259` uses native `in_array` in ``if (in_array($driver, ['native', 'file'], true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `421` uses native `is_array` in ``'errors' => is_array($report['errors'] ?? null) ? $report['errors'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `422` uses native `is_array` in ``'warnings' => is_array($report['warnings'] ?? null) ? $report['warnings'] : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `433` uses native `is_string` in ``if (!is_string($path) || trim($path) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `433` uses native `trim` in ``if (!is_string($path) || trim($path) === '') {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `437` uses native `trim` in ``$trimmed = trim($path);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `439` uses native `preg_match` in ``if ($trimmed[0] === '/' || preg_match('/^[A-Za-z]:[\\\\\\/]/', $trimmed) === 1) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `443` uses native `str_replace` in ``return dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $trimmed), DIRECTORY_SEPARATOR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `449` uses native `strtolower` in ``return match (strtolower((string) $this->database->getAttribute('driverName'))) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
+
+### `App/Utilities/Managers/Support/MailManager.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`
+- Line `70` uses native `trim` in ``$segments = explode('.', trim($feature));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `74` uses native `array_key_exists` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `74` uses native `is_array` in ``if (!is_array($value) || !array_key_exists($segment, $value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `169` uses native `is_array` in ``if (is_array($message['reply_to'] ?? null)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `184` uses native `trim` in ``$configuredName = trim((string) $this->config->get('mail', 'FROM_NAME', ''));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `193` uses native `str_contains` in ``if (str_contains($from, '@')) {``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `205` uses native `trim` in ``$replyTo = trim((string) $this->config->get('mail', 'REPLY', $this->config->get('mail', 'REPLY_TO', '')));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `211` uses native `trim` in ``$name = trim((string) $this->config->get('mail', 'FROM_NAME', $this->config->get('app', 'NAME', 'LangelerMVC')));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `216` uses native `trim` in ``'name' => trim((string) $matches[1]) !== '' ? (string) $matches[1] : $name,``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `220` uses native `str_contains` in ``return str_contains($replyTo, '@')``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+
+### `App/Utilities/Managers/Support/NotificationManager.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `71` uses native `array_map` in ``'channels' => array_values(array_map('strval', $channels)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `71` uses native `array_values` in ``'channels' => array_values(array_map('strval', $channels)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `130` uses native `array_map` in ``return array_map(function (array $row): array {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `165` uses native `is_array` in ``if (is_array($notifiable)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `171` uses native `is_array` in ``'routes' => is_array($notifiable['routes'] ?? null) ? $notifiable['routes'] : [],``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `175` uses native `is_string` in ``if (is_string($notifiable)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `185` uses native `is_object` in ``if (is_object($notifiable)) {``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isObject()` (`Prefer the shared type helper for object checks.`)
+- Line `203` uses native `str_starts_with` in ``$instance = str_starts_with($class, 'App\\Modules\\')``
+  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+
+### `App/Utilities/Managers/Support/OtpManager.php`
+
+- Current traits: none
+- Line `69` uses native `str_replace` in ``return strtoupper(str_replace(['-', ' '], '', trim($code)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `69` uses native `strtoupper` in ``return strtoupper(str_replace(['-', ' '], '', trim($code)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+- Line `69` uses native `trim` in ``return strtoupper(str_replace(['-', ' '], '', trim($code)));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `107` uses native `strtoupper` in ``return implode('-', str_split(strtoupper($value), 4));``
+  - `available-via-trait` -> `App\Utilities\Traits\ManipulationTrait::toUpper()` (`Prefer the shared string case helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToUpper()` (`Use the encoding-aware uppercase helper when multibyte support matters.`)
+
+### `App/Utilities/Managers/Support/PasskeyManager.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ConversionTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `48` uses native `class_exists` in ``'webauthn' => class_exists(\Webauthn\PublicKeyCredential::class),``
+  - `available-via-trait` -> `App\Utilities\Traits\ExistenceCheckerTrait::classExists()` (`A framework existence check wrapper already exists.`)
+- Line `102` uses native `array_merge` in ``'context' => array_merge($context, [``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `295` uses native `array_key_exists` in ``if (!$this->isArray($value) || !array_key_exists($segment, $value)) {``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
+- Line `329` uses native `is_string` in ``$host = is_string(parse_url($url, PHP_URL_HOST)) ? (string) parse_url($url, PHP_URL_HOST) : '';``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `376` uses native `array_unique` in ``return array_values(array_unique($origins));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `376` uses native `array_values` in ``return array_values(array_unique($origins));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+
+### `App/Utilities/Managers/Support/PaymentManager.php`
+
+- Current traits: `App\Utilities\Traits\ManipulationTrait`
+- Line `58` uses native `array_unique` in ``return array_values(array_unique($available));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `58` uses native `array_values` in ``return array_values(array_unique($available));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `74` uses native `array_values` in ``'regions' => is_array($capabilities['regions'] ?? null) ? array_values($capabilities['regions']) : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `74` uses native `is_array` in ``'regions' => is_array($capabilities['regions'] ?? null) ? array_values($capabilities['regions']) : [],``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `77` uses native `is_array` in ``'required_settings' => is_array($capabilities['required_settings'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `78` uses native `array_values` in ``? array_values($capabilities['required_settings'])``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `80` uses native `is_array` in ``'missing_required_settings' => is_array($capabilities['missing_required_settings'] ?? null)``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `81` uses native `array_values` in ``? array_values($capabilities['missing_required_settings'])``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `204` uses native `is_array` in ``$global = is_array($global) ? $global : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `207` uses native `is_array` in ``$driverWebhook = is_array($driverWebhook) ? $driverWebhook : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `208` uses native `is_array` in ``$secrets = is_array($global['SECRETS'] ?? null) ? $global['SECRETS'] : [];``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `215` uses native `array_merge` in ``return array_merge([``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `223` uses native `is_scalar` in ``'SECRET' => is_scalar($secret) ? trim((string) $secret) : '',``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isScalar()` (`Prefer the shared type helper for scalar checks.`)
+- Line `223` uses native `trim` in ``'SECRET' => is_scalar($secret) ? trim((string) $secret) : '',``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `232` uses native `array_keys` in ``foreach (array_keys($payload) as $key) {``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `233` uses native `str_starts_with` in ``if (str_starts_with((string) $key, '_webhook_')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `240` uses native `json_encode` in ``return json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);``
+  - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::toJson()` (`Prefer the shared JSON encoding helper.`)
+- Line `246` uses native `trim` in ``$secret = trim((string) ($settings['SECRET'] ?? ''));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `283` uses native `trim` in ``$secret = trim((string) ($settings['SECRET'] ?? ''));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `299` uses native `trim` in ``$signatureHeader = trim((string) ($settings['SIGNATURE_HEADER'] ?? 'X-Langeler-Signature'));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `300` uses native `trim` in ``$signature = trim((string) ($providedSignature ?? $this->headerValue($headers, $signatureHeader, '')));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `388` uses native `is_array` in ``if (!is_array($drivers)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `393` uses native `is_array` in ``if ($this->normalizeDriverName((string) $candidate) !== $driver || !is_array($settings)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `411` uses native `array_merge` in ``$this->drivers[$resolvedName] = $this->provider->getPaymentDriver(array_merge(``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `429` uses native `in_array` in ``if (!in_array($resolved, $supported, true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `433` uses native `in_array` in ``if (!$allowDisabled && !in_array($resolved, $this->availableDrivers(), true)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isInArray()` (`Prefer the shared inclusion check helper.`)
+- Line `454` uses native `is_array` in ``if (is_array($value)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `491` uses native `trim` in ``$header = trim((string) ($settings['TIMESTAMP_HEADER'] ?? 'X-Langeler-Timestamp'));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `492` uses native `trim` in ``$timestamp = trim((string) $this->headerValue($headers, $header, ''));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `513` uses native `trim` in ``$signature = trim($signature);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `515` uses native `str_contains` in ``if (str_contains($signature, ',')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
+- Line `516` uses native `array_map` in ``$parts = array_map('trim', explode(',', $signature));``
+  - `available-via-trait` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `520` uses native `str_starts_with` in ``if (str_starts_with($this->toLowerString($signature), 'sha256=')) {``
+  - `available-via-trait` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
+- Line `521` uses native `substr` in ``return substr($signature, 7);``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::substring()` (`Prefer the shared string slicing helper.`)
+  - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::getSubstringOfString()` (`Use the encoding-aware substring helper when multibyte support matters.`)
+
+### `App/Utilities/Managers/System/IteratorManager.php`
+
+- Current traits: `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\ExistenceCheckerTrait`, `App\Utilities\Traits\Iterator\IteratorTrait`, `App\Utilities\Traits\Iterator\RecursiveIteratorTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `207` uses native `array_key_last` in ``&& (($type = $parameters[array_key_last($parameters)]->getType()) instanceof \ReflectionNamedType)``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyLast()` (`Use the shared array helper for last-key access.`)
+
+### `App/Utilities/Managers/System/SettingsManager.php`
+
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ErrorTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\Patterns\PatternTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `423` uses native `array_map` in ``'path' => implode('.', array_map('strval', (array) ($target['path'] ?? []))),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `424` uses native `is_string` in ``'value' => $this->normalizeEnvironmentValue($value, is_string($target['type'] ?? null) ? (string) $target['type'] : null),``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `442` uses native `array_unique` in ``'unknown' => array_values(array_unique($unknown)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `442` uses native `array_values` in ``'unknown' => array_values(array_unique($unknown)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `443` uses native `array_unique` in ``'unknown_count' => count(array_unique($unknown)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `444` uses native `array_keys` in ``'override_files' => array_keys($this->environment),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
+- Line `704` uses native `is_string` in ``$this->normalizeEnvironmentValue($value, is_string($target['type'] ?? null) ? (string) $target['type'] : null)``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `878` uses native `filter_var` in ``$boolean = filter_var($trimmed, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);``
+  - `available-via-trait` -> `App\Utilities\Traits\Filters\FiltrationTrait::var()` (`Filter calls can align with the filtration trait surface.`)
+- Line `904` uses native `preg_match` in ``if ($this->isString($value) && preg_match('/^-?\d+$/', $value) === 1) {``
+  - `already-composed` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `917` uses native `array_filter` in ``return array_values(array_filter(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `917` uses native `array_map` in ``return array_values(array_filter(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `917` uses native `array_values` in ``return array_values(array_filter(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `918` uses native `trim` in ``static fn(mixed $item): string => trim((string) $item),``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `923` uses native `preg_split` in ``$parts = preg_split('/[\s,]+/', trim((string) ($value ?? ''))) ?: [];``
+  - `already-composed` -> `App\Utilities\Traits\Patterns\PatternTrait::splitByPattern()` (`Use the shared regex split helper when regex behavior should align across the framework.`)
+- Line `923` uses native `trim` in ``$parts = preg_split('/[\s,]+/', trim((string) ($value ?? ''))) ?: [];``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)
+- Line `925` uses native `array_filter` in ``return array_values(array_filter(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `925` uses native `array_map` in ``return array_values(array_filter(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
+- Line `925` uses native `array_values` in ``return array_values(array_filter(array_map(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `926` uses native `trim` in ``static fn(string $item): string => trim($item),``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimString()` (`Prefer the shared string-trimming helper.`)

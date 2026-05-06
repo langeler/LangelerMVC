@@ -11,6 +11,7 @@ LangelerMVC is a released modular PHP 8.4 MVC framework with first-party auth, p
 - Runtime: PHP 8.4+
 - Local release gate: `composer release:check`
 - Layer audit gate: `php console framework:layers`
+- Architecture alignment gate: `php console framework:architecture`
 - Full verification gate: `composer verify:release`
 
 ## What Is Included

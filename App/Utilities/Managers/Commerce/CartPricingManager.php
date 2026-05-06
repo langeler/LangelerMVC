@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Utilities\Managers\Commerce;
 
-use App\Support\Commerce\CommerceTotalsCalculator;
-
 class CartPricingManager
 {
     public function __construct(

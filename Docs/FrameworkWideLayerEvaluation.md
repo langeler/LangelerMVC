@@ -2,7 +2,7 @@
 
 This document broadens the release-readiness view from individual modules into a framework-wide, layer-by-layer production audit.
 
-It is backed by the executable `framework:layers` console command and the `framework_layers` section in `composer release:check`.
+It is backed by the executable `framework:layers` console command and the `framework_layers` section in `composer release:check`. It now pairs with the architecture-alignment manager exposed through `framework:architecture`, which verifies full-repo structure: repository contract paths, App layer boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, documented module shape, native presentation conventions, and documentation alignment.
 
 ## Current Position
 
@@ -25,7 +25,7 @@ The framework-wide layer map is intentionally explicit:
 - Console / Operations
 - Release / Docs / Data
 
-`App\Utilities\Managers\Support\FrameworkLayerManager` owns that map and reports required path coverage. This keeps the project goal of "organized and structured" enforceable instead of merely documented.
+`App\Utilities\Managers\Support\FrameworkLayerManager` owns that map and reports required path coverage. `App\Utilities\Managers\Support\ArchitectureAlignmentManager` owns the full-repo architecture-alignment manager rules that keep root release files, App folders, bootstrap entrypoints, config/data, tests/CI/scripts, modules, presentation, docs, and canonical compatibility boundaries enforceable. Together they keep the project goal of "organized and structured" executable instead of merely documented.
 
 ## Layer Evaluation
 
@@ -95,7 +95,7 @@ These are not framework release blockers, but they are the clearest areas where 
 
 Future framework changes should follow this order:
 
-1. Keep `framework:layers` and `release:check` green before expanding features.
+1. Keep `framework:layers`, `framework:architecture`, and `release:check` green before expanding features.
 2. Add new shared orchestration classes under focused `App\Utilities\Managers/*` sublayers.
 3. Add contracts when a subsystem is expected to be provider-, driver-, or project-replaceable.
 4. Prefer `.vide` directives and `HtmlManager` helpers over raw PHP in templates.

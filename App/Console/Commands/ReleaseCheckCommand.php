@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Abstracts\Console\Command;
 use App\Core\Config;
 use App\Core\Router;
+use App\Contracts\Support\ArchitectureAlignmentManagerInterface;
 use App\Contracts\Support\FrameworkLayerManagerInterface;
 use App\Utilities\Managers\Support\PaymentManager;
 use App\Utilities\Managers\System\SettingsManager;
@@ -32,6 +33,7 @@ class ReleaseCheckCommand extends Command
         'Docs/OperationsGuide.md',
         'Docs/DatabaseMatrixTesting.md',
         'Docs/FrameworkWideLayerEvaluation.md',
+        'Docs/ArchitectureAlignment.md',
         'Docs/InstallationWizard.md',
         'Docs/ThemeManagement.md',
         'Docs/PaymentDrivers.md',
@@ -294,7 +296,8 @@ class ReleaseCheckCommand extends Command
         private readonly Router $router,
         private readonly SettingsManager $settings,
         private readonly PaymentManager $payments,
-        private readonly FrameworkLayerManagerInterface $frameworkLayers
+        private readonly FrameworkLayerManagerInterface $frameworkLayers,
+        private readonly ArchitectureAlignmentManagerInterface $architecture
     ) {
     }
 
@@ -331,6 +334,7 @@ class ReleaseCheckCommand extends Command
             'environment_template' => $this->environmentTemplateCheck(),
             'data_sql_reference' => $this->dataSqlReferenceCheck(),
             'framework_layers' => $this->frameworkLayers->inspect(),
+            'architecture_alignment' => $this->architecture->inspect(),
             'framework_routes' => $this->routeCheck(),
             'module_surface' => $this->moduleSurfaceCheck(),
             'payment_surface' => $this->paymentSurfaceCheck(),

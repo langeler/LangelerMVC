@@ -12,7 +12,7 @@ use App\Modules\OrderModule\Repositories\OrderAddressRepository;
 use App\Modules\OrderModule\Repositories\OrderItemRepository;
 use App\Modules\OrderModule\Repositories\OrderRepository;
 use App\Modules\UserModule\Repositories\UserRepository;
-use App\Support\Commerce\CommerceTotalsCalculator;
+use App\Utilities\Managers\Commerce\CommerceTotalsCalculator;
 
 class OrderSeed extends Seed
 {

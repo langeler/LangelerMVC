@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Managers\Data;
 
 use App\Contracts\Data\CryptoInterface;

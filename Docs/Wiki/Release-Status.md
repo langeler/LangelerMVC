@@ -5,7 +5,8 @@
 - Release: [v1.0.0](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - Published: 2026-05-01
 - Local verification: `composer verify:release`
-- Regression result: `OK (154 tests, 3288 assertions)`
+- Regression result: `OK (158 tests, 3325 assertions)`
+- Architecture gate: `composer architecture:check`
 - Release gate: `composer release:check` returns `status=200`
 
 ## Release Meaning
@@ -19,6 +20,7 @@ Project production go-live remains deployment-specific. Each installed project m
 ```bash
 composer test
 composer verify:platform
+composer architecture:check
 composer release:check
 composer verify:release
 composer test:db-matrix

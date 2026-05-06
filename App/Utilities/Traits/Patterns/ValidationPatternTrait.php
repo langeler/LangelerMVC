@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Traits\Patterns;
 
 use App\Utilities\Traits\Filters\FiltrationTrait;

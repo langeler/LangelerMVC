@@ -72,6 +72,7 @@
         "ops:health": "@php console health:check live",
         "ops:ready": "@php console health:check ready",
         "ops:audit": "@php console audit:list --limit=25",
+        "architecture:check": "@php console framework:architecture",
         "release:check": "@php console release:check",
         "verify:platform": [
             "@test",
@@ -81,6 +82,7 @@
             "composer validate --no-check-publish",
             "@test",
             "@ops:health",
+            "@architecture:check",
             "@release:check"
         ],
         "post-root-package-install": [

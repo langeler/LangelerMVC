@@ -49,6 +49,7 @@ GitHub currently supports a limited topic set per repository. Use this curated r
 ## Release Position
 
 - Current public framework source release: `v1.0.0`
+- Architecture package release gate: `composer architecture:check`
 - Framework package release gate: `composer release:check`
 - Full local release verification: `composer verify:release`
 - Project go-live strict gate: `php console release:check --strict=1`

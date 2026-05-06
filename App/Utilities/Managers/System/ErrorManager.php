@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Utilities\Managers\System;
 
 use Throwable; // Base interface for all errors and exceptions in PHP.

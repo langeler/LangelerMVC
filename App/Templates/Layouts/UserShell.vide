@@ -180,7 +180,7 @@
             border-top: 1px solid var(--line);
         }
     </style>
-    <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
+    @style((string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css'), ['versioned' => true])
     <script>
         window.LangelerPasskeys = {
             isSupported() {
@@ -336,6 +336,6 @@
             <span>Identity flows, OTP, passkeys, and JSON resources now share one presentation pipeline.</span>
         </footer>
     </div>
-    <script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
+    @script((string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js'), ['defer' => true, 'versioned' => true])
 </body>
 </html>

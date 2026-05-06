@@ -10,7 +10,7 @@ use App\Modules\CartModule\Models\Cart;
 use App\Modules\CartModule\Repositories\CartItemRepository;
 use App\Modules\CartModule\Repositories\CartRepository;
 use App\Modules\ShopModule\Repositories\ProductRepository;
-use App\Support\Commerce\CartPricingManager;
+use App\Utilities\Managers\Commerce\CartPricingManager;
 use App\Utilities\Managers\Security\AuthManager;
 
 class CartService extends Service

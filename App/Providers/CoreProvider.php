@@ -20,14 +20,18 @@ use App\Contracts\Async\FailedJobStoreInterface;
 use App\Contracts\Auth\GuardInterface;
 use App\Contracts\Auth\PasswordBrokerInterface;
 use App\Contracts\Auth\UserProviderInterface;
+use App\Contracts\Presentation\AssetManagerInterface;
+use App\Contracts\Presentation\HtmlManagerInterface;
 use App\Contracts\Support\AuditLoggerInterface;
 use App\Contracts\Support\FrameworkDoctorInterface;
 use App\Contracts\Support\HealthManagerInterface;
 use App\Contracts\Support\NotificationManagerInterface;
 use App\Contracts\Support\PaymentManagerInterface;
 use App\Exceptions\ContainerException;
-use App\Support\Commerce\ShippingManager;
-use App\Support\Theming\ThemeManager;
+use App\Utilities\Managers\Commerce\ShippingManager;
+use App\Utilities\Managers\Presentation\AssetManager;
+use App\Utilities\Managers\Presentation\HtmlManager;
+use App\Utilities\Managers\Presentation\ThemeManager;
 use App\Utilities\Managers\Async\DatabaseFailedJobStore;
 use App\Utilities\Managers\Async\EventDispatcher;
 use App\Utilities\Managers\Async\QueueManager;
@@ -85,6 +89,7 @@ class CoreProvider extends Container
 
         $this->coreServiceMap = [
             'app'      => App::class,
+            'assets'   => AssetManager::class,
             'audit'    => AuditLogger::class,
             'auth'     => AuthManager::class,
             'console'  => ConsoleKernel::class,
@@ -94,6 +99,7 @@ class CoreProvider extends Container
             'events' => EventDispatcher::class,
             'gate' => Gate::class,
             'health' => HealthManager::class,
+            'html' => HtmlManager::class,
             'httpSecurity' => HttpSecurityManager::class,
             'migrationRunner' => MigrationRunner::class,
             'notifications' => NotificationManager::class,
@@ -147,6 +153,8 @@ class CoreProvider extends Container
                 $this->registerAlias(GuardInterface::class, SessionGuard::class);
                 $this->registerAlias(UserProviderInterface::class, DatabaseUserProvider::class);
                 $this->registerAlias(PasswordBrokerInterface::class, PasswordBroker::class);
+                $this->registerAlias(AssetManagerInterface::class, AssetManager::class);
+                $this->registerAlias(HtmlManagerInterface::class, HtmlManager::class);
                 $this->registerAlias(EventDispatcherInterface::class, EventDispatcher::class);
                 $this->registerAlias(AuditLoggerInterface::class, AuditLogger::class);
                 $this->registerAlias(FrameworkDoctorInterface::class, FrameworkDoctor::class);
@@ -154,6 +162,10 @@ class CoreProvider extends Container
                 $this->registerAlias(NotificationManagerInterface::class, NotificationManager::class);
                 $this->registerAlias(PaymentManagerInterface::class, PaymentManager::class);
                 $this->registerAlias(FailedJobStoreInterface::class, DatabaseFailedJobStore::class);
+
+                foreach ($this->legacyManagerAliases() as $legacyClass => $canonicalClass) {
+                    $this->registerAlias($legacyClass, $canonicalClass);
+                }
 
                 $this->servicesRegistered = true;
             },
@@ -225,5 +237,25 @@ class CoreProvider extends Container
             ?? $classOrAlias;
 
         return $this->getInstance($class);
+    }
+
+    /**
+     * @return array<class-string, class-string>
+     */
+    private function legacyManagerAliases(): array
+    {
+        return [
+            \App\Support\Commerce\CartPricingManager::class => \App\Utilities\Managers\Commerce\CartPricingManager::class,
+            \App\Support\Commerce\CatalogLifecycleManager::class => \App\Utilities\Managers\Commerce\CatalogLifecycleManager::class,
+            \App\Support\Commerce\EntitlementManager::class => \App\Utilities\Managers\Commerce\EntitlementManager::class,
+            \App\Support\Commerce\InventoryManager::class => \App\Utilities\Managers\Commerce\InventoryManager::class,
+            \App\Support\Commerce\OrderDocumentManager::class => \App\Utilities\Managers\Commerce\OrderDocumentManager::class,
+            \App\Support\Commerce\OrderLifecycleManager::class => \App\Utilities\Managers\Commerce\OrderLifecycleManager::class,
+            \App\Support\Commerce\OrderReturnManager::class => \App\Utilities\Managers\Commerce\OrderReturnManager::class,
+            \App\Support\Commerce\PromotionManager::class => \App\Utilities\Managers\Commerce\PromotionManager::class,
+            \App\Support\Commerce\ShippingManager::class => \App\Utilities\Managers\Commerce\ShippingManager::class,
+            \App\Support\Commerce\SubscriptionManager::class => \App\Utilities\Managers\Commerce\SubscriptionManager::class,
+            \App\Support\Theming\ThemeManager::class => \App\Utilities\Managers\Presentation\ThemeManager::class,
+        ];
     }
 }

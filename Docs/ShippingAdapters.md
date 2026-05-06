@@ -11,9 +11,9 @@ The core shipping surface is built around:
 - `CarrierAdapterInterface`
 - `CarrierAdapter`
 - `ShippingProvider`
-- `ShippingManager`
+- `App\Utilities\Managers\Commerce\ShippingManager`
 
-`ShippingManager` still owns commerce-facing quoting, fulfillment decisions, pickup/digital delivery selection, order snapshots, and presentation payloads. Carrier-specific operational actions now go through carrier adapters:
+`App\Utilities\Managers\Commerce\ShippingManager` owns commerce-facing quoting, fulfillment decisions, pickup/digital delivery selection, order snapshots, and presentation payloads. `App\Support\Commerce\ShippingManager` remains as a thin backward-compatible alias. Carrier-specific operational actions now go through carrier adapters:
 
 - service-point lookup
 - shipment booking

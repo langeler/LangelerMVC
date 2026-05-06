@@ -15,7 +15,7 @@ Use this checklist for future LangelerMVC maintenance releases and project deplo
 - GitHub release: `https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (146 tests, 3201 assertions)`
+- Result: `OK (150 tests, 3258 assertions)`
 - Local release gate: `composer release:check` returns `status=200`
 - Runtime backend harness: `composer test:runtime-backends` runs and skips cleanly when Redis/Memcached extensions are unavailable
 

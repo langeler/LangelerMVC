@@ -11,7 +11,7 @@ use App\Contracts\Support\HealthManagerInterface;
 use App\Core\Config;
 use App\Core\Database;
 use App\Core\Router;
-use App\Support\Commerce\ShippingManager;
+use App\Utilities\Managers\Commerce\ShippingManager;
 use App\Utilities\Managers\Async\QueueManager;
 use App\Utilities\Managers\Data\CacheManager;
 use App\Utilities\Managers\Data\ModuleManager;

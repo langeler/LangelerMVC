@@ -131,6 +131,8 @@ Shared framework tooling. This is the main reusable backend toolbox and currentl
 - `Handlers/`: focused data/system helper objects
 - `Managers/`: concrete manager implementations and compatibility aliases
 - `Managers/Async/`: event dispatcher, queue manager, and failed-job storage
+- `Managers/Commerce/`: cart pricing, catalog lifecycle, entitlement, inventory, order lifecycle/document/return, promotion, shipping, and subscription managers
+- `Managers/Presentation/`: asset, safe HTML, theme, and template managers for `.vide`, public assets, layout globals, and escaped helper output
 - `Managers/Support/`: framework-native mail, notification, OTP, passkey/WebAuthn, health, audit, and payment service managers
 - `Query/`: query builder helpers
 - `Sanitation/`: sanitization implementations
@@ -141,6 +143,7 @@ Important note:
 
 - `App/Utilities/Managers/System/*` and `App/Utilities/Managers/Data/*` contain concrete implementations for several services.
 - Some flat manager classes in `App/Utilities/Managers/*` exist as convenience or compatibility wrappers over those deeper implementations.
+- Legacy support paths such as `App/Support/Commerce/*Manager.php` and `App/Support/Theming/ThemeManager.php` are retained as compatibility aliases; new framework code should use the canonical manager namespaces under `App/Utilities/Managers/*`.
 
 ## Other Top-Level Folders
 

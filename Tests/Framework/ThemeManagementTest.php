@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Framework;
 
+use App\Contracts\Presentation\AssetManagerInterface;
+use App\Contracts\Presentation\HtmlManagerInterface;
 use App\Core\Config;
 use App\Providers\CoreProvider;
-use App\Support\Theming\ThemeManager;
+use App\Utilities\Managers\Presentation\AssetManager;
+use App\Utilities\Managers\Presentation\HtmlManager;
+use App\Utilities\Managers\Presentation\ThemeManager;
 use PHPUnit\Framework\TestCase;
 
 final class ThemeManagementTest extends TestCase
@@ -60,6 +64,56 @@ final class ThemeManagementTest extends TestCase
         $service = $provider->getCoreService('themes');
 
         self::assertInstanceOf(ThemeManager::class, $service);
+        self::assertInstanceOf(ThemeManager::class, $provider->resolveClass(\App\Support\Theming\ThemeManager::class));
+    }
+
+    public function testAssetManagerIsRegisteredAndOwnsPresentationAssetContract(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+        $service = $provider->getCoreService('assets');
+
+        self::assertInstanceOf(AssetManagerInterface::class, $service);
+        self::assertInstanceOf(AssetManager::class, $service);
+        self::assertSame('/assets/css/langelermvc-theme.css', $service->publicUrl('styles', 'langelermvc-theme.css'));
+        self::assertMatchesRegularExpression(
+            '#^/assets/css/langelermvc-theme\.css\?v=[a-f0-9]{12}$#',
+            $service->versionedUrl('styles', 'langelermvc-theme.css')
+        );
+        self::assertStringContainsString(
+            '<link rel="stylesheet" href="/assets/css/langelermvc-theme.css"',
+            $service->tag('css', 'langelermvc-theme.css')
+        );
+        self::assertStringContainsString(
+            '<link rel="preload" href="/assets/css/langelermvc-theme.css',
+            $service->preloadTag('css', 'langelermvc-theme.css', ['versioned' => true])
+        );
+        self::assertStringContainsString(
+            '<script src="/assets/js/langelermvc-theme.js" defer></script>',
+            $service->tag('js', 'langelermvc-theme.js', ['defer' => true])
+        );
+        self::assertStringContainsString(
+            'langelermvc-theme.css?v=',
+            $service->bundleTags('framework-theme')
+        );
+
+        $report = $service->synchronizationReport();
+
+        self::assertTrue((bool) $report['ok']);
+    }
+
+    public function testHtmlManagerIsRegisteredAndOwnsReusableHtmlHelpers(): void
+    {
+        $provider = new CoreProvider();
+        $provider->registerServices();
+        $service = $provider->getCoreService('html');
+
+        self::assertInstanceOf(HtmlManagerInterface::class, $service);
+        self::assertInstanceOf(HtmlManager::class, $service);
+        self::assertSame('alpha beta', $service->classList(['alpha' => true, 'hidden' => false, 'beta']));
+        self::assertSame(' data-controller="panel" disabled', $service->attributes(['data_controller' => 'panel', 'disabled' => true]));
+        self::assertSame('<input type="hidden" name="_method" value="PATCH">', $service->methodField('patch'));
+        self::assertSame('{"tag":"\\u003Cscript\\u003E"}', $service->json(['tag' => '<script>']));
     }
 
     private function themeManager(): ThemeManager

@@ -37,6 +37,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `PaymentDrivers.md`: first-party payment-driver matrix, supported method/flow/webhook taxonomy, and live-mode notes.
 - `ShippingAdapters.md`: first-party carrier adapter registry, Swedish carrier matrix, reference/live mode, and extension pattern.
 - `PresentationTemplating.md`: canonical `.vide` template authoring model, directives, and rendering flow.
+- `PresentationLayerEvaluation.md`: presentation-layer gap analysis, mature-framework comparison, differentiators, and next priorities.
 - `UtilitiesTraitsOverview.md`: practical overview of the reusable trait surface.
 - `UtilitiesTraitsReference.md`: generated method-by-method trait reference.
 - `NativeToTraitConsistencyAudit.md`: audit of trait adoption across non-trait classes.

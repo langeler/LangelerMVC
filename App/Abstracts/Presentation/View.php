@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Abstracts\Presentation;
 
+use App\Contracts\Presentation\AssetManagerInterface;
+use App\Contracts\Presentation\HtmlManagerInterface;
 use App\Contracts\Presentation\TemplateEngineInterface;
 use App\Contracts\Presentation\ViewInterface;
 use App\Exceptions\Data\FinderException;
@@ -12,6 +14,8 @@ use App\Utilities\Finders\DirectoryFinder;
 use App\Utilities\Finders\FileFinder;
 use App\Utilities\Managers\CacheManager;
 use App\Utilities\Managers\FileManager;
+use App\Utilities\Managers\Presentation\AssetManager;
+use App\Utilities\Managers\Presentation\HtmlManager;
 use App\Utilities\Managers\Presentation\TemplateEngine;
 use App\Utilities\Sanitation\PatternSanitizer;
 use App\Utilities\Traits\ApplicationPathTrait;
@@ -50,6 +54,8 @@ abstract class View implements ViewInterface
 	private string $resourcesPath;
 	private string $templatesPath;
     private TemplateEngineInterface $templateEngine;
+    private AssetManagerInterface $assetManager;
+    private HtmlManagerInterface $htmlManager;
 
 	/**
 	 * @var array<string, string>
@@ -61,13 +67,17 @@ abstract class View implements ViewInterface
 		private DirectoryFinder $dirs,
 		private CacheManager $cache,
 		private FileManager $fileManager,
-		private PatternSanitizer $sanitizer,
-		private PatternValidator $validator,
-        ?TemplateEngineInterface $templateEngine = null
+        private PatternSanitizer $sanitizer,
+        private PatternValidator $validator,
+        ?TemplateEngineInterface $templateEngine = null,
+        ?AssetManagerInterface $assetManager = null,
+        ?HtmlManagerInterface $htmlManager = null
 	) {
 		$this->resourcesPath = $this->resolveBasePath('Resources');
 		$this->templatesPath = $this->resolveBasePath('Templates');
+        $this->htmlManager = $htmlManager ?? new HtmlManager();
         $this->templateEngine = $templateEngine ?? new TemplateEngine($this->fileManager);
+        $this->assetManager = $assetManager ?? new AssetManager($this->fileManager, $this->sanitizer, $this->validator, $this->htmlManager);
 	}
 
 	public function setDefaultLayout(string $layout): static
@@ -141,14 +151,93 @@ abstract class View implements ViewInterface
 	public function renderAsset(string $type, string $asset): string
 	{
 		return $this->wrapInTry(function () use ($type, $asset): string {
-			return match ($this->toLower($type)) {
-				'css' => $this->getCssPath($asset),
-				'js' => $this->getJsPath($asset),
-				'image', 'images', 'img' => $this->getImagePath($asset),
-				default => throw new ViewException("Unsupported asset type '{$type}'."),
-			};
+			return $this->assetManager->sourcePath($type, $asset);
 		}, ViewException::class);
 	}
+
+    public function assetUrl(string $type, string $asset): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->publicUrl($type, $asset),
+            ViewException::class
+        );
+    }
+
+    public function assetVersion(string $type, string $asset): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->versionedUrl($type, $asset),
+            ViewException::class
+        );
+    }
+
+    public function styleTag(string $asset, array $attributes = []): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->tag('css', $asset, $attributes),
+            ViewException::class
+        );
+    }
+
+    public function scriptTag(string $asset, array $attributes = []): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->tag('js', $asset, $attributes),
+            ViewException::class
+        );
+    }
+
+    public function imageTag(string $asset, string $alt = '', array $attributes = []): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->tag('images', $asset, $this->replaceElements(['alt' => $alt], $attributes)),
+            ViewException::class
+        );
+    }
+
+    public function preloadTag(string $type, string $asset, array $attributes = []): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->preloadTag($type, $asset, $attributes),
+            ViewException::class
+        );
+    }
+
+    public function assetBundle(string $name, array $attributes = []): string
+    {
+        return $this->wrapInTry(
+            fn(): string => $this->assetManager->bundleTags($name, $attributes),
+            ViewException::class
+        );
+    }
+
+    public function csrfField(): string
+    {
+        $token = (string) ($this->globals['csrfToken'] ?? $this->globals['csrf_token'] ?? '');
+        $field = (string) ($this->globals['csrfField'] ?? $this->globals['csrf_field'] ?? '_token');
+
+        return $this->htmlManager->csrfField($token, $field);
+    }
+
+    public function formMethod(string $method): string
+    {
+        return $this->htmlManager->methodField($method);
+    }
+
+    public function classList(array|string $classes): string
+    {
+        return $this->htmlManager->classList($classes);
+    }
+
+    public function attributes(array $attributes): string
+    {
+        return $this->htmlManager->attributes($attributes);
+    }
+
+    public function jsonForScript(mixed $value, int $flags = 0, int $depth = 512): string
+    {
+        return $this->htmlManager->json($value, $flags, $depth);
+    }
 
 	public function setGlobals(array $variables): void
 	{
@@ -187,19 +276,12 @@ abstract class View implements ViewInterface
 
 	public function escape(mixed $value): string
 	{
-		if ($this->isArray($value)) {
-			return $this->escapeHtml($this->joinStrings(', ', $this->map(
-				fn(mixed $item): string => $this->stringifyValue($item),
-				$value
-			)));
-		}
-
-		return $this->escapeHtml($this->stringifyValue($value));
+		return $this->htmlManager->escape($value);
 	}
 
 	public function escapeUrl(mixed $value): string
 	{
-		return $this->encodeStringForUrl($this->stringifyValue($value));
+		return $this->htmlManager->escapeUrl($value);
 	}
 
 	protected function getCssPath(string $file): string
@@ -371,16 +453,16 @@ abstract class View implements ViewInterface
     {
         $configured = $this->templateExtensions;
 
-        if ($this->templateExt !== '' && !in_array($this->templateExt, $configured, true)) {
+        if ($this->templateExt !== '' && !$this->any($configured, fn(string $extension): bool => $extension === $this->templateExt)) {
             $configured[] = $this->templateExt;
         }
 
         return $configured;
     }
 
-	private function normalizeTemplateType(string $type): string
-	{
-		$normalized = $this->toLower($this->trimString($type));
+    private function normalizeTemplateType(string $type): string
+    {
+        $normalized = $this->toLower($this->trimString($type));
 
 		return match ($normalized) {
 			'layout', 'layouts' => 'layout',
@@ -432,24 +514,4 @@ abstract class View implements ViewInterface
 		return $this->fileManager->normalizePath($this->fileManager->getRealPath($path) ?? $path);
 	}
 
-	private function stringifyValue(mixed $value): string
-	{
-		if ($this->isString($value)) {
-			return $value;
-		}
-
-		if ($this->isNull($value)) {
-			return '';
-		}
-
-		if ($this->isBool($value)) {
-			return $value ? 'true' : 'false';
-		}
-
-		if ($this->isScalar($value)) {
-			return (string) $value;
-		}
-
-		return '';
-	}
 }

@@ -76,7 +76,7 @@ Responsibility split:
 - `NotificationProvider`: notification channel resolution
 - `PaymentProvider`: payment driver resolution
 - `ShippingProvider`: carrier adapter resolution for shipping/service-point/label/tracking/cancellation operations
-- `CoreProvider` also exposes the `themes` service for framework-wide theme resolution
+- `CoreProvider` also exposes the `themes` and `assets` services for framework-wide presentation resolution
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -116,6 +116,8 @@ The driver layer exists so the framework can present a stable API to the rest of
 - `Handlers`: focused utility objects
 - `Managers`: concrete system/data services plus compatibility aliases
 - `Managers/Async`: event dispatcher, queue manager, and failed-job storage
+- `Managers/Commerce`: cart pricing, catalog lifecycle, entitlement, inventory, order lifecycle/document/return, promotion, shipping, and subscription managers
+- `Managers/Presentation`: asset, safe HTML, theme, and native template managers
 - `Managers/Security`: auth, gate, policy, HTTP signed URL/throttle, and user-provider services
 - `Managers/Support`: framework mail, notification, OTP, passkey/WebAuthn, health, audit, and payment service managers
 - `Query`: framework SQL builders
@@ -186,7 +188,7 @@ The following areas are implemented as framework-level subsystems today:
 - presentation resource / negotiated JSON layer
 - completed view/presenter/template layer with shared layouts, partials, and components
 - canonical `.vide` templates authored in native directives rather than embedded raw PHP
-- framework-wide Bootstrap-compatible theme management with tracked source/public CSS and JavaScript assets
+- framework-wide Bootstrap-compatible theme, HTML helper, and asset management with tracked source/public CSS and JavaScript assets, cache-busted asset URLs, preload helpers, and named bundles
 - database layer and SQL/query builders
 - cache subsystem
 - crypto subsystem
@@ -229,6 +231,7 @@ The most important extension seams today are:
 - **Console**: extend the operational command set or add scaffolding/generator support when a project needs it.
 - **Views**: extend the shared presentation surface with new layouts, pages, partials, and components without duplicating module orchestration.
 - **Themes**: swap or extend `Config/theme.php`, `App/Resources/*`, and `Public/assets/*` without changing module controllers.
+- **Commerce Managers**: extend cart pricing, promotions, inventory, order lifecycle, shipping, subscriptions, documents, and returns under `App/Utilities/Managers/Commerce` while legacy support paths remain aliases.
 - **Drivers**: add more concrete infrastructure backends through providers and contracts.
 - **Validation / Sanitization**: extend schema methods and rules through the existing APIs.
 - **Caching / Crypto**: change backends without changing higher-level application code.

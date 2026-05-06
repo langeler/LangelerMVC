@@ -6,6 +6,10 @@ Placeholder `README.md` files that remain in repeated architecture folders are i
 
 Inside `App/Templates`, the tree includes the tracked native `.vide` templates and compatibility `.lmv`/`.php` counterparts so release structure audits see the full presentation surface.
 
+Presentation managers are canonical under `App/Utilities/Managers/Presentation`; `App/Support/Theming/ThemeManager.php` remains in the tree as a backward-compatible alias.
+
+Commerce operational managers are canonical under `App/Utilities/Managers/Commerce`; matching `App/Support/Commerce/*Manager.php` files remain as backward-compatible aliases while `CommerceTotalsCalculator.php` stays in support as a focused domain calculator.
+
 ```text
 LangelerMVC
 ├── .github
@@ -103,6 +107,8 @@ LangelerMVC
 │   │   │   ├── ResponseInterface.php
 │   │   │   └── ServiceInterface.php
 │   │   ├── Presentation
+│   │   │   ├── AssetManagerInterface.php
+│   │   │   ├── HtmlManagerInterface.php
 │   │   │   ├── PresenterInterface.php
 │   │   │   ├── ResourceInterface.php
 │   │   │   ├── TemplateEngineInterface.php
@@ -644,17 +650,18 @@ LangelerMVC
 │   │   │   ├── UserStatus.lmv
 │   │   │   ├── UserStatus.php
 │   │   │   └── UserStatus.vide
-│   │   └── Partials
-│   │       ├── PageIntro.lmv
-│   │       ├── PageIntro.php
-│   │       ├── PageIntro.vide
-│   │       ├── PanelMeta.lmv
-│   │       ├── PanelMeta.php
-│   │       ├── PanelMeta.vide
-│   │       ├── README.md
-│   │       ├── StatusMessage.lmv
-│   │       ├── StatusMessage.php
-│   │       └── StatusMessage.vide
+│   │   ├── Partials
+│   │   │   ├── PageIntro.lmv
+│   │   │   ├── PageIntro.php
+│   │   │   ├── PageIntro.vide
+│   │   │   ├── PanelMeta.lmv
+│   │   │   ├── PanelMeta.php
+│   │   │   ├── PanelMeta.vide
+│   │   │   ├── README.md
+│   │   │   ├── StatusMessage.lmv
+│   │   │   ├── StatusMessage.php
+│   │   │   └── StatusMessage.vide
+│   │   └── README.md
 │   └── Utilities
 │       ├── Finders
 │       │   ├── DirectoryFinder.php
@@ -680,8 +687,24 @@ LangelerMVC
 │       │   │   ├── CryptoManager.php
 │       │   │   ├── ModuleManager.php
 │       │   │   └── SessionManager.php
+│       │   ├── Commerce
+│       │   │   ├── CartPricingManager.php
+│       │   │   ├── CatalogLifecycleManager.php
+│       │   │   ├── EntitlementManager.php
+│       │   │   ├── InventoryManager.php
+│       │   │   ├── OrderDocumentManager.php
+│       │   │   ├── OrderLifecycleManager.php
+│       │   │   ├── OrderReturnManager.php
+│       │   │   ├── PromotionManager.php
+│       │   │   ├── README.md
+│       │   │   ├── ShippingManager.php
+│       │   │   └── SubscriptionManager.php
 │       │   ├── Presentation
-│       │   │   └── TemplateEngine.php
+│       │   │   ├── AssetManager.php
+│       │   │   ├── HtmlManager.php
+│       │   │   ├── README.md
+│       │   │   ├── TemplateEngine.php
+│       │   │   └── ThemeManager.php
 │       │   ├── Security
 │       │   │   ├── AuthManager.php
 │       │   │   ├── DatabaseUserProvider.php
@@ -713,6 +736,7 @@ LangelerMVC
 │       │   ├── DateTimeManager.php
 │       │   ├── FileManager.php
 │       │   ├── IteratorManager.php
+│       │   ├── README.md
 │       │   ├── ReflectionManager.php
 │       │   ├── SessionManager.php
 │       │   └── SettingsManager.php
@@ -831,6 +855,7 @@ LangelerMVC
 │   ├── opensslcryptoclass.rtf
 │   ├── OperationsGuide.md
 │   ├── PaymentDrivers.md
+│   ├── PresentationLayerEvaluation.md
 │   ├── PresentationTemplating.md
 │   ├── README.md
 │   ├── ReleaseReadinessPlan.md

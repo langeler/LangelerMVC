@@ -11,7 +11,7 @@ use App\Drivers\Shipping\PostNordCarrierAdapter;
 use App\Providers\CoreProvider;
 use App\Providers\PaymentProvider;
 use App\Providers\ShippingProvider;
-use App\Support\Commerce\ShippingManager;
+use App\Utilities\Managers\Commerce\ShippingManager;
 use App\Support\Payments\PaymentFlow;
 use App\Support\Payments\PaymentIntent;
 use App\Support\Payments\PaymentMethod;

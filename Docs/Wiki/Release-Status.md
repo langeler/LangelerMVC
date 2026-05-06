@@ -5,7 +5,7 @@
 - Release: [v1.0.0](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - Published: 2026-05-01
 - Local verification: `composer verify:release`
-- Regression result: `OK (146 tests, 3201 assertions)`
+- Regression result: `OK (150 tests, 3258 assertions)`
 - Release gate: `composer release:check` returns `status=200`
 
 ## Release Meaning

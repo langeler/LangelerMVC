@@ -363,6 +363,11 @@ class FileManager
 		return $this->getFileInfo($filename)?->getSize();
 	}
 
+	public function getModifiedTime(string $filename): ?int
+	{
+		return $this->getFileInfo($filename)?->getMTime();
+	}
+
 	public function getRealPath(string $filename): ?string
 	{
 		return $this->getFileInfo($filename)?->getRealPath();

@@ -77,12 +77,13 @@ composer test:runtime-backends
 
 ## Theme Operations
 
-The framework-wide theme subsystem is managed through `Config/theme.php`, `.env` keys, and `App\Support\Theming\ThemeManager`.
+The framework-wide theme subsystem is managed through `Config/theme.php`, `.env` keys, `App\Utilities\Managers\Presentation\ThemeManager`, `App\Utilities\Managers\Presentation\AssetManager`, and `App\Utilities\Managers\Presentation\HtmlManager`.
 
 - Default release theme: `bootstrap-light`
 - Supported modes: `light`, `dark`, `system`
 - Source assets: `App/Resources/css/langelermvc-theme.css` and `App/Resources/js/langelermvc-theme.js`
 - Public assets: `Public/assets/css/langelermvc-theme.css` and `Public/assets/js/langelermvc-theme.js`
+- First-party layouts use versioned asset URLs so browser caches refresh when tracked theme files change.
 
 Installer, public, identity, commerce, and admin layouts receive shared theme globals from their view classes. `THEME_ALLOW_USER_SELECTION=true` enables the accessible light/dark/system toggle in first-party layouts.
 
@@ -183,6 +184,7 @@ Admin order pages now expose carrier operations without leaving the admin surfac
 - Supported reference carriers include PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, and UPS, with Mina Paket surfaced as a Swedish tracking-app handoff where applicable.
 - Operators can look up service points, book a shipment, create a label reference, mark an order shipped, sync tracking, cancel a shipment booking, and mark delivery through `/admin/orders/{id}` actions.
 - Carrier operations now flow through `ShippingProvider` and `CarrierAdapterInterface`, so projects can register live provider adapters without changing admin/order routes.
+- Commerce-facing shipping orchestration lives in `App\Utilities\Managers\Commerce\ShippingManager`; the older `App\Support\Commerce\ShippingManager` path remains an alias for project compatibility.
 - `COMMERCE_SHIPPING_INTEGRATION_MODE=reference` keeps the default adapter deterministic and safe for local/demo installs.
 - `COMMERCE_SHIPPING_ACTIVE_CARRIER`, `COMMERCE_SHIPPING_API_BASE`, `COMMERCE_SHIPPING_API_KEY`, `COMMERCE_SHIPPING_BOOKING_URL`, and `COMMERCE_SHIPPING_TRACKING_URL` are the generic live adapter inputs.
 - `COMMERCE_SHIPPING_AUTO_BOOK_LABELS=true` lets shipping auto-book a reference label when the operator ships without entering a tracking number.

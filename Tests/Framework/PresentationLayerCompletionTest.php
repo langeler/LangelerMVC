@@ -90,6 +90,15 @@ class PresentationLayerCompletionTest extends TestCase
             . '<option value="ready"@selected($selected)>Ready</option>'
             . '<button@disabled($disabled)>Go</button>'
             . '<input type="text"@readonly($readonly)@required($required)>'
+            . '@csrf@method("PATCH")'
+            . '<div class="@class(["panel" => true, "is-hidden" => false, "ready"])"@attr(["data_state" => "ready", "hidden" => false])></div>'
+            . '<script type="application/json">@json(["tag" => "<script>"])</script>'
+            . '<a href="@assetVersion("css", "langelermvc-theme.css")">Versioned asset</a>'
+            . '@preload("css", "langelermvc-theme.css", ["versioned" => true])'
+            . '@style("langelermvc-theme.css")'
+            . '@script("langelermvc-theme.js", ["defer" => true])'
+            . '@image("starter-platform-license.svg", "Starter platform license", ["loading" => "lazy"])'
+            . '@assetBundle("framework-theme")'
         );
 
         $this->pathsToDelete[] = $pagePath;
@@ -103,6 +112,10 @@ class PresentationLayerCompletionTest extends TestCase
             new PatternValidator()
         ) extends View {
         };
+        $view->share([
+            'csrfToken' => 'csrf-test-token',
+            'csrfField' => '_token',
+        ]);
 
         $output = $view->renderPageContent('CodexDirectiveSurface', [
             'headline' => 'Directives',
@@ -120,6 +133,16 @@ class PresentationLayerCompletionTest extends TestCase
         self::assertStringContainsString('value="ready" selected', $output);
         self::assertStringContainsString('<button disabled>', $output);
         self::assertStringContainsString('type="text" readonly required', $output);
+        self::assertStringContainsString('name="_token" value="csrf-test-token"', $output);
+        self::assertStringContainsString('name="_method" value="PATCH"', $output);
+        self::assertStringContainsString('class="panel ready" data-state="ready"', $output);
+        self::assertStringContainsString('{"tag":"\\u003Cscript\\u003E"}', $output);
+        self::assertMatchesRegularExpression('#/assets/css/langelermvc-theme\\.css\\?v=[a-f0-9]{12}#', $output);
+        self::assertStringContainsString('<link rel="preload" href="/assets/css/langelermvc-theme.css?', $output);
+        self::assertStringContainsString('<link rel="stylesheet" href="/assets/css/langelermvc-theme.css">', $output);
+        self::assertStringContainsString('<script src="/assets/js/langelermvc-theme.js" defer></script>', $output);
+        self::assertStringContainsString('<img src="/assets/images/starter-platform-license.svg" alt="Starter platform license" loading="lazy">', $output);
+        self::assertStringContainsString('<script src="/assets/js/langelermvc-theme.js?v=', $output);
     }
 
     public function testAllNativeVideTemplatesAvoidRawPhpTags(): void

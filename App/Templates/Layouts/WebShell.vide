@@ -249,7 +249,7 @@
             }
         }
     </style>
-    <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
+    @style((string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css'), ['versioned' => true])
 </head>
 <body class="theme-surface theme-surface--{{ (string) ($themeSurface ?? 'web') }} {{ (string) ($themeClass ?? 'theme-bootstrap-light') }}"
       data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}"
@@ -288,6 +288,6 @@
             <span>Web pages now render through reusable templates, shared partials, and module-aware layouts.</span>
         </footer>
     </div>
-    <script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
+    @script((string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js'), ['defer' => true, 'versioned' => true])
 </body>
 </html>

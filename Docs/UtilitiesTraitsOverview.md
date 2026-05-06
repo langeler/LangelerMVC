@@ -7,10 +7,10 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 
 ## Snapshot
 
-- Trait files: `50`
-- Traits with declared methods: `42`
+- Trait files: `51`
+- Traits with declared methods: `43`
 - Wrapper traits that only re-export other traits: `8`
-- Traits with their own `__construct()`: `7`
+- Traits with their own `__construct()`: `0`
 
 ## Reading Notes
 
@@ -21,7 +21,7 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 ## Immediate Leverage Notes
 
 - Prefer the root aliases in `App\Utilities\Traits` when they exist. They are the convenience surface currently used by the framework, while deeper traits live under sub-namespaces such as `Criteria`, `Sort`, `Filters`, `Patterns`, `Query`, `Reflection`, and `Rules`.
-- Traits with their own constructors require explicit care when composed together. Current constructor traits: `DateTimeTrait`, `IteratorTrait`, `RecursiveIteratorTrait`, `SanitationFilterTrait`, `SanitationPatternTrait`, `ValidationFilterTrait`, `ValidationPatternTrait`.
+- No utility traits currently declare their own constructors, which keeps composition safer across managers and framework base classes.
 - Protected-only traits are intended as internal behavior for finders and similar framework internals, not as public helper surfaces. Current protected-only traits: `ApplicationPathTrait`, `DirectoryCriteriaTrait`, `DirectorySortTrait`, `FileCriteriaTrait`, `FileSortTrait`.
 - Method collisions already exist. If multiple traits are mixed into a class, aliasing or `insteadof` conflict resolution may be required.
 - `DataQueryTrait` and `SchemaQueryTrait` are now stable framework entry surfaces through `App\Utilities\Query\DataQuery` and `App\Utilities\Query\SchemaQuery`. Prefer those wrappers over composing query traits directly in higher-level classes.
@@ -35,7 +35,7 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 - `DirectoryCriteriaTrait` with `DirectorySortTrait`, and `FileCriteriaTrait` with `FileSortTrait`, are finder-only surfaces. They fit best inside classes that already inherit the `Finder` lifecycle and data shape.
 - `DataQueryTrait` and `SchemaQueryTrait` are surfaced through `App/Utilities/Query/DataQuery.php` and `App/Utilities/Query/SchemaQuery.php`. They should generally be consumed through those wrapper classes so SQL normalization, bindings, and driver handling stay centralized.
 - The `Reflection*Trait` family is already centralized behind `App/Utilities/Managers/System/ReflectionManager.php`, which is the cleanest entrypoint for reflection work.
-- `DateTimeTrait` is currently surfaced through `DateTimeManager`. `HashingTrait`, `LocaleUtilityTrait`, `RetrieverTrait`, `IteratorTrait`, and `RecursiveIteratorTrait` are available but not yet broadly integrated into higher-level framework flows.
+- `DateTimeTrait` is currently surfaced through `DateTimeManager`. `HashingTrait` is now also used by presentation infrastructure for compiled template names, asset synchronization fingerprints, and asset-version URLs. `HtmlManager` centralizes safe HTML output through encoding, conversion, array, and string helpers. Commerce managers under `App/Utilities/Managers/Commerce` are the correct target for future focused money, array, and string helper adoption. `LocaleUtilityTrait`, `RetrieverTrait`, `IteratorTrait`, and `RecursiveIteratorTrait` are available but not yet broadly integrated into higher-level framework flows.
 
 ## Current Trait Entry Points
 
@@ -46,6 +46,8 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 - Directory search/filter/sort: `App/Utilities/Finders/DirectoryFinder.php`
 - File search/filter/sort: `App/Utilities/Finders/FileFinder.php`
 - Query composition: `App/Utilities/Query/DataQuery.php`, `App/Utilities/Query/SchemaQuery.php`
+- Commerce operations: `App/Utilities/Managers/Commerce/CartPricingManager.php`, `App/Utilities/Managers/Commerce/PromotionManager.php`, `App/Utilities/Managers/Commerce/ShippingManager.php`, `App/Utilities/Managers/Commerce/OrderLifecycleManager.php`
+- Presentation assets/html/templates/themes: `App/Utilities/Managers/Presentation/AssetManager.php`, `App/Utilities/Managers/Presentation/HtmlManager.php`, `App/Utilities/Managers/Presentation/TemplateEngine.php`, `App/Utilities/Managers/Presentation/ThemeManager.php`
 - Date/time utilities: `App/Utilities/Managers/System/DateTimeManager.php`
 - Reflection utilities: `App/Utilities/Managers/System/ReflectionManager.php`
 
@@ -62,7 +64,6 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 
 ## Method Collisions
 
-- `__construct`: `DateTimeTrait`, `IteratorTrait`, `RecursiveIteratorTrait`, `SanitationFilterTrait`, `SanitationPatternTrait`, `ValidationFilterTrait`, `ValidationPatternTrait`
 - `all`: `ArrayTrait`, `DataQueryTrait`
 - `any`: `ArrayTrait`, `DataQueryTrait`
 - `filter`: `ArrayTrait`, `DataQueryTrait`

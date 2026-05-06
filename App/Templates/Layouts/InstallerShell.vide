@@ -360,7 +360,7 @@
             .step-tab { min-height: 40px; }
         }
     </style>
-    <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
+    @style((string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css'), ['versioned' => true])
 </head>
 <body class="theme-surface theme-surface--{{ (string) ($themeSurface ?? 'installer') }} {{ (string) ($themeClass ?? 'theme-bootstrap-light') }}"
       data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}"
@@ -500,6 +500,6 @@
         showStep(0, false);
     })();
 </script>
-<script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
+@script((string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js'), ['defer' => true, 'versioned' => true])
 </body>
 </html>

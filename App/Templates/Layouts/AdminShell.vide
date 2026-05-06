@@ -145,7 +145,7 @@
             overflow: auto;
         }
     </style>
-    <link rel="stylesheet" href="{{ (string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css') }}">
+    @style((string) ($themeAssetCss ?? '/assets/css/langelermvc-theme.css'), ['versioned' => true])
 </head>
 <body class="theme-surface theme-surface--{{ (string) ($themeSurface ?? 'admin') }} {{ (string) ($themeClass ?? 'theme-bootstrap-light') }}"
       data-theme="{{ (string) ($themeName ?? 'bootstrap-light') }}"
@@ -178,6 +178,6 @@
             <span>Administrative surfaces now reuse the same presentation contracts as the rest of the framework.</span>
         </footer>
     </div>
-    <script src="{{ (string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js') }}" defer></script>
+    @script((string) ($themeAssetJs ?? '/assets/js/langelermvc-theme.js'), ['defer' => true, 'versioned' => true])
 </body>
 </html>

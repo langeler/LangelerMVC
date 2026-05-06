@@ -18,7 +18,7 @@ This release is framework/package ready: the core runtime, first-party modules, 
 As of `2026-05-01`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (146 tests, 3201 assertions)`
+- `composer test` passes with `OK (150 tests, 3258 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - `composer release:check` returns `status=200`
@@ -33,7 +33,8 @@ As of `2026-05-01`:
 - The payment layer now exposes a plug-and-play compatibility surface with driver capability/readiness introspection, payment-method and flow discovery, provider-specific env/installer settings, redirect/customer-action handling, asynchronous reconciliation hooks, provider/external references, and idempotency-aware checkout persistence.
 - First-party payment drivers now ship for `Credit / Debit Card`, `PayPal`, `Klarna`, `Swish`, `Qliro`, `Walley`, and `Crypto`, plus the framework testing/reference driver.
 - Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
-- The presentation layer now includes framework-wide theme management with Bootstrap-compatible light, dark, and system modes backed by `Config/theme.php`, installer settings, shared view globals, and tracked public assets.
+- Commerce operational managers are centralized under `App\Utilities\Managers\Commerce`, covering cart pricing, catalog lifecycle, entitlement, inventory, order lifecycle/document/return, promotion, shipping, and subscriptions while legacy support paths remain compatibility aliases.
+- The presentation layer now includes centralized asset, safe HTML, theme, and template managers under `App\Utilities\Managers\Presentation`, with Bootstrap-compatible light, dark, and system modes backed by `Config/theme.php`, installer settings, shared view globals, tracked public assets, versioned asset URLs, preload helpers, named asset bundles, and script-safe JSON output.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -82,7 +83,7 @@ In the current starter slice, `WebModule` follows:
 - `Providers/`: container/provider wiring for core, cache, crypto, notifications, payments, shipping, queueing, theming, exceptions, and modules.
 - `Resources/`: source asset workspace that belongs to the application layer, including the canonical framework theme CSS/JS source.
 - `Templates/`: shared native `.vide` template files used by module views, including layouts, pages, partials, and reusable components. `.lmv` and `.php` remain readable as compatibility fallbacks.
-- `Utilities/`: shared traits, handlers, managers, finders, query helpers, validators, sanitizers, and support managers such as mail, OTP, and passkeys/WebAuthn.
+- `Utilities/`: shared traits, handlers, finders, query helpers, validators, sanitizers, and manager sublayers, including `Managers/Commerce` for ecommerce operations and `Managers/Presentation` for assets, safe HTML helpers, themes, and `.vide` templates.
 
 ### Other Root Folders
 
@@ -282,6 +283,7 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 - [`Docs/PaymentDrivers.md`](./Docs/PaymentDrivers.md): first-party payment-driver matrix, provider notes, and live-mode configuration expectations.
 - [`Docs/ShippingAdapters.md`](./Docs/ShippingAdapters.md): first-party carrier adapter matrix, reference/live mode, and extension pattern.
 - [`Docs/PresentationTemplating.md`](./Docs/PresentationTemplating.md): canonical `.vide` template authoring, supported directives, and rendering flow.
+- [`Docs/PresentationLayerEvaluation.md`](./Docs/PresentationLayerEvaluation.md): presentation subsystem analysis, mature-framework comparison, differentiators, and next priorities.
 - [`Docs/SanitationValidationAPI.md`](./Docs/SanitationValidationAPI.md): schema contract for sanitizers and validators.
 - [`Docs/UtilitiesTraitsOverview.md`](./Docs/UtilitiesTraitsOverview.md): practical overview of the trait surface.
 - [`Docs/UtilitiesTraitsReference.md`](./Docs/UtilitiesTraitsReference.md): generated trait reference.

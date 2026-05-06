@@ -26,7 +26,14 @@ Shared templates live under `App/Templates`:
 
 Concrete module views render those templates through `App\Abstracts\Presentation\View`.
 
-First-party layouts also consume shared theme globals from `App\Support\Theming\ThemeManager`, including `themeName`, `themeMode`, `themeAssetCss`, `themeAssetJs`, and `themeToggleEnabled`.
+First-party layouts also consume shared theme globals from `App\Utilities\Managers\Presentation\ThemeManager`, including `themeName`, `themeMode`, `themeAssetCss`, `themeAssetJs`, and `themeToggleEnabled`.
+
+Presentation managers are intentionally grouped under `App\Utilities\Managers\Presentation`:
+
+- `TemplateEngine`: compiles native `.vide` / `.lmv` templates into cached PHP render targets.
+- `ThemeManager`: resolves configured themes and shared layout globals.
+- `AssetManager`: resolves source assets, public asset URLs, generated HTML tags, and source/public synchronization checks.
+- `HtmlManager`: owns escaped attributes, conditional class lists, CSRF/method hidden fields, and script-safe JSON output.
 
 ## Authoring Rules
 
@@ -46,6 +53,18 @@ The native compiler currently supports:
 - `@include(...)`
 - `@component(...)`
 - `@asset(...)`
+- `@assetUrl(...)`
+- `@assetVersion(...)`
+- `@assetBundle(...)`
+- `@preload(...)`
+- `@style(...)`
+- `@script(...)`
+- `@image(...)`
+- `@csrf`
+- `@method(...)`
+- `@class(...)`
+- `@attr(...)` / `@attrs(...)`
+- `@json(...)`
 - `@php ... @endphp`
 - `@if(...)`, `@elseif(...)`, `@else`, `@endif`
 - `@unless(...)`, `@endunless`
@@ -71,8 +90,10 @@ At runtime:
 
 1. `View` resolves the requested layout/page/partial/component path.
 2. `TemplateEngine` detects `.vide` input and compiles it into cached PHP under `Storage/Cache/Templates`.
-3. `View` renders the compiled template with shared globals and page-local data.
-4. Layout composition happens through the same `View` abstraction rather than template-side inheritance magic.
+3. `AssetManager` resolves source asset paths, public URLs, and tag helpers exposed through native template directives.
+4. `HtmlManager` handles escaped attributes, class lists, CSRF/method fields, and safe JSON output so templates do not reimplement low-level HTML concerns.
+5. `View` renders the compiled template with shared globals and page-local data.
+6. Layout composition happens through the same `View` abstraction rather than template-side inheritance magic.
 
 This keeps template compilation and rendering inside framework-native boundaries.
 
@@ -95,3 +116,22 @@ All first-party shared templates now use `.vide` as the source-of-truth format a
 - the installer flow
 
 That means the reference application surface exercises the same native templating API the framework expects downstream applications to use.
+
+## Production Asset Helpers
+
+The `assets` service supports local/public URL resolution, cache-busted URLs, preload tags, and named bundles.
+
+```php
+$assets = $provider->getCoreService('assets');
+$assets->versionedUrl('css', 'langelermvc-theme.css');
+$assets->preloadTag('css', 'langelermvc-theme.css', ['versioned' => true]);
+$assets->bundleTags('framework-theme');
+```
+
+The matching `.vide` helpers are:
+
+```blade
+@assetVersion("css", "langelermvc-theme.css")
+@preload("css", "langelermvc-theme.css", ["versioned" => true])
+@assetBundle("framework-theme")
+```

@@ -6,7 +6,7 @@ namespace App\Modules\AdminModule\Views;
 
 use App\Abstracts\Presentation\View;
 use App\Core\Config;
-use App\Support\Theming\ThemeManager;
+use App\Utilities\Managers\Presentation\ThemeManager;
 use App\Utilities\Finders\DirectoryFinder;
 use App\Utilities\Finders\FileFinder;
 use App\Utilities\Managers\CacheManager;

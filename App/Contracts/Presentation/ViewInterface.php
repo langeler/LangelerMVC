@@ -108,6 +108,112 @@ interface ViewInterface
 	public function renderAsset(string $type, string $asset): string;
 
 	/**
+	 * Resolve a public asset URL for use inside rendered HTML.
+	 *
+	 * @param string $type
+	 * @param string $asset
+	 * @return string
+	 */
+	public function assetUrl(string $type, string $asset): string;
+
+	/**
+	 * Resolve a cache-busted public asset URL.
+	 *
+	 * @param string $type
+	 * @param string $asset
+	 * @return string
+	 */
+	public function assetVersion(string $type, string $asset): string;
+
+	/**
+	 * Render a stylesheet tag using the framework asset contract.
+	 *
+	 * @param string $asset
+	 * @param array<string,mixed> $attributes
+	 * @return string
+	 */
+	public function styleTag(string $asset, array $attributes = []): string;
+
+	/**
+	 * Render a script tag using the framework asset contract.
+	 *
+	 * @param string $asset
+	 * @param array<string,mixed> $attributes
+	 * @return string
+	 */
+	public function scriptTag(string $asset, array $attributes = []): string;
+
+	/**
+	 * Render an image tag using the framework asset contract.
+	 *
+	 * @param string $asset
+	 * @param string $alt
+	 * @param array<string,mixed> $attributes
+	 * @return string
+	 */
+	public function imageTag(string $asset, string $alt = '', array $attributes = []): string;
+
+	/**
+	 * Render a preload tag using the framework asset contract.
+	 *
+	 * @param string $type
+	 * @param string $asset
+	 * @param array<string,mixed> $attributes
+	 * @return string
+	 */
+	public function preloadTag(string $type, string $asset, array $attributes = []): string;
+
+	/**
+	 * Render all tags for a named asset bundle.
+	 *
+	 * @param string $name
+	 * @param array<string,mixed> $attributes
+	 * @return string
+	 */
+	public function assetBundle(string $name, array $attributes = []): string;
+
+	/**
+	 * Render a CSRF hidden field when a token has been shared with the view.
+	 *
+	 * @return string
+	 */
+	public function csrfField(): string;
+
+	/**
+	 * Render an HTTP method override hidden field for non-GET/POST forms.
+	 *
+	 * @param string $method
+	 * @return string
+	 */
+	public function formMethod(string $method): string;
+
+	/**
+	 * Build a conditional class string from a list or keyed conditions.
+	 *
+	 * @param array<int|string,mixed>|string $classes
+	 * @return string
+	 */
+	public function classList(array|string $classes): string;
+
+	/**
+	 * Build escaped HTML attributes.
+	 *
+	 * @param array<string,mixed> $attributes
+	 * @return string
+	 */
+	public function attributes(array $attributes): string;
+
+	/**
+	 * Render JSON that is safe to embed inside HTML script contexts.
+	 *
+	 * @param mixed $value
+	 * @param int $flags
+	 * @param int $depth
+	 * @return string
+	 */
+	public function jsonForScript(mixed $value, int $flags = 0, int $depth = 512): string;
+
+	/**
 	 * Set global variables available to all templates.
 	 *
 	 * @param array<string,mixed> $variables The global variables to set.

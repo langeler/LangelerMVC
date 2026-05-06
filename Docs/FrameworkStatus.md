@@ -7,7 +7,7 @@ This document records the current implementation state of LangelerMVC based on t
 - Published framework source release: [`v1.0.0`](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (146 tests, 3201 assertions)`
+- Verification result: `OK (150 tests, 3258 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database/runtime verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, SQL Server, Redis, and Memcached have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -41,6 +41,9 @@ This document records the current implementation state of LangelerMVC based on t
 - resource and resource-collection abstractions with meta/links/pagination support
 - view abstraction with shared layout/page/partial/component rendering
 - framework-native `.vide` template engine with `.lmv` and `.php` compatibility fallbacks
+- presentation asset/html/theme managers centralized under `App\Utilities\Managers\Presentation`
+- production asset helpers now cover versioned URLs, preload tags, named bundles, source/public synchronization, and script-safe JSON output
+- commerce operational managers centralized under `App\Utilities\Managers\Commerce` with legacy support-path aliases for older project code
 - first-party `.vide` template sources authored without raw PHP tags and enforced by regression coverage
 - HTML + JSON negotiation through one controller pipeline
 

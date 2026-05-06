@@ -98,6 +98,70 @@ final class RepositoryConsistencyTest extends TestCase
         self::assertSame([], $errors);
     }
 
+    public function testPresentationManagersUseCanonicalUtilitiesPlacement(): void
+    {
+        foreach ([
+            'App/Utilities/Managers/Presentation/AssetManager.php',
+            'App/Utilities/Managers/Presentation/HtmlManager.php',
+            'App/Utilities/Managers/Presentation/TemplateEngine.php',
+            'App/Utilities/Managers/Presentation/ThemeManager.php',
+            'App/Contracts/Presentation/AssetManagerInterface.php',
+            'App/Contracts/Presentation/HtmlManagerInterface.php',
+            'App/Contracts/Presentation/TemplateEngineInterface.php',
+        ] as $path) {
+            self::assertFileExists($this->basePath($path), sprintf('%s should remain in the presentation manager surface.', $path));
+        }
+
+        self::assertFalse(
+            is_dir($this->basePath('App/Support/Presentation')),
+            'Presentation managers should live under App/Utilities/Managers/Presentation, not App/Support/Presentation.'
+        );
+
+        $themeAlias = (string) file_get_contents($this->basePath('App/Support/Theming/ThemeManager.php'));
+
+        self::assertStringContainsString(
+            'extends \\App\\Utilities\\Managers\\Presentation\\ThemeManager',
+            $themeAlias,
+            'The legacy theming path should stay as a thin compatibility alias.'
+        );
+    }
+
+    public function testCommerceManagersUseCanonicalUtilitiesPlacement(): void
+    {
+        $managers = [
+            'CartPricingManager',
+            'CatalogLifecycleManager',
+            'EntitlementManager',
+            'InventoryManager',
+            'OrderDocumentManager',
+            'OrderLifecycleManager',
+            'OrderReturnManager',
+            'PromotionManager',
+            'ShippingManager',
+            'SubscriptionManager',
+        ];
+
+        foreach ($managers as $manager) {
+            self::assertFileExists(
+                $this->basePath('App/Utilities/Managers/Commerce/' . $manager . '.php'),
+                sprintf('%s should remain in the canonical commerce manager surface.', $manager)
+            );
+
+            $alias = (string) file_get_contents($this->basePath('App/Support/Commerce/' . $manager . '.php'));
+
+            self::assertStringContainsString(
+                'extends \\App\\Utilities\\Managers\\Commerce\\' . $manager,
+                $alias,
+                sprintf('%s should remain a thin compatibility alias in App/Support/Commerce.', $manager)
+            );
+        }
+
+        self::assertFileExists(
+            $this->basePath('App/Support/Commerce/CommerceTotalsCalculator.php'),
+            'The focused commerce totals calculator should remain in the support commerce domain layer.'
+        );
+    }
+
     /**
      * @return list<string>
      */

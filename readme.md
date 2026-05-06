@@ -15,15 +15,15 @@ This release is framework/package ready: the core runtime, first-party modules, 
 
 ## Verification Snapshot
 
-As of `2026-05-01`:
+As of `2026-05-06`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (158 tests, 3325 assertions)`
+- `composer test` passes with `OK (158 tests, 3332 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - `composer release:check` returns `status=200`
 - `php console framework:layers` reports all required framework layer paths present
-- `php console framework:architecture` reports the full-repo architecture contract, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, documented module shape, native presentation alignment, and documentation alignment as healthy
+- `php console framework:architecture` reports the full-repo architecture contract, App boundaries, class placement, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, documented module shape, native presentation alignment, and documentation alignment as healthy
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database/runtime matrix harness is available for MySQL, PostgreSQL, SQL Server, Redis, and Memcached verification where services and PHP extensions exist
@@ -37,7 +37,7 @@ As of `2026-05-01`:
 - Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
 - Commerce operational managers are centralized under `App\Utilities\Managers\Commerce`, covering cart pricing, catalog lifecycle, entitlement, inventory, order lifecycle/document/return, promotion, shipping, and subscriptions while legacy support paths remain compatibility aliases.
 - The presentation layer now includes centralized asset, safe HTML, theme, and template managers under `App\Utilities\Managers\Presentation`, with Bootstrap-compatible light, dark, and system modes backed by `Config/theme.php`, installer settings, shared view globals, tracked public assets, versioned asset URLs, preload helpers, named asset bundles, and script-safe JSON output.
-- The framework now exposes layer and architecture introspection managers through `framework:layers` and `framework:architecture`, so the repository contract, public/bootstrap, core, provider, contract, MVC, presentation, data, security, driver, utility, module, installer, console, release/docs/data, strict class files, canonical managers, documented module shape, and native presentation rules stay enforceable.
+- The framework now exposes layer and architecture introspection managers through `framework:layers` and `framework:architecture`, so the repository contract, public/bootstrap, core, provider, contract, MVC, presentation, data, security, driver, utility, module, installer, console, release/docs/data, class placement, strict class files, canonical managers, documented module shape, and native presentation rules stay enforceable.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
@@ -87,6 +87,7 @@ In the current starter slice, `WebModule` follows:
 - `Resources/`: source asset workspace that belongs to the application layer, including the canonical framework theme CSS/JS source.
 - `Templates/`: shared native `.vide` template files used by module views, including layouts, pages, partials, and reusable components. `.lmv` and `.php` remain readable as compatibility fallbacks.
 - `Utilities/`: shared traits, handlers, finders, query helpers, validators, sanitizers, and manager sublayers, including `Managers/Commerce` for ecommerce operations and `Managers/Presentation` for assets, safe HTML helpers, themes, and `.vide` templates.
+- `Support/`: narrow support value objects and approved compatibility alias corridors; new services and managers should use the canonical framework layers instead of treating Support as a catch-all.
 
 ### Other Root Folders
 
@@ -173,7 +174,7 @@ php console route:list
 For a clean production-style verification pass, the framework now ships with:
 
 - `composer verify:platform` for the default regression suite plus a health check
-- `composer architecture:check` for full-repo architecture contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, module directory documentation, native presentation rules, and docs alignment
+- `composer architecture:check` for full-repo architecture contract paths, App boundaries, class placement, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical manager placement, module directory documentation, native presentation rules, and docs alignment
 - `composer release:check` for release docs, env parity, `Data/*.sql` schema references, framework layer/architecture alignment, critical routes, module/payment/theme surfaces, commerce breadth, template accessibility, matrix readiness, and live-integration warnings
 - `composer verify:release` for Composer metadata validation, the default regression suite, health liveness, and release gate execution
 - `.github/workflows/php.yml` for default regression and supported DB-matrix CI coverage
@@ -277,7 +278,7 @@ The framework core stays gateway-agnostic. Live credentials, callbacks, certific
 
 - [`Docs/README.md`](./Docs/README.md): documentation index and reading order.
 - [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md): framework architecture, runtime flow, subsystem map, and extension points.
-- [`Docs/ArchitectureAlignment.md`](./Docs/ArchitectureAlignment.md): executable full-repo architecture-alignment rules for repository contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, manager placement, module shape, presentation, and docs.
+- [`Docs/ArchitectureAlignment.md`](./Docs/ArchitectureAlignment.md): executable full-repo architecture-alignment rules for repository contract paths, App boundaries, class placement, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, manager placement, module shape, presentation, and docs.
 - [`Docs/FrameworkStatus.md`](./Docs/FrameworkStatus.md): current implementation status, remaining hardening areas, and environment-dependent verification notes.
 - [`Docs/FolderStructure.md`](./Docs/FolderStructure.md): current architecture by layer and responsibility.
 - [`Docs/ModulesStructure.md`](./Docs/ModulesStructure.md): module layout, conventions, and current module status.

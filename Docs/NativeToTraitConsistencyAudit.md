@@ -6,9 +6,9 @@ This document audits framework classes under `App/` and highlights direct native
 
 - Class files scanned: `340`
 - Class files with at least one replacement candidate: `138`
-- Total native-call occurrences matching existing trait wrappers: `2095`
-- Low-friction replacement paths (`already-composed`): `336`
-- Structural replacement paths (`available-via-trait`): `2027`
+- Total native-call occurrences matching existing trait wrappers: `2086`
+- Low-friction replacement paths (`already-composed`): `326`
+- Structural replacement paths (`available-via-trait`): `2028`
 
 ## Reading Notes
 
@@ -20,7 +20,7 @@ This document audits framework classes under `App/` and highlights direct native
 
 - `trim`: `395` occurrence(s)
 - `is_array`: `308` occurrence(s)
-- `array_values`: `175` occurrence(s)
+- `array_values`: `176` occurrence(s)
 - `array_map`: `169` occurrence(s)
 - `strtolower`: `140` occurrence(s)
 - `in_array`: `129` occurrence(s)
@@ -29,16 +29,16 @@ This document audits framework classes under `App/` and highlights direct native
 - `strtoupper`: `78` occurrence(s)
 - `array_key_exists`: `43` occurrence(s)
 - `substr`: `41` occurrence(s)
-- `str_contains`: `38` occurrence(s)
-- `array_unique`: `34` occurrence(s)
+- `array_unique`: `35` occurrence(s)
+- `preg_match`: `35` occurrence(s)
 - `array_keys`: `32` occurrence(s)
-- `preg_match`: `32` occurrence(s)
 - `filter_var`: `28` occurrence(s)
-- `array_merge`: `23` occurrence(s)
+- `array_merge`: `26` occurrence(s)
 - `json_encode`: `23` occurrence(s)
-- `str_replace`: `20` occurrence(s)
-- `str_starts_with`: `19` occurrence(s)
+- `str_contains`: `22` occurrence(s)
+- `str_replace`: `21` occurrence(s)
 - `rtrim`: `18` occurrence(s)
+- `str_starts_with`: `18` occurrence(s)
 - `preg_replace`: `17` occurrence(s)
 - `rawurlencode`: `15` occurrence(s)
 - `class_exists`: `13` occurrence(s)
@@ -59,9 +59,9 @@ This document audits framework classes under `App/` and highlights direct native
 - `array_replace`: `3` occurrence(s)
 - `base64_encode`: `3` occurrence(s)
 - `preg_match_all`: `3` occurrence(s)
-- `str_ends_with`: `3` occurrence(s)
 - `function_exists`: `2` occurrence(s)
 - `is_float`: `2` occurrence(s)
+- `str_ends_with`: `2` occurrence(s)
 - `array_key_last`: `1` occurrence(s)
 - `array_sum`: `1` occurrence(s)
 - `preg_replace_callback`: `1` occurrence(s)
@@ -75,8 +75,8 @@ This document audits framework classes under `App/` and highlights direct native
 - `App/Installer/InstallerWizard.php`: `95` native-call occurrence(s), `0` low-friction replacement path(s), `107` structural replacement path(s)
 - `App/Console/Commands/ReleaseCheckCommand.php`: `93` native-call occurrence(s), `0` low-friction replacement path(s), `103` structural replacement path(s)
 - `App/Abstracts/Support/CarrierAdapter.php`: `88` native-call occurrence(s), `0` low-friction replacement path(s), `104` structural replacement path(s)
-- `App/Utilities/Managers/Support/ArchitectureAlignmentManager.php`: `76` native-call occurrence(s), `66` low-friction replacement path(s), `11` structural replacement path(s)
 - `App/Modules/CartModule/Repositories/PromotionRepository.php`: `76` native-call occurrence(s), `0` low-friction replacement path(s), `90` structural replacement path(s)
+- `App/Utilities/Managers/Support/ArchitectureAlignmentManager.php`: `67` native-call occurrence(s), `56` low-friction replacement path(s), `12` structural replacement path(s)
 - `App/Utilities/Managers/Commerce/SubscriptionManager.php`: `43` native-call occurrence(s), `0` low-friction replacement path(s), `50` structural replacement path(s)
 - `App/Utilities/Managers/Async/QueueManager.php`: `40` native-call occurrence(s), `33` low-friction replacement path(s), `7` structural replacement path(s)
 - `App/Utilities/Managers/Support/FrameworkDoctor.php`: `37` native-call occurrence(s), `30` low-friction replacement path(s), `7` structural replacement path(s)
@@ -4720,159 +4720,141 @@ This document audits framework classes under `App/` and highlights direct native
 
 ### `App/Utilities/Managers/Support/ArchitectureAlignmentManager.php`
 
-- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`
-- Line `258` uses native `rtrim` in ``$this->basePath = rtrim($basePath ?? $this->frameworkBasePath(), DIRECTORY_SEPARATOR);``
+- Current traits: `App\Utilities\Traits\ApplicationPathTrait`, `App\Utilities\Traits\ArrayTrait`, `App\Utilities\Traits\CheckerTrait`, `App\Utilities\Traits\ManipulationTrait`, `App\Utilities\Traits\TypeCheckerTrait`
+- Line `327` uses native `rtrim` in ``$this->basePath = rtrim($basePath ?? $this->frameworkBasePath(), DIRECTORY_SEPARATOR);``
   - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::trimRight()` (`Prefer the shared string-trimming helper.`)
-- Line `280` uses native `array_map` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
+- Line `350` uses native `array_map` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
-- Line `280` uses native `array_merge` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
+- Line `350` uses native `array_merge` in ``$errors = array_merge($errors, array_map('strval', (array) ($check['errors'] ?? [])));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
-- Line `281` uses native `array_map` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
+- Line `351` uses native `array_map` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
-- Line `281` uses native `array_merge` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
+- Line `351` uses native `array_merge` in ``$warnings = array_merge($warnings, array_map('strval', (array) ($check['warnings'] ?? [])));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
-- Line `284` uses native `array_unique` in ``$errors = array_values(array_unique($errors));``
+- Line `354` uses native `array_unique` in ``$errors = array_values(array_unique($errors));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
-- Line `284` uses native `array_values` in ``$errors = array_values(array_unique($errors));``
+- Line `354` uses native `array_values` in ``$errors = array_values(array_unique($errors));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `285` uses native `array_unique` in ``$warnings = array_values(array_unique($warnings));``
+- Line `355` uses native `array_unique` in ``$warnings = array_values(array_unique($warnings));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
-- Line `285` uses native `array_values` in ``$warnings = array_values(array_unique($warnings));``
+- Line `355` uses native `array_values` in ``$warnings = array_values(array_unique($warnings));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `348` uses native `array_map` in ``'errors' => array_values(array_map('strval', (array) ($payload['errors'] ?? []))),``
+- Line `422` uses native `array_map` in ``'errors' => array_values(array_map('strval', (array) ($payload['errors'] ?? []))),``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
-- Line `348` uses native `array_values` in ``'errors' => array_values(array_map('strval', (array) ($payload['errors'] ?? []))),``
+- Line `422` uses native `array_values` in ``'errors' => array_values(array_map('strval', (array) ($payload['errors'] ?? []))),``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `349` uses native `array_map` in ``'warnings' => array_values(array_map('strval', (array) ($payload['warnings'] ?? []))),``
+- Line `423` uses native `array_map` in ``'warnings' => array_values(array_map('strval', (array) ($payload['warnings'] ?? []))),``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::map()` (`Use the existing array mapping helper for consistency.`)
-- Line `349` uses native `array_values` in ``'warnings' => array_values(array_map('strval', (array) ($payload['warnings'] ?? []))),``
+- Line `423` uses native `array_values` in ``'warnings' => array_values(array_map('strval', (array) ($payload['warnings'] ?? []))),``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `358` uses native `array_filter` in ``$missingPaths = array_values(array_filter(self::REQUIRED_ROOT_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+- Line `432` uses native `array_filter` in ``$missingPaths = array_values(array_filter(self::REQUIRED_ROOT_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `358` uses native `array_values` in ``$missingPaths = array_values(array_filter(self::REQUIRED_ROOT_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+- Line `432` uses native `array_values` in ``$missingPaths = array_values(array_filter(self::REQUIRED_ROOT_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `375` uses native `str_contains` in ``if (!str_contains($gitignore, $pattern)) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `380` uses native `array_filter` in ``$errors = array_values(array_filter([``
+- Line `454` uses native `array_filter` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `380` uses native `array_values` in ``$errors = array_values(array_filter([``
+- Line `454` uses native `array_values` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `401` uses native `array_filter` in ``$missingDirectories = array_values(array_filter(``
+- Line `475` uses native `array_filter` in ``$missingDirectories = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `401` uses native `array_values` in ``$missingDirectories = array_values(array_filter(``
+- Line `475` uses native `array_values` in ``$missingDirectories = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `425` uses native `array_filter` in ``$errors = array_values(array_filter([``
+- Line `499` uses native `array_filter` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `425` uses native `array_values` in ``$errors = array_values(array_filter([``
+- Line `499` uses native `array_values` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `447` uses native `array_filter` in ``$missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+- Line `554` uses native `str_replace` in ``$expectedNamespace = str_replace('/', '\\', dirname($relative));``
+  - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
+- Line `576` uses native `array_merge` in ``$errors = array_merge($errors, $this->placementErrors($relative, $metadata));``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `589` uses native `array_unique` in ``'errors' => array_values(array_unique($errors)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::unique()` (`Use the framework unique helper for arrays.`)
+- Line `589` uses native `array_values` in ``'errors' => array_values(array_unique($errors)),``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `599` uses native `array_filter` in ``$missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `447` uses native `array_values` in ``$missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
+- Line `599` uses native `array_values` in ``$missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `455` uses native `str_contains` in ``if (!str_contains($publicIndex, '/bootstrap/app.php') || !str_contains($publicIndex, '->run()')) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `463` uses native `str_contains` in ``if (!str_contains($bootstrapApp, 'new Bootstrap') || !str_contains($bootstrapApp, 'createApplication')) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `467` uses native `str_contains` in ``if (!str_contains($bootstrapConsole, 'new Bootstrap') || !str_contains($bootstrapConsole, 'createConsoleKernel')) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `471` uses native `str_contains` in ``if (!str_starts_with($console, '#!/usr/bin/env php') || !str_contains($console, 'bootstrap/console.php')) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `471` uses native `str_starts_with` in ``if (!str_starts_with($console, '#!/usr/bin/env php') || !str_contains($console, 'bootstrap/console.php')) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::startsWith()` (`Prefer the shared string check helper.`)
-- Line `476` uses native `str_contains` in ``if (!str_contains($installer, $symbol)) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `499` uses native `array_filter` in ``$missingConfig = array_values(array_filter(``
+- Line `651` uses native `array_filter` in ``$missingConfig = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `499` uses native `array_values` in ``$missingConfig = array_values(array_filter(``
+- Line `651` uses native `array_values` in ``$missingConfig = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `503` uses native `array_filter` in ``$missingData = array_values(array_filter(``
+- Line `655` uses native `array_filter` in ``$missingData = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `503` uses native `array_values` in ``$missingData = array_values(array_filter(``
+- Line `655` uses native `array_values` in ``$missingData = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `511` uses native `str_contains` in ``if (!str_contains($env, $anchor)) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `520` uses native `str_contains` in ``if ($file !== 'README.md' && !str_contains($dataReadme, $file)) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `525` uses native `array_filter` in ``$errors = array_values(array_filter([``
+- Line `677` uses native `array_filter` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `525` uses native `array_values` in ``$errors = array_values(array_filter([``
+- Line `677` uses native `array_values` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `550` uses native `json_decode` in ``$composer = json_decode($this->read('composer.json'), true);``
+- Line `702` uses native `json_decode` in ``$composer = json_decode($this->read('composer.json'), true);``
   - `available-via-trait` -> `App\Utilities\Traits\ConversionTrait::fromJson()` (`Prefer the shared JSON decoding helper.`)
-- Line `551` uses native `is_array` in ``$scripts = is_array($composer) && is_array($composer['scripts'] ?? null) ? $composer['scripts'] : [];``
-  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
-- Line `552` uses native `array_filter` in ``$missingScripts = array_values(array_filter(``
+- Line `703` uses native `is_array` in ``$scripts = is_array($composer) && is_array($composer['scripts'] ?? null) ? $composer['scripts'] : [];``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isArray()` (`Prefer the shared type helper for array checks.`)
+- Line `704` uses native `array_filter` in ``$missingScripts = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `552` uses native `array_values` in ``$missingScripts = array_values(array_filter(``
+- Line `704` uses native `array_values` in ``$missingScripts = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `554` uses native `array_key_exists` in ``fn(string $script): bool => !array_key_exists($script, $scripts)``
+- Line `706` uses native `array_key_exists` in ``fn(string $script): bool => !array_key_exists($script, $scripts)``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::keyExists()` (`Framework array access already exposes a dedicated key check.`)
-- Line `560` uses native `str_contains` in ``if (!str_contains($workflow, $anchor)) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `569` uses native `preg_match` in ``if (!preg_match('/^\s{2}' . preg_quote($service, '/') . ':\s*$/m', $compose)) {``
+- Line `721` uses native `preg_match` in ``if (!preg_match('/^\s{2}' . preg_quote($service, '/') . ':\s*$/m', $compose)) {``
   - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
-- Line `569` uses native `preg_quote` in ``if (!preg_match('/^\s{2}' . preg_quote($service, '/') . ':\s*$/m', $compose)) {``
+- Line `721` uses native `preg_quote` in ``if (!preg_match('/^\s{2}' . preg_quote($service, '/') . ':\s*$/m', $compose)) {``
   - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
-- Line `574` uses native `array_filter` in ``$missingTestPaths = array_values(array_filter([``
+- Line `726` uses native `array_filter` in ``$missingTestPaths = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `574` uses native `array_values` in ``$missingTestPaths = array_values(array_filter([``
+- Line `726` uses native `array_values` in ``$missingTestPaths = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `583` uses native `array_filter` in ``$errors = array_values(array_filter([``
+- Line `735` uses native `array_filter` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `583` uses native `array_values` in ``$errors = array_values(array_filter([``
+- Line `735` uses native `array_values` in ``$errors = array_values(array_filter([``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `640` uses native `array_filter` in ``$managerFiles = array_values(array_filter(``
+- Line `792` uses native `array_filter` in ``$managerFiles = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `640` uses native `array_values` in ``$managerFiles = array_values(array_filter(``
+- Line `792` uses native `array_values` in ``$managerFiles = array_values(array_filter(``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `642` uses native `str_ends_with` in ``fn(string $file): bool => str_ends_with($this->relativePath($file), 'Manager.php')``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::endsWith()` (`Prefer the shared string check helper.`)
-- Line `682` uses native `array_merge` in ``$errors = array_merge(``
-  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
-- Line `753` uses native `array_merge` in ``$errors = array_merge($errors, $moduleErrors);``
-  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
-- Line `792` uses native `array_filter` in ``$missingPaths = array_values(array_filter($requiredPaths, fn(string $path): bool => !$this->pathExists($path)));``
-  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `792` uses native `array_values` in ``$missingPaths = array_values(array_filter($requiredPaths, fn(string $path): bool => !$this->pathExists($path)));``
-  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `801` uses native `str_contains` in ``!str_contains($templateEngine, "'" . $directive . "'")``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `802` uses native `str_contains` in ``&& !str_contains($templateEngine, '@' . $directive)``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `803` uses native `str_contains` in ``&& !str_contains($templateEngine, '\\@' . $directive)``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `810` uses native `preg_match` in ``if (!preg_match('/function\s+' . preg_quote($method, '/') . '\s*\(/', $viewInterface)) {``
+- Line `832` uses native `preg_match` in ``preg_match('#^App/Utilities/Managers/([^/]+)/.+\.php$#', $relative, $matches) === 1``
   - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
-- Line `810` uses native `preg_quote` in ``if (!preg_match('/function\s+' . preg_quote($method, '/') . '\s*\(/', $viewInterface)) {``
-  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
-- Line `818` uses native `str_contains` in ``if (str_contains($this->read($relative), '<?php')) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `823` uses native `array_filter` in ``$errors = array_values(array_filter([``
+- Line `854` uses native `array_merge` in ``$errors = array_merge(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `926` uses native `array_merge` in ``$errors = array_merge($errors, $moduleErrors);``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `965` uses native `array_filter` in ``$missingPaths = array_values(array_filter($requiredPaths, fn(string $path): bool => !$this->pathExists($path)));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
-- Line `823` uses native `array_values` in ``$errors = array_values(array_filter([``
+- Line `965` uses native `array_values` in ``$missingPaths = array_values(array_filter($requiredPaths, fn(string $path): bool => !$this->pathExists($path)));``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
-- Line `871` uses native `str_contains` in ``if (!str_contains($contents, $phrase)) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `884` uses native `str_contains` in ``if ($this->pathExists($doc) && !str_contains($docsReadme, basename($doc))) {``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `891` uses native `array_keys` in ``'required_docs' => array_keys($requiredDocs),``
+- Line `983` uses native `preg_match` in ``if (!preg_match('/function\s+' . preg_quote($method, '/') . '\s*\(/', $viewInterface)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `983` uses native `preg_quote` in ``if (!preg_match('/function\s+' . preg_quote($method, '/') . '\s*\(/', $viewInterface)) {``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::quote()` (`Use the shared regex helper for quoting patterns.`)
+- Line `996` uses native `array_filter` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::filter()` (`Direct array filtering already has a framework wrapper.`)
+- Line `996` uses native `array_values` in ``$errors = array_values(array_filter([``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getValues()` (`Prefer the shared array values helper.`)
+- Line `1064` uses native `array_keys` in ``'required_docs' => array_keys($requiredDocs),``
   - `already-composed` -> `App\Utilities\Traits\ArrayTrait::getKeys()` (`A framework-level key extraction helper already exists.`)
-- Line `927` uses native `strtolower` in ``if (strtolower($entry->getExtension()) === strtolower($extension)) {``
+- Line `1127` uses native `array_merge` in ``return array_merge(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `1304` uses native `array_merge` in ``return array_merge(``
+  - `already-composed` -> `App\Utilities\Traits\ArrayTrait::merge()` (`Prefer the shared array merge helper.`)
+- Line `1367` uses native `preg_match` in ``preg_match('/^namespace\s+([^;]+);/m', $contents, $namespaceMatch) !== 1``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1368` uses native `preg_match` in ``|| preg_match('/^\s*(?:abstract\s+|final\s+|readonly\s+)*(class|interface|trait|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/m', $contents, $symbolMatch) !== 1``
+  - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
+- Line `1416` uses native `strtolower` in ``if (strtolower($entry->getExtension()) === strtolower($extension)) {``
   - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::toLower()` (`Prefer the shared string case helper.`)
   - `available-via-trait` -> `App\Utilities\Traits\EncodingTrait::convertStringToLower()` (`Use the encoding-aware lowercase helper when multibyte support matters.`)
-- Line `967` uses native `preg_match` in ``return preg_match('/^namespace\s+[^;]+;/m', $contents) === 1``
+- Line `1456` uses native `preg_match` in ``return preg_match('/^namespace\s+[^;]+;/m', $contents) === 1``
   - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
-- Line `968` uses native `preg_match` in ``&& preg_match('/^\s*(?:abstract\s+|final\s+|readonly\s+)*(?:class|interface|trait|enum)\s+[A-Za-z_][A-Za-z0-9_]*/m', $contents) === 1;``
+- Line `1457` uses native `preg_match` in ``&& preg_match('/^\s*(?:abstract\s+|final\s+|readonly\s+)*(?:class|interface|trait|enum)\s+[A-Za-z_][A-Za-z0-9_]*/m', $contents) === 1;``
   - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
-- Line `973` uses native `preg_match` in ``return preg_match('/declare\s*\(\s*strict_types\s*=\s*1\s*\)\s*;/', $contents) === 1;``
+- Line `1462` uses native `preg_match` in ``return preg_match('/declare\s*\(\s*strict_types\s*=\s*1\s*\)\s*;/', $contents) === 1;``
   - `available-via-trait` -> `App\Utilities\Traits\Patterns\PatternTrait::match()` (`Use the shared regex helper when regex behavior should align across the framework.`)
-- Line `984` uses native `str_contains` in ``return str_contains($contents, 'extends \\' . $target);``
-  - `already-composed` -> `App\Utilities\Traits\CheckerTrait::contains()` (`Prefer the shared string check helper.`)
-- Line `998` uses native `is_string` in ``return is_string($contents) ? $contents : '';``
-  - `available-via-trait` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
-- Line `1006` uses native `str_replace` in ``return ltrim(str_replace($normalizedBase, '', $normalizedPath), '/');``
+- Line `1487` uses native `is_string` in ``return is_string($contents) ? $contents : '';``
+  - `already-composed` -> `App\Utilities\Traits\TypeCheckerTrait::isString()` (`Prefer the shared type helper for string checks.`)
+- Line `1495` uses native `str_replace` in ``return ltrim(str_replace($normalizedBase, '', $normalizedPath), '/');``
   - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
-- Line `1016` uses native `str_replace` in ``return str_replace('\\', '/', $path);``
+- Line `1505` uses native `str_replace` in ``return str_replace('\\', '/', $path);``
   - `already-composed` -> `App\Utilities\Traits\ManipulationTrait::replaceText()` (`Prefer the shared string replacement helper where string semantics are intended.`)
 
 ### `App/Utilities/Managers/Support/AuditLogger.php`

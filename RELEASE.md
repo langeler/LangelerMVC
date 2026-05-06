@@ -10,15 +10,16 @@ Use this checklist for future LangelerMVC maintenance releases and project deplo
 
 ## Published Release Snapshot / Latest Verified Snapshot
 
-- Date: `2026-05-01`
+- Published date: `2026-05-01`
+- Latest verified date: `2026-05-06`
 - Release: `v1.0.0`
 - GitHub release: `https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (158 tests, 3325 assertions)`
+- Result: `OK (158 tests, 3332 assertions)`
 - Local release gate: `composer release:check` returns `status=200`
 - Layer release gate: `php console framework:layers` reports every required framework layer present
-- Architecture release gate: `php console framework:architecture` reports strict class files, canonical managers, module shape, native presentation, and docs alignment healthy
+- Architecture release gate: `php console framework:architecture` reports App boundaries, class placement, strict class files, canonical managers, support alias corridors, module shape, native presentation, and docs alignment healthy
 - Runtime backend harness: `composer test:runtime-backends` runs and skips cleanly when Redis/Memcached extensions are unavailable
 
 ## Required Verification For Future Releases

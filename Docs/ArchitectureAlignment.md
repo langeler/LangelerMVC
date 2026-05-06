@@ -44,6 +44,26 @@ The `App/` tree must keep the expected top-level layer map:
 
 Direct PHP files do not belong in the `App/` root. New framework code should land in the narrowest correct layer rather than creating ad hoc top-level folders.
 
+There is intentionally no generic `App/Helpers` top-level folder. Helper-style behavior should be placed in the narrowest existing surface: traits for reusable low-level behavior, handlers/finders/validators/sanitizers/query helpers under `App/Utilities`, managers under a canonical `App/Utilities/Managers/*` sublayer, presentation helpers under `App/Utilities/Managers/Presentation`, or module-local services when behavior belongs to one module.
+
+### Class Placement
+
+Every class-bearing `App/*.php` file must have one obvious home. The architecture gate checks every parsed class, interface, trait, and enum for:
+
+- path namespace parity
+- filename-to-symbol parity
+- contract interfaces ending in `Interface`
+- console commands ending in `Command`
+- provider classes ending in `Provider`
+- exception classes ending in `Exception`
+- driver adapter names matching their driver group, such as `*PaymentDriver`, `*CarrierAdapter`, `*SessionDriver`, `*Cache`, or `*NotificationChannel`
+- module classes matching their module directory role, such as `*Controller`, `*Middleware`, `*Repository`, `*Request`, `*Response`, `*Service`, `*View`, `*Listener`, or `*Notification`
+- utility classes matching their utility group, such as `*Finder`, `*Handler`, `*Query`, `*Sanitizer`, `*Validator`, and `*Trait`
+- manager classes living under approved canonical manager sublayers
+- support value objects staying in narrow support surfaces rather than becoming a miscellaneous dump
+
+The goal is to reduce future alias and placement headaches. A developer should not need to guess whether a new class belongs in `Support`, `Core`, a flat manager root, or a module. If a class is a compatibility alias, it must live in an explicitly approved alias corridor and remain thin.
+
 ### Public / Bootstrap
 
 `Public/index.php`, `bootstrap/app.php`, `bootstrap/console.php`, and `console` must stay thin entrypoints. They should delegate into `App\Core\Bootstrap`, the application runtime, or the console kernel rather than becoming business-logic surfaces.
@@ -85,7 +105,20 @@ Current canonical sublayers include:
 - `App/Utilities/Managers/Support`
 - `App/Utilities/Managers/System`
 
-Legacy paths such as `App/Support/Commerce/*Manager.php`, `App/Support/Commerce/CommerceTotalsCalculator.php`, `App/Support/Theming/ThemeManager.php`, and `App/Core/ModuleManager.php` remain supported only as thin compatibility aliases. New framework code should depend on the canonical manager namespaces.
+Legacy paths such as `App/Support/Commerce/*Manager.php`, `App/Support/Commerce/CommerceTotalsCalculator.php`, `App/Support/Theming/ThemeManager.php`, `App/Utilities/Managers/*.php`, and `App/Core/ModuleManager.php` remain supported only as thin compatibility aliases. New framework code should depend on the canonical manager namespaces.
+
+The flat `App/Utilities/Managers/*.php` files are compatibility wrappers over `System` or `Data` managers, not the target location for new concrete managers. New managers must choose a sublayer.
+
+### Support Surface And Alias Corridors
+
+`App/Support` is intentionally narrow:
+
+- `App/Support/Payments` contains canonical payment value objects and enums consumed by payment drivers and payment managers.
+- `App/Support/ArrayMailable.php` is the canonical array-backed mailable support object.
+- `App/Support/Commerce` is a compatibility corridor for older commerce manager imports.
+- `App/Support/Theming` is a compatibility corridor for the older theme manager import.
+
+New framework services, managers, and operational classes should not be added to `App/Support` by default. If a new support concept is needed, add a narrow rule, docs, and tests instead of letting `Support` become a catch-all layer.
 
 ### Documented Module Shape
 
@@ -144,6 +177,7 @@ Good reasons include:
 - introducing a new required module subdirectory
 - adding a new top-level release contract path
 - adding a new canonical manager sublayer
+- adding a new class-placement rule or support value-object corridor
 - changing public/bootstrap entrypoint responsibilities
 - adding or removing config, SQL snapshot, CI, test, or maintenance-script surfaces
 - moving a compatibility alias to a new canonical namespace

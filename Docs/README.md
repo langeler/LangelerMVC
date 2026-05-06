@@ -13,7 +13,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `../RELEASE.md`: published `v1.0.0` snapshot, future release checks, and production deployment preflight.
 - `RepositoryMetadata.md`: canonical repository/package description, topics, about text, and release-publication posture.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
-- `ArchitectureAlignment.md`: executable full-repo architecture-alignment rules for repository contract paths, App boundaries, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical managers, documented module shape, presentation, and docs.
+- `ArchitectureAlignment.md`: executable full-repo architecture-alignment rules for repository contract paths, App boundaries, class placement, public/bootstrap thinness, config/data/release parity, tests/CI/scripts, strict class files, canonical managers, support alias corridors, documented module shape, presentation, and docs.
 - `FrameworkWideLayerEvaluation.md`: executable layer map, framework-wide production audit, and mature-framework comparison.
 - `DeploymentAndUpgrade.md`: production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.

@@ -28,6 +28,7 @@ final class ReleaseReadinessTest extends TestCase
         self::assertSame([], $payload['checks']['framework_layers']['missing_required_paths']);
         self::assertTrue((bool) $payload['checks']['architecture_alignment']['ok']);
         self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['repository_contract']['ok']);
+        self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['class_placement']['ok']);
         self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['public_bootstrap']['ok']);
         self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['config_data_release']['ok']);
         self::assertTrue((bool) $payload['checks']['architecture_alignment']['checks']['tests_ci_scripts']['ok']);

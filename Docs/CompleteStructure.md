@@ -229,8 +229,6 @@ LangelerMVC
 │   ├── Framework
 │   │   └── Migrations
 │   │       └── CreateFrameworkOperationsTables.php
-│   ├── Helpers
-│   │   └── README.md
 │   ├── Installer
 │   │   ├── InstallerView.php
 │   │   └── InstallerWizard.php

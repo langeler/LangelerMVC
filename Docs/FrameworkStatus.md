@@ -1,13 +1,13 @@
 # Framework Status
 
-This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-05-01`.
+This document records the current implementation state of LangelerMVC based on the codebase and the latest verification pass as of `2026-05-06`.
 
 ## Snapshot
 
 - Published framework source release: [`v1.0.0`](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (158 tests, 3325 assertions)`
+- Verification result: `OK (158 tests, 3332 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database/runtime verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, SQL Server, Redis, and Memcached have a dedicated matrix harness in `Tests/DbMatrix`
 

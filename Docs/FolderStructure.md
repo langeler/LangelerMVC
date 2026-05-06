@@ -79,10 +79,6 @@ Typed exceptions grouped by concern so failures stay explicit and easier to debu
 - presentation errors
 - routing errors
 
-### `App/Helpers`
-
-Available for focused helper classes that genuinely belong outside traits, managers, handlers, and modules. It remains tracked as an explicit extension seam even when no helper class is currently needed.
-
 ### `App/Modules`
 
 The application layer is module-first. Each module follows the same backend shape:
@@ -142,9 +138,10 @@ Shared framework tooling. This is the main reusable backend toolbox and currentl
 Important note:
 
 - `App/Utilities/Managers/System/*` and `App/Utilities/Managers/Data/*` contain concrete implementations for several services.
-- Some flat manager classes in `App/Utilities/Managers/*` exist as convenience or compatibility wrappers over those deeper implementations.
+- Flat manager classes in `App/Utilities/Managers/*` exist only as compatibility wrappers over those deeper implementations. New concrete managers should choose an approved sublayer such as `Commerce`, `Presentation`, `Security`, `Support`, `System`, `Data`, or `Async`.
 - Legacy support paths such as `App/Support/Commerce/*Manager.php` and `App/Support/Theming/ThemeManager.php` are retained as compatibility aliases; new framework code should use the canonical manager namespaces under `App/Utilities/Managers/*`.
-- `Docs/ArchitectureAlignment.md` documents the executable `framework:architecture` rules that enforce the full repo contract: root release paths, App layer boundaries, public/bootstrap thinness, config/data parity, tests/CI/scripts, strict class files, canonical manager placement, module directory documentation, native presentation structure, and docs alignment.
+- `App/Support` is intentionally narrow: payment value objects, `ArrayMailable`, and explicitly approved compatibility alias corridors. It should not become a miscellaneous service or helper dump.
+- `Docs/ArchitectureAlignment.md` documents the executable `framework:architecture` rules that enforce the full repo contract: root release paths, App layer boundaries, class placement, public/bootstrap thinness, config/data parity, tests/CI/scripts, strict class files, canonical manager placement, module directory documentation, native presentation structure, and docs alignment.
 
 ## Other Top-Level Folders
 

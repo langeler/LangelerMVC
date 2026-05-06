@@ -38,4 +38,4 @@ The admin module exposes protected operator panels for dashboard, users, roles, 
 - Keep `Storage/Cache`, `Storage/Logs`, `Storage/Secure`, `Storage/Sessions`, `Storage/Uploads`, and queue runtime paths writable.
 - Run migrations before opening traffic.
 - Start supervised queue workers for async queues.
-- Use `php console framework:layers` for layer organization checks, `php console framework:architecture` for strict class files, canonical manager placement, module shape, native presentation, and docs alignment, `composer release:check` for framework release posture, and `php console release:check --strict=1` for project go-live posture.
+- Use `php console framework:layers` for layer organization checks, `php console framework:architecture` for class placement, strict class files, canonical manager placement, support alias corridors, module shape, native presentation, and docs alignment, `composer release:check` for framework release posture, and `php console release:check --strict=1` for project go-live posture.

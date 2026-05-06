@@ -123,7 +123,9 @@ class PlatformFoundationTest extends TestCase
 
         self::assertSame(0, $exitCode);
         self::assertTrue((bool) $payload['ok']);
+        self::assertArrayHasKey('class_placement', $payload['checks']);
         self::assertArrayHasKey('manager_placement', $payload['checks']);
+        self::assertSame([], $payload['checks']['class_placement']['errors']);
         self::assertSame([], $payload['errors']);
     }
 

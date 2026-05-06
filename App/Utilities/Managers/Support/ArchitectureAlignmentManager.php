@@ -10,6 +10,7 @@ use App\Utilities\Traits\ApplicationPathTrait;
 use App\Utilities\Traits\ArrayTrait;
 use App\Utilities\Traits\CheckerTrait;
 use App\Utilities\Traits\ManipulationTrait;
+use App\Utilities\Traits\TypeCheckerTrait;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -18,7 +19,7 @@ use SplFileInfo;
 class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterface
 {
     use ApplicationPathTrait;
-    use ArrayTrait, CheckerTrait, ManipulationTrait;
+    use ArrayTrait, CheckerTrait, ManipulationTrait, TypeCheckerTrait;
 
     /**
      * @var list<string>
@@ -99,6 +100,74 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         'Support',
         'Templates',
         'Utilities',
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const CANONICAL_MANAGER_SUBLAYERS = [
+        'Async',
+        'Commerce',
+        'Data',
+        'Presentation',
+        'Security',
+        'Support',
+        'System',
+    ];
+
+    /**
+     * @var array<string, list<string>>
+     */
+    private const DRIVER_SUFFIXES = [
+        'Caching' => ['Cache'],
+        'Cryptography' => ['Crypto'],
+        'Notifications' => ['NotificationChannel'],
+        'Passkeys' => ['PasskeyDriver'],
+        'Payments' => ['PaymentDriver'],
+        'Queue' => ['QueueDriver'],
+        'Session' => ['SessionDriver'],
+        'Shipping' => ['CarrierAdapter'],
+    ];
+
+    /**
+     * @var array<string, list<string>>
+     */
+    private const MODULE_DIRECTORY_SUFFIXES = [
+        'Controllers' => ['Controller'],
+        'Middlewares' => ['Middleware'],
+        'Migrations' => [],
+        'Models' => [],
+        'Presenters' => ['Presenter', 'Resource'],
+        'Repositories' => ['Repository'],
+        'Requests' => ['Request'],
+        'Responses' => ['Response'],
+        'Seeds' => ['Seed'],
+        'Services' => ['Service'],
+        'Views' => ['View'],
+        'Listeners' => ['Listener'],
+        'Notifications' => ['Notification'],
+    ];
+
+    /**
+     * @var array<string, list<string>>
+     */
+    private const MANAGER_SUBLAYER_SPECIAL_NAMES = [
+        'Async' => ['DatabaseFailedJobStore', 'EventDispatcher'],
+        'Commerce' => ['CommerceTotalsCalculator'],
+        'Presentation' => ['TemplateEngine'],
+        'Security' => ['DatabaseUserProvider', 'Gate', 'PasswordBroker', 'PermissionRegistry', 'PolicyResolver', 'SessionGuard'],
+        'Support' => ['AuditLogger', 'FrameworkDoctor'],
+    ];
+
+    /**
+     * @var list<string>
+     */
+    private const CANONICAL_SUPPORT_FILES = [
+        'App/Support/ArrayMailable.php',
+        'App/Support/Payments/PaymentFlow.php',
+        'App/Support/Payments/PaymentIntent.php',
+        'App/Support/Payments/PaymentMethod.php',
+        'App/Support/Payments/PaymentResult.php',
     ];
 
     /**
@@ -263,6 +332,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $checks = [
             'repository_contract' => $this->repositoryContractCheck(),
             'app_layer_boundaries' => $this->appLayerBoundaryCheck(),
+            'class_placement' => $this->classPlacementCheck(),
             'public_bootstrap' => $this->publicBootstrapCheck(),
             'config_data_release' => $this->configDataReleaseCheck(),
             'tests_ci_scripts' => $this->testsCiScriptsCheck(),
@@ -305,6 +375,10 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
                 'label' => 'App Layer Boundaries',
                 'description' => 'The App tree keeps the expected top-level framework folders and avoids stray class-bearing files outside the layer map.',
             ],
+            'class_placement' => [
+                'label' => 'Class Placement',
+                'description' => 'Every class-bearing App file keeps path, namespace, symbol name, layer role, module suffix, support object, manager sublayer, and alias-corridor placement aligned.',
+            ],
             'public_bootstrap' => [
                 'label' => 'Public / Bootstrap Thinness',
                 'description' => 'Public and bootstrap entrypoints stay thin and delegate into Bootstrap, CoreProvider, and the installer/view layers.',
@@ -323,7 +397,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
             ],
             'manager_placement' => [
                 'label' => 'Canonical Managers',
-                'description' => 'Concrete manager implementations live under App/Utilities/Managers/*, with legacy paths kept as thin aliases only.',
+                'description' => 'Concrete manager-layer implementations live under approved App/Utilities/Managers/* sublayers, with legacy paths kept as thin aliases only.',
             ],
             'module_contracts' => [
                 'label' => 'Documented Module Shape',
@@ -372,7 +446,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $missingIgnorePatterns = [];
 
         foreach ($requiredIgnorePatterns as $pattern) {
-            if (!str_contains($gitignore, $pattern)) {
+            if (!$this->contains($gitignore, $pattern)) {
                 $missingIgnorePatterns[] = $pattern;
             }
         }
@@ -406,7 +480,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $unexpectedDirectories = [];
 
         foreach ($this->childDirectories('App') as $directory) {
-            if (!isset($allowed[$directory]) && $directory !== 'Helpers') {
+            if (!isset($allowed[$directory])) {
                 $unexpectedDirectories[] = $directory;
             }
         }
@@ -442,6 +516,84 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
     /**
      * @return array<string, mixed>
      */
+    private function classPlacementCheck(): array
+    {
+        $errors = [];
+        $classes = [];
+        $layers = [];
+        $compatibilityAliases = [];
+
+        foreach ($this->phpFiles('App') as $file) {
+            $relative = $this->relativePath($file);
+
+            if ($this->isNonClassSurface($relative)) {
+                continue;
+            }
+
+            $contents = $this->read($relative);
+
+            if (!$this->isClassBearingFile($contents)) {
+                continue;
+            }
+
+            $metadata = $this->classMetadata($contents);
+
+            if ($metadata === null) {
+                $errors[] = sprintf('%s is class-bearing but could not be parsed for namespace and symbol placement.', $relative);
+                continue;
+            }
+
+            $layer = $this->pathSegment($relative, 1);
+            $layers[$layer] = ($layers[$layer] ?? 0) + 1;
+            $classes[] = $relative;
+
+            if ($this->isKnownCompatibilityAlias($relative)) {
+                $compatibilityAliases[] = $relative;
+            }
+
+            $expectedNamespace = str_replace('/', '\\', dirname($relative));
+            $expectedName = pathinfo($relative, PATHINFO_FILENAME);
+
+            if ($metadata['namespace'] !== $expectedNamespace) {
+                $errors[] = sprintf(
+                    '%s uses namespace [%s] instead of path namespace [%s].',
+                    $relative,
+                    $metadata['namespace'],
+                    $expectedNamespace
+                );
+            }
+
+            if ($metadata['name'] !== $expectedName) {
+                $errors[] = sprintf(
+                    '%s declares %s [%s] instead of path symbol [%s].',
+                    $relative,
+                    $metadata['kind'],
+                    $metadata['name'],
+                    $expectedName
+                );
+            }
+
+            $errors = array_merge($errors, $this->placementErrors($relative, $metadata));
+        }
+
+        ksort($layers);
+        sort($compatibilityAliases);
+
+        return [
+            'ok' => $errors === [],
+            'class_count' => $this->countElements($classes),
+            'layers' => $layers,
+            'canonical_manager_sublayers' => self::CANONICAL_MANAGER_SUBLAYERS,
+            'compatibility_alias_count' => $this->countElements($compatibilityAliases),
+            'compatibility_aliases' => $compatibilityAliases,
+            'errors' => array_values(array_unique($errors)),
+            'warnings' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function publicBootstrapCheck(): array
     {
         $missingPaths = array_values(array_filter(self::REQUIRED_PUBLIC_PATHS, fn(string $path): bool => !$this->pathExists($path)));
@@ -452,7 +604,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $installer = $this->read('Public/install/index.php');
         $errors = [];
 
-        if (!str_contains($publicIndex, '/bootstrap/app.php') || !str_contains($publicIndex, '->run()')) {
+        if (!$this->contains($publicIndex, '/bootstrap/app.php') || !$this->contains($publicIndex, '->run()')) {
             $errors[] = 'Public/index.php should stay a thin bootstrap/app.php front controller.';
         }
 
@@ -460,20 +612,20 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
             $errors[] = 'Public/index.php contains more executable statements than expected for the thin front controller.';
         }
 
-        if (!str_contains($bootstrapApp, 'new Bootstrap') || !str_contains($bootstrapApp, 'createApplication')) {
+        if (!$this->contains($bootstrapApp, 'new Bootstrap') || !$this->contains($bootstrapApp, 'createApplication')) {
             $errors[] = 'bootstrap/app.php should delegate application creation to App\\Core\\Bootstrap.';
         }
 
-        if (!str_contains($bootstrapConsole, 'new Bootstrap') || !str_contains($bootstrapConsole, 'createConsoleKernel')) {
+        if (!$this->contains($bootstrapConsole, 'new Bootstrap') || !$this->contains($bootstrapConsole, 'createConsoleKernel')) {
             $errors[] = 'bootstrap/console.php should delegate console creation to App\\Core\\Bootstrap.';
         }
 
-        if (!str_starts_with($console, '#!/usr/bin/env php') || !str_contains($console, 'bootstrap/console.php')) {
+        if (!$this->startsWith($console, '#!/usr/bin/env php') || !$this->contains($console, 'bootstrap/console.php')) {
             $errors[] = 'console should stay the thin CLI entrypoint into bootstrap/console.php.';
         }
 
         foreach (['InstallerWizard', 'InstallerView', 'HttpSecurityManager'] as $symbol) {
-            if (!str_contains($installer, $symbol)) {
+            if (!$this->contains($installer, $symbol)) {
                 $errors[] = sprintf('Public/install/index.php should integrate %s.', $symbol);
             }
         }
@@ -508,7 +660,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $missingEnvAnchors = [];
 
         foreach (['APP_NAME=', 'DB_CONNECTION=', 'PAYMENT_DRIVER=', 'COMMERCE_CURRENCY=', 'THEME_DEFAULT='] as $anchor) {
-            if (!str_contains($env, $anchor)) {
+            if (!$this->contains($env, $anchor)) {
                 $missingEnvAnchors[] = $anchor;
             }
         }
@@ -517,7 +669,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $missingDataReadmeAnchors = [];
 
         foreach (self::REQUIRED_DATA_FILES as $file) {
-            if ($file !== 'README.md' && !str_contains($dataReadme, $file)) {
+            if ($file !== 'README.md' && !$this->contains($dataReadme, $file)) {
                 $missingDataReadmeAnchors[] = $file;
             }
         }
@@ -557,7 +709,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         $missingWorkflowAnchors = [];
 
         foreach (['composer validate --no-check-publish', 'composer test', 'composer test:${{ matrix.target }}'] as $anchor) {
-            if (!str_contains($workflow, $anchor)) {
+            if (!$this->contains($workflow, $anchor)) {
                 $missingWorkflowAnchors[] = $anchor;
             }
         }
@@ -639,7 +791,14 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
     {
         $managerFiles = array_values(array_filter(
             $this->phpFiles('App'),
-            fn(string $file): bool => str_ends_with($this->relativePath($file), 'Manager.php')
+            function (string $file): bool {
+                $relative = $this->relativePath($file);
+
+                return $this->startsWith($relative, 'App/Utilities/Managers/')
+                    || $this->endsWith($relative, 'Manager.php')
+                    || isset(self::COMPATIBILITY_ALIASES[$relative])
+                    || isset(self::ROOT_MANAGER_ALIASES[$relative]);
+            }
         ));
         $canonical = [];
         $compatibility = [];
@@ -649,11 +808,6 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         foreach ($managerFiles as $file) {
             $relative = $this->relativePath($file);
 
-            if ($this->startsWith($relative, 'App/Utilities/Managers/')) {
-                $canonical[] = $relative;
-                continue;
-            }
-
             if (isset(self::COMPATIBILITY_ALIASES[$relative])) {
                 $compatibility[] = $relative;
 
@@ -661,6 +815,24 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
                     $aliasErrors[] = sprintf('%s is not a thin compatibility alias for %s.', $relative, self::COMPATIBILITY_ALIASES[$relative]);
                 }
 
+                continue;
+            }
+
+            if (isset(self::ROOT_MANAGER_ALIASES[$relative])) {
+                $compatibility[] = $relative;
+
+                if (!$this->isThinAlias($relative, self::ROOT_MANAGER_ALIASES[$relative])) {
+                    $aliasErrors[] = sprintf('%s should stay a thin root manager alias for %s.', $relative, self::ROOT_MANAGER_ALIASES[$relative]);
+                }
+
+                continue;
+            }
+
+            if (
+                preg_match('#^App/Utilities/Managers/([^/]+)/.+\.php$#', $relative, $matches) === 1
+                && $this->isInArray((string) $matches[1], self::CANONICAL_MANAGER_SUBLAYERS, true)
+            ) {
+                $canonical[] = $relative;
                 continue;
             }
 
@@ -689,6 +861,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
             'canonical_count' => $this->countElements($canonical),
             'compatibility_alias_count' => $this->countElements($compatibility),
             'root_alias_count' => $this->countElements(self::ROOT_MANAGER_ALIASES),
+            'canonical_sublayers' => self::CANONICAL_MANAGER_SUBLAYERS,
             'canonical' => $canonical,
             'compatibility_aliases' => $compatibility,
             'misplaced' => $misplaced,
@@ -798,9 +971,9 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
 
         foreach (self::REQUIRED_VIDE_DIRECTIVES as $directive) {
             if (
-                !str_contains($templateEngine, "'" . $directive . "'")
-                && !str_contains($templateEngine, '@' . $directive)
-                && !str_contains($templateEngine, '\\@' . $directive)
+                !$this->contains($templateEngine, "'" . $directive . "'")
+                && !$this->contains($templateEngine, '@' . $directive)
+                && !$this->contains($templateEngine, '\\@' . $directive)
             ) {
                 $missingDirectives[] = $directive;
             }
@@ -815,7 +988,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
         foreach ($this->filesWithExtension('App/Templates', 'vide') as $file) {
             $relative = $this->relativePath($file);
 
-            if (str_contains($this->read($relative), '<?php')) {
+            if ($this->contains($this->read($relative), '<?php')) {
                 $rawPhpVideFiles[] = $relative;
             }
         }
@@ -848,13 +1021,13 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
     private function documentationAlignmentCheck(): array
     {
         $requiredDocs = [
-            'readme.md' => ['framework:architecture', 'ArchitectureAlignment.md', 'repository contract'],
+            'readme.md' => ['framework:architecture', 'ArchitectureAlignment.md', 'repository contract', 'class placement'],
             'Docs/README.md' => ['ArchitectureAlignment.md', 'Historical / Archival Files'],
-            'Docs/ArchitectureOverview.md' => ['framework:architecture'],
-            'Docs/FrameworkWideLayerEvaluation.md' => ['architecture-alignment manager'],
-            'Docs/ArchitectureAlignment.md' => ['Architecture Alignment', 'Repository Contract', 'Public / Bootstrap', 'Config / Data / Release Parity', 'Tests / CI / Scripts'],
-            'Docs/FolderStructure.md' => ['ArchitectureAlignment.md'],
-            'Docs/OperationsGuide.md' => ['framework:architecture'],
+            'Docs/ArchitectureOverview.md' => ['framework:architecture', 'class placement'],
+            'Docs/FrameworkWideLayerEvaluation.md' => ['architecture-alignment manager', 'class placement'],
+            'Docs/ArchitectureAlignment.md' => ['Architecture Alignment', 'Repository Contract', 'Class Placement', 'Support Surface And Alias Corridors', 'Public / Bootstrap', 'Config / Data / Release Parity', 'Tests / CI / Scripts'],
+            'Docs/FolderStructure.md' => ['ArchitectureAlignment.md', 'class placement'],
+            'Docs/OperationsGuide.md' => ['framework:architecture', 'class placement'],
         ];
         $errors = [];
         $historical = [];
@@ -868,7 +1041,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
             }
 
             foreach ($phrases as $phrase) {
-                if (!str_contains($contents, $phrase)) {
+                if (!$this->contains($contents, $phrase)) {
                     $errors[] = sprintf('Architecture documentation [%s] does not mention [%s].', $doc, $phrase);
                 }
             }
@@ -881,7 +1054,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
                 $historical[] = $doc;
             }
 
-            if ($this->pathExists($doc) && !str_contains($docsReadme, basename($doc))) {
+            if ($this->pathExists($doc) && !$this->contains($docsReadme, basename($doc))) {
                 $errors[] = sprintf('Historical documentation artifact [%s] is not listed in Docs/README.md.', $doc);
             }
         }
@@ -893,6 +1066,322 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
             'errors' => $errors,
             'warnings' => [],
         ];
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function placementErrors(string $relative, array $metadata): array
+    {
+        $layer = $this->pathSegment($relative, 1);
+
+        return match ($layer) {
+            'Abstracts' => $metadata['kind'] === 'interface'
+                ? [sprintf('%s is an interface inside App/Abstracts; interfaces belong in App/Contracts.', $relative)]
+                : [],
+            'Console' => $this->consolePlacementErrors($relative, $metadata),
+            'Contracts' => $this->contractsPlacementErrors($relative, $metadata),
+            'Core' => $this->corePlacementErrors($relative),
+            'Drivers' => $this->driverPlacementErrors($relative, $metadata),
+            'Exceptions' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Exception'], 'exception classes'),
+            'Framework' => $this->frameworkPlacementErrors($relative),
+            'Installer' => $this->prefixPlacementErrors($relative, $metadata['name'], ['Installer'], 'installer classes'),
+            'Modules' => $this->modulePlacementErrors($relative, $metadata),
+            'Providers' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Provider'], 'provider classes'),
+            'Resources' => [sprintf('%s is a class-bearing PHP file inside App/Resources; resources should be static source assets.', $relative)],
+            'Support' => $this->supportPlacementErrors($relative, $metadata),
+            'Templates' => [sprintf('%s is a class-bearing PHP file inside App/Templates; shared presentation code belongs in App/Utilities/Managers/Presentation or module Views.', $relative)],
+            'Utilities' => $this->utilityPlacementErrors($relative, $metadata),
+            default => [sprintf('%s lives under unknown App layer [%s].', $relative, $layer)],
+        };
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function consolePlacementErrors(string $relative, array $metadata): array
+    {
+        if ($this->startsWith($relative, 'App/Console/Commands/')) {
+            return $this->suffixPlacementErrors($relative, $metadata['name'], ['Command'], 'console commands');
+        }
+
+        return $relative === 'App/Console/ConsoleKernel.php'
+            ? []
+            : [sprintf('%s is outside the known ConsoleKernel or Commands surfaces.', $relative)];
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function contractsPlacementErrors(string $relative, array $metadata): array
+    {
+        $errors = [];
+
+        if ($metadata['kind'] !== 'interface') {
+            $errors[] = sprintf('%s declares a %s inside App/Contracts; contracts must be interfaces.', $relative, $metadata['kind']);
+        }
+
+        return array_merge(
+            $errors,
+            $this->suffixPlacementErrors($relative, $metadata['name'], ['Interface'], 'contract interfaces')
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function corePlacementErrors(string $relative): array
+    {
+        if ($relative === 'App/Core/ModuleManager.php') {
+            return $this->isThinAlias($relative, self::COMPATIBILITY_ALIASES[$relative] ?? '')
+                ? []
+                : [sprintf('%s must remain a thin compatibility alias for the canonical module manager.', $relative)];
+        }
+
+        if ($this->endsWith($relative, 'Manager.php')) {
+            return [sprintf('%s is a new manager in App/Core; concrete managers belong under App/Utilities/Managers/*.', $relative)];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function driverPlacementErrors(string $relative, array $metadata): array
+    {
+        $driverGroup = $this->pathSegment($relative, 2);
+
+        if (!isset(self::DRIVER_SUFFIXES[$driverGroup])) {
+            return [sprintf('%s lives in unknown driver group [%s].', $relative, $driverGroup)];
+        }
+
+        return $this->suffixPlacementErrors($relative, $metadata['name'], self::DRIVER_SUFFIXES[$driverGroup], 'driver adapters');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function frameworkPlacementErrors(string $relative): array
+    {
+        return $this->startsWith($relative, 'App/Framework/Migrations/')
+            ? []
+            : [sprintf('%s is outside the known App/Framework/Migrations surface.', $relative)];
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function modulePlacementErrors(string $relative, array $metadata): array
+    {
+        $module = $this->pathSegment($relative, 2);
+        $directory = $this->pathSegment($relative, 3);
+
+        if ($module === '' || !$this->endsWith($module, 'Module')) {
+            return [sprintf('%s is not inside a named *Module root.', $relative)];
+        }
+
+        if (!isset(self::MODULE_DIRECTORY_SUFFIXES[$directory])) {
+            return [sprintf('%s lives in unsupported module directory [%s].', $relative, $directory)];
+        }
+
+        $suffixes = self::MODULE_DIRECTORY_SUFFIXES[$directory];
+
+        if ($suffixes === []) {
+            return [];
+        }
+
+        return $this->suffixPlacementErrors($relative, $metadata['name'], $suffixes, 'module ' . $directory);
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function supportPlacementErrors(string $relative, array $metadata): array
+    {
+        if (isset(self::COMPATIBILITY_ALIASES[$relative])) {
+            return $this->isThinAlias($relative, self::COMPATIBILITY_ALIASES[$relative])
+                ? []
+                : [sprintf('%s must stay a thin compatibility alias for %s.', $relative, self::COMPATIBILITY_ALIASES[$relative])];
+        }
+
+        if ($this->startsWith($relative, 'App/Support/Commerce/') || $this->startsWith($relative, 'App/Support/Theming/')) {
+            return [sprintf('%s is in a compatibility alias corridor but is not registered as an approved alias.', $relative)];
+        }
+
+        if ($this->isInArray($relative, self::CANONICAL_SUPPORT_FILES, true)) {
+            return [];
+        }
+
+        if ($this->startsWith($relative, 'App/Support/Payments/')) {
+            if (!$this->startsWith($metadata['name'], 'Payment')) {
+                return [sprintf('%s is a payment support value but does not use the Payment* name family.', $relative)];
+            }
+
+            if ($this->endsWith($metadata['name'], 'Manager')) {
+                return [sprintf('%s is a manager in App/Support/Payments; payment managers belong under App/Utilities/Managers/Support.', $relative)];
+            }
+
+            return [];
+        }
+
+        return [sprintf('%s is an unclassified App/Support class; add a narrow support rule or move it into Contracts, Abstracts, Utilities, Drivers, or Modules.', $relative)];
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function utilityPlacementErrors(string $relative, array $metadata): array
+    {
+        $utilityGroup = $this->pathSegment($relative, 2);
+
+        return match ($utilityGroup) {
+            'Finders' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Finder'], 'finder utilities'),
+            'Handlers' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Handler'], 'handler utilities'),
+            'Managers' => $this->utilityManagerPlacementErrors($relative, $metadata),
+            'Query' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Query'], 'query helpers'),
+            'Sanitation' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Sanitizer'], 'sanitizers'),
+            'Traits' => $this->traitPlacementErrors($relative, $metadata),
+            'Validation' => $this->suffixPlacementErrors($relative, $metadata['name'], ['Validator'], 'validators'),
+            default => [sprintf('%s lives in unknown App/Utilities group [%s].', $relative, $utilityGroup)],
+        };
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function utilityManagerPlacementErrors(string $relative, array $metadata): array
+    {
+        if (isset(self::ROOT_MANAGER_ALIASES[$relative])) {
+            return $this->isThinAlias($relative, self::ROOT_MANAGER_ALIASES[$relative])
+                ? []
+                : [sprintf('%s must remain a thin root manager alias for %s.', $relative, self::ROOT_MANAGER_ALIASES[$relative])];
+        }
+
+        $sublayer = $this->pathSegment($relative, 3);
+
+        if ($sublayer === '') {
+            return [sprintf('%s is a concrete manager at App/Utilities/Managers root; use a canonical manager sublayer.', $relative)];
+        }
+
+        if (!$this->isInArray($sublayer, self::CANONICAL_MANAGER_SUBLAYERS, true)) {
+            return [sprintf('%s uses unsupported manager sublayer [%s].', $relative, $sublayer)];
+        }
+
+        $specialNames = self::MANAGER_SUBLAYER_SPECIAL_NAMES[$sublayer] ?? [];
+
+        if ($this->endsWith($metadata['name'], 'Manager') || $this->isInArray($metadata['name'], $specialNames, true)) {
+            return [];
+        }
+
+        return [sprintf(
+            '%s declares [%s] in the manager layer without a Manager suffix or approved service-role exception.',
+            $relative,
+            $metadata['name']
+        )];
+    }
+
+    /**
+     * @param array{namespace:string,kind:string,name:string} $metadata
+     * @return list<string>
+     */
+    private function traitPlacementErrors(string $relative, array $metadata): array
+    {
+        $errors = [];
+
+        if ($metadata['kind'] !== 'trait') {
+            $errors[] = sprintf('%s declares a %s inside App/Utilities/Traits; this surface is for traits only.', $relative, $metadata['kind']);
+        }
+
+        return array_merge(
+            $errors,
+            $this->suffixPlacementErrors($relative, $metadata['name'], ['Trait'], 'utility traits')
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function suffixPlacementErrors(string $relative, string $name, array $suffixes, string $surface): array
+    {
+        foreach ($suffixes as $suffix) {
+            if ($this->endsWith($name, $suffix)) {
+                return [];
+            }
+        }
+
+        return [sprintf(
+            '%s declares [%s], but %s must use one of these suffixes: %s.',
+            $relative,
+            $name,
+            $surface,
+            implode(', ', $suffixes)
+        )];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function prefixPlacementErrors(string $relative, string $name, array $prefixes, string $surface): array
+    {
+        foreach ($prefixes as $prefix) {
+            if ($this->startsWith($name, $prefix)) {
+                return [];
+            }
+        }
+
+        return [sprintf(
+            '%s declares [%s], but %s must use one of these prefixes: %s.',
+            $relative,
+            $name,
+            $surface,
+            implode(', ', $prefixes)
+        )];
+    }
+
+    private function isKnownCompatibilityAlias(string $relative): bool
+    {
+        return isset(self::COMPATIBILITY_ALIASES[$relative]) || isset(self::ROOT_MANAGER_ALIASES[$relative]);
+    }
+
+    private function isNonClassSurface(string $relative): bool
+    {
+        return $this->startsWith($relative, 'App/Templates/')
+            || $this->endsWith($relative, '/Routes/web.php');
+    }
+
+    /**
+     * @return array{namespace:string,kind:string,name:string}|null
+     */
+    private function classMetadata(string $contents): ?array
+    {
+        if (
+            preg_match('/^namespace\s+([^;]+);/m', $contents, $namespaceMatch) !== 1
+            || preg_match('/^\s*(?:abstract\s+|final\s+|readonly\s+)*(class|interface|trait|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/m', $contents, $symbolMatch) !== 1
+        ) {
+            return null;
+        }
+
+        return [
+            'namespace' => (string) $namespaceMatch[1],
+            'kind' => (string) $symbolMatch[1],
+            'name' => (string) $symbolMatch[2],
+        ];
+    }
+
+    private function pathSegment(string $relative, int $index): string
+    {
+        $parts = explode('/', $relative);
+
+        return (string) ($parts[$index] ?? '');
     }
 
     /**
@@ -981,7 +1470,7 @@ class ArchitectureAlignmentManager implements ArchitectureAlignmentManagerInterf
             return false;
         }
 
-        return str_contains($contents, 'extends \\' . $target);
+        return $this->contains($contents, 'extends \\' . $target);
     }
 
     private function pathExists(string $relative): bool

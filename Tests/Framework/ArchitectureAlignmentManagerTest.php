@@ -27,6 +27,7 @@ final class ArchitectureAlignmentManagerTest extends TestCase
         self::assertSame([], $payload['warnings']);
         self::assertTrue((bool) $payload['checks']['repository_contract']['ok']);
         self::assertTrue((bool) $payload['checks']['app_layer_boundaries']['ok']);
+        self::assertTrue((bool) $payload['checks']['class_placement']['ok']);
         self::assertTrue((bool) $payload['checks']['public_bootstrap']['ok']);
         self::assertTrue((bool) $payload['checks']['config_data_release']['ok']);
         self::assertTrue((bool) $payload['checks']['tests_ci_scripts']['ok']);
@@ -36,7 +37,13 @@ final class ArchitectureAlignmentManagerTest extends TestCase
         self::assertTrue((bool) $payload['checks']['presentation_native_surface']['ok']);
         self::assertTrue((bool) $payload['checks']['documentation_alignment']['ok']);
         self::assertArrayHasKey('repository_contract', $payload['rules']);
+        self::assertArrayHasKey('class_placement', $payload['rules']);
         self::assertArrayHasKey('manager_placement', $payload['rules']);
+        self::assertGreaterThan(400, $payload['checks']['class_placement']['class_count']);
+        self::assertContains(
+            'App/Support/Commerce/ShippingManager.php',
+            $payload['checks']['class_placement']['compatibility_aliases']
+        );
     }
 
     public function testArchitectureAlignmentManagerReportsMissingRepositoryShape(): void

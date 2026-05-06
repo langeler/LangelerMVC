@@ -5,6 +5,7 @@ All notable LangelerMVC release work is tracked here.
 ## Unreleased
 
 - Added executable architecture alignment through `ArchitectureAlignmentManager`, `php console framework:architecture`, `composer architecture:check`, release-gate coverage, and dedicated docs.
+- Added class-by-class placement enforcement for namespaces, filenames, module directory roles, driver suffixes, canonical manager sublayers, support value objects, and compatibility alias corridors.
 - Added framework-wide layer introspection through `FrameworkLayerManager`, `php console framework:layers`, release-gate coverage, and framework-wide competitive layer documentation.
 - Added native `.vide` section/yield/stack directives for named layout composition while preserving existing `$content` layout compatibility.
 

@@ -4,8 +4,9 @@
 
 - Release: [v1.0.0](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - Published: 2026-05-01
+- Latest verified: 2026-05-06
 - Local verification: `composer verify:release`
-- Regression result: `OK (158 tests, 3325 assertions)`
+- Regression result: `OK (158 tests, 3332 assertions)`
 - Architecture gate: `composer architecture:check`
 - Release gate: `composer release:check` returns `status=200`
 

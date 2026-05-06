@@ -12,18 +12,19 @@ perl Scripts/AuditNativeToTraitConsistency.pl . > /tmp/langelermvc-native-trait-
 
 ## Current Snapshot
 
-Latest local audit after the presentation/HTML helper and commerce manager relocation:
+Latest local audit after the framework layer manager, presentation sections/stacks, HTML helper, and commerce manager relocation:
 
-- Class files scanned: `335`
-- Class files with at least one replacement candidate: `134`
-- Total native-call occurrences matching existing trait wrappers: `2003`
-- Low-friction replacement paths (`already-composed`): `257`
-- Structural replacement paths (`available-via-trait`): `2013`
+- Class files scanned: `337`
+- Class files with at least one replacement candidate: `136`
+- Total native-call occurrences matching existing trait wrappers: `2018`
+- Low-friction replacement paths (`already-composed`): `270`
+- Structural replacement paths (`available-via-trait`): `2015`
 
 ## High-Value Interpretation
 
 - Presentation manager code now leans further into framework-native traits: `TemplateEngine`, `ThemeManager`, and `AssetManager` use shared array, string, pattern, hashing, type-checking, path, and encoding helpers where they add clarity.
 - `HtmlManager` now owns low-level safe HTML output using framework traits instead of leaving CSRF fields, method fields, conditional classes, attributes, and script-safe JSON as ad hoc view logic.
+- `FrameworkLayerManager` now uses the shared path, array, and string helper surface to keep layer inspection consistent with the rest of the manager layer.
 - Commerce operational managers now live under `App/Utilities/Managers/Commerce`, making future native-to-trait passes easier to target as a focused subsystem instead of scattered support classes.
 - The remaining high-count files are mostly deep commerce/admin orchestration classes where a full conversion should be deliberate, not mechanical.
 - The best next refactor candidates are classes that already compose the relevant trait and therefore can replace native calls without widening their dependencies.
@@ -33,8 +34,8 @@ Latest local audit after the presentation/HTML helper and commerce manager reloc
 
 - `trim`: `395`
 - `is_array`: `307`
-- `array_map`: `162`
-- `array_values`: `155`
+- `array_map`: `165`
+- `array_values`: `157`
 - `strtolower`: `139`
 - `in_array`: `129`
 - `array_filter`: `93`

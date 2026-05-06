@@ -10,12 +10,13 @@ LangelerMVC is a released modular PHP 8.4 MVC framework with first-party auth, p
 - Package name: `langeler/mvc`
 - Runtime: PHP 8.4+
 - Local release gate: `composer release:check`
+- Layer audit gate: `php console framework:layers`
 - Full verification gate: `composer verify:release`
 
 ## What Is Included
 
 - Core runtime, bootstrap, container, routing, config, session, cache, crypto, query, migration, seed, console, health, and audit layers.
-- Native `.vide` templating with shared layouts, pages, partials, and components.
+- Native `.vide` templating with shared layouts, sections, stacks, pages, partials, and components.
 - First-party `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule`.
 - Guided installer with step navigation, progress state, readiness panels, validation-aware focus, and no-JS fallback.
 - Payment provider surfaces for testing, card, PayPal, Klarna, Swish, Qliro, Walley, and crypto.

@@ -7,6 +7,7 @@ The repository documentation remains the source of truth. Start with:
 - [RELEASE](https://github.com/langeler/LangelerMVC/blob/main/RELEASE.md)
 - [Docs/README](https://github.com/langeler/LangelerMVC/blob/main/Docs/README.md)
 - [Architecture Overview](https://github.com/langeler/LangelerMVC/blob/main/Docs/ArchitectureOverview.md)
+- [Framework-Wide Layer Evaluation](https://github.com/langeler/LangelerMVC/blob/main/Docs/FrameworkWideLayerEvaluation.md)
 - [Framework Status](https://github.com/langeler/LangelerMVC/blob/main/Docs/FrameworkStatus.md)
 - [Release Readiness Plan](https://github.com/langeler/LangelerMVC/blob/main/Docs/ReleaseReadinessPlan.md)
 - [Deployment And Upgrade](https://github.com/langeler/LangelerMVC/blob/main/Docs/DeploymentAndUpgrade.md)

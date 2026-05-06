@@ -76,7 +76,7 @@ Responsibility split:
 - `NotificationProvider`: notification channel resolution
 - `PaymentProvider`: payment driver resolution
 - `ShippingProvider`: carrier adapter resolution for shipping/service-point/label/tracking/cancellation operations
-- `CoreProvider` also exposes the `themes` and `assets` services for framework-wide presentation resolution
+- `CoreProvider` also exposes the `themes`, `assets`, and `frameworkLayers` services for framework-wide presentation and architecture inspection
 
 Providers are the framework’s infrastructure composition boundary. They let the runtime depend on contracts and aliases instead of hardcoding driver classes directly.
 
@@ -176,6 +176,7 @@ The following areas are implemented as framework-level subsystems today:
 - routing and module route discovery
 - operational console and command kernel
 - runtime health/readiness/capability reporting
+- framework-wide layer introspection through `FrameworkLayerManager`, `php console framework:layers`, and the `framework_layers` release-check gate
 - migration and seed lifecycle management
 - framework-managed audit logging for sensitive flows
 - session runtime
@@ -188,6 +189,7 @@ The following areas are implemented as framework-level subsystems today:
 - presentation resource / negotiated JSON layer
 - completed view/presenter/template layer with shared layouts, partials, and components
 - canonical `.vide` templates authored in native directives rather than embedded raw PHP
+- `.vide` layout sections/stacks for named regions while preserving the default `$content` layout flow
 - framework-wide Bootstrap-compatible theme, HTML helper, and asset management with tracked source/public CSS and JavaScript assets, cache-busted asset URLs, preload helpers, and named bundles
 - database layer and SQL/query builders
 - cache subsystem
@@ -238,6 +240,7 @@ The most important extension seams today are:
 - **Support Services**: extend authentication, authorization, notifications, and payments on top of the existing manager and provider boundaries.
 - **Payments**: add project-specific drivers later against the now-stable capability contract without pushing vendor SDK concerns into framework core.
 - **Async**: add listeners, jobs, queue drivers, and failed-job strategies without rewriting runtime or modules.
+- **Layer Inspection**: update `FrameworkLayerManager` whenever a new required framework layer or release-critical surface is introduced.
 
 ## Post-Release Architectural Boundaries
 

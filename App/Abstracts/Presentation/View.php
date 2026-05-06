@@ -50,6 +50,10 @@ abstract class View implements ViewInterface
 	protected string $theme = 'default';
 	protected ?string $defaultLayout = null;
 	protected array $templateExtensions = ['vide', 'lmv', 'php'];
+    protected array $sections = [];
+    protected array $sectionBuffers = [];
+    protected array $stacks = [];
+    protected array $pushBuffers = [];
 
 	private string $resourcesPath;
 	private string $templatesPath;
@@ -106,11 +110,13 @@ abstract class View implements ViewInterface
 
 	public function renderPage(string $page, array $data = []): string
 	{
+        $this->resetCompositionState();
+
 		if ($this->defaultLayout === null || $this->defaultLayout === '') {
 			return $this->renderPageContent($page, $data);
 		}
 
-		return $this->renderPageWithLayout($this->defaultLayout, $page, $data);
+		return $this->renderPageWithLayoutForCurrentCycle($this->defaultLayout, $page, $data);
 	}
 
 	public function renderPageContent(string $page, array $data = []): string
@@ -120,12 +126,77 @@ abstract class View implements ViewInterface
 
 	public function renderPageWithLayout(string $layout, string $page, array $data = []): string
 	{
-		$pageContent = $this->renderPageContent($page, $data);
+        $this->resetCompositionState();
+
+        return $this->renderPageWithLayoutForCurrentCycle($layout, $page, $data);
+	}
+
+    public function startSection(string $name): void
+    {
+        $this->sectionBuffers[] = $this->normalizeCompositionName($name, 'section');
+        ob_start();
+    }
+
+    public function stopSection(): void
+    {
+        if ($this->sectionBuffers === []) {
+            throw new ViewException('Cannot stop a template section because no section is active.');
+        }
+
+        $name = (string) array_pop($this->sectionBuffers);
+        $content = ob_get_clean();
+        $this->sections[$name] = $content === false ? '' : $content;
+    }
+
+    public function yieldContent(string $name, string $default = ''): string
+    {
+        $normalized = $this->normalizeCompositionName($name, 'section');
+
+        return array_key_exists($normalized, $this->sections)
+            ? (string) $this->sections[$normalized]
+            : $default;
+    }
+
+    public function hasSection(string $name): bool
+    {
+        $normalized = $this->normalizeCompositionName($name, 'section');
+
+        return array_key_exists($normalized, $this->sections) && (string) $this->sections[$normalized] !== '';
+    }
+
+    public function push(string $name): void
+    {
+        $this->pushBuffers[] = $this->normalizeCompositionName($name, 'stack');
+        ob_start();
+    }
+
+    public function stopPush(): void
+    {
+        if ($this->pushBuffers === []) {
+            throw new ViewException('Cannot stop a template stack push because no push is active.');
+        }
+
+        $name = (string) array_pop($this->pushBuffers);
+        $content = ob_get_clean();
+        $this->stacks[$name] ??= [];
+        $this->stacks[$name][] = $content === false ? '' : $content;
+    }
+
+    public function stack(string $name): string
+    {
+        $normalized = $this->normalizeCompositionName($name, 'stack');
+
+        return $this->joinStrings("\n", array_map('strval', $this->stacks[$normalized] ?? []));
+    }
+
+    private function renderPageWithLayoutForCurrentCycle(string $layout, string $page, array $data = []): string
+    {
+        $pageContent = $this->renderPageContent($page, $data);
 
 		return $this->renderLayout($layout, $this->replaceElements($data, [
 			'content' => $pageContent,
 		]));
-	}
+    }
 
 	public function renderPartial(string $partial, array $data = []): string
 	{
@@ -352,6 +423,26 @@ abstract class View implements ViewInterface
 		}, ViewException::class);
 	}
 
+    private function resetCompositionState(): void
+    {
+        while ($this->sectionBuffers !== []) {
+            array_pop($this->sectionBuffers);
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+        }
+
+        while ($this->pushBuffers !== []) {
+            array_pop($this->pushBuffers);
+            if (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+        }
+
+        $this->sections = [];
+        $this->stacks = [];
+    }
+
 	private function resolveBasePath(string $dirName): string
 	{
 		return $this->wrapInTry(function () use ($dirName): string {
@@ -494,6 +585,28 @@ abstract class View implements ViewInterface
 
 		return $this->joinStrings(DIRECTORY_SEPARATOR, $segments);
 	}
+
+    private function normalizeCompositionName(string $name, string $label): string
+    {
+        $normalized = $this->replaceText('\\', '/', $this->trimString($name));
+        $normalized = $this->trimString((string) $this->sanitizer->sanitizePathUnix((string) $normalized), '/');
+
+        if ($normalized === '') {
+            throw new ViewException("Invalid {$label} identifier '{$name}'.");
+        }
+
+        $segments = $this->splitString('/', $normalized);
+
+        if ($this->any($segments, fn(string $segment): bool => $segment === '' || $segment === '.' || $segment === '..')) {
+            throw new ViewException("Unsafe {$label} identifier '{$name}'.");
+        }
+
+        if ($this->any($segments, fn(string $segment): bool => !$this->validator->validateDirectory($segment))) {
+            throw new ViewException("Invalid {$label} identifier '{$name}'.");
+        }
+
+        return $this->joinStrings('.', $segments);
+    }
 
 	private function getValidPath(?string $path, string $errorMessage, bool $isFileCheck = false): string
 	{

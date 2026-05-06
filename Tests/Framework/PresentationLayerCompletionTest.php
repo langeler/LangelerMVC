@@ -145,6 +145,52 @@ class PresentationLayerCompletionTest extends TestCase
         self::assertStringContainsString('<script src="/assets/js/langelermvc-theme.js?v=', $output);
     }
 
+    public function testVideTemplatesSupportSectionsStacksAndContentCompatibility(): void
+    {
+        $projectRoot = dirname(__DIR__, 2);
+        $layoutPath = $projectRoot . '/App/Templates/Layouts/CodexSectionLayout.vide';
+        $sectionPagePath = $projectRoot . '/App/Templates/Pages/CodexSectionPage.vide';
+        $legacyPagePath = $projectRoot . '/App/Templates/Pages/CodexLegacyContentPage.vide';
+
+        file_put_contents(
+            $layoutPath,
+            '<html><head><title>@yield("title", "Fallback")</title>@stack("head")</head>'
+            . '<body>@hasSection("sidebar")<aside>@yield("sidebar")</aside>@endif'
+            . '<main>@yield("content", $content ?? "")</main>@stack("scripts")</body></html>'
+        );
+        file_put_contents(
+            $sectionPagePath,
+            '@section("title")Dashboard@endsection'
+            . '@section("content")<p>{{ $message }}</p>@endsection'
+            . '@push("head")<meta name="section-test" content="yes">@endpush'
+            . '@push("scripts")<script>window.sectionReady = true;</script>@endpush'
+        );
+        file_put_contents($legacyPagePath, '<p>Legacy {{ $message }}</p>');
+
+        $this->pathsToDelete = array_merge($this->pathsToDelete, [$layoutPath, $sectionPagePath, $legacyPagePath]);
+
+        $view = new class(
+            new FileFinder(new IteratorManager()),
+            new DirectoryFinder(new IteratorManager()),
+            $this->createStub(CacheManager::class),
+            new FileManager(),
+            new PatternSanitizer(),
+            new PatternValidator()
+        ) extends View {
+        };
+
+        $sectionOutput = $view->renderPageWithLayout('CodexSectionLayout', 'CodexSectionPage', ['message' => 'Ready']);
+        $legacyOutput = $view->renderPageWithLayout('CodexSectionLayout', 'CodexLegacyContentPage', ['message' => 'Flow']);
+
+        self::assertStringContainsString('<title>Dashboard</title>', $sectionOutput);
+        self::assertStringContainsString('<main><p>Ready</p></main>', $sectionOutput);
+        self::assertStringContainsString('<meta name="section-test" content="yes">', $sectionOutput);
+        self::assertStringContainsString('<script>window.sectionReady = true;</script>', $sectionOutput);
+        self::assertStringNotContainsString('<aside>', $sectionOutput);
+        self::assertStringContainsString('<title>Fallback</title>', $legacyOutput);
+        self::assertStringContainsString('<main><p>Legacy Flow</p></main>', $legacyOutput);
+    }
+
     public function testAllNativeVideTemplatesAvoidRawPhpTags(): void
     {
         $templateRoot = dirname(__DIR__, 2) . '/App/Templates';

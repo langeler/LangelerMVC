@@ -4,7 +4,8 @@ All notable LangelerMVC release work is tracked here.
 
 ## Unreleased
 
-- No unreleased changes yet.
+- Added framework-wide layer introspection through `FrameworkLayerManager`, `php console framework:layers`, release-gate coverage, and framework-wide competitive layer documentation.
+- Added native `.vide` section/yield/stack directives for named layout composition while preserving existing `$content` layout compatibility.
 
 ## 1.0.0 - 2026-05-01
 

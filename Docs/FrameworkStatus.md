@@ -7,7 +7,7 @@ This document records the current implementation state of LangelerMVC based on t
 - Published framework source release: [`v1.0.0`](https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0)
 - PHP runtime used for the latest full verification pass: `8.4.12`
 - Latest default regression result: `composer test`
-- Verification result: `OK (150 tests, 3258 assertions)`
+- Verification result: `OK (154 tests, 3288 assertions)`
 - Project posture: complete first-party platform framework with starter, identity, admin operations, WebModule content authoring, catalog, cart, promotions, subscriptions, inventory reservations, returns/exchanges, VAT/order documents, and order slices implemented
 - Database/runtime verification posture: SQLite is exercised by the default suite; MySQL, PostgreSQL, SQL Server, Redis, and Memcached have a dedicated matrix harness in `Tests/DbMatrix`
 
@@ -41,6 +41,7 @@ This document records the current implementation state of LangelerMVC based on t
 - resource and resource-collection abstractions with meta/links/pagination support
 - view abstraction with shared layout/page/partial/component rendering
 - framework-native `.vide` template engine with `.lmv` and `.php` compatibility fallbacks
+- `.vide` section/yield/stack composition for named layout regions while keeping existing `$content` layout compatibility
 - presentation asset/html/theme managers centralized under `App\Utilities\Managers\Presentation`
 - production asset helpers now cover versioned URLs, preload tags, named bundles, source/public synchronization, and script-safe JSON output
 - commerce operational managers centralized under `App\Utilities\Managers\Commerce` with legacy support-path aliases for older project code
@@ -105,7 +106,8 @@ This document records the current implementation state of LangelerMVC based on t
 - queue work/retry/failed commands
 - notification inspection command
 - event/listener inspection command
-- release readiness inspection command through `php console release:check`, including module-surface, payment-surface, theme-surface, commerce, route, docs, env, and template accessibility gates
+- framework layer inspection command through `php console framework:layers`
+- release readiness inspection command through `php console release:check`, including framework-layer, module-surface, payment-surface, theme-surface, commerce, route, docs, env, and template accessibility gates
 - release SQL reference inspection for `Data/*.sql`, including stale table detection for old pre-release schema names
 - repository consistency coverage for class/file/namespace naming across class-bearing `App/` PHP files
 - GitHub Actions workflow with platform checks, explicit MySQL/PostgreSQL readiness waits, target diagnostics, and DB service log artifacts on failure

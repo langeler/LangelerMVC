@@ -15,8 +15,9 @@ Use this checklist for future LangelerMVC maintenance releases and project deplo
 - GitHub release: `https://github.com/langeler/LangelerMVC/releases/tag/v1.0.0`
 - PHP runtime: `8.4.12`
 - Default regression command: `composer test`
-- Result: `OK (150 tests, 3258 assertions)`
+- Result: `OK (154 tests, 3288 assertions)`
 - Local release gate: `composer release:check` returns `status=200`
+- Layer release gate: `php console framework:layers` reports every required framework layer present
 - Runtime backend harness: `composer test:runtime-backends` runs and skips cleanly when Redis/Memcached extensions are unavailable
 
 ## Required Verification For Future Releases
@@ -58,7 +59,7 @@ For project production go-live validation, also run `php console release:check -
 5. Point the web server document root at `Public/` and confirm front-controller rewrites are enabled.
 6. Ensure `Storage/Cache`, `Storage/Logs`, `Storage/Secure`, `Storage/Sessions`, `Storage/Uploads`, and queue runtime paths are writable by the PHP process.
 7. Start queue workers for configured asynchronous queues and wire process supervision through the host platform.
-8. Verify `php console health:check`, `php console health:check ready`, `composer ops:health`, `composer release:check`, and a browser smoke pass against the deployed origin.
+8. Verify `php console health:check`, `php console health:check ready`, `php console framework:layers`, `composer ops:health`, `composer release:check`, and a browser smoke pass against the deployed origin.
 
 ## Upgrade Recipe
 

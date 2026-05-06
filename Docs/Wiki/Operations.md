@@ -10,6 +10,7 @@ php console health:check
 php console health:check ready
 php console framework:doctor
 php console framework:doctor --strict
+php console framework:layers
 php console audit:list --limit=25
 php console migrate
 php console seed WebModule
@@ -36,4 +37,4 @@ The admin module exposes protected operator panels for dashboard, users, roles, 
 - Keep `Storage/Cache`, `Storage/Logs`, `Storage/Secure`, `Storage/Sessions`, `Storage/Uploads`, and queue runtime paths writable.
 - Run migrations before opening traffic.
 - Start supervised queue workers for async queues.
-- Use `composer release:check` for framework release posture and `php console release:check --strict=1` for project go-live posture.
+- Use `php console framework:layers` for layer organization checks, `composer release:check` for framework release posture, and `php console release:check --strict=1` for project go-live posture.

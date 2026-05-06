@@ -53,7 +53,6 @@ LangelerMVC is not trying to beat Laravel or Symfony by being larger. Its distin
 
 These are not release blockers, but they are the clearest future improvements if the presentation layer should compete more directly with larger ecosystems:
 
-- Template inheritance sections/stacks similar to Blade/Twig/CodeIgniter layout sections.
 - A formal component class API with typed props/slots instead of only template-level `@component(...)` includes.
 - Asset manifest support for external build tools such as Vite, esbuild, or Rollup.
 - Per-module template namespace overrides so modules/packages can provide overrideable templates without copying shared files.
@@ -71,9 +70,10 @@ This pass closed the highest-leverage production ergonomics gaps without destabi
 - Added `.vide` directives: `@assetVersion`, `@assetBundle`, `@preload`, `@attr`, `@attrs`, and `@json`.
 - Updated first-party `.vide` layouts to render theme CSS/JS with versioned URLs.
 - Added regression coverage for the new helper boundaries.
+- Added `.vide` section/yield/stack directives so layouts can expose named regions while the existing `$content` flow stays compatible.
 
 ## Priority Recommendation
 
-The best next presentation milestone is **template sections/stacks plus typed component props/slots**.
+The best next presentation milestone is **typed component props/slots plus optional asset manifest support**.
 
-That would bring `.vide` closer to the mature ergonomics developers expect from Blade/Twig while preserving the framework's unique native, directive-first identity.
+That would bring `.vide` closer to the mature ergonomics developers expect from Blade/Twig while preserving the framework's unique native, directive-first identity. The framework-wide competitive context is tracked in `Docs/FrameworkWideLayerEvaluation.md`.

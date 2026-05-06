@@ -24,7 +24,7 @@ final class TemplateEngine implements TemplateEngineInterface
     use TypeCheckerTrait;
 
     private const NATIVE_EXTENSIONS = ['vide', 'lmv'];
-    private const COMPILER_VERSION = '4';
+    private const COMPILER_VERSION = '5';
 
     private string $cachePath;
 
@@ -79,6 +79,13 @@ final class TemplateEngine implements TemplateEngineInterface
         $compiled = $this->replaceByPattern('/\{\{\-\-.*?\-\-\}\}/s', '', $compiled) ?? $compiled;
         $compiled = $this->replaceExpressionDirective($compiled, 'include', static fn(string $expression): string => "<?= \$view->renderPartial(...(array) [{$expression}]); ?>");
         $compiled = $this->replaceExpressionDirective($compiled, 'component', static fn(string $expression): string => "<?= \$view->renderComponent(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'section', static fn(string $expression): string => "<?php \$view->startSection(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceByPattern('/\@endsection\b/', '<?php $view->stopSection(); ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'yield', static fn(string $expression): string => "<?= \$view->yieldContent(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'push', static fn(string $expression): string => "<?php \$view->push(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceByPattern('/\@endpush\b/', '<?php $view->stopPush(); ?>', $compiled) ?? $compiled;
+        $compiled = $this->replaceExpressionDirective($compiled, 'stack', static fn(string $expression): string => "<?= \$view->stack(...(array) [{$expression}]); ?>");
+        $compiled = $this->replaceExpressionDirective($compiled, 'hasSection', static fn(string $expression): string => "<?php if (\$view->hasSection(...(array) [{$expression}])): ?>");
         $compiled = $this->replaceExpressionDirective($compiled, 'asset', static fn(string $expression): string => "<?= \$view->renderAsset(...(array) [{$expression}]); ?>");
         $compiled = $this->replaceExpressionDirective($compiled, 'assetUrl', static fn(string $expression): string => "<?= \$view->assetUrl(...(array) [{$expression}]); ?>");
         $compiled = $this->replaceExpressionDirective($compiled, 'assetVersion', static fn(string $expression): string => "<?= \$view->assetVersion(...(array) [{$expression}]); ?>");

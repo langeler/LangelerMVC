@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Abstracts\Console\Command;
 use App\Core\Config;
 use App\Core\Router;
+use App\Contracts\Support\FrameworkLayerManagerInterface;
 use App\Utilities\Managers\Support\PaymentManager;
 use App\Utilities\Managers\System\SettingsManager;
 use App\Utilities\Traits\ApplicationPathTrait;
@@ -30,6 +31,7 @@ class ReleaseCheckCommand extends Command
         'Docs/DeploymentAndUpgrade.md',
         'Docs/OperationsGuide.md',
         'Docs/DatabaseMatrixTesting.md',
+        'Docs/FrameworkWideLayerEvaluation.md',
         'Docs/InstallationWizard.md',
         'Docs/ThemeManagement.md',
         'Docs/PaymentDrivers.md',
@@ -291,7 +293,8 @@ class ReleaseCheckCommand extends Command
         private readonly Config $config,
         private readonly Router $router,
         private readonly SettingsManager $settings,
-        private readonly PaymentManager $payments
+        private readonly PaymentManager $payments,
+        private readonly FrameworkLayerManagerInterface $frameworkLayers
     ) {
     }
 
@@ -327,6 +330,7 @@ class ReleaseCheckCommand extends Command
             'release_docs' => $this->releaseDocsCheck(),
             'environment_template' => $this->environmentTemplateCheck(),
             'data_sql_reference' => $this->dataSqlReferenceCheck(),
+            'framework_layers' => $this->frameworkLayers->inspect(),
             'framework_routes' => $this->routeCheck(),
             'module_surface' => $this->moduleSurfaceCheck(),
             'payment_surface' => $this->paymentSurfaceCheck(),

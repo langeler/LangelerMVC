@@ -72,6 +72,7 @@ class PlatformFoundationTest extends TestCase
         self::assertArrayHasKey('module:list', $kernel->commandDescriptions());
         self::assertArrayHasKey('module:make', $kernel->commandDescriptions());
         self::assertArrayHasKey('framework:doctor', $kernel->commandDescriptions());
+        self::assertArrayHasKey('framework:layers', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:work', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:failed', $kernel->commandDescriptions());
         self::assertArrayHasKey('queue:stop', $kernel->commandDescriptions());
@@ -95,6 +96,20 @@ class PlatformFoundationTest extends TestCase
         ob_end_clean();
 
         self::assertSame(0, $exitCode);
+    }
+
+    public function testConsoleKernelEmitsFrameworkLayerInspectionJson(): void
+    {
+        $lines = [];
+        $exitCode = 1;
+        exec(escapeshellarg(PHP_BINARY) . ' console framework:layers', $lines, $exitCode);
+
+        $payload = json_decode(implode("\n", $lines), true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame(0, $exitCode);
+        self::assertTrue((bool) $payload['ok']);
+        self::assertArrayHasKey('presentation', $payload['layers']);
+        self::assertSame([], $payload['missing_required_paths']);
     }
 
     public function testConsoleKernelScaffoldsNewModule(): void

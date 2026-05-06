@@ -29,14 +29,14 @@ These are extension points, not application-specific implementations.
 
 ### `App/Contracts`
 
-Interfaces for the abstract and concrete framework surfaces. This layer now also includes console, session, presentation resource, operational, and support-service contracts.
+Interfaces for the abstract and concrete framework surfaces. This layer now also includes console, session, presentation resource, operational, support-service, and framework-layer introspection contracts.
 
 ### `App/Console`
 
 Operational CLI surface for the framework:
 
 - `ConsoleKernel.php`: command registration and argument dispatch
-- `Commands/`: first-party operational commands such as migrations, seeds, routes, cache, config, module inspection, health checks, audit inspection, queue operations, and notification/event visibility
+- `Commands/`: first-party operational commands such as migrations, seeds, routes, cache, config, module inspection, framework layer inspection, health checks, audit inspection, queue operations, and notification/event visibility
 
 ### `App/Core`
 

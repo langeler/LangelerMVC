@@ -72,6 +72,61 @@ interface ViewInterface
 	public function renderPageWithLayout(string $layout, string $page, array $data = []): string;
 
 	/**
+	 * Start buffering content for a named template section.
+	 *
+	 * @param string $name
+	 * @return void
+	 */
+	public function startSection(string $name): void;
+
+	/**
+	 * Stop the active section buffer and store it by name.
+	 *
+	 * @return void
+	 */
+	public function stopSection(): void;
+
+	/**
+	 * Render a named section, falling back to a default string.
+	 *
+	 * @param string $name
+	 * @param string $default
+	 * @return string
+	 */
+	public function yieldContent(string $name, string $default = ''): string;
+
+	/**
+	 * Determine whether a named section has rendered content.
+	 *
+	 * @param string $name
+	 * @return bool
+	 */
+	public function hasSection(string $name): bool;
+
+	/**
+	 * Start buffering content for a named stack.
+	 *
+	 * @param string $name
+	 * @return void
+	 */
+	public function push(string $name): void;
+
+	/**
+	 * Stop the active stack buffer and append it to the named stack.
+	 *
+	 * @return void
+	 */
+	public function stopPush(): void;
+
+	/**
+	 * Render a named stack.
+	 *
+	 * @param string $name
+	 * @return string
+	 */
+	public function stack(string $name): string;
+
+	/**
 	 * Render a partial template.
 	 *
 	 * @param string $partial The partial name.

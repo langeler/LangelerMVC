@@ -13,6 +13,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `../RELEASE.md`: published `v1.0.0` snapshot, future release checks, and production deployment preflight.
 - `RepositoryMetadata.md`: canonical repository/package description, topics, about text, and release-publication posture.
 - `ArchitectureOverview.md`: framework architecture, layer responsibilities, request lifecycle, subsystem map, and extension points.
+- `FrameworkWideLayerEvaluation.md`: executable layer map, framework-wide production audit, and mature-framework comparison.
 - `DeploymentAndUpgrade.md`: production deployment, upgrade, rollback, worker, and smoke-test recipes.
 - `FrameworkStatus.md`: current implementation status, verified coverage snapshot, and remaining environment-dependent hardening areas.
 - `ReleaseReadinessPlan.md`: published release posture and deployment-specific hardening map.
@@ -38,6 +39,7 @@ As of `2026-05-01`, the framework status, release readiness, and architecture do
 - `ShippingAdapters.md`: first-party carrier adapter registry, Swedish carrier matrix, reference/live mode, and extension pattern.
 - `PresentationTemplating.md`: canonical `.vide` template authoring model, directives, and rendering flow.
 - `PresentationLayerEvaluation.md`: presentation-layer gap analysis, mature-framework comparison, differentiators, and next priorities.
+- `FrameworkWideLayerEvaluation.md`: layer-by-layer framework evaluation, competition comparison, differentiators, and next priorities.
 - `UtilitiesTraitsOverview.md`: practical overview of the reusable trait surface.
 - `UtilitiesTraitsReference.md`: generated method-by-method trait reference.
 - `NativeToTraitConsistencyAudit.md`: audit of trait adoption across non-trait classes.
@@ -59,9 +61,10 @@ These files are still tracked, but they should be treated as historical notes ra
 
 1. `../readme.md`
 2. `ArchitectureOverview.md`
-3. `FrameworkStatus.md`
-4. `ReleaseReadinessPlan.md`
-5. `DeploymentAndUpgrade.md`
-6. `FolderStructure.md`
-7. `ModulesStructure.md`
-8. Subsystem-specific references as needed
+3. `FrameworkWideLayerEvaluation.md`
+4. `FrameworkStatus.md`
+5. `ReleaseReadinessPlan.md`
+6. `DeploymentAndUpgrade.md`
+7. `FolderStructure.md`
+8. `ModulesStructure.md`
+9. Subsystem-specific references as needed

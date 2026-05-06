@@ -10,6 +10,7 @@ use App\Console\Commands\CacheClearCommand;
 use App\Console\Commands\ConfigShowCommand;
 use App\Console\Commands\EventListCommand;
 use App\Console\Commands\FrameworkDoctorCommand;
+use App\Console\Commands\FrameworkLayersCommand;
 use App\Console\Commands\HealthCheckCommand;
 use App\Console\Commands\MigrateCommand;
 use App\Console\Commands\MigrateRollbackCommand;
@@ -51,6 +52,7 @@ class ConsoleKernel
         CacheClearCommand $cacheClear,
         ConfigShowCommand $configShow,
         FrameworkDoctorCommand $frameworkDoctor,
+        FrameworkLayersCommand $frameworkLayers,
         ModuleListCommand $moduleList,
         ModuleMakeCommand $moduleMake,
         HealthCheckCommand $healthCheck,
@@ -75,6 +77,7 @@ class ConsoleKernel
             $cacheClear,
             $configShow,
             $frameworkDoctor,
+            $frameworkLayers,
             $moduleList,
             $moduleMake,
             $healthCheck,

@@ -18,10 +18,11 @@ This release is framework/package ready: the core runtime, first-party modules, 
 As of `2026-05-01`:
 
 - Verified on PHP `8.4.12`
-- `composer test` passes with `OK (150 tests, 3258 assertions)`
+- `composer test` passes with `OK (154 tests, 3288 assertions)`
 - `composer ops:health` returns a healthy liveness response
 - `composer validate --no-check-publish` passes
 - `composer release:check` returns `status=200`
+- `php console framework:layers` reports all required framework layer paths present
 - The framework runtime, console, schema lifecycle, HTTP/MVC/presentation, validation, query/persistence, cache, crypto, async, notification, payment, auth, commerce, fulfillment, inventory, return/document, and utility subsystems are implemented and regression-tested
 - `WebModule`, `UserModule`, `AdminModule`, `ShopModule`, `CartModule`, and `OrderModule` are implemented first-party modules
 - SQLite is verified in the default suite, and a database/runtime matrix harness is available for MySQL, PostgreSQL, SQL Server, Redis, and Memcached verification where services and PHP extensions exist
@@ -35,10 +36,11 @@ As of `2026-05-01`:
 - Shipping now exposes a plug-and-play carrier adapter surface for PostNord, Instabox, Budbee, Bring, DHL, Schenker, Early Bird, Airmee, UPS, service-point lookup, booking, labels, tracking, cancellation, and Mina Paket handoff metadata.
 - Commerce operational managers are centralized under `App\Utilities\Managers\Commerce`, covering cart pricing, catalog lifecycle, entitlement, inventory, order lifecycle/document/return, promotion, shipping, and subscriptions while legacy support paths remain compatibility aliases.
 - The presentation layer now includes centralized asset, safe HTML, theme, and template managers under `App\Utilities\Managers\Presentation`, with Bootstrap-compatible light, dark, and system modes backed by `Config/theme.php`, installer settings, shared view globals, tracked public assets, versioned asset URLs, preload helpers, named asset bundles, and script-safe JSON output.
+- The framework now exposes a layer-introspection manager and `framework:layers` console command so public/bootstrap, core, provider, contract, MVC, presentation, data, security, driver, utility, module, installer, console, and release/docs/data surfaces stay enforceable.
 - The runtime now also exposes first-party liveness/readiness health endpoints, capability reporting, and framework-managed audit logging for sensitive operational flows.
 - Seed execution now resolves repository and framework-service dependencies consistently, and the remaining async/auth/commerce payload boundaries now serialize through the framework helpers rather than ad hoc native calls.
 - Commerce money formatting and auth-side encoding/hash fallbacks are now centralized through framework helpers instead of being duplicated across services and repositories.
-- The shared presentation layer is now completed around default-layout-aware views, presenter export helpers, structured resources/resource collections, a framework-native `.vide` template engine, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
+- The shared presentation layer is now completed around default-layout-aware views, section/yield/stack composition, presenter export helpers, structured resources/resource collections, a framework-native `.vide` template engine, reusable `Layouts`, `Pages`, `Partials`, and `Components`, plus storefront-ready product media rendering.
 - The canonical `.vide` template tree is now authored fully in native directives without raw PHP tags, with regression coverage enforcing that standard across first-party templates.
 - `WebModule` is the reference starter slice and now runs database-backed by default through framework-managed `pages` migrations, seeds, repositories, presenters, resources, views, and responses.
 - `UserModule` now provides the first full identity/platform slice with session authentication, password reset, email verification, RBAC foundations, TOTP-based 2FA, trusted-device support, recovery codes, and passkey/WebAuthn flows for both HTML and JSON endpoints.
@@ -98,7 +100,7 @@ In the current starter slice, `WebModule` follows:
 - `Tests/`: framework regression coverage, optional `Unit` and `Integration` suite buckets, and a separate DB-matrix harness.
 - `autoload.php`: legacy fallback autoload helper. The primary bootstrap path uses Composer through `bootstrap/app.php`.
 
-For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md).
+For a deeper architecture walkthrough, see [`Docs/ArchitectureOverview.md`](./Docs/ArchitectureOverview.md). For the executable layer audit and mature-framework comparison, see [`Docs/FrameworkWideLayerEvaluation.md`](./Docs/FrameworkWideLayerEvaluation.md).
 
 ## Installation
 

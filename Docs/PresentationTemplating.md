@@ -12,6 +12,7 @@ The native templating surface is designed to align with the framework design goa
 - readable source templates with explicit directives instead of embedded PHP blocks
 - maintainable presentation code with less mixed rendering/runtime logic
 - compatibility with the existing view abstraction and layout pipeline
+- section/yield/stack composition for richer layout ergonomics without abandoning the native `.vide` surface
 - framework-wide theme globals for light/dark/system presentation without module-local styling forks
 - backward-readable `.lmv` and `.php` template fallbacks without making them the primary authoring surface
 
@@ -52,6 +53,11 @@ The native compiler currently supports:
 
 - `@include(...)`
 - `@component(...)`
+- `@section(...)`, `@endsection`
+- `@yield(...)`
+- `@push(...)`, `@endpush`
+- `@stack(...)`
+- `@hasSection(...)`
 - `@asset(...)`
 - `@assetUrl(...)`
 - `@assetVersion(...)`
@@ -93,7 +99,7 @@ At runtime:
 3. `AssetManager` resolves source asset paths, public URLs, and tag helpers exposed through native template directives.
 4. `HtmlManager` handles escaped attributes, class lists, CSRF/method fields, and safe JSON output so templates do not reimplement low-level HTML concerns.
 5. `View` renders the compiled template with shared globals and page-local data.
-6. Layout composition happens through the same `View` abstraction rather than template-side inheritance magic.
+6. Layout composition happens through the same `View` abstraction. Existing `$content` layout rendering remains supported, and `.vide` sections/stacks add named layout regions when a page needs them.
 
 This keeps template compilation and rendering inside framework-native boundaries.
 

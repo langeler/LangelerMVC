@@ -4,7 +4,7 @@ This plan records the released `v1.0.0` framework posture and the deployment-spe
 
 ## Current Published Position
 
-The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates, framework-wide theme management, canonical presentation/commerce manager layers under `App/Utilities/Managers`, safe HTML helpers, versioned asset URLs, named asset bundles, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping adapters with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, runtime backend harnesses, installer rollback, and guided step-based installer UX are all present.
+The framework foundation is implemented: core runtime services, first-party modules, native `.vide` templates with section/stack composition, framework-wide theme management, canonical presentation/commerce manager layers under `App/Utilities/Managers`, framework-wide layer introspection, safe HTML helpers, versioned asset URLs, named asset bundles, admin workflows, WebModule page authoring, commerce totals, payment driver contracts, signed/idempotent payment and subscription webhooks, Swedish carrier-aware shipping adapters with reference booking/label/tracking seams, digital/virtual entitlements, DB-backed subscription runtime, promotions with usage ledgers and analytics, inventory reservation ledgers, return/exchange workflows, partial refunds, VAT/order documents, health checks, audit tooling, queues, runtime backend harnesses, installer rollback, and guided step-based installer UX are all present.
 
 `v1.0.0` is published as the official framework source release. The continuing deployment work is not missing framework implementation; it is the final production layer for each installed project: live integration credentials, environment matrix verification, deployment recipe validation, and browser/accessibility smoke passes.
 
@@ -18,6 +18,7 @@ The framework foundation is implemented: core runtime services, first-party modu
 - Keep the installer as the authoritative first-run path for database, modules, admin account, payments, commerce, fulfillment, queues, mail, auth, and operations.
 - Keep the installer approachable for production users through the guided stepper, runtime side panels, documented no-JS fallback, and native `.vide` template coverage.
 - Run `composer release:check` as the local release gate and `php console release:check --strict=1` when validating a production deployment with live credentials and matrix extensions available.
+- Run `php console framework:layers` when framework folders, manager sublayers, docs, or release-critical surfaces move; this feeds the `framework_layers` release-check section.
 - Verify the full database/cache/session matrix before future releases or project go-live, not only the default local regression suite. `composer test:db-matrix` and `composer test:runtime-backends` are the documented opt-in harnesses.
 
 ## P1 - Commerce Fulfillment Spectrum
@@ -56,7 +57,7 @@ Promotions should be treated as rules plus benefits.
 ## Exact Remaining Work After `v1.0.0`
 
 - P0: run and record the full supported database/cache/session matrix in real target environments before future maintenance releases or project go-live; this workspace currently skips SQL Server/Redis/Memcached checks because the services/extensions are not provisioned.
-- P0: keep final release hygiene current by refreshing status/test counts, running `composer release:check`, keeping `Data/*.sql` migration-aligned, and confirming no runtime-generated secrets or local artifacts are tracked. Current local framework-package verification is `vendor/bin/phpunit --testdox` passing with `OK (150 tests, 3258 assertions)`, `composer validate --no-check-publish` passing, and `composer release:check` status `200`.
+- P0: keep final release hygiene current by refreshing status/test counts, running `composer release:check`, keeping `Data/*.sql` migration-aligned, and confirming no runtime-generated secrets or local artifacts are tracked. Current local framework-package verification is `vendor/bin/phpunit --testdox` passing with `OK (154 tests, 3288 assertions)`, `composer validate --no-check-publish` passing, and `composer release:check` status `200`.
 - P1: configure live payment, webhook, subscription, and carrier credentials/endpoints per deployed project. These values intentionally remain outside the released repository.
 - P2: run full cross-browser visual/accessibility smoke passes for public and admin templates and fix any findings. Static template accessibility checks and local server smoke for `/`, `/install/`, and theme CSS/JS assets are complete in this workspace.
 - P2: keep deployment and upgrade recipes validated against the target host before project go-live or future maintenance releases.

@@ -35,7 +35,7 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 - `DirectoryCriteriaTrait` with `DirectorySortTrait`, and `FileCriteriaTrait` with `FileSortTrait`, are finder-only surfaces. They fit best inside classes that already inherit the `Finder` lifecycle and data shape.
 - `DataQueryTrait` and `SchemaQueryTrait` are surfaced through `App/Utilities/Query/DataQuery.php` and `App/Utilities/Query/SchemaQuery.php`. They should generally be consumed through those wrapper classes so SQL normalization, bindings, and driver handling stay centralized.
 - The `Reflection*Trait` family is already centralized behind `App/Utilities/Managers/System/ReflectionManager.php`, which is the cleanest entrypoint for reflection work.
-- `DateTimeTrait` is currently surfaced through `DateTimeManager`. `HashingTrait` is now also used by presentation infrastructure for compiled template names, asset synchronization fingerprints, and asset-version URLs. `HtmlManager` centralizes safe HTML output through encoding, conversion, array, and string helpers. Commerce managers under `App/Utilities/Managers/Commerce` are the correct target for future focused money, array, and string helper adoption. `LocaleUtilityTrait`, `RetrieverTrait`, `IteratorTrait`, and `RecursiveIteratorTrait` are available but not yet broadly integrated into higher-level framework flows.
+- `DateTimeTrait` is currently surfaced through `DateTimeManager`. `HashingTrait` is now also used by presentation infrastructure for compiled template names, asset synchronization fingerprints, and asset-version URLs. `HtmlManager` centralizes safe HTML output through encoding, conversion, array, and string helpers. `FrameworkLayerManager` uses shared path, array, and string helpers to keep release-facing layer introspection aligned with the manager layer. Commerce managers under `App/Utilities/Managers/Commerce` are the correct target for future focused money, array, and string helper adoption. `LocaleUtilityTrait`, `RetrieverTrait`, `IteratorTrait`, and `RecursiveIteratorTrait` are available but not yet broadly integrated into higher-level framework flows.
 
 ## Current Trait Entry Points
 
@@ -48,6 +48,7 @@ To regenerate that catalog from source, run `perl Scripts/GenerateUtilitiesTrait
 - Query composition: `App/Utilities/Query/DataQuery.php`, `App/Utilities/Query/SchemaQuery.php`
 - Commerce operations: `App/Utilities/Managers/Commerce/CartPricingManager.php`, `App/Utilities/Managers/Commerce/PromotionManager.php`, `App/Utilities/Managers/Commerce/ShippingManager.php`, `App/Utilities/Managers/Commerce/OrderLifecycleManager.php`
 - Presentation assets/html/templates/themes: `App/Utilities/Managers/Presentation/AssetManager.php`, `App/Utilities/Managers/Presentation/HtmlManager.php`, `App/Utilities/Managers/Presentation/TemplateEngine.php`, `App/Utilities/Managers/Presentation/ThemeManager.php`
+- Framework layer inspection: `App/Utilities/Managers/Support/FrameworkLayerManager.php`
 - Date/time utilities: `App/Utilities/Managers/System/DateTimeManager.php`
 - Reflection utilities: `App/Utilities/Managers/System/ReflectionManager.php`
 

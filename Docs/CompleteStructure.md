@@ -58,6 +58,7 @@ LangelerMVC
 │   │   │   ├── ConfigShowCommand.php
 │   │   │   ├── EventListCommand.php
 │   │   │   ├── FrameworkDoctorCommand.php
+│   │   │   ├── FrameworkLayersCommand.php
 │   │   │   ├── HealthCheckCommand.php
 │   │   │   ├── MigrateCommand.php
 │   │   │   ├── MigrateRollbackCommand.php
@@ -119,6 +120,7 @@ LangelerMVC
 │   │       ├── AuditLoggerInterface.php
 │   │       ├── CarrierAdapterInterface.php
 │   │       ├── FrameworkDoctorInterface.php
+│   │       ├── FrameworkLayerManagerInterface.php
 │   │       ├── HealthManagerInterface.php
 │   │       ├── MailerInterface.php
 │   │       ├── NotifiableInterface.php
@@ -717,6 +719,7 @@ LangelerMVC
 │       │   ├── Support
 │       │   │   ├── AuditLogger.php
 │       │   │   ├── FrameworkDoctor.php
+│       │   │   ├── FrameworkLayerManager.php
 │       │   │   ├── HealthManager.php
 │       │   │   ├── MailManager.php
 │       │   │   ├── NotificationManager.php
@@ -855,6 +858,7 @@ LangelerMVC
 │   ├── opensslcryptoclass.rtf
 │   ├── OperationsGuide.md
 │   ├── PaymentDrivers.md
+│   ├── FrameworkWideLayerEvaluation.md
 │   ├── PresentationLayerEvaluation.md
 │   ├── PresentationTemplating.md
 │   ├── README.md
@@ -922,6 +926,7 @@ LangelerMVC
 │   │   ├── FinderUtilitiesAndSessionTest.php
 │   │   ├── FrameworkCompletionTest.php
 │   │   ├── FrameworkDoctorTest.php
+│   │   ├── FrameworkLayerManagerTest.php
 │   │   ├── HttpPresentationSurfaceTest.php
 │   │   ├── HttpSecurityEnforcementTest.php
 │   │   ├── InfrastructureHardeningTest.php

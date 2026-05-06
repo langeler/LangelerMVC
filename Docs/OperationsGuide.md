@@ -40,6 +40,7 @@ php console health:check
 php console health:check ready
 php console framework:doctor
 php console framework:doctor --strict
+php console framework:layers
 php console audit:list --limit=25
 php console migrate
 php console module:make Blog
@@ -72,6 +73,7 @@ composer test:runtime-backends
 
 - It checks release docs, `.env.example` parity, `Data/*.sql` release schema references, release-critical routes, first-party module surface completeness, payment driver surface completeness, theme surface completeness, commerce fulfillment/carrier coverage, native `.vide` template accessibility heuristics, local DB/cache/session matrix readiness, and live integration posture.
 - Normal mode fails only on local release blockers such as missing docs, missing env keys, stale SQL references, missing routes, missing commerce definitions, raw PHP in native templates, images without alt text, or missing matrix compose services.
+- The `framework_layers` release-check section is backed by `php console framework:layers`, which verifies the expected public/bootstrap, core, provider, contract, MVC, presentation, data, security, driver, utility, module, installer, console, and release/docs/data layer paths.
 - `--strict=1` also fails on unresolved release warnings such as reference-mode payment/shipping, missing live provider endpoints, empty active webhook secrets, missing seller VAT/address fields, or optional PHP extensions that are not loaded in the current environment.
 - `composer release:check` runs the command through Composer; `composer verify:release` chains Composer validation, the default regression suite, health liveness, and the release gate.
 
